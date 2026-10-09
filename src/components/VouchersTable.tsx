@@ -194,6 +194,9 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
 
   return (
     <div className="space-y-4">
+      {rows.length >= 500 && (
+        <div className="text-xs text-warning">الجدول بيعرض أول 500 سند بس — الكروت محسوبة على كل السندات. ضيّق الفلاتر (التاريخ / الفرع / البحث) لعرض الباقي.</div>
+      )}
       {viewType ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="card-elevated p-4">

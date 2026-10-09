@@ -173,10 +173,6 @@ export async function fetchProfitWindow(params: {
   branchId?: string | null;
 }): Promise<ProfitWindow> {
   const { tenantId, range, branchId } = params;
-  const fromIso = range.from.toISOString();
-  const toIso = range.to.toISOString();
-  const prevFromIso = range.prevFrom.toISOString();
-  const prevToIso = range.prevTo.toISOString();
   // تواريخ محلية (وليس UTC) عشان voucher_date عمود date ويتطابق مع يوم المستخدم
   // توحيد اليوم بتوقيت القاهرة (يوم كامل 00:00:00.000 → 23:59:59.999)
   const localDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
@@ -198,7 +194,7 @@ export async function fetchProfitWindow(params: {
       .gte("invoice_date", getCairoDayBounds(f).startIso!)
       .lte("invoice_date", getCairoDayBounds(undefined, t).endIso!);
     if (branchId) q = q.eq("branch_id", branchId);
-    return q;
+    return q.order("id");
   };
   const buildExp = (f: string, t: string, withBranch: boolean) => {
     let q = supabase
@@ -215,7 +211,7 @@ export async function fetchProfitWindow(params: {
       .gte("voucher_date", f)
       .lte("voucher_date", t);
     if (branchId) q = q.eq("branch_id", branchId);
-    return q;
+    return q.order("id");
   };
   // إيرادات أخرى: سندات قبض يدوية بتصنيف عليه فلاج «يُضاف للربح».
   // بنستثني السندات النظامية (source='system') لأنها مرآة لتحصيلات الفواتير — وإلا يحصل ازدواج.
@@ -235,12 +231,14 @@ export async function fetchProfitWindow(params: {
       .gte("voucher_date", f)
       .lte("voucher_date", t);
     if (branchId) q = q.eq("branch_id", branchId);
-    return q;
+    return q.order("id");
   };
 
   const [invRows, prevInvRows, expRows, prevExpRows, incRows, prevIncRows, branchesRes] = await Promise.all([
-    fetchAllRows<any>(() => buildInv(fromIso, toIso)),
-    fetchAllRows<any>(() => buildInv(prevFromIso, prevToIso)),
+    // Cairo days (not UTC ISO instants): getCairoDayBounds reads the first 10 characters, so an ISO
+    // instant of Cairo midnight (the previous UTC day) used to start the window one day early.
+    fetchAllRows<any>(() => buildInv(fromDate, toDate)),
+    fetchAllRows<any>(() => buildInv(prevFromDate, prevToDate)),
     fetchAllRows<any>(() => buildExp(fromDate, toDate, true)),
     fetchAllRows<any>(() => buildExp(prevFromDate, prevToDate, false)),
     fetchAllRows<any>(() => buildInc(fromDate, toDate, true)),
@@ -316,18 +314,6 @@ export async function fetchProfitWindow(params: {
       otherIncomes: x.otherIncomes,
       net: x.revenue - x.cost - x.expenses + x.otherIncomes,
     };
-  });
-
-  // TEMP audit log — live DB rows streamed into the browser (F12 → Console)
-  console.log("EXECUTIVE_PROFIT_AUDIT_LOG", {
-    range: { startDate: fromDate, endDate: toDate, fromIso, toIso },
-    rawInvoicesCount: invRows.length,
-    rawExpensesCount: expRows.length,
-    rawOtherIncomesCount: incRows.length,
-    rawInvoices: invRows,
-    rawExpenses: expRows,
-    calculatedTotals: totals,
-    perBranch,
   });
 
   return { totals, prevNet, perBranch };

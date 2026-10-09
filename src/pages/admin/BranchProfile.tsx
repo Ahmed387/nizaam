@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchLedgerPosition, type LedgerPosition } from "@/lib/ledger";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
@@ -29,6 +30,9 @@ import {
 } from "lucide-react";
 
 export default function BranchProfile() {
+  const [till, setTill] = useState(0);
+  const [batchValue, setBatchValue] = useState(0);
+  const [position, setPosition] = useState<LedgerPosition | null>(null);
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -59,7 +63,9 @@ export default function BranchProfile() {
       fetchAllRows<any>(() => supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("quantity").order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("invoices").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).eq("status", "active").order("arrival_date", { ascending: false }).order("id")).then((data) => ({ data })),
-      fetchAllRows<any>(() => supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").order("voucher_date", { ascending: false }).order("id")).then((data) => ({ data })),
+      // expenses = payment vouchers whose category is an operating expense (not supplier payments,
+      // customer refunds, transfers or advances)
+      fetchAllRows<any>(() => supabase.from("vouchers").select("*, voucher_categories!inner(name, is_deductible_from_profit)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").eq("voucher_categories.is_deductible_from_profit", true).order("voucher_date", { ascending: false }).order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("returns").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
     ]);
@@ -77,6 +83,15 @@ export default function BranchProfile() {
     setExpenses((exps ?? []).map((v: any) => ({ id: v.id, date: v.voucher_date, amount: v.amount, type: v.voucher_categories?.name ?? "أخرى", description: v.description ?? v.voucher_number })));
     setTreasury(trs ?? []);
     setReturns(rets ?? []);
+    const [w, pos, batches] = await Promise.all([
+      supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
+      fetchLedgerPosition(branchId!).catch(() => null),
+      fetchAllRows<any>(() => supabase.from("product_batches").select("id, quantity_remaining, true_unit_cost, cost_price").eq("branch_id", branchId!).gt("quantity_remaining", 0).order("id")).catch(() => [] as any[]),
+    ]);
+    const wr = Array.isArray(w.data) ? (w.data as any[])[0] : (w.data as any);
+    setTill(Number(wr?.total_balance ?? 0));
+    setPosition(pos);
+    setBatchValue(Math.round(batches.reduce((s: number, b: any) => s + Number(b.quantity_remaining || 0) * Number(b.true_unit_cost ?? b.cost_price ?? 0), 0) * 100) / 100);
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
@@ -86,24 +101,24 @@ export default function BranchProfile() {
   );
 
   const stats = useMemo(() => {
+    const r2 = (v: number) => Math.round(v * 100) / 100;
     const activeInvoices = invoices.filter((i) => i.status === "active");
-    const totalSales = activeInvoices.reduce((s, i) => s + Number(i.total ?? 0), 0);
-    const totalRefunds = returns.reduce((s, r) => s + Number(r.total_refund ?? 0), 0);
-    const totalShipments = shipments.reduce((s, x) => s + Number(x.total_cost ?? 0), 0);
-    const totalExpenses = expenses.reduce((s, x) => s + Number(x.amount ?? 0), 0);
-    const cashIn = treasury.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount ?? 0), 0);
-    const cashOut = treasury.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount ?? 0), 0);
-    const safeBalance = cashIn - cashOut;
-    const inventoryValue = products.reduce((s, p) => s + Number(p.cost_price ?? 0) * Number(p.quantity ?? 0), 0);
+    const liveReturns = returns.filter((r) => !["draft", "cancelled"].includes(String(r.status ?? "active")));
+    const totalSales = r2(activeInvoices.reduce((s, i) => s + Number(i.total ?? 0), 0));
+    const totalRefunds = r2(liveReturns.reduce((s, r) => s + Number(r.total_refund ?? 0), 0));
+    const totalShipments = r2(shipments.reduce((s, x) => s + Number(x.total_cost ?? 0), 0));
+    const totalExpenses = r2(expenses.reduce((s, x) => s + Number(x.amount ?? 0), 0));
+    const cashIn = r2(treasury.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount ?? 0), 0));
+    const cashOut = r2(treasury.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount ?? 0), 0));
+    const inventoryValue = batchValue;
     const inventoryUnits = products.reduce((s, p) => s + Number(p.quantity ?? 0), 0);
-    const lowStock = products.filter((p) => Number(p.quantity) <= Number(p.low_stock_alert ?? 0)).length;
-    const grossProfit = totalSales - totalRefunds - totalExpenses;
+    const lowStock = products.filter((p) => Number(p.low_stock_alert ?? 0) > 0 && Number(p.quantity) <= Number(p.low_stock_alert ?? 0)).length;
     return {
       totalSales, totalRefunds, totalShipments, totalExpenses,
-      cashIn, cashOut, safeBalance, inventoryValue, inventoryUnits,
-      lowStock, grossProfit, invoicesCount: activeInvoices.length,
+      cashIn, cashOut, safeBalance: till, inventoryValue, inventoryUnits,
+      lowStock, invoicesCount: activeInvoices.length,
     };
-  }, [invoices, returns, shipments, expenses, treasury, products]);
+  }, [invoices, returns, shipments, expenses, treasury, products, till, batchValue]);
 
   const exportExcel = () => {
     if (!branch) return;
@@ -126,7 +141,10 @@ export default function BranchProfile() {
       { البيان: "الإيداعات في الخزنة", القيمة: stats.cashIn },
       { البيان: "السحوبات من الخزنة", القيمة: stats.cashOut },
       { البيان: "رصيد الخزنة الحالي", القيمة: stats.safeBalance },
-      { البيان: "صافي الربح التقديري", القيمة: stats.grossProfit },
+      { البيان: "مستحق لنا على العملاء (الفرع)", القيمة: position?.customers?.open ?? 0 },
+      { البيان: "مقدمات عملاء (الفرع)", القيمة: position?.customers?.advances ?? 0 },
+      { البيان: "مستحق للموردين (الفرع)", القيمة: position?.suppliers?.open ?? 0 },
+      { البيان: "مقدمات لينا عند الموردين (الفرع)", القيمة: position?.suppliers?.advances ?? 0 },
     ];
     exportToExcel(`فرع ${branch.name}`, [
       { name: "ملخص", rows: summary },
@@ -203,16 +221,16 @@ export default function BranchProfile() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         <StatCard label="المبيعات" value={formatEGP(stats.totalSales)} icon={<ShoppingCart className="w-5 h-5" />} accent="primary" />
         <StatCard label="المرتجعات" value={formatEGP(stats.totalRefunds)} icon={<Receipt className="w-5 h-5" />} accent="warning" />
-        <StatCard label="المصاريف" value={formatEGP(stats.totalExpenses)} icon={<DollarSign className="w-5 h-5" />} accent="warning" />
+        <StatCard label="المصاريف التشغيلية" value={formatEGP(stats.totalExpenses)} icon={<DollarSign className="w-5 h-5" />} accent="warning" />
         <StatCard label="فواتير الشراء" value={formatEGP(stats.totalShipments)} icon={<Truck className="w-5 h-5" />} accent="secondary" />
         <StatCard label="رصيد الخزنة" value={formatEGP(stats.safeBalance)} icon={<Wallet className="w-5 h-5" />} accent={stats.safeBalance >= 0 ? "success" : "warning"} />
-        <StatCard label="صافي الربح" value={formatEGP(stats.grossProfit)} icon={<TrendingUp className="w-5 h-5" />} accent={stats.grossProfit >= 0 ? "success" : "warning"} />
+        <StatCard label="مستحق لنا على العملاء" value={formatEGP(position?.customers?.open ?? 0)} hint={`مستحق للموردين ${formatEGP(position?.suppliers?.open ?? 0)}`} icon={<TrendingUp className="w-5 h-5" />} accent="success" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard label="الموظفين" value={employees.length} icon={<Users className="w-5 h-5" />} accent="primary" />
         <StatCard label="عدد الأصناف" value={`${products.length} (${stats.inventoryUnits} وحدة)`} icon={<Package className="w-5 h-5" />} accent="primary" />
-        <StatCard label="قيمة المخزون" value={formatEGP(stats.inventoryValue)} icon={<Package className="w-5 h-5" />} accent="secondary" />
+        <StatCard label="قيمة المخزون (تكلفة الدفعات)" value={formatEGP(stats.inventoryValue)} icon={<Package className="w-5 h-5" />} accent="secondary" />
         <StatCard label="تحت حد التنبيه" value={stats.lowStock} icon={<AlertTriangle className="w-5 h-5" />} accent={stats.lowStock > 0 ? "warning" : "success"} />
       </div>
 

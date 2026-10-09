@@ -1,4 +1,4 @@
-import { addDaysDay, cairoEnd, cairoStart, cairoTodayDay, monthStartDay } from "@/lib/cairoDate";
+import { addDaysDay, applyCairoRange, cairoStart, cairoTodayDay, monthStartDay } from "@/lib/cairoDate";
 import { useCallback, useEffect, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -58,79 +58,91 @@ export default function BranchDashboard() {
     // «اليوم» حسب توقيت القاهرة — مش ساعة الجهاز
     const td = cairoTodayDay();
     const today = cairoStart(td);
-    const yesterday = cairoStart(addDaysDay(td, -1));
-    const monthStart = cairoStart(monthStartDay(td));
-    const lastMonthStart = cairoStart(monthStartDay(td, -1));
-    const lastMonthEnd = cairoEnd(addDaysDay(monthStartDay(td), -1));
-    const last30 = cairoStart(addDaysDay(td, -29));
+    const yDay = addDaysDay(td, -1);
+    const mStart = monthStartDay(td);
+    const lmStart = monthStartDay(td, -1);
+    const lmEnd = addDaysDay(monthStartDay(td), -1);
+    const d30 = addDaysDay(td, -29);
+    // Every sales figure uses the invoice's accounting day (invoice_date), like the admin dashboard and the
+    // profit engine — a back-dated invoice counts on its own day, not on the day it was typed.
+    const INV = "id, total, vat_amount, discount_amount, is_migrated, invoice_date, payment_method, invoice_items(quantity, total, returned_quantity, net_quantity, selling_price, line_discount, unit_cost_at_sale, cost_price)";
+    const invQ = (sel: string, f: string, t: string) => () => applyCairoRange(
+      supabase.from("invoices").select(sel).eq("branch_id", id).eq("status", "active").not("is_migrated", "is", true),
+      "invoice_date", f, t).order("id");
 
     const [
-      invToday, invYday, invMonth, invLastMonth, tr, prods, custs, recentDocs,
-      invLast30, invItemsToday, invItemsMonth, invAll30, branchRow,
+      invToday, invYday, invMonth, invLastMonth, wallet, prods, custs, recentDocs,
+      invLast30, invItemsToday, payToday, invAll30, branchRow,
     ] = await Promise.all([
-      allRows(() => supabase.from("invoices").select("id, total, payment_method, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", today.toISOString()).order("id")),
-      allRows(() => supabase.from("invoices").select("id, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", yesterday.toISOString()).lt("created_at", today.toISOString()).order("id")),
-      allRows(() => supabase.from("invoices").select("id, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", monthStart.toISOString()).order("id")),
-      allRows(() => supabase.from("invoices").select("id, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", lastMonthStart.toISOString()).lte("created_at", lastMonthEnd.toISOString()).order("id")),
-      allRows(() => supabase.from("treasury").select("id, type, amount").eq("branch_id", id!).order("id")),
-      allRows(() => supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id).order("id")),
-      supabase.from("contacts").select("id").eq("branch_id", id).gte("created_at", today.toISOString()),
+      allRows(invQ(INV, td, td)),
+      allRows(invQ(INV, yDay, yDay)),
+      allRows(invQ(INV, mStart, td)),
+      allRows(invQ(INV, lmStart, lmEnd)),
+      // the branch till = its treasury rows (opening cash included) — same source as the treasury page
+      supabase.rpc("get_branch_wallet_balances", { p_branch_id: id! }),
+      allRows(() => supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id).is("archived_at", null).order("id")),
+      supabase.from("contacts").select("id", { count: "exact", head: true }).eq("branch_id", id).in("type", ["customer", "both"]).gte("created_at", today.toISOString()),
       fetchRecentDocs(5, id),
-      allRows(() => supabase.from("invoices").select("id, created_at, total, discount_amount, invoice_items(quantity, total, returned_quantity)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", last30.toISOString()).order("id")),
-      allRows(() => supabase.from("invoice_items").select("id, product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").not("invoices.is_migrated","is",true).gte("invoices.created_at", today.toISOString()).order("id")),
-      allRows(() => supabase.from("invoice_items").select("id, quantity, returned_quantity, total, cost_price, invoices!inner(branch_id, status, created_at)").eq("invoices.branch_id", id).eq("invoices.status", "active").not("invoices.is_migrated","is",true).gte("invoices.created_at", monthStart.toISOString()).order("id")),
-      allRows(() => supabase.from("invoices").select("id, contact_id, total, discount_amount, invoice_items(quantity, total, returned_quantity), contacts:contact_id(name)").eq("branch_id", id).eq("status", "active").not("is_migrated","is",true).gte("created_at", last30.toISOString()).not("contact_id", "is", null).order("id")),
+      allRows(invQ(INV, d30, td)),
+      allRows(() => applyCairoRange(
+        supabase.from("invoice_items").select("id, product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, invoice_date, is_migrated)")
+          .eq("invoices.branch_id", id).eq("invoices.status", "active").not("invoices.is_migrated", "is", true),
+        "invoices.invoice_date", td, td).order("id")),
+      // money actually collected today in this branch, by method (not the invoice's declared method)
+      allRows(() => applyCairoRange(
+        supabase.from("invoice_payments").select("id, amount, payment_method, voided_at, reverses_payment_id").eq("branch_id", id),
+        "created_at", td, td).order("id")),
+      allRows(() => applyCairoRange(
+        supabase.from("invoices").select("id, contact_id, total, discount_amount, invoice_items(quantity, total, returned_quantity, net_quantity, selling_price, line_discount, unit_cost_at_sale, cost_price), contacts:contact_id(name)")
+          .eq("branch_id", id).eq("status", "active").not("is_migrated", "is", true).not("contact_id", "is", null),
+        "invoice_date", d30, td).order("id")),
       supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
     ]);
+    const r2 = (v: number) => Math.round(v * 100) / 100;
     const netInvoiceTotal = (inv: any) => {
       const rows = inv.invoice_items ?? [];
-      if (!rows.length) return Number(inv.total ?? 0);
+      // no lines (rare): the invoice net of VAT, to stay comparable with item-based revenue
+      if (!rows.length) return Number(inv.total ?? 0) - Number(inv.vat_amount ?? 0);
       // صافي المبيعات = بعد المرتجعات وبعد خصم الفاتورة ككل
       return invoiceProfit(inv).revenue;
     };
     setMonthlyTarget(Number((branchRow.data as any)?.monthly_sales_target ?? 0));
 
-    setSalesToday((invToday.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
-    setSalesYesterday((invYday.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
-    setSalesMonth((invMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
-    setSalesLastMonth((invLastMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0));
-    setTreasury((tr.data ?? []).reduce((s, x: any) => s + (x.type === "income" ? 1 : -1) * Number(x.amount), 0));
-    setLowStock((prods.data ?? []).filter((p: any) => p.quantity <= p.low_stock_alert));
-    setNewCust((custs.data ?? []).length);
+    setSalesToday(r2((invToday.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0)));
+    setSalesYesterday(r2((invYday.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0)));
+    setSalesMonth(r2((invMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0)));
+    setSalesLastMonth(r2((invLastMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0)));
+    const w = Array.isArray(wallet.data) ? (wallet.data as any[])[0] : (wallet.data as any);
+    setTreasury(Number(w?.total_balance ?? 0));
+    setLowStock((prods.data ?? []).filter((p: any) => Number(p.low_stock_alert || 0) > 0 && Number(p.quantity || 0) <= Number(p.low_stock_alert)));
+    setNewCust(custs.count ?? 0);
     setRecent(recentDocs as RecentDoc[]);
 
-    const computeProfit = (rows: any[]) => rows.reduce((s, it: any) => {
-      const qty = Number(it.quantity) || 0;
-      const netQty = Math.max(0, qty - (Number(it.returned_quantity) || 0));
-      const netRevenue = qty > 0 ? Number(it.total ?? 0) * (netQty / qty) : 0;
-      return s + netRevenue - Number(it.cost_price ?? 0) * netQty;
-    }, 0);
-    setProfitToday(computeProfit(invItemsToday.data ?? []));
-    setProfitMonth(computeProfit(invItemsMonth.data ?? []));
+    // gross profit (sales − cost of goods at the sale's own unit cost, after returns and invoice discounts);
+    // expenses are not deducted here, so this is «مجمل الربح», not net profit
+    const grossOf = (rows: any[]) => r2(rows.reduce((s, inv: any) => { const p = invoiceProfit(inv); return s + p.revenue - p.cost; }, 0));
+    setProfitToday(grossOf(invToday.data ?? []));
+    setProfitMonth(grossOf(invMonth.data ?? []));
 
     const payMap: Record<string, number> = {};
-    (invToday.data ?? []).forEach((x: any) => {
+    (payToday.data ?? []).forEach((x: any) => {
+      if (x.voided_at || x.reverses_payment_id) return;
       const k = x.payment_method || "cash";
-      payMap[k] = (payMap[k] || 0) + netInvoiceTotal(x);
+      payMap[k] = (payMap[k] || 0) + Number(x.amount || 0);
     });
-    setPaymentBreakdown(Object.entries(payMap).map(([name, value]) => ({
-      name: name === "cash" ? "نقدي" : name === "card" ? "بطاقة" : name,
-      value,
-    })));
+    const METHOD_AR: Record<string, string> = { cash: "نقدي", card: "بطاقة", instapay: "انستاباي", vodafone: "فودافون كاش", vodafone_cash: "فودافون كاش", bank: "تحويل بنكي", bank_transfer: "تحويل بنكي", credit_balance: "رصيد مسبق", wallet: "محفظة" };
+    setPaymentBreakdown(Object.entries(payMap).map(([name, value]) => ({ name: METHOD_AR[name] ?? name, value: r2(value) })));
 
     const monthNames = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
     const dayMap: Record<string, { date: string; displayDate: string; total: number }> = {};
     for (let i = 0; i < 30; i++) {
-      const d = new Date(last30); d.setDate(d.getDate() + i);
-      const key = d.toISOString().slice(5, 10);
-      dayMap[key] = {
-        date: key,
-        displayDate: `${d.getDate()} ${monthNames[d.getMonth()]}`,
-        total: 0,
-      };
+      const day = addDaysDay(d30, i);              // Cairo calendar day
+      const [, mm, dd] = day.split("-").map(Number);
+      dayMap[day] = { date: day.slice(5), displayDate: `${dd} ${monthNames[mm - 1]}`, total: 0 };
     }
+    const cairoDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
     (invLast30.data ?? []).forEach((x: any) => {
-      const k = x.created_at.slice(5, 10);
+      const k = cairoDay(x.invoice_date);
       if (k in dayMap) dayMap[k].total += netInvoiceTotal(x);
     });
     setSalesByDay(Object.values(dayMap).map((d) => ({ date: d.date, displayDate: d.displayDate, total: d.total })));
@@ -241,7 +253,7 @@ export default function BranchDashboard() {
 
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="flex items-center gap-1 text-base font-bold text-foreground">صافي الربح اليوم <MetricHint meaning="ربح مبيعات الفرع لليوم بعد استبعاد تكلفة الكميات المباعة فعلياً والمرتجعة." source="بنود invoice_items التابعة لفواتير اليوم النشطة غير المرحّلة، باستخدام total وcost_price والكميات المرتجعة." formula="صافي إيراد المبيعات − تكلفة البضاعة المباعة (COGS)" /></span>
+            <span className="flex items-center gap-1 text-base font-bold text-foreground">مجمل ربح اليوم <MetricHint meaning="ربح البضاعة المباعة اليوم قبل المصروفات (مش صافي ربح): المبيعات بعد المرتجعات وخصم الفاتورة ناقص تكلفتها الفعلية وقت البيع." source="فواتير اليوم (بتاريخ الفاتورة) وبنودها: unit_cost_at_sale والكميات المرتجعة وخصم الفاتورة." formula="صافي إيراد المبيعات − تكلفة البضاعة المباعة (بتكلفة وقت البيع)" /></span>
             <TrendingUp className="w-6 h-6 text-success" />
           </div>
            <FinancialAmount value={canViewNetProfit ? profitToday : NET_PROFIT_MASK} currency={canViewNetProfit} size="lg" className={`justify-start font-extrabold ${canViewNetProfit ? (profitToday >= 0 ? "text-success" : "text-destructive") : "text-muted-foreground"}`} />
@@ -252,7 +264,7 @@ export default function BranchDashboard() {
 
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-base font-bold text-foreground">رصيد الخزنة</span>
+            <span className="flex items-center gap-1 text-base font-bold text-foreground">رصيد الخزنة <MetricHint meaning="رصيد خزنة الفرع دلوقتي (كل الطرق)، شامل النقدية الافتتاحية." source="حركات treasury للفرع — نفس مصدر صفحة الخزنة وفحص الرصيد." formula="Σ الوارد − Σ المنصرف" /></span>
             <Wallet className="w-6 h-6 text-primary" />
           </div>
            <FinancialAmount value={treasury} size="lg" className="justify-start font-extrabold" />
@@ -264,7 +276,8 @@ export default function BranchDashboard() {
 
 
       {monthlyTarget > 0 && (() => {
-        const achieved = Math.max(0, profitMonth);
+        // the branch target is a SALES target (branches.monthly_sales_target) — compared with this month's net sales
+        const achieved = Math.max(0, salesMonth);
         const pct = Math.min(100, (achieved / monthlyTarget) * 100);
         const remaining = Math.max(0, monthlyTarget - achieved);
         const onTrack = pct >= 80;
@@ -273,10 +286,10 @@ export default function BranchDashboard() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Target className={`w-5 h-5 ${onTrack ? "text-success" : "text-warning"}`} />
-                <h3 className="font-bold">هدف الشهر (صافي الربح)</h3>
+                <h3 className="font-bold">هدف مبيعات الشهر</h3>
               </div>
               <div className="text-sm text-muted-foreground">
-                {canViewNetProfit ? formatEGP(profitMonth) : NET_PROFIT_MASK} <span className="mx-1">/</span> <b>{formatEGP(monthlyTarget)}</b>
+                {formatEGP(salesMonth)} <span className="mx-1">/</span> <b>{formatEGP(monthlyTarget)}</b>
               </div>
             </div>
             <Progress value={pct} className="h-3" />
@@ -285,10 +298,9 @@ export default function BranchDashboard() {
                 {pct.toFixed(1)}% من الهدف
               </span>
               <span className="font-bold text-foreground">
-                {remaining > 0 ? `متبقي ${formatEGP(remaining)} صافي ربح لتحقيق الهدف` : "🎉 تم تحقيق الهدف!"}
+                {remaining > 0 ? `متبقي ${formatEGP(remaining)} مبيعات لتحقيق الهدف` : "🎉 تم تحقيق الهدف!"}
               </span>
             </div>
-
           </div>
         );
       })()}
@@ -356,7 +368,7 @@ export default function BranchDashboard() {
         </div>
 
         <div className="card-elevated p-4">
-          <h3 className="font-bold mb-3">طرق الدفع اليوم</h3>
+          <h3 className="font-bold mb-3">تحصيلات اليوم حسب الطريقة</h3>
           {paymentBreakdown.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">لا توجد مبيعات اليوم</div>
           ) : (

@@ -28,8 +28,10 @@ export function bucketOf(method: string | null | undefined): CollectionBucket {
     case "cash": return "cash";
     case "instapay": return "instapay";
     case "vodafone":
+    case "vodafone_cash":
     case "wallet": return "wallet";
     case "bank":
+    case "bank_transfer":
     case "transfer":
     case "card": return "bank";
     default: return "other";
@@ -47,8 +49,8 @@ export const BUCKET_LABELS: Record<CollectionBucket, string> = {
 /** Stored payment_method keys that belong to a collection bucket (used by the payment filter). */
 export function methodsForFilter(method: string): string[] {
   const b = bucketOf(method);
-  if (b === "wallet") return ["vodafone", "wallet"];
-  if (b === "bank") return ["bank", "transfer", "card"];
+  if (b === "wallet") return ["vodafone", "vodafone_cash", "wallet"];
+  if (b === "bank") return ["bank", "bank_transfer", "transfer", "card"];
   if (b === "other") return [method];
   return [b];
 }

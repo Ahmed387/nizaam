@@ -368,13 +368,11 @@ export default function NewShipment() {
   const [treasuryBalance, setTreasuryBalance] = useState<number | null>(null);
   const fetchTreasuryBalance = async (): Promise<number | null> => {
     if (!branchId) return null;
-    const { data, error } = await (supabase as any)
-      .from("v_treasury_balances")
-      .select("current_balance")
-      .eq("branch_id", branchId)
-      .maybeSingle();
+    // The till of the branch (treasury rows incl. opening cash) — the same source the server checks.
+    const { data, error } = await (supabase.rpc as any)("get_branch_wallet_balances", { p_branch_id: branchId });
     if (error) return null;
-    const bal = Number(data?.current_balance ?? 0);
+    const row = Array.isArray(data) ? data[0] : data;
+    const bal = Number(row?.total_balance ?? 0);
     setTreasuryBalance(bal);
     return bal;
   };

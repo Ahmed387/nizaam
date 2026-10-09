@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatDateTime } from "@/lib/format";
 import { ArrowRight } from "lucide-react";
@@ -29,6 +30,7 @@ export default function StockMovements() {
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
   const [pendingOutQty, setPendingOutQty] = useState(0);
+  const [unexplained, setUnexplained] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -37,64 +39,59 @@ export default function StockMovements() {
       setProduct(p);
 
       // Sales (out) — only active invoices for this branch
-      const { data: invItems } = await supabase
-        .from("invoice_items")
-        .select("quantity, invoice_id, invoices!inner(id, invoice_number, created_at, invoice_date, branch_id, status, contact_id, contacts:contact_id(name))")
-        .eq("product_id", productId!);
+      const invItems = await fetchAllRows<any>(() => supabase.from("invoice_items").select("id, quantity, invoice_id, invoices!inner(id, invoice_number, created_at, invoice_date, branch_id, status, contact_id, contacts:contact_id(name))").eq("product_id", productId!).order("id"));
 
       // Returns (in)
-      const { data: retItems } = await supabase
-        .from("return_items")
-        .select("quantity, return_id, returns!inner(id, reason, return_number, created_at, invoice_date, branch_id, invoice_id, invoices:invoice_id(invoice_number, contacts:contact_id(name)))")
-        .eq("product_id", productId!);
+      const retItems = await fetchAllRows<any>(() => supabase.from("return_items").select("id, quantity, return_id, returns!inner(id, reason, return_number, created_at, invoice_date, branch_id, status, invoice_id, invoices:invoice_id(invoice_number, contacts:contact_id(name)))").eq("product_id", productId!).order("id"));
 
 
 
       // Shipments (in) — to this branch
-      const { data: shipItems } = await supabase
-        .from("shipment_items")
-        .select("quantity, shipment_id, shipments!inner(id, arrival_date, invoice_date, created_at, branch_id, contact_id, contacts:contact_id(name))")
-        .eq("product_id", productId!);
+      const shipItems = await fetchAllRows<any>(() => supabase.from("shipment_items").select("id, quantity, shipment_id, shipments!inner(id, shipment_number, arrival_date, invoice_date, created_at, branch_id, status, contact_id, contacts:contact_id(name))").eq("product_id", productId!).order("id"));
 
       // Purchase returns (out) — from this branch
-      const { data: prItems } = await supabase
-        .from("purchase_return_items")
-        .select("quantity, purchase_return_id, purchase_returns!inner(id, return_number, reason, created_at, invoice_date, branch_id, contacts:contact_id(name))")
-        .eq("product_id", productId!);
+      const prItems = await fetchAllRows<any>(() => supabase.from("purchase_return_items").select("id, quantity, purchase_return_id, purchase_returns!inner(id, return_number, reason, created_at, invoice_date, branch_id, status, contacts:contact_id(name))").eq("product_id", productId!).order("id"));
 
       // Opening stock batches (in) — initial quantity when product was created
-      const { data: openingBatches } = await supabase
+      // opening stock: batches posted by «الأرصدة الافتتاحية» are 'opening' (older ones 'opening_stock');
+      // a re-posted (reversed) opening batch is 'opening_reversed' and is left out together with its reversal
+      const openingBatches = await fetchAllRows<any>(() => supabase
         .from("product_batches")
         .select("id, quantity_purchased, created_at, batch_type, branch_id")
         .eq("product_id", productId!)
-        .eq("batch_type", "opening_stock");
-      const { data: saItems } = await supabase
+        .in("batch_type", ["opening", "opening_stock"]).order("id"));
+      const saItems = await fetchAllRows<any>(() => supabase
         .from("stock_adjustment_items")
-        .select("difference, adjustment_id, stock_adjustments!inner(id, adjustment_number, reason, created_at, branch_id)")
-        .eq("product_id", productId!);
+        .select("id, difference, adjustment_id, stock_adjustments!inner(id, adjustment_number, reason, created_at, branch_id)")
+        .eq("product_id", productId!).order("id"));
       // تسويات الجرد (جلسات الجرد المعتمدة)
-      const { data: invAdj } = await supabase
+      const invAdj = await fetchAllRows<any>(() => supabase
         .from("inventory_adjustments")
-        .select("adjustment_amount, reason, created_at, session_id")
-        .eq("product_id", productId!);
+        .select("id, adjustment_amount, reason, created_at, session_id")
+        .eq("product_id", productId!).order("id"));
 
       // Transfers — confirmed only, where this branch is from or to.
       // Destination products are separate rows linked by name (see partial_confirm_transfer).
       // Match on normalized name / sku / legacy code so hamza, spacing or casing differences
       // never drop a movement.
-      const { data: candidateProducts } = await supabase
+      // The same item in another branch is another product row: same SKU / legacy code, or the same name
+      // AND the same variant (brand, model, color, type, capacity, size) — a name alone is not enough.
+      const candidateProducts = await fetchAllRows<any>(() => supabase
         .from("products")
-        .select("id, name, sku, legacy_code");
+        .select("id, name, sku, legacy_code, brand, model, color, product_type, capacity, size")
+        .order("id"));
       const selfKeyName = normalizeForSearch(p?.name ?? "");
+      const variantKey = (x: any) => ["brand", "model", "color", "product_type", "capacity", "size"].map((k) => normalizeForSearch(x?.[k] ?? "")).join("|");
+      const selfVariant = variantKey(p);
       const selfCodes = new Set(
         [p?.sku, (p as any)?.legacy_code].map((c) => normalizeForSearch(c)).filter(Boolean)
       );
-      const matchedIds = ((candidateProducts ?? []) as any[])
+      const matchedIds = candidateProducts
         .filter((x) => {
           if (x.id === productId) return true;
-          if (selfKeyName && normalizeForSearch(x.name) === selfKeyName) return true;
           const codes = [x.sku, x.legacy_code].map((c: any) => normalizeForSearch(c)).filter(Boolean);
-          return codes.some((c: string) => selfCodes.has(c));
+          if (codes.some((c: string) => selfCodes.has(c))) return true;
+          return !!selfKeyName && normalizeForSearch(x.name) === selfKeyName && variantKey(x) === selfVariant;
         })
         .map((x) => x.id);
       const productIds = Array.from(new Set([productId!, ...matchedIds]));
@@ -130,7 +127,7 @@ export default function StockMovements() {
 
       const list: Movement[] = [];
 
-      (invItems ?? []).forEach((it: any) => {
+      invItems.forEach((it: any) => {
         const inv = it.invoices;
         if (!inv || inv.branch_id !== branchId || inv.status !== "active") return;
         list.push({
@@ -144,9 +141,9 @@ export default function StockMovements() {
         });
       });
 
-      (retItems ?? []).forEach((it: any) => {
+      retItems.forEach((it: any) => {
         const r = it.returns;
-        if (!r || r.branch_id !== branchId) return;
+        if (!r || r.branch_id !== branchId || ["draft", "cancelled"].includes(String(r.status ?? "active"))) return;
         list.push({
           date: r.invoice_date ?? r.created_at,
           type: "مرتجع",
@@ -158,23 +155,23 @@ export default function StockMovements() {
         });
       });
 
-      (shipItems ?? []).forEach((it: any) => {
+      shipItems.forEach((it: any) => {
         const s = it.shipments;
-        if (!s || s.branch_id !== branchId) return;
+        if (!s || s.branch_id !== branchId || s.status === "cancelled") return;
         list.push({
           date: s.invoice_date ?? s.arrival_date ?? s.created_at,
           type: "فاتورة شراء واردة",
           qty: Number(it.quantity),
           reason: "—",
-          reference: "SHIP",
+          reference: s.shipment_number ?? "SHIP",
           party: s.contacts?.name ?? "—",
           linkTo: `/branch/${branchId}/shipments/${s.id}`,
         });
       });
 
-      (prItems ?? []).forEach((it: any) => {
+      prItems.forEach((it: any) => {
         const r = it.purchase_returns;
-        if (!r || r.branch_id !== branchId) return;
+        if (!r || r.branch_id !== branchId || r.status === "cancelled") return;
         list.push({
           date: r.invoice_date ?? r.created_at,
           type: "مرتجع شراء",
@@ -187,7 +184,7 @@ export default function StockMovements() {
       });
 
 
-      (saItems ?? []).forEach((it: any) => {
+      saItems.forEach((it: any) => {
         const a = it.stock_adjustments;
         if (!a || a.branch_id !== branchId) return;
         const diff = Number(it.difference);
@@ -202,7 +199,7 @@ export default function StockMovements() {
         });
       });
 
-      (invAdj ?? []).forEach((a: any) => {
+      invAdj.forEach((a: any) => {
         const q = Number(a.adjustment_amount);
         if (!q) return;
         // اعتماد الجرد يسجل تسوية مخزون أيضًا — نتجنب التكرار لو نفس الكمية في نفس الدقيقة
@@ -212,7 +209,7 @@ export default function StockMovements() {
         list.push({ date: a.created_at, type: "تسوية جرد", qty: q, reason: a.reason ?? "جلسة جرد معتمدة", reference: "COUNT", party: "—", linkTo: `/branch/${branchId}/inventory-count/${a.session_id}/report` });
       });
 
-      (openingBatches ?? []).forEach((b: any) => {
+      openingBatches.forEach((b: any) => {
         if (b.branch_id !== branchId) return;
         const q = Number(b.quantity_purchased);
         if (!q) return;
@@ -274,13 +271,10 @@ export default function StockMovements() {
       });
       setPendingOutQty(pendingTotal);
 
-      // رصيد غير موثق: الكمية الحالية أكبر/أقل مما تفسره الحركات المسجلة
+      // The documented movements must explain the current quantity. A difference is NOT forced into a
+      // made-up opening row any more: it is shown as an unexplained gap so it can be investigated.
       const net = list.reduce((s, m) => s + m.qty, 0);
-      const gap = Number(p?.quantity ?? 0) - net;
-      if (gap !== 0) {
-        const oldest = list.reduce((d, m) => (m.date && m.date < d ? m.date : d), p?.created_at ?? new Date().toISOString());
-        list.push({ date: oldest, type: "رصيد افتتاحي / غير موثق", qty: gap, reason: "فرق بين الرصيد الحالي والحركات المسجلة (رصيد قديم قبل التسجيل)", reference: "OPEN-GAP", party: "—" });
-      }
+      setUnexplained(Number(p?.quantity ?? 0) - net);
 
       list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setMoves(list);
@@ -298,7 +292,8 @@ export default function StockMovements() {
   const [toD, setToD] = useState("");
   const shown = moves.filter((m) => {
     if (typeFilter !== "all" && m.type !== typeFilter) return false;
-    const d = (m.date ?? "").slice(0, 10);
+    // Cairo calendar day of the movement (a timestamp in UTC can belong to the next Cairo day)
+    const d = m.date ? (m.date.length <= 10 ? m.date : new Date(m.date).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" })) : "";
     if (fromD && d < fromD) return false;
     if (toD && d > toD) return false;
     return true;
@@ -350,6 +345,13 @@ export default function StockMovements() {
           </div>
         </div>
       </div>
+
+      {unexplained !== 0 && !loading && (
+        <div className="card-elevated p-3 mb-4 border-warning/40 bg-warning/10 text-sm">
+          ⚠️ الرصيد الحالي ({product?.quantity ?? 0}) مختلف عن مجموع الحركات المسجلة بمقدار <b>{unexplained > 0 ? "+" : ""}{unexplained}</b> وحدة.
+          الفرق ده مش متسجل كحركة — راجع الجرد أو فحص سلامة البيانات (S1 / S3).
+        </div>
+      )}
 
       <div className="card-elevated p-4 mb-4 flex flex-wrap items-end gap-3">
         <label className="text-sm">النوع

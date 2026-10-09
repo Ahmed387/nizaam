@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { supabase } from "@/integrations/supabase/client";
+import { cairoTodayDay } from "@/lib/cairoDate";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { formatEGP } from "@/lib/format";
-import { AlertCircle, Search, RefreshCw, Calendar, Info, ArrowDownLeft, ArrowUpRight, Users, Scale } from "lucide-react";
+import { AlertCircle, Search, RefreshCw, Calendar, Info, ArrowDownLeft, ArrowUpRight, Users } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link, useNavigate } from "react-router-dom";
 import { useBranchScope } from "@/lib/branchScope";
@@ -79,9 +81,10 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
     try {
       await supabase.rpc("mark_overdue_installments" as any);
     } catch {}
-    const [{ data: pp }, { data: pi }, { data: br }] = await Promise.all([
-      supabase.from("payment_plans").select("*").neq("status", "completed").order("created_at", { ascending: false }),
-      supabase.from("payment_installments").select("*").in("status", ["pending", "overdue", "partial"]),
+    // active plans only (cancelled and completed plans are not receivables), every row (no 1,000 cap)
+    const [pp, pi, { data: br }] = await Promise.all([
+      fetchAllRows<any>(() => supabase.from("payment_plans").select("*").eq("status", "active").order("created_at", { ascending: false }).order("id")),
+      fetchAllRows<any>(() => supabase.from("payment_installments").select("*").in("status", ["pending", "overdue", "partial"]).is("cancelled_at", null).order("id")),
       supabase.from("branches").select("id,name").eq("is_system", false),
     ]);
     setPlans((((pp as any) ?? []) as any[]).filter((r: any) => isAllowed(r.branch_id)) as any);
@@ -127,21 +130,24 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
   const byType = (t: string) => filtered.filter((p) => p.entity_type === t);
 
   const totals = useMemo(() => {
+    const r2 = (v: number) => Math.round(v * 100) / 100;
     const sumType = (t: string) =>
-      filtered.filter((p) => p.entity_type === t)
-        .reduce((s, p) => s + Number(p.remaining_amount || 0), 0);
-    const overdueAmt = installments.filter((i) => i.status === "overdue")
-      .reduce((s, i) => s + (Number(i.amount) - Number(i.paid_amount || 0)), 0);
-    const due = sumType("customer");
-    const oweSuppliers = sumType("supplier");
-    const oweEmployees = sumType("employee");
+      r2(filtered.filter((p) => p.entity_type === t).reduce((s, p) => s + Number(p.remaining_amount || 0), 0));
+    // overdue = due before today (Cairo), not paid, on the plans listed here — each side on its own
+    const today = cairoTodayDay();
+    const planType = new Map(filtered.map((p) => [p.id, p.entity_type]));
+    const late = installments.filter((i) => planType.has(i.payment_plan_id) && String(i.due_date) < today
+      && Number(i.amount) - Number(i.paid_amount || 0) > 0.005);
+    const lateOf = (t: string) => late.filter((i) => planType.get(i.payment_plan_id) === t);
+    const sumLate = (rows: Installment[]) => r2(rows.reduce((s, i) => s + (Number(i.amount) - Number(i.paid_amount || 0)), 0));
     return {
-      due,
-      oweSuppliers,
-      oweEmployees,
-      owe: oweSuppliers + oweEmployees,
-      overdue: overdueAmt,
-      overdueCount: installments.filter((i) => i.status === "overdue").length,
+      due: sumType("customer"),
+      oweSuppliers: sumType("supplier"),
+      oweEmployees: sumType("employee"),
+      overdue: sumLate(lateOf("customer")),
+      overdueCount: lateOf("customer").length,
+      overdueSuppliers: sumLate(lateOf("supplier")),
+      overdueSuppliersCount: lateOf("supplier").length,
     };
   }, [filtered, installments]);
 
@@ -275,22 +281,20 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
             <div className="text-[11px] text-muted-foreground mt-1">سلف ومستحقات</div>
           </div>
 
-          <div className={`rounded-2xl border p-4 ${totals.due - totals.owe >= 0 ? "border-primary/30 bg-primary/5" : "border-destructive/30 bg-destructive/5"}`}>
-            <div className={`flex items-center gap-2 text-sm font-semibold ${totals.due - totals.owe >= 0 ? "text-primary" : "text-destructive"}`}>
-              <Scale className="w-4 h-4" />الصافي
+          <div className="rounded-2xl border border-warning/40 bg-warning/5 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-warning">
+              <AlertCircle className="w-4 h-4" />أقساط موردين متأخرة
             </div>
-             <FinancialAmount value={totals.due - totals.owe} size="md" className={`mt-2 justify-start font-extrabold ${totals.due - totals.owe >= 0 ? "text-primary" : "text-destructive"}`} />
-            <div className="text-[11px] text-muted-foreground mt-1">
-              {totals.due - totals.owe >= 0 ? "اللي ليك أكتر من اللي عليك" : "اللي عليك أكتر من اللي ليك"}
-            </div>
+             <FinancialAmount value={totals.overdueSuppliers} size="md" className="mt-2 justify-start font-extrabold text-warning" />
+            <div className="text-[11px] text-muted-foreground mt-1">{totals.overdueSuppliersCount} قسط علينا فات ميعاده</div>
           </div>
 
           <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-destructive">
-              <AlertCircle className="w-4 h-4" />متأخرات
+              <AlertCircle className="w-4 h-4" />متأخرات العملاء
             </div>
              <FinancialAmount value={totals.overdue} size="md" className="mt-2 justify-start font-extrabold text-destructive" />
-            <div className="text-[11px] text-muted-foreground mt-1">{totals.overdueCount} قسط فات ميعاده</div>
+            <div className="text-[11px] text-muted-foreground mt-1">{totals.overdueCount} قسط لنا فات ميعاده</div>
           </div>
         </div>
 

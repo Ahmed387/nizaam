@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchLedgerPosition, fetchDocumentStatus } from "@/lib/ledger";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { fetchAllRows } from "@/lib/fetchAll";
@@ -92,13 +93,14 @@ export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean 
       fetchAllRows<any>(() =>
         supabase
           .from("invoices")
-          .select("id,total,invoice_payments(amount,voided_at)")
+          .select("id,total")
           .eq("tenant_id", tenantId)
           .eq("status", "active")
           .gte("invoice_date", getCairoDayBounds(f).startIso!)
           .lte("invoice_date", getCairoDayBounds(undefined, t).endIso!)
+          .order("id")
       ),
-      fetchAllRows<any>(() => supabase.from("v_contact_balances" as any).select("contact_id,type,total_balance").order("contact_id")).then((data) => ({ data })),
+      fetchLedgerPosition(null),
       fetchAllRows<any>(() => supabase.from("treasury" as any).select("id,type,amount").eq("tenant_id", tenantId).order("id")).then((data) => ({ data })),
       supabase
         .from("equity_partners")
@@ -115,22 +117,14 @@ export default function MonthlyProfitSummary({ embedded }: { embedded?: boolean 
     setCogs(pw.totals.cost);
     setOpex(pw.totals.expenses);
 
-    // آجل الفترة: فواتير الفترة اللي لسه ماتحصلتش كاش
+    // آجل الفترة: المتبقي من فواتير الفترة حسب الدفتر الموحد (مدفوعات مباشرة + توزيع FIFO + رصيد المرتجعات)
+    const status = await fetchDocumentStatus("invoice", (invRows ?? []).map((i: any) => i.id));
     let ar = 0;
-    for (const inv of invRows ?? []) {
-      const paid = (inv.invoice_payments ?? [])
-        .filter((p: any) => !p.voided_at)
-        .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
-      ar += Math.max(0, Number(inv.total || 0) - paid);
-    }
-    setUnpaidSales(ar);
+    for (const inv of invRows ?? []) ar += status.get(inv.id)?.remaining ?? Number(inv.total || 0);
+    setUnpaidSales(Math.round(ar * 100) / 100);
 
-    // اللي علينا للموردين (رصيد قائم)
-    let ap = 0;
-    for (const c of ((contactsRes.data ?? []) as any[])) {
-      const bal = Number(c.total_balance ?? 0);
-      if (c.type === "supplier" && bal < 0) ap += Math.abs(bal);
-    }
+    // اللي علينا للموردين (رصيد قائم) — جانب الموردين بس
+    const ap = contactsRes.suppliers?.open ?? 0;
     setSupplierDebt(ap);
 
     const tr = (treasuryRes.data ?? []) as any[];

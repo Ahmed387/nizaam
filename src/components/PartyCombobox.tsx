@@ -7,7 +7,8 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatEGP, balanceLabel } from "@/lib/format";
+import { formatEGP } from "@/lib/format";
+import { fetchSideBalance, sideBalanceLabel } from "@/lib/ledger";
 import { searchMatch } from "@/lib/search";
 import { useParams } from "react-router-dom";
 import { ContactLookup } from "@/components/ContactLookup";
@@ -54,11 +55,9 @@ export function PartyCombobox({ type, value, onChange, placeholder, branchId: br
     (async () => {
       try {
         if (type === "supplier" || type === "customer") {
-          // TODO Phase 2.2B: Remove after contacts.balance column is dropped
-          // مصدر موحّد لكلا الجهتين: v_contact_balances (يقرأ من GL مباشرة)
-          const { data } = await supabase.from("v_contact_balances" as any).select("total_balance").eq("contact_id", value).maybeSingle();
-          const amt = Number((data as any)?.total_balance ?? 0);
-          setBal(balanceLabel(amt));
+          // Unified ledger, the picked side only (customer or supplier — never netted).
+          const sb = await fetchSideBalance(value);
+          setBal(sideBalanceLabel(type, type === "customer" ? sb?.customer_balance : sb?.supplier_balance));
         } else {
           const { data } = await supabase.from("advances" as any).select("remaining").eq("employee_id", value);
           const total = (data ?? []).reduce((s: number, r: any) => s + Number(r.remaining ?? 0), 0);

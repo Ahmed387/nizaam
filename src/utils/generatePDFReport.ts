@@ -5,6 +5,7 @@
 import jsPDF from "jspdf";
 import { toCanvas as htiToCanvas } from "html-to-image";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchDocumentStatus } from "@/lib/ledger";
 import { toast } from "sonner";
 
 // ---------- theme ----------
@@ -274,10 +275,13 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
     const chunk = <T,>(arr: T[], n: number) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
     const [itemBatches, paymentBatches] = await Promise.all([
       Promise.all(chunk(invIds, 100).map((ids) => supabase.from("invoice_items").select("*").in("invoice_id", ids))),
-      Promise.all(chunk(invIds, 100).map((ids) => supabase.from("invoice_payments").select("invoice_id, amount, payment_method").in("invoice_id", ids))),
+      Promise.all(chunk(invIds, 100).map((ids) => supabase.from("invoice_payments").select("invoice_id, amount, payment_method, voided_at, reverses_payment_id").in("invoice_id", ids))),
     ]);
     const allItems: any[] = itemBatches.flatMap((r) => r.data ?? []);
-    const allPayments: any[] = paymentBatches.flatMap((r) => r.data ?? []);
+    // voided payments and their reversal rows are not money received
+    const allPayments: any[] = paymentBatches.flatMap((r) => r.data ?? []).filter((p: any) => !p.voided_at && !p.reverses_payment_id);
+    // paid / remaining per invoice = the unified ledger (FIFO of general payments and deposits, return credit)
+    const ledgerStatus = await fetchDocumentStatus("invoice", invIds).catch(() => new Map());
     const itemsByInv = new Map<string, any[]>();
     allItems.forEach((it) => {
       const arr = itemsByInv.get(it.invoice_id) ?? [];
@@ -287,6 +291,7 @@ export async function generateSalesReport(input: SalesReportInput): Promise<void
     allPayments.forEach((p) => {
       paidByInv.set(p.invoice_id, (paidByInv.get(p.invoice_id) ?? 0) + Number(p.amount || 0));
     });
+    ledgerStatus.forEach((st: any, id: string) => paidByInv.set(id, Number(st.paid) || 0));
 
     toast.dismiss(t1);
     const t2 = toast.loading("📄 جاري إنشاء ملف PDF...");

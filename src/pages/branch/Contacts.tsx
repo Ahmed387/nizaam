@@ -29,6 +29,7 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { saveContact, deleteContact } from "@/lib/contactWrites";
+import { fetchContactsPage, type BalanceFilter, type ContactPageTotals } from "@/lib/ledger";
 
 type ContactType = "customer" | "supplier" | "both";
 
@@ -62,15 +63,18 @@ export default function Contacts() {
   });
   const [search, setSearch] = useState("");
   const [voucherCtx, setVoucherCtx] = useState<{ type: "receipt" | "payment"; contact: any } | null>(null);
-  type BalanceKey = "owe_us" | "we_owe" | "settled";
+  type BalanceKey = BalanceFilter;
   const [balanceFilters, setBalanceFilters] = useState<BalanceKey[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggleBalance = (k: BalanceKey) =>
     setBalanceFilters((prev) => prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]);
   const BALANCE_LABELS: Record<BalanceKey, string> = {
-    owe_us: "عملاء وموردين لنا عندهم",
-    we_owe: "عملاء وموردين علينا لهم",
-    settled: "متعادلين (مصفيين حسابهم)",
+    owe_us: "عملاء عليهم فلوس لنا",
+    customer_advance: "عملاء ليهم مقدم عندنا",
+    we_owe: "موردين لهم فلوس علينا",
+    supplier_advance: "موردين لينا عندهم مقدم",
+    overdue: "عليهم أقساط متأخرة",
+    settled: "حساباتهم مسددة",
   };
   const isManager = hasRole("branch_manager");
 
@@ -78,20 +82,16 @@ export default function Contacts() {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [counts, setCounts] = useState({ all: 0, customer: 0, supplier: 0, both: 0 });
-  const [balanceTotals, setBalanceTotals] = useState({ oweUs: 0, weOwe: 0, net: 0, overdue: 0 });
+  const [totals, setTotals] = useState<ContactPageTotals | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(search.trim()), 300); return () => clearTimeout(t); }, [search]);
   useEffect(() => { setPage(0); }, [debouncedSearch, filter, balanceFilters, branchId]);
 
-  // All filtering, search and paging run in the database (contacts_page RPC) — no 1,000-row cap.
-  const fetchPage = async (limit: number, offset: number) => {
-    const { data, error } = await supabase.rpc("contacts_page" as any, {
-      p_branch_id: branchId, p_type: filter, p_query: debouncedSearch || null,
-      p_balance: balanceFilters.length ? balanceFilters : null, p_limit: limit, p_offset: offset,
-    });
-    if (error) throw error;
-    return data as any;
-  };
+  // All filtering, search and paging run in the database (contacts_page RPC, unified ledger) — no 1,000-row cap.
+  // Balances are this branch's documents and money; customer and supplier sides are separate (no netting).
+  const fetchPage = (limit: number, offset: number) => fetchContactsPage({
+    branchId: branchId!, type: filter, query: debouncedSearch || null, balance: balanceFilters, limit, offset,
+  });
   const reqRef = useRef(0);
   const load = async () => {
     if (!branchId) return;
@@ -100,11 +100,10 @@ export default function Contacts() {
     try {
       const res = await fetchPage(PAGE_SIZE, page * PAGE_SIZE);
       if (id !== reqRef.current) return;
-      setRows(res?.rows ?? []);
-      setTotal(Number(res?.total ?? 0));
-      setCounts({ all: 0, customer: 0, supplier: 0, both: 0, ...(res?.counts ?? {}) });
-      const oweUs = Number(res?.totals?.owe_us ?? 0), weOwe = Number(res?.totals?.we_owe ?? 0);
-      setBalanceTotals({ oweUs, weOwe, net: oweUs - weOwe, overdue: Number(res?.totals?.overdue ?? 0) });
+      setRows(res.rows);
+      setTotal(res.total);
+      setCounts({ all: 0, customer: 0, supplier: 0, both: 0, ...res.counts });
+      setTotals(res.totals);
     } catch (e: any) {
       if (id === reqRef.current) toast.error(e.message ?? "تعذر تحميل الجهات");
     } finally {
@@ -114,27 +113,45 @@ export default function Contacts() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, page, debouncedSearch, filter, balanceFilters]);
 
   // Realtime: refresh on contact changes AND on any transaction that affects balance (triggers will update contacts row)
-  useRealtimeRefresh(["contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers"], load);
+  useRealtimeRefresh(["contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers", "payment_transactions", "customer_credit_log"], load);
 
   const filtered = rows;
 
 
   // Excel / PDF export of the current filtered view
-  const exportRows = async () => ((await fetchPage(100000, 0))?.rows ?? [] as any[]).map((r: any) => {
-    const b = Number(r.balance ?? 0);
-    return {
+  const sideText = (side: "c" | "s", v: number) => Math.abs(v) <= 0.005 ? "مسدد"
+    : side === "c" ? (v > 0 ? "لنا عليه" : "مقدم منه") : (v > 0 ? "علينا له" : "مقدم لينا عنده");
+  const exportRows = async () => {
+    const all: any[] = [];
+    for (let off = 0; ; off += 1000) {
+      const p = await fetchPage(1000, off);
+      all.push(...p.rows);
+      if (p.rows.length < 1000) break;
+    }
+    // a side is exported when the contact has that role OR still carries a balance on it (a contact whose
+    // type changed keeps its old side's balance — it must never disappear from the export)
+    const hasSide = (r: any, sd: "c" | "s") => {
+      const role = sd === "c" ? r.type !== "supplier" : r.type !== "customer";
+      const bal = Number(sd === "c" ? r.customer_balance : r.supplier_balance) || 0;
+      return role || Math.abs(bal) > 0.005;
+    };
+    return all.map((r: any) => ({
       "الاسم": r.name,
       "النوع": TYPE_LABELS[(r.type ?? "customer") as ContactType],
       "التليفون": r.phone ?? "",
       "الإيميل": r.email ?? "",
       "العنوان": r.address ?? "",
-      "الرصيد": b,
-      "الحالة": b > 0.01 ? "مستحق لنا" : b < -0.01 ? "علينا للجهة" : "متعادل",
-    };
-  });
-  const filterSuffix = balanceFilters.length === 1
-    ? (balanceFilters[0] === "owe_us" ? "_لنا" : balanceFilters[0] === "we_owe" ? "_علينا" : "_متعادلين")
-    : "";
+      "حساب العميل (الفرع)": hasSide(r, "c") ? Number(r.customer_balance ?? 0) : "",
+      "حالة حساب العميل": hasSide(r, "c") ? sideText("c", Number(r.customer_balance ?? 0)) : "",
+      "فواتير بيع مفتوحة": hasSide(r, "c") ? Number(r.customer_open ?? 0) : "",
+      "مقدم العميل": hasSide(r, "c") ? Number(r.customer_advance ?? 0) : "",
+      "حساب المورد (الفرع)": hasSide(r, "s") ? Number(r.supplier_balance ?? 0) : "",
+      "حالة حساب المورد": hasSide(r, "s") ? sideText("s", Number(r.supplier_balance ?? 0)) : "",
+      "فواتير شراء مفتوحة": hasSide(r, "s") ? Number(r.supplier_open ?? 0) : "",
+      "مقدمنا عند المورد": hasSide(r, "s") ? Number(r.supplier_advance ?? 0) : "",
+    }));
+  };
+  const filterSuffix = balanceFilters.length === 1 ? `_${balanceFilters[0]}` : "";
   const handleExportExcel = async () => {
     const data = await exportRows();
     if (!data.length) return toast.error("لا توجد بيانات للتصدير");
@@ -146,17 +163,15 @@ export default function Contacts() {
     const title = "أرصدة العملاء والموردين" + (filterSuffix ? ` (${BALANCE_LABELS[balanceFilters[0]]})` : "");
     const summary = `
       <div class="kpi">
-        <div><span class="muted">مستحق لنا</span><b class="pos">${formatEGP(balanceTotals.oweUs)}</b></div>
-        <div><span class="muted">علينا</span><b class="neg">${formatEGP(balanceTotals.weOwe)}</b></div>
-        <div><span class="muted">الصافي</span><b class="${balanceTotals.net >= 0 ? "pos" : "neg"}">${formatEGP(balanceTotals.net)}</b></div>
-      </div>`;
+        <div><span class="muted">مستحق لنا على العملاء</span><b class="pos">${formatEGP(totals?.customers_open ?? 0)}</b></div>
+        <div><span class="muted">مقدمات عملاء عندنا</span><b>${formatEGP(totals?.customer_advances ?? 0)}</b></div>
+        <div><span class="muted">مستحق للموردين علينا</span><b class="neg">${formatEGP(totals?.suppliers_open ?? 0)}</b></div>
+        <div><span class="muted">مقدمات لينا عند الموردين</span><b>${formatEGP(totals?.supplier_advances ?? 0)}</b></div>
+      </div>
+      <div class="meta">حساب العميل وحساب المورد منفصلين.</div>`;
     const head = `<tr>${Object.keys(data[0]).map(k => `<th>${k}</th>`).join("")}</tr>`;
-    const body = data.map(r => `<tr>${Object.values(r).map((v, i) => {
-      if (i === 4) { // الرصيد column — color it
-        const num = Number(v as any);
-        const cls = num > 0 ? "pos" : num < 0 ? "neg" : "";
-        return `<td class="${cls}"><b>${formatEGP(Math.abs(num))}</b></td>`;
-      }
+    const body = data.map(r => `<tr>${Object.entries(r).map(([k, v]) => {
+      if (k.startsWith("حساب ") && v !== "") return `<td><b>${formatEGP(Math.abs(Number(v as any)))}</b></td>`;
       return `<td>${v ?? ""}</td>`;
     }).join("")}</tr>`).join("");
     printReport(title, `${summary}<table><thead>${head}</thead><tbody>${body}</tbody></table>`);
@@ -263,9 +278,9 @@ export default function Contacts() {
     if (isAdmin) {
       const { error } = await deleteContact(deleteTarget.id);
       if (error) return toast.error(error.message);
-      toast.success("تم الحذف");
+      toast.success("تمت الأرشفة — المستندات والحركات محفوظة");
     } else if (isManager) {
-      if (!reqReason.trim()) return toast.error("اكتب سبب الحذف");
+      if (!reqReason.trim()) return toast.error("اكتب سبب الأرشفة");
       const ok = await createApprovalRequest({
         tenantId: tenantId!, branchId: branchId ?? null,
         entityType: "contact", entityId: deleteTarget.id, entityLabel: deleteTarget.name,
@@ -319,28 +334,52 @@ export default function Contacts() {
       </div>
 
 
-      {/* Balance KPIs — أرصدة هذا الفرع فقط، وتتبع الفلاتر الحالية */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+      {/* Balance KPIs — هذا الفرع فقط (فواتيره وفلوسه)، العملاء والموردين كل جانب لوحده */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
         <MetricCardWithHint
-          label="فلوسنا عند العملاء"
-          value={balanceTotals.oweUs}
+          label="مستحق لنا على العملاء"
+          active={balanceFilters.length === 1 && balanceFilters[0] === "owe_us"}
+          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "owe_us" ? [] : ["owe_us"]))}
+          value={totals?.customers_open ?? 0}
           tone="success"
           icon={<ArrowDownLeft />}
-          metricHint={{ meaning: "إجمالي المبالغ المستحقة للفرع لدى العملاء بعد السداد والمرتجعات وأي رصيد دائن مستخدم.", source: "عرض contact_branch_balances المبني على فواتير البيع والمدفوعات والمرتجعات وأرصدة الجهات.", formula: "[إجمالي فواتير الفرع] − [جميع الدفعات المسددة نقدياً أو بنكياً أو عبر الرصيد المتاح] − [إجمالي المرتجعات] (الرصيد الدائن لا يُخصم مرة ثانية)" }}
+          metricHint={{ meaning: "المتبقي على فواتير بيع الفرع المفتوحة بعد كل التحصيلات ورصيد المرتجعات (بما فيها فلوس اتدفعت في فرع تاني على فواتير هنا).", source: "الدفتر الموحد (contacts_page): فواتير البيع ناقص التوزيعات عليها.", formula: "Σ (إجمالي الفاتورة − الموزع عليها) لفواتير الفرع المفتوحة" }}
         />
         <MetricCardWithHint
-          label="فلوس الموردين علينا"
-          value={balanceTotals.weOwe}
+          label="مقدمات عملاء عندنا"
+          active={balanceFilters.length === 1 && balanceFilters[0] === "customer_advance"}
+          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "customer_advance" ? [] : ["customer_advance"]))}
+          value={totals?.customer_advances ?? 0}
+          tone="primary"
+          icon={<Wallet />}
+          metricHint={{ meaning: "فلوس عملاء اتسجلت في الفرع ده ولسه ما اتخصمتش من أي فاتورة (حساب 2150).", source: "الدفتر الموحد: حركات العملاء في الفرع اللي لسه ليها رصيد.", formula: "Σ (مبلغ الحركة − الموزع منها)" }}
+        />
+        <MetricCardWithHint
+          label="مستحق للموردين علينا"
+          active={balanceFilters.length === 1 && balanceFilters[0] === "we_owe"}
+          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "we_owe" ? [] : ["we_owe"]))}
+          value={totals?.suppliers_open ?? 0}
           tone="destructive"
           icon={<ArrowUpRight />}
-          metricHint={{ meaning: "إجمالي دين البضاعة الفعلي المستحق لموردي هذا الفرع فقط.", source: "عرض contact_branch_balances من فواتير المشتريات ودفعات الموردين وسندات الصرف.", formula: "فواتير المشتريات − سندات الصرف للموردين" }}
+          metricHint={{ meaning: "المتبقي على فواتير شراء الفرع المفتوحة بعد المدفوعات ورصيد مرتجعات الشراء.", source: "الدفتر الموحد: فواتير الشراء ناقص التوزيعات عليها.", formula: "Σ (إجمالي فاتورة الشراء − الموزع عليها)" }}
         />
         <MetricCardWithHint
-          label="أقساط وفواتير متأخرة"
-          value={balanceTotals.overdue}
+          label="مقدمات لينا عند الموردين"
+          active={balanceFilters.length === 1 && balanceFilters[0] === "supplier_advance"}
+          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "supplier_advance" ? [] : ["supplier_advance"]))}
+          value={totals?.supplier_advances ?? 0}
+          tone="primary"
+          icon={<Wallet />}
+          metricHint={{ meaning: "فلوس دفعها الفرع للموردين ولسه ما اتخصمتش من فواتير شراء (حساب 1460).", source: "الدفتر الموحد: حركات الموردين في الفرع اللي لسه ليها رصيد.", formula: "Σ (مبلغ الحركة − الموزع منها)" }}
+        />
+        <MetricCardWithHint
+          label="أقساط متأخرة (عملاء / موردين)"
+          active={balanceFilters.length === 1 && balanceFilters[0] === "overdue"}
+          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "overdue" ? [] : ["overdue"]))}
+          value={(totals?.customer_overdue ?? 0)}
           tone="warning"
           icon={<Clock />}
-          metricHint={{ meaning: "المبالغ التي حل موعد سدادها ولم تُحصّل حتى بداية يوم القاهرة الحالي.", source: "حقل overdue من عرض contact_branch_balances المبني على خطط وأقساط وفواتير عملاء الفرع.", formula: "مجموع الأقساط والفواتير غير المسددة المستحقة قبل تاريخ اليوم بتوقيت القاهرة" }}
+          metricHint={{ meaning: `أقساط عملاء الفرع اللي ميعادها عدى ولسه مفتوحة. أقساط الموردين المتأخرة: ${formatEGP(totals?.supplier_overdue ?? 0)}.`, source: "خطط وأقساط الفرع، محدودة بالمتبقي الفعلي في الدفتر (القسط على فاتورة اتسددت مش بيتحسب متأخر).", formula: "Σ (قيمة القسط − المدفوع منه) لأقساط مستحقة قبل النهارده بتوقيت القاهرة" }}
         />
       </div>
 
@@ -377,7 +416,7 @@ export default function Contacts() {
               <div className="text-xs text-muted-foreground px-2 pb-2 border-b mb-1">
                 اختر تصنيف أو أكثر
               </div>
-              {(["owe_us", "we_owe", "settled"] as const).map((k) => (
+              {(["owe_us", "customer_advance", "we_owe", "supplier_advance", "overdue", "settled"] as const).map((k) => (
                 <label
                   key={k}
                   className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent cursor-pointer text-sm"
@@ -465,14 +504,27 @@ export default function Contacts() {
             ),
           },
           {
-            key: "balance",
-            header: "الرصيد",
+            key: "customer_balance",
+            header: "حساب العميل",
             render: (r: any) => {
-              const b = Number(r.balance ?? 0);
-              if (Math.abs(b) < 0.01) return <span className="text-muted-foreground">—</span>;
-              return b > 0
-                ? <span className="text-success font-bold">{formatEGP(b)} <span className="text-xs">(لنا)</span></span>
-                : <span className="text-destructive font-bold">{formatEGP(Math.abs(b))} <span className="text-xs">(علينا)</span></span>;
+              if (r.type === "supplier") return <span className="text-muted-foreground">—</span>;
+              const b = Number(r.customer_balance ?? 0), all = Number(r.customer_balance_all ?? 0);
+              const main = Math.abs(b) <= 0.005 ? <span className="text-muted-foreground">مسدد</span>
+                : b > 0 ? <span className="text-success font-bold">{formatEGP(b)} <span className="text-xs">(لنا عليه)</span></span>
+                : <span className="text-primary font-bold">{formatEGP(-b)} <span className="text-xs">(مقدم منه)</span></span>;
+              return <div>{main}{Math.abs(all - b) > 0.005 && <div className="text-[11px] text-muted-foreground">كل الفروع: {formatEGP(Math.abs(all))} {all > 0 ? "لنا" : all < 0 ? "مقدم" : ""}</div>}</div>;
+            },
+          },
+          {
+            key: "supplier_balance",
+            header: "حساب المورد",
+            render: (r: any) => {
+              if (r.type === "customer") return <span className="text-muted-foreground">—</span>;
+              const b = Number(r.supplier_balance ?? 0), all = Number(r.supplier_balance_all ?? 0);
+              const main = Math.abs(b) <= 0.005 ? <span className="text-muted-foreground">مسدد</span>
+                : b > 0 ? <span className="text-destructive font-bold">{formatEGP(b)} <span className="text-xs">(علينا له)</span></span>
+                : <span className="text-primary font-bold">{formatEGP(-b)} <span className="text-xs">(مقدم لينا)</span></span>;
+              return <div>{main}{Math.abs(all - b) > 0.005 && <div className="text-[11px] text-muted-foreground">كل الفروع: {formatEGP(Math.abs(all))} {all > 0 ? "علينا" : all < 0 ? "مقدم" : ""}</div>}</div>;
             },
           },
           {
@@ -531,7 +583,7 @@ export default function Contacts() {
                     </Button>
                   )}
                   {(isAdmin || isManager) && (
-                    <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title={isAdmin ? "حذف" : "طلب حذف"} onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
+                    <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title={isAdmin ? "أرشفة" : "طلب أرشفة"} onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   )}
@@ -629,25 +681,25 @@ export default function Contacts() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setReqReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{isManager && !isAdmin ? "طلب حذف للموافقة" : "حذف الجهة"}</AlertDialogTitle>
+            <AlertDialogTitle>{isManager && !isAdmin ? "طلب أرشفة للموافقة" : "أرشفة الجهة"}</AlertDialogTitle>
             <AlertDialogDescription>
               {isManager && !isAdmin ? (
-                <>سيتم إرسال طلب حذف <b>{deleteTarget?.name}</b> لمدير الشركة للموافقة.</>
+                <>سيتم إرسال طلب أرشفة <b>{deleteTarget?.name}</b> لمدير الشركة للموافقة.</>
               ) : (
-                <>هل أنت متأكد من حذف <b>{deleteTarget?.name}</b>؟ لن يمكن التراجع.</>
+                <>هتتأرشف <b>{deleteTarget?.name}</b> وتختفي من القوائم — مفيش حذف نهائي، ومستنداتها وحركاتها محفوظة. مش مسموح لو عليها أو ليها رصيد مفتوح.</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {isManager && !isAdmin && (
             <div className="px-1">
-              <Label>سبب الحذف *</Label>
-              <Textarea className="mt-1.5" value={reqReason} onChange={(e) => setReqReason(e.target.value)} placeholder="اكتب سبب طلب الحذف..." />
+              <Label>سبب الأرشفة *</Label>
+              <Textarea className="mt-1.5" value={reqReason} onChange={(e) => setReqReason(e.target.value)} placeholder="اكتب سبب طلب الأرشفة..." />
             </div>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={onDelete}>
-              {isManager && !isAdmin ? "إرسال طلب الحذف" : "حذف"}
+              {isManager && !isAdmin ? "إرسال طلب الأرشفة" : "أرشفة"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -109,7 +109,7 @@ export default function NewPurchaseReturn() {
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped
     if ((sh as any).contact_id && (sh as any).contacts) {
       
-      (sh as any).contacts.balance = await fetchContactBalance((sh as any).contact_id);
+      (sh as any).contacts.balance = await fetchContactBalance((sh as any).contact_id, "supplier");
     }
 
     // Already-returned per product on this shipment
@@ -290,7 +290,7 @@ export default function NewPurchaseReturn() {
       // Inventory deduction (products + product_batches FIFO, branch-scoped) and the
       // treasury inflow for the cash/transfer portion are both handled atomically by
       // DB triggers: `apply_purchase_return_item` and `process_purchase_return_refund`.
-      // Supplier balance comes from v_contact_balances. No client-side writes here.
+      // Supplier balance = supplier side of the unified ledger (no netting). No client-side writes here.
 
       formDraft.clear();
       docSuccess({
@@ -406,7 +406,7 @@ export default function NewPurchaseReturn() {
               <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
                 {supplier?.phone && <span dir="ltr" className="font-mono">{supplier.phone}</span>}
                 {supplier && (
-                  <span>الرصيد: <b className={Number(supplier.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(supplier.balance ?? 0)}</b></span>
+                  <span>حساب المورد: <b className={Number(supplier.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(Math.abs(Number(supplier.balance ?? 0)))} {Number(supplier.balance) > 0.005 ? "علينا له" : Number(supplier.balance) < -0.005 ? "مقدم لينا عنده" : ""}</b></span>
                 )}
                 <span>فاتورة: <b className="font-mono text-primary">{shipment.arrival_date}</b></span>
                 <span>الإجمالي: <b className="text-primary">{formatEGP(shipment.total_cost)}</b></span>

@@ -1,4 +1,4 @@
-import { fetchContactBalanceMap, mergeBalancesById } from "@/lib/contactBalances";
+import { fetchSideBalances } from "@/lib/ledger";
 import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -77,7 +77,7 @@ export default function ExecutiveInsights({ embedded }: Props) {
       .gte("created_at", fromIso).lte("created_at", toIso);
 
     if (branchId !== "all") {
-      cQ = cQ.eq("branch_id", branchId);
+      // suppliers are company-wide contacts; their branch figure comes from the ledger branch view
       iQ = iQ.eq("branch_id", branchId);
       pQ = pQ.eq("branch_id", branchId);
       eQ = eQ.eq("branch_id", branchId);
@@ -91,11 +91,11 @@ export default function ExecutiveInsights({ embedded }: Props) {
       fetchAllRows<any>(() => eQ.order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => poQ.order("id")).then((data) => ({ data })),
     ]);
-    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
+    // Supplier side of the unified ledger (+ = we owe them, − = our advance with them), branch-scoped
+    // when a branch is chosen. The customer side of a "both" contact is never mixed in.
     const cList = (c.data ?? []) as any[];
-    
-    const cBalMap = await fetchContactBalanceMap(cList.map((x) => x.id));
-    setContacts(mergeBalancesById(cList, cBalMap));
+    const sb = await fetchSideBalances(cList.map((x) => x.id), branchId === "all" ? null : branchId || null);
+    setContacts(cList.map((x) => ({ ...x, balance: sb.get(x.id)?.supplier_balance ?? 0 })));
     setInvoices(i.data ?? []);
     setAllProducts(p.data ?? []);
     setExpenses((e.data ?? []).filter((v: any) => !EXCLUDE_KEYS.includes(v.voucher_categories?.system_key)));
@@ -122,16 +122,16 @@ export default function ExecutiveInsights({ embedded }: Props) {
   }, [preOrders]);
 
   // === Suppliers ===
-  // balance < 0 → we owe them; balance > 0 → they owe us
+  // supplier side: balance > 0 → we owe them; balance < 0 → our advance with them
   const suppliersWeOwe = useMemo(() =>
-    contacts.filter((c) => Number(c.balance) < 0)
-      .map((c) => ({ name: c.name, amount: Math.abs(Number(c.balance)) }))
+    contacts.filter((c) => Number(c.balance) > 0.005)
+      .map((c) => ({ name: c.name, amount: Number(c.balance) }))
       .sort((a, b) => b.amount - a.amount).slice(0, 10),
   [contacts]);
 
   const suppliersOwingUs = useMemo(() =>
-    contacts.filter((c) => Number(c.balance) > 0)
-      .map((c) => ({ name: c.name, amount: Number(c.balance) }))
+    contacts.filter((c) => Number(c.balance) < -0.005)
+      .map((c) => ({ name: c.name, amount: Math.abs(Number(c.balance)) }))
       .sort((a, b) => b.amount - a.amount).slice(0, 10),
   [contacts]);
 
