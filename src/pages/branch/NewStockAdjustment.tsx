@@ -11,7 +11,6 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { cn } from "@/lib/utils";
 import { filterProductsBySearch } from "@/lib/search";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Trash2, Loader2, HelpCircle, Check, ChevronsUpDown, Package } from "lucide-react";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -94,7 +93,6 @@ function ProductCombobox({
 
 export default function NewStockAdjustment() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const nav = useNavigate();
   const [products, setProducts] = useState<any[]>([]);
   const [reason, setReason] = useState("");
@@ -124,19 +122,15 @@ export default function NewStockAdjustment() {
     if (lines.length === 0) return toast.error("أضف منتج واحد على الأقل");
     for (const l of lines) if (!l.product_id) return toast.error("اختر منتج لكل سطر");
     setBusy(true);
-    const number = `ADJ-${Date.now().toString(36).toUpperCase()}`;
-    const { data: adj, error } = await supabase.from("stock_adjustments" as any).insert({
-      branch_id: branchId, adjustment_number: number,
-      reason: reason.trim(), notes: notes.trim() || null, created_by: user!.id,
-    }).select().single();
-    if (error || !adj) { setBusy(false); return toast.error(error?.message ?? "فشل الحفظ"); }
-    const items = lines.map((l) => ({
-      adjustment_id: (adj as any).id, product_id: l.product_id, product_name: l.product_name,
-      system_quantity: l.system_quantity, actual_quantity: l.actual_quantity,
-      difference: l.actual_quantity - l.system_quantity, unit_cost: l.unit_cost,
-    }));
-    const { error: e2 } = await supabase.from("stock_adjustment_items" as any).insert(items);
-    if (e2) { setBusy(false); return toast.error(e2.message); }
+    // One transaction on the server (Step 5): the system quantity is read at save time, so a sale made
+    // while this screen was open is not lost; header and lines are saved together.
+    const { error } = await (supabase.rpc as any)("create_stock_adjustment", {
+      p_branch_id: branchId,
+      p_reason: reason.trim(),
+      p_notes: notes.trim() || null,
+      p_lines: lines.map((l) => ({ product_id: l.product_id, actual_quantity: l.actual_quantity, unit_cost: l.unit_cost })),
+    });
+    if (error) { setBusy(false); return toast.error(error.message); }
     toast.success("تم تسجيل الجرد وتعديل المخزون");
     nav(`/branch/${branchId}/invoices?tab=adjustment`);
   };

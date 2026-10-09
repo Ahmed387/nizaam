@@ -66,6 +66,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   const [catFilter, setCatFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
   const [editing, setEditing] = useState<Row | null>(null);
+  const [editPriceReason, setEditPriceReason] = useState("");
   // حذف مؤجل لصور المنتج — لا يُنفَّذ إلا بعد نجاح الحفظ
   const [pendingImageDeletes, setPendingImageDeletes] = useState<string[]>([]);
   const [editOriginalImage, setEditOriginalImage] = useState<string>("");
@@ -153,18 +154,37 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
 
   const saveEdit = async () => {
     if (!editing) return;
-    // Non-quantity fields update directly (guard only blocks quantity)
+    // Writes go through guarded RPCs (Step 5): details, then prices (with a reason, logged in
+    // price_audit_log), then quantity through the audited adjustment path.
     const newQty = Number(editing.quantity) || 0;
-    const { error } = await supabase.from("products").update({
-      name: editing.name,
-      cost_price: Number(editing.cost_price) || 0,
-      selling_price: Number(editing.selling_price) || 0,
-      market_price: Number(editing.market_price) || 0,
-      low_stock_alert: Number(editing.low_stock_alert) || 5,
-      image: editing.image,
-      category_id: editing.category_id || null,
-    }).eq("id", editing.id);
+    const orig = rows.find((x) => x.id === editing.id);
+    const priceChanged = !orig
+      || Number(orig.cost_price || 0) !== (Number(editing.cost_price) || 0)
+      || Number(orig.selling_price || 0) !== (Number(editing.selling_price) || 0)
+      || Number(orig.market_price || 0) !== (Number(editing.market_price) || 0);
+    if (priceChanged && editPriceReason.trim().length < 10) {
+      return toast.error("اكتب سبب تعديل السعر (10 أحرف على الأقل)");
+    }
+    const { error } = await (supabase.rpc as any)("update_product_details", {
+      p_id: editing.id,
+      p_patch: {
+        name: editing.name,
+        low_stock_alert: Number(editing.low_stock_alert) || 5,
+        image: editing.image ?? null,
+        category_id: editing.category_id || null,
+      },
+    });
     if (error) return toast.error(error.message);
+    if (priceChanged) {
+      const { error: pErr } = await (supabase.rpc as any)("update_product_price_with_reason", {
+        _product_id: editing.id,
+        _selling_price: Number(editing.selling_price) || 0,
+        _cost_price: Number(editing.cost_price) || 0,
+        _market_price: Number(editing.market_price) || 0,
+        _reason: editPriceReason.trim(),
+      });
+      if (pErr) return toast.error(pErr.message);
+    }
 
     // Quantity goes through the audited adjustment path (creates stock_adjustment + reconciles batches)
     const { error: qErr } = await supabase.rpc("admin_set_product_quantity", {
@@ -184,13 +204,14 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     setEditOriginalImage("");
     toast.success("تم الحفظ");
     setEditing(null);
+    setEditPriceReason("");
     load();
   };
 
 
   /** حذف منتج واحد من فرع معيّن */
   const deleteOne = async (r: Row) => {
-    const { error } = await supabase.from("products").delete().eq("id", r.id);
+    const { error } = await (supabase.rpc as any)("delete_products", { p_ids: [r.id] });
     if (error) return toast.error(error.message);
     await logAudit({ userId: user!.id, userName: profile!.name, tenantId, branchId: r.branch_id, action: "DELETE", entity: "Product", entityId: r.id, details: { name: r.name } });
     toast.success(`تم حذف ${r.name} من ${r.branch_name}`);
@@ -202,7 +223,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   const deleteBulk = async () => {
     const ids = Array.from(selected);
     if (!ids.length) return;
-    const { error } = await supabase.from("products").delete().in("id", ids);
+    const { error } = await (supabase.rpc as any)("delete_products", { p_ids: ids });
     if (error) return toast.error(error.message);
     toast.success(`تم حذف ${ids.length} منتج`);
     setBulkDeleteOpen(false);
@@ -461,6 +482,10 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
               <div><Label>سعر الشراء</Label><Input type="number" value={editing.cost_price} onChange={(e) => setEditing({ ...editing, cost_price: Number(e.target.value) })} className="mt-1.5" /></div>
               <div><Label>سعر البيع</Label><Input type="number" value={editing.selling_price} onChange={(e) => setEditing({ ...editing, selling_price: Number(e.target.value) })} className="mt-1.5" /></div>
               <div><Label>سعر السوق</Label><Input type="number" value={editing.market_price} onChange={(e) => setEditing({ ...editing, market_price: Number(e.target.value) })} className="mt-1.5" /></div>
+              <div className="col-span-2">
+                <Label>سبب تعديل السعر (مطلوب لو غيّرت أي سعر — 10 أحرف على الأقل)</Label>
+                <Input value={editPriceReason} onChange={(e) => setEditPriceReason(e.target.value)} placeholder="مثال: تحديث أسعار المورد لشهر أكتوبر" className="mt-1.5" />
+              </div>
             </div>
           )}
           <DialogFooter className="px-6 py-4 border-t shrink-0 bg-background/95 backdrop-blur">
@@ -536,6 +561,7 @@ function BulkEditDialog({ open, onClose, selectedIds, cats, onSaved }: {
     use_market: false, market_price: "",
     use_alert: false, low_stock_alert: "",
     use_qty_op: false, qty_op: "set" as "set" | "add" | "sub", qty_value: "",
+    reason: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -546,7 +572,7 @@ function BulkEditDialog({ open, onClose, selectedIds, cats, onSaved }: {
       use_selling: false, selling_price: "",
       use_market: false, market_price: "",
       use_alert: false, low_stock_alert: "",
-      use_qty_op: false, qty_op: "set", qty_value: "",
+      use_qty_op: false, qty_op: "set", qty_value: "", reason: "",
     });
   }, [open]);
 
@@ -558,11 +584,16 @@ function BulkEditDialog({ open, onClose, selectedIds, cats, onSaved }: {
     if (fields.use_market) update.market_price = Number(fields.market_price) || 0;
     if (fields.use_alert) update.low_stock_alert = Number(fields.low_stock_alert) || 5;
 
+    const pricesTouched = fields.use_cost || fields.use_selling || fields.use_market;
+    if (pricesTouched && fields.reason.trim().length < 10) return toast.error("اكتب سبب تعديل السعر (10 أحرف على الأقل)");
+
     setSaving(true);
 
-    // التحديثات العادية تنطبق دفعة واحدة
+    // التحديثات العادية تنطبق دفعة واحدة — على السيرفر (للإدارة فقط، الأسعار بسبب يتسجل في سجل الأسعار)
     if (Object.keys(update).length > 0) {
-      const { error } = await supabase.from("products").update(update).in("id", selectedIds);
+      const { error } = await (supabase.rpc as any)("bulk_update_products", {
+        p_ids: selectedIds, p_patch: update, p_reason: pricesTouched ? fields.reason.trim() : null,
+      });
       if (error) { setSaving(false); return toast.error(error.message); }
     }
 
@@ -632,6 +663,13 @@ function BulkEditDialog({ open, onClose, selectedIds, cats, onSaved }: {
               </div>
             </div>
           ))}
+
+          {(fields.use_cost || fields.use_selling || fields.use_market) && (
+            <div className="p-3 rounded-md border border-warning/40 bg-warning/5">
+              <Label className="text-sm">سبب تعديل الأسعار (10 أحرف على الأقل — بيتسجل في سجل الأسعار)</Label>
+              <Input value={fields.reason} onChange={(e) => setFields({ ...fields, reason: e.target.value })} placeholder="مثال: زيادة أسعار المورد" className="mt-1.5" />
+            </div>
+          )}
 
           <div className="flex items-start gap-3 p-3 rounded-md border">
             <Checkbox checked={fields.use_qty_op} onCheckedChange={(v) => setFields({ ...fields, use_qty_op: !!v })} className="mt-2" />

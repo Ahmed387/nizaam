@@ -97,7 +97,7 @@ export default function ProductAttributes({ embedded = false }: { embedded?: boo
       const patch = Object.fromEntries(
         Object.entries(draft[p.id]).map(([k, v]) => [k, String(v ?? "").trim() || null])
       );
-      const { error } = await supabase.from("products").update(patch as any).eq("id", p.id);
+      const { error } = await (supabase.rpc as any)("update_product_details", { p_id: p.id, p_patch: patch });
       if (error) fail++; else ok++;
     }
     setSaving(false);
