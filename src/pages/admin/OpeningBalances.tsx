@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { fetchGlReconciliation, previewOpeningMatch, applyOpeningMatch, type GlReconciliation, type OpeningMatchPreview } from "@/lib/ledger";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +52,10 @@ export default function OpeningBalances() {
   const [mainTreasury, setMainTreasury] = useState<{ id: string; name: string } | null>(null);
 
   const [contactSearch, setContactSearch] = useState("");
+  const [sp] = useSearchParams();
+  // the books vs the ledger for the opening balances of contacts (G2 / G7 of the integrity check)
+  const [glOpen, setGlOpen] = useState<GlReconciliation["opening"] | null>(null);
+  const [postingContacts, setPostingContacts] = useState(false);
   const [productSearch, setProductSearch] = useState("");
 
   const load = async () => {
@@ -82,8 +88,35 @@ export default function OpeningBalances() {
       iMap[r.product_id] = { quantity: String(r.quantity ?? ""), cost_price: String(r.cost_price ?? "") };
     });
     setInv(iMap);
+    fetchGlReconciliation().then((g) => setGlOpen(g.opening)).catch(() => setGlOpen(null));
     setLoading(false);
   };
+
+  // contacts' opening balances vs the books on 1 Jan 2026 (G2 / G7): one entry for the difference only —
+  // the full opening when 2025 is not in the books, nothing when they already agree (never counted twice)
+  const [matchPreview, setMatchPreview] = useState<OpeningMatchPreview | null>(null);
+  const previewMatch = async () => {
+    setPostingContacts(true);
+    try { setMatchPreview(await previewOpeningMatch()); }
+    catch (e: any) { toast.error("تعذر حساب الفرق", { description: e.message }); }
+    finally { setPostingContacts(false); }
+  };
+  const applyMatch = async () => {
+    setPostingContacts(true);
+    try {
+      const r = await applyOpeningMatch();
+      toast.success("اتطابقت القيود مع الدفتر الموحد", { description: `${r.entry_id ? "اتسجل قيد مطابقة بتاريخ 2026-01-01" : "مفيش فرق يتسجل"}${r.reversed ? ` • اتعكس ${r.reversed} قيد مطابقة سابق` : ""}` });
+      setMatchPreview(null);
+      await load();
+    } catch (e: any) {
+      toast.error("فشلت المطابقة", { description: e.message });
+    } finally {
+      setPostingContacts(false);
+    }
+  };
+  const openingMismatch = glOpen
+    ? Object.keys(glOpen.ledger ?? {}).some((k) => Math.abs((glOpen.ledger?.[k] ?? 0) - (glOpen.journal?.[k] ?? 0)) > 0.005)
+    : false;
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId]);
 
@@ -217,6 +250,72 @@ export default function OpeningBalances() {
         </CardContent>
       </Card>
 
+      {glOpen && (
+        <Card className={`mb-4 ${openingMismatch ? "border-warning/60 bg-warning/5" : "border-success/40"}`}>
+          <CardContent className="p-4 space-y-3 text-sm">
+            <div className="font-semibold">{openingMismatch ? "أرصدة العملاء والموردين في القيود يوم 2026-01-01 مش مطابقة للدفتر الموحد" : "✓ أرصدة العملاء والموردين في القيود يوم 2026-01-01 مطابقة للدفتر الموحد"}</div>
+            <div className="text-xs text-muted-foreground">
+              «القيود يوم 2026-01-01» = قيود 2025 الموجودة على السيستم + القيود الافتتاحية. لازم تساوي اللي في الدفتر (الأرصدة الافتتاحية للجهات).
+              لو شغل 2025 مش على السيستم، الفرق هو الرصيد الافتتاحي كله؛ ولو موجود، الفرق بس هو اللي ناقص أو زيادة — عشان مفيش حاجة تتحسب مرتين.
+            </div>
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead className="text-right">الحساب</TableHead>
+                <TableHead className="text-right">في الدفتر (أرصدة الجهات)</TableHead>
+                <TableHead className="text-right">قيود 2025</TableHead>
+                <TableHead className="text-right">قيود افتتاحية ومطابقة</TableHead>
+                <TableHead className="text-right">الفرق</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {[["1200", "مديونية عملاء"], ["2150", "مقدمات عملاء"], ["2100", "مستحقات موردين"], ["1460", "مقدماتنا عند الموردين"]].map(([k, label]) => {
+                  const diff = (glOpen.ledger?.[k] ?? 0) - (glOpen.journal?.[k] ?? 0);
+                  return (
+                    <TableRow key={k}>
+                      <TableCell>{label} ({k})</TableCell>
+                      <TableCell>{fmt(glOpen.ledger?.[k] ?? 0)}</TableCell>
+                      <TableCell>{fmt(glOpen.books_2025?.[k] ?? 0)}</TableCell>
+                      <TableCell>{fmt(glOpen.opening_entries?.[k] ?? 0)}</TableCell>
+                      <TableCell className={Math.abs(diff) > 0.005 ? "text-destructive font-semibold" : "text-success"}>{Math.abs(diff) > 0.005 ? fmt(diff) : "✓"}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+            {openingMismatch && (
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground">
+                  الأول اتأكد إن أرصدة الجهات في تبويب «العملاء والموردين» صح (ولو فيه فواتير بتاريخ 2025 اتسجلت بعد بداية السيستم — تنبيه L7 — صحّحها الأول).
+                  بعدها «طابق»: بيتسجل قيد واحد بتاريخ 2026-01-01 بالفرق بس قصاد 3950، وأي قيد مطابقة قديم بيتعكس (مفيش حذف). النقدية والمخزون مش بيتلمسوا.
+                </div>
+                {!matchPreview ? (
+                  <Button onClick={previewMatch} disabled={postingContacts || loading} variant="outline">
+                    <Scale className="h-4 w-4 me-2" /> اعرض قيد المطابقة
+                  </Button>
+                ) : (
+                  <div className="rounded-md border p-3 space-y-2">
+                    <div className="font-medium">قيد المطابقة اللي هيتسجل (2026-01-01):</div>
+                    {matchPreview.lines.length === 0 ? <div className="text-xs">مفيش فرق.</div> : (
+                      <Table>
+                        <TableHeader><TableRow><TableHead className="text-right">الحساب</TableHead><TableHead className="text-right">مدين</TableHead><TableHead className="text-right">دائن</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                          {matchPreview.lines.map((l, i) => (
+                            <TableRow key={i}><TableCell>{l.account_code} — {l.description}</TableCell><TableCell>{l.debit ? fmt(l.debit) : ""}</TableCell><TableCell>{l.credit ? fmt(l.credit) : ""}</TableCell></TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                    <div className="flex gap-2">
+                      <Button onClick={applyMatch} disabled={postingContacts || loading}><Users className="h-4 w-4 me-2" /> طابق القيود مع الدفتر</Button>
+                      <Button variant="ghost" onClick={() => setMatchPreview(null)} disabled={postingContacts}>إلغاء</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="mb-4">
         <CardContent className="p-4 flex flex-wrap items-end gap-4">
           <div className="space-y-1">
@@ -236,7 +335,7 @@ export default function OpeningBalances() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="cash">
+      <Tabs defaultValue={sp.get("section") === "contacts" ? "contacts" : sp.get("section") === "inventory" ? "inventory" : "cash"}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="cash" className="gap-2"><Banknote className="h-4 w-4" /> نقدية الخزن</TabsTrigger>
           <TabsTrigger value="contacts" className="gap-2"><Users className="h-4 w-4" /> العملاء والموردين</TabsTrigger>
@@ -388,6 +487,7 @@ export default function OpeningBalances() {
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-start">
                 <p>سيتم إنشاء قيود افتتاحية بتاريخ <strong>{openingDate}</strong>، والقيود الافتتاحية السابقة هتتعكس بقيود عكسية (مفيش حذف).</p>
+                <p className="text-warning">لو شغل 2025 متسجل على السيستم، أرصدة العملاء والموردين موجودة في قيوده بالفعل — بعد الحفظ راجع كارت «مطابقة القيود مع الدفتر» فوق واضغط «طابق» عشان الفرق بس يتظبط ومفيش حاجة تتحسب مرتين.</p>
                 <ul className="text-sm space-y-1">
                   <li>نقدية الخزن: <strong>{fmt(cashTotal)}</strong></li>
                   <li>مديونية العملاء: <strong>{fmt(sideTotals.ar)}</strong> · مقدمات العملاء: <strong>{fmt(sideTotals.cAdv)}</strong></li>

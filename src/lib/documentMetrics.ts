@@ -61,12 +61,14 @@ export function docFacts(kind: DocKind, r: Row): DocFacts {
       const amount = n(r.amount);
       byBucket[bucketOf(r.payment_method)] = amount;
       const sysKey = r.voucher_categories?.system_key;
+      // flow_class (Step 6E) says what the money really is, also for vouchers written by the till
+      const fc: string | null = r.flow_class ?? null;
       if (kind === "income") {
-        const fromCustomer = r.party_type === "customer";
+        const fromCustomer = fc ? fc === "customer" : r.party_type === "customer";
         return { cancelled, amount, parts: { active: amount, customers: fromCustomer ? amount : 0, otherIncome: fromCustomer ? 0 : amount }, byBucket };
       }
-      const supplier = sysKey === "supplier_payment" || r.party_type === "supplier";
-      const internal = !supplier && isInternalOrRefundPayment(sysKey, r.voucher_categories?.name, r.party_type);
+      const supplier = fc ? fc === "supplier" : (sysKey === "supplier_payment" || r.party_type === "supplier");
+      const internal = !supplier && (fc ? fc === "internal" || fc === "customer_refund" : isInternalOrRefundPayment(sysKey, r.voucher_categories?.name, r.party_type));
       return { cancelled, amount, parts: { active: amount, suppliers: supplier ? amount : 0, internal: internal ? amount : 0, operating: supplier || internal ? 0 : amount }, byBucket };
     }
   }
@@ -113,12 +115,12 @@ export function matchesDocCard(kind: DocKind, r: Row, key: DocCardKey | null): b
 
 /** Lean projection each kind needs for its metrics (all filtered rows, never just one page). */
 export const METRIC_SELECT: Record<DocKind, string> = {
-  sale: "id, total, status",
-  purchase: "id, total_cost, status, contact_id",
+  sale: "id, total, status, contact_id, invoice_date",
+  purchase: "id, total_cost, status, contact_id, invoice_date, created_at",
   sale_return: "id, total_refund, status, refund_method, refund_account, refund_cash_amount, refund_transfer_amount, refund_balance_amount",
   purchase_return: "id, total_amount, status, refund_method, refund_account, refund_cash_amount, refund_transfer_amount, refund_balance_amount",
-  income: "id, amount, status, payment_method, party_type, voucher_categories(system_key)",
-  expense: "id, amount, status, payment_method, party_type, voucher_categories(system_key, name)",
+  income: "id, amount, status, payment_method, party_type, flow_class, voucher_categories(system_key)",
+  expense: "id, amount, status, payment_method, party_type, flow_class, voucher_categories(system_key, name)",
 };
 
 /** Payment vouchers that move money out but are not operating expenses: transfers between treasuries/branches, refunds to customers, and staff advances (receivables). */

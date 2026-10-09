@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
+import { LEDGER_START } from "@/lib/ledger";
 
 /**
  * Cancel a purchase invoice (no hard delete — owner rule).
@@ -17,7 +18,7 @@ import { toast } from "sonner";
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  shipment: { id: string; shipment_number?: string | null; total_cost?: number | null; branch_id?: string | null; contacts?: { name?: string | null } | null } | null;
+  shipment: { id: string; shipment_number?: string | null; total_cost?: number | null; branch_id?: string | null; invoice_date?: string | null; created_at?: string | null; contacts?: { name?: string | null } | null } | null;
   onDone?: () => void;
 }
 
@@ -76,6 +77,12 @@ export function CancelPurchaseDialog({ open, onOpenChange, shipment, onDone }: P
             <div>• الأقساط المتبقية هتتلغي، وأي مبلغ اتدفع للمورد يفضل رصيد مقدم عنده.</div>
             <div>• لو جزء من البضاعة اتباع أو اتحول، الإلغاء هيترفض — اعمل مرتجع شراء بدلاً منه.</div>
           </div>
+          {String(shipment?.invoice_date ?? shipment?.created_at ?? "").slice(0, 10) < LEDGER_START && !!(shipment?.invoice_date ?? shipment?.created_at) && (
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
+              <div className="font-semibold">فاتورة من قبل بداية الدفتر الموحد</div>
+              <div>• الباقي عليها بيتخصم من رصيد المورد الافتتاحي (في حدود الرصيد ده)، واللي اتدفع عليها قبل 2026 بيبقى رصيد مقدم لينا عنده.</div>
+            </div>
+          )}
           <Textarea placeholder="سبب الإلغاء * (مطلوب)" value={reason} onChange={(e) => setReason(e.target.value)} rows={3} />
           {asRequest && <div className="text-xs text-muted-foreground">الطلب هيروح لمدير الشركة، وبعد الموافقة الإلغاء بيتنفذ بنفس الخطوات.</div>}
         </div>

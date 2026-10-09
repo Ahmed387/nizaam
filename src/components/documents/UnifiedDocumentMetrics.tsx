@@ -45,13 +45,13 @@ const TOP: Record<DocKind, CardDef[]> = {
   income: [
     { key: "active", label: "إجمالي المقبوضات", icon: <TrendingUp />, tone: "success", countWord: "سند نشط", meaning: "قيمة سندات القبض النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
     { key: "cancelled", label: "سندات ملغاة", icon: <XCircle />, tone: "destructive", countWord: "سند ملغي", meaning: "السندات الملغاة، خارج باقي الكروت.", formula: "Σ المبلغ حيث الحالة = ملغي" },
-    { key: "customers", label: "مقبوض من عملاء", icon: <Users />, tone: "primary", countWord: "سند", meaning: "سندات القبض التي طرفها عميل.", formula: "Σ المبلغ حيث نوع الطرف = عميل" },
-    { key: "otherIncome", label: "إيرادات أخرى", icon: <Receipt />, tone: "warning", countWord: "سند", meaning: "باقي سندات القبض (بدون طرف عميل).", formula: "إجمالي المقبوضات − مقبوض من عملاء" },
+    { key: "customers", label: "مقبوض من عملاء", icon: <Users />, tone: "primary", countWord: "سند", meaning: "سندات القبض اللي فلوسها من عملاء: سند على عميل، تحصيل من ملف العميل أو قسط، مبيعات نقدية، إيداع تحت الحساب — حتى لو السند اتعمل تلقائي من الخزنة.", formula: "Σ المبلغ حيث تصنيف الفلوس = عميل" },
+    { key: "otherIncome", label: "إيرادات أخرى", icon: <Receipt />, tone: "warning", countWord: "سند", meaning: "باقي سندات القبض: إيرادات أخرى وتحويلات داخلة ومرتجعات من موردين.", formula: "إجمالي المقبوضات − مقبوض من عملاء" },
   ],
   expense: [
     { key: "active", label: "إجمالي المدفوعات", icon: <TrendingUp />, tone: "destructive", countWord: "سند نشط", meaning: "قيمة سندات الصرف النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
     { key: "cancelled", label: "سندات ملغاة", icon: <XCircle />, tone: "warning", countWord: "سند ملغي", meaning: "السندات الملغاة، خارج باقي الكروت.", formula: "Σ المبلغ حيث الحالة = ملغي" },
-    { key: "suppliers", label: "سداد موردين", icon: <Truck />, tone: "primary", countWord: "سند", meaning: "سندات الصرف لطرف مورد أو بتصنيف سداد مورد.", formula: "Σ المبلغ حيث الطرف = مورد" },
+    { key: "suppliers", label: "سداد موردين", icon: <Truck />, tone: "primary", countWord: "سند", meaning: "سندات الصرف اللي فلوسها لموردين: سند على مورد، سداد من ملف المورد، أقساط خطط الشراء، الدفع عند الشراء.", formula: "Σ المبلغ حيث تصنيف الفلوس = مورد" },
     { key: "operating", label: "مصاريف تشغيلية وإدارية", icon: <Receipt />, tone: "destructive", countWord: "سند", meaning: "المصاريف التشغيلية والإدارية الفعلية فقط (إيجارات، مرتبات، كهرباء، صيانة، ضيافة...).", formula: "إجمالي المدفوعات − سداد موردين − تحويلات داخلية ومرتجع وسلف" },
     { key: "internal", label: "تحويلات داخلية ومرتجع وسلف", icon: <ArrowUpCircle />, tone: "warning", countWord: "سند", meaning: "تحويلات بين الخزن/الفروع، مرتجعات ومدفوعات للعملاء، وسلف الموظفين (ذمة تُسترد) — خرجت من الخزينة لكنها ليست مصروفًا تشغيليًا.", formula: "Σ المبلغ حيث التصنيف = مرتجع عميل أو تحويل (خزينة/فرع) أو سلف موظفين، أو الطرف = عميل" },
   ],

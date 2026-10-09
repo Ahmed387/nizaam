@@ -306,7 +306,8 @@ export interface GlReconciliation {
   not_posted: { movements: number; allocations: number; closed_period_skipped: number };
   old_entries_still_standing: number;
   retired_old_entries: number;
-  opening: { ledger: Record<string, number>; journal: Record<string, number> };
+  /** journal = the books on 1 Jan 2026 = books_2025 (entries dated before it) + opening_entries */
+  opening: { ledger: Record<string, number>; journal: Record<string, number>; books_2025?: Record<string, number>; opening_entries?: Record<string, number> };
 }
 export async function fetchGlReconciliation(): Promise<GlReconciliation> {
   return numDeep(await call<any>("ledger_gl_reconciliation", { p_tenant: null }));
@@ -320,6 +321,41 @@ export async function fetchOpeningReconciliation(): Promise<OpeningReconRow[]> {
   const rows = await callAll<any>("opening_balances_reconciliation", {}, ["contact_id", "side"]);
   return rows.map((r) => ({ ...r, opening_in_contact: n(r.opening_in_contact), opening_in_ledger: n(r.opening_in_ledger),
     old_prepaid_credit: r.old_prepaid_credit == null ? null : n(r.old_prepaid_credit), ledger_advance_now: n(r.ledger_advance_now) }));
+}
+
+/** Money of a branch and period by method, from the ledger (every collection / payment, any screen). */
+export interface MoneyFlowRow { method: string; money_in: number; money_out: number; movements: number }
+export async function fetchMoneyFlow(side: Side, branchId: string, from?: string | null, to?: string | null, contactId?: string | null, signal?: AbortSignal): Promise<MoneyFlowRow[]> {
+  let q = rpc("ledger_money_flow", { p_side: side, p_branch_id: branchId, p_from: from || null, p_to: to || null, p_contact: contactId || null });
+  if (signal) q = q.abortSignal(signal);
+  const { data, error } = await q;
+  if (error) throw error;
+  return ((data ?? []) as any[]).map((r) => ({ method: r.method, money_in: n(r.money_in), money_out: n(r.money_out), movements: n(r.movements) }));
+}
+
+/** First day of the unified ledger (documents dated before it live in the archive / opening balances). */
+export const LEDGER_START = "2026-01-01";
+
+/** Transfer fees taken from the till twice (before migration 0057) and their cancel-only correction. */
+export interface DuplicateFeeRow { treasury_id: string; voucher_id: string | null; voucher_number: string | null; branch_name: string; amount: number; payment_method: string | null; fee_date: string; kept_treasury_id: string | null; already_corrected: boolean }
+export async function fetchDuplicateFees(): Promise<DuplicateFeeRow[]> {
+  const rows = await callAll<any>("duplicate_fee_till_rows", { p_tenant: null }, ["treasury_id"]);
+  return rows.map((r) => ({ ...r, amount: n(r.amount) }));
+}
+export async function repairDuplicateFees(apply: boolean): Promise<{ count: number; amount: number; skipped: number; skippedClosed: number }> {
+  const d = await call<any>("repair_duplicate_fee_till_rows", { p_apply: apply, p_tenant: null });
+  return { count: n(d?.count), amount: n(d?.amount), skipped: n(d?.skipped_without_voucher_or_taken), skippedClosed: n(d?.skipped_closed_period) };
+}
+
+/** Contacts' opening balances: match the books on 1 Jan 2026 to the ledger with one entry for the difference. */
+export interface OpeningMatchPreview { gap: Record<string, number>; lines: { account_code: string; debit: number; credit: number; description: string }[] }
+export async function previewOpeningMatch(): Promise<OpeningMatchPreview> {
+  const d = numDeep(await call<any>("match_opening_books", { p_apply: false }));
+  return { gap: d?.gap ?? {}, lines: d?.lines ?? [] };
+}
+export async function applyOpeningMatch(): Promise<{ entry_id: string | null; reversed: number }> {
+  const d = await call<any>("match_opening_books", { p_apply: true });
+  return { entry_id: d?.entry_id ?? null, reversed: n(d?.reversed) };
 }
 
 /** Arabic label of a stored payment method key. */

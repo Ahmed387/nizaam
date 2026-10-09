@@ -8910,6 +8910,7 @@ export type Database = {
         Args: { p_journal: string }
         Returns: boolean
       }
+      ledger_opening_books: { Args: { p_tenant: string }; Returns: Json }
       ledger_opening_branch: {
         Args: { p_contact: string; p_tenant: string }
         Returns: string
@@ -9052,6 +9053,7 @@ export type Database = {
         Args: never
         Returns: number
       }
+      match_opening_books: { Args: { p_apply?: boolean }; Returns: Json }
       next_branch_code: { Args: never; Returns: string }
       next_invoice_number: { Args: never; Returns: string }
       next_journal_number: {
