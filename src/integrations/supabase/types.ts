@@ -8297,29 +8297,6 @@ export type Database = {
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_viewer: { Args: { _user_id: string }; Returns: boolean }
       ledger_cutoff: { Args: never; Returns: string }
-      ledger_day: { Args: { p_ts: string }; Returns: string }
-      ledger_desired_movements: {
-        Args: { p_contact: string }
-        Returns: {
-          amount: number
-          branch_id: string
-          effect: string
-          is_void: boolean
-          kind: string
-          method: string
-          movement_date: string
-          notes: string
-          reference_id: string
-          reference_number: string
-          side: string
-          source_id: string
-          source_table: string
-        }[]
-      }
-      ledger_ip_is_voided_mirror: {
-        Args: { p_ip_id: string }
-        Returns: boolean
-      }
       log_audit_event: {
         Args: {
           p_action: string
