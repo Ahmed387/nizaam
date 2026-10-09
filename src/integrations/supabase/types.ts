@@ -8266,6 +8266,23 @@ export type Database = {
           remaining: number
         }[]
       }
+      duplicate_fee_till_rows: {
+        Args: { p_tenant?: string }
+        Returns: {
+          already_corrected: boolean
+          amount: number
+          branch_id: string
+          branch_name: string
+          description: string
+          expense_id: string
+          fee_date: string
+          kept_treasury_id: string
+          payment_method: string
+          treasury_id: string
+          voucher_id: string
+          voucher_number: string
+        }[]
+      }
       edit_invoice: {
         Args: {
           _customer_id: string
@@ -9555,6 +9572,10 @@ export type Database = {
       release_reservations_for_draft: {
         Args: { p_draft_id: string; p_status?: string }
         Returns: undefined
+      }
+      repair_duplicate_fee_till_rows: {
+        Args: { p_apply?: boolean; p_tenant?: string }
+        Returns: Json
       }
       repost_invoice_journal: {
         Args: { p_invoice_id: string }

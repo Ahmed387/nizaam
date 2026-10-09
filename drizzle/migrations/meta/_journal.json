@@ -435,6 +435,13 @@
       "when": 1791549391134,
       "tag": "0061_step6e_part1_voucher_flow_archive_cancel",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1791549478884,
+      "tag": "0062_step6e_part2_returns_fees_integrity",
+      "breakpoints": true
     }
   ]
 }
