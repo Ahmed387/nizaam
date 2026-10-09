@@ -29,6 +29,8 @@
 - `contacts.credit_balance` is a derived cache of Σ `customer_credit_log.balance_delta`, synced by trigger; direct updates are blocked — why: one source of truth for prepaid credit.
 - Purchase invoices save via `record_shipment_with_credit` (shipment + plan header + supplier advance deduction atomically); supplier balances on shipments are computed from the contact ledger, never from stored `previous_balance/current_balance` — why: no half-saved invoices or stale balances.
 - Guarded RPCs keep their whole body in one function (no `__impl` split copies); tenant/role guards run at the top of that body — why: one callable path, no unguarded twin.
+- Never `GRANT EXECUTE … TO authenticated` in a loop over all SECURITY DEFINER functions. Internal helpers stay owner/service_role only; a new browser RPC is granted by name and added to the allow-list in `security_exposed_definer_functions()` in the same migration — why: definer functions bypass RLS (SEC-001, migration 0049).
+- The browser never calls `process_sale`; online and offline sales both go through `process_sale_full` — why: shift gate and admin-only backdating live there.
 - Products with stock/document history cannot be deleted (RESTRICT FKs + guard trigger; only the guarded branch reset purges) — why: protect historical reports and COGS.
 - Payments of backdated documents pass the document date to `record_payment_transaction(p_payment_date)` so treasury/payment rows inherit it — why: periods follow accounting dates.
 - `vouchers.treasury_id` is NOT NULL with FK to `treasury` (ON DELETE CASCADE) — why: no voucher can exist without its cash movement; admin purges of treasury remove the voucher with it.

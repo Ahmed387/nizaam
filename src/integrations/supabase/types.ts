@@ -8430,6 +8430,12 @@ export type Database = {
           type: string
         }[]
       }
+      security_exposed_definer_functions: {
+        Args: never
+        Returns: {
+          function_signature: string
+        }[]
+      }
       seed_default_chart_of_accounts: {
         Args: { p_tenant_id: string }
         Returns: undefined

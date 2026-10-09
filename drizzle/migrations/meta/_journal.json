@@ -316,6 +316,13 @@
       "when": 1791070368778,
       "tag": "0044_contacts_page",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1791521768801,
+      "tag": "0045_0049_sec001_restrict_definer_rpcs",
+      "breakpoints": true
     }
   ]
 }
