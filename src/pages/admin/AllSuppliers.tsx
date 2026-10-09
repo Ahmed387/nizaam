@@ -101,7 +101,7 @@ export default function AllSuppliers() {
     const [{ data: sups }, { data: brs }, { data: ships }, { data: pays }] = await Promise.all([
       fetchAllRows<any>(() => supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
       supabase.from("branches").select("id, name").eq("is_active", true).eq("is_system", false).order("name"),
-      fetchAllRows<any>(() => supabase.from("shipments").select("id, contact_id, branch_id, total_cost, branches(name)").order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("shipments").select("id, contact_id, branch_id, total_cost, branches(name)").eq("status", "active").order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("supplier_payments").select("id, contact_id, branch_id, amount, branches(name)").order("id")).then((data) => ({ data })),
     ]);
     // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
@@ -296,6 +296,7 @@ export default function AllSuppliers() {
         .from("shipments")
         .select("id, arrival_date, branch_id, total_cost, shipping_cost, admin_cost, received_by, notes, created_at, branches(name), shipment_items(product_name, quantity, cost_price, total)")
         .eq("contact_id", s.id)
+        .eq("status", "active")
         .order("arrival_date", { ascending: false })
         .order("id"));
       setShipmentsList(data);

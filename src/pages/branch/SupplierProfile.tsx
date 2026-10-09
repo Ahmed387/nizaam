@@ -95,6 +95,7 @@ export default function SupplierProfile() {
         .from("shipments")
         .select("*, branches(name), shipment_items(id, quantity)")
         .eq("contact_id", supplierId!)
+        .eq("status", "active")
         .order("arrival_date", { ascending: false }),
       supabase
         .from("v_supplier_ledger" as any)

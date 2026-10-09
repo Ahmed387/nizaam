@@ -75,6 +75,7 @@ export function useContactBranchBreakdown(
           .from("shipments")
           .select("branch_id, total_cost")
           .eq("contact_id", cid)
+          .eq("status", "active")
           .eq("tenant_id", tid),
         supabase.from("branches").select("id, name").eq("tenant_id", tid),
       ]);

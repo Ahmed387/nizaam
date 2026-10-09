@@ -18,7 +18,7 @@ import { fetchVoucherCategories, PARTY_TYPE_LABEL, Voucher, VoucherCategory, Vou
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, XCircle, Loader2, Trash2, Eye, Pencil, Printer, FileDown, ChevronDown, Check } from "lucide-react";
+import { Plus, XCircle, Eye, Pencil, Printer, FileDown, ChevronDown, Check } from "lucide-react";
 import { DetailsChevron } from "@/components/DetailsChevron";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
@@ -49,8 +49,6 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   const [dialogOpen, setDialogOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<Voucher | null>(null);
   const [cancelReason, setCancelReason] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<Voucher | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [viewTarget, setViewTarget] = useState<Voucher | null>(null);
   const [editTarget, setEditTarget] = useState<Voucher | null>(null);
   const [editFocusDate, setEditFocusDate] = useState(false);
@@ -152,20 +150,6 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     toast.success("تم إلغاء السند");
     setCancelTarget(null);
     setCancelReason("");
-    load();
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    const { error } = await supabase.rpc("delete_voucher_admin" as any, {
-      p_voucher_id: deleteTarget.id,
-      p_reason: "حذف بواسطة المدير",
-    });
-    setDeleting(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم حذف السند نهائياً");
-    setDeleteTarget(null);
     load();
   };
 
@@ -453,14 +437,6 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
                     <XCircle className="w-4 h-4" />
                   </Button>
                 )}
-                {isAdmin && (
-                  <Button
-                    size="sm" variant="ghost" onClick={() => setDeleteTarget(r)} className="text-destructive"
-                    title="حذف نهائي — يمسح السند ومرفقاته من قاعدة البيانات بدون رجوع. يُستخدم لو السند مكرر أو اتعمل بالغلط أصلاً."
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
               </div>
             );
           } },
@@ -515,31 +491,6 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>حذف السند {deleteTarget?.voucher_number} نهائياً</DialogTitle></DialogHeader>
-          <div className="space-y-2 py-2 text-sm">
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs leading-relaxed">
-              <b>الفرق بين الإلغاء والحذف النهائي:</b><br />
-              • <b>إلغاء</b> = السند يفضل في السجلات بحالة «ملغي» مع تتبع السبب.<br />
-              • <b>حذف نهائي</b> = السند ومرفقاته يتمسحوا خالص من قاعدة البيانات.<br />
-              يُستخدم بس لو السند مكرر أو اتعمل بالغلط ومش عايز يفضل له أثر.
-            </div>
-            <p>
-              لو السند نشط، أثره على الخزينة هيترجع أوتوماتيك قبل الحذف.
-            </p>
-            <p className="text-destructive font-semibold">
-              العملية دي مالهاش رجوع.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>تراجع</Button>
-            <Button variant="destructive" onClick={confirmDelete} disabled={deleting}>
-              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "تأكيد الحذف"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <VoucherViewDialog
         voucher={viewTarget}

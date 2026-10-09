@@ -108,9 +108,9 @@ Deno.serve(async (req) => {
         user_metadata: {
           name,
           username: email.split('@')[0],
-          tenant_id: tenantId,
           must_change_password: !!force_change,
         },
+        app_metadata: { tenant_id: tenantId },
       });
 
       let userId: string | null = created.data?.user?.id ?? null;
@@ -136,9 +136,10 @@ Deno.serve(async (req) => {
           password,
           email_confirm: true,
           user_metadata: {
-            name, username: email.split('@')[0], tenant_id: tenantId,
+            name, username: email.split('@')[0],
             must_change_password: !!force_change,
           },
+          app_metadata: { tenant_id: tenantId },
         });
         userId = found.id;
       }

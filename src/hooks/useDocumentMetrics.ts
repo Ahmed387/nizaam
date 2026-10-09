@@ -58,7 +58,9 @@ export function useDocumentMetrics(
 
         if (kind === "purchase") {
           const alloc = await fetchPurchaseAllocation(ctx.branchId!, unique.map((r) => r.contact_id), ctrl.signal);
-          unique = unique.map((r) => ({ ...r, __paid: alloc.get(r.id)?.paid ?? 0, __remaining: alloc.get(r.id)?.remaining ?? (Number(r.total_cost) || 0) }));
+          unique = unique.map((r) => (r.status === "cancelled"
+            ? { ...r, __paid: 0, __remaining: 0 }
+            : { ...r, __paid: alloc.get(r.id)?.paid ?? 0, __remaining: alloc.get(r.id)?.remaining ?? (Number(r.total_cost) || 0) }));
         }
         const result: DocMetrics = aggregateFacts(unique.map((r) => docFacts(kind, r)));
 

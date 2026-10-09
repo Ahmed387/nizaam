@@ -89,6 +89,7 @@ export default function AgingReport() {
       const { data: shipments } = await supabase.from("shipments")
         .select("id,shipment_number,invoice_date,total_cost,contact_id,contacts(name)")
         .eq("tenant_id", tenantId)
+        .eq("status", "active")
         .lte("invoice_date", getCairoDayBounds(undefined, asOf).endIso!);
       // group shipments by contact, sort oldest first
       const byContact = new Map<string, any[]>();

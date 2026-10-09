@@ -107,7 +107,7 @@ export async function fetchContactLedger(contactId: string): Promise<ContactLedg
     const [{ data: ships }, { data: sp }, { data: prets }] = await Promise.all([
       fetchAllRows<any>(() => supabase.from("shipments")
         .select("id, shipment_number, total_cost, arrival_date, invoice_date, created_at, is_migrated, branch_id")
-        .eq("contact_id", contactId).order("id")).then((data) => ({ data })),
+        .eq("contact_id", contactId).eq("status", "active").order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("supplier_payments" as any).select("id, amount, paid_at, notes, branch_id").eq("contact_id", contactId).order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("purchase_returns")
         .select("id, return_number, total_amount, refund_cash_amount, refund_transfer_amount, status, created_at, invoice_date, refund_method, branch_id")

@@ -4,9 +4,9 @@ import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP, formatDate, balanceLabel } from "@/lib/format";
-import { Loader2, Package, Phone, User, Calendar, ClipboardList, Truck, Receipt, Trash2, Printer, ArrowRight, Pencil } from "lucide-react";
+import { Loader2, Package, Phone, User, Calendar, ClipboardList, Truck, Receipt, XCircle, Printer, ArrowRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { CancelPurchaseDialog } from "@/components/CancelPurchaseDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -31,14 +31,12 @@ export default function ShipmentView() {
   const nav = useNavigate();
   const { isAdmin, hasRole, tenantId, user, profile } = useAuth();
   const isManager = hasRole("branch_manager");
-  const canDelete = isAdmin || isManager;
+  const canCancelDoc = isAdmin || isManager;
   const canEdit = isAdmin || isManager;
   const [ship, setShip] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [delOpen, setDelOpen] = useState(false);
-  const [delReason, setDelReason] = useState("");
-  const [delBusy, setDelBusy] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editBusy, setEditBusy] = useState(false);
   const [editReason, setEditReason] = useState("");
@@ -82,31 +80,6 @@ export default function ShipmentView() {
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line
   }, [shipmentId]);
-
-  const handleDelete = async () => {
-    if (!ship) return;
-    setDelBusy(true);
-    const label = `فاتورة شراء ${ship.shipment_number ?? ship.id.slice(0, 8)} - ${ship.contacts?.name ?? ""}`;
-    if (isAdmin) {
-      const { error } = await supabase.from("shipments").delete().eq("id", ship.id);
-      setDelBusy(false);
-      if (error) return toast.error(error.message);
-      toast.success(`تم حذف ${label}`);
-      nav(`/branch/${branchId}/invoices?tab=purchase`);
-    } else if (isManager) {
-      if (!delReason.trim()) { setDelBusy(false); return toast.error("اكتب سبب الحذف"); }
-      const ok = await createApprovalRequest({
-        tenantId: tenantId!, branchId: branchId ?? null,
-        entityType: "shipment", entityId: ship.id, entityLabel: label,
-        action: "delete", reason: delReason,
-        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
-      });
-      setDelBusy(false);
-      if (!ok) return;
-      toast.success("تم إرسال طلب الحذف للموافقة");
-      setDelOpen(false); setDelReason("");
-    } else { setDelBusy(false); return toast.error("غير مصرح"); }
-  };
 
   const openEdit = () => {
     setEdit({
@@ -157,6 +130,7 @@ export default function ShipmentView() {
 
   if (loading) return <BranchLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
   if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">فاتورة شراء غير موجودة</div></BranchLayout>;
+  const isCancelled = ship.status === "cancelled";
 
   const customs = Number(ship.customs_cost ?? 0);
   const otherCost = Number(ship.other_cost ?? 0);
@@ -240,19 +214,28 @@ export default function ShipmentView() {
             <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
               <Printer className="w-4 h-4" /> طباعة الفاتورة
             </Button>
-            {canEdit && (
+            {canEdit && !isCancelled && (
               <Button variant="outline" size="sm" className="gap-2" onClick={() => nav(`/branch/${branchId}/shipments/${ship.id}/edit`)}>
                 <Pencil className="w-4 h-4" /> {isAdmin ? "التعديل على الفاتورة" : "طلب تعديل على الفاتورة"}
               </Button>
             )}
-            {canDelete && (
-              <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setDelOpen(true)}>
-                <Trash2 className="w-4 h-4" /> {isAdmin ? "حذف نهائي للفاتورة" : "طلب حذف للفاتورة"}
+            {canCancelDoc && !isCancelled && (
+              <Button variant="outline" size="sm" className="gap-2 text-destructive border-destructive/30 hover:bg-destructive/10" onClick={() => setCancelOpen(true)}>
+                <XCircle className="w-4 h-4" /> {isAdmin ? "إلغاء الفاتورة" : "طلب إلغاء الفاتورة"}
               </Button>
             )}
           </div>
         }
       />
+
+      {isCancelled && (
+        <div className="mb-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm">
+          <b className="text-destructive">فاتورة ملغاة</b>
+          {ship.cancelled_at && <> — بتاريخ {formatDate(ship.cancelled_at)}</>}
+          {ship.cancel_reason && <> — السبب: {ship.cancel_reason}</>}
+          <div className="text-xs text-muted-foreground mt-1">كمياتها خرجت من المخزن وقيدها اتعكس، وهي خارج كشف حساب المورد.</div>
+        </div>
+      )}
 
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <div className="card-elevated p-4 space-y-3">
@@ -447,32 +430,7 @@ export default function ShipmentView() {
         <RecordAttachments recordType="shipment" recordId={ship.id} canEdit={canEdit} />
       </div>
 
-      <AlertDialog open={delOpen} onOpenChange={(o) => { if (!o) { setDelOpen(false); setDelReason(""); } }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-destructive">
-              {isManager && !isAdmin ? "طلب حذف فاتورة شراء للموافقة" : "حذف فاتورة الشراء"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {isManager && !isAdmin
-                ? <>سيتم إرسال طلب حذف فاتورة الشراء لمدير الشركة للموافقة.</>
-                : <>هل أنت متأكد من حذف هذه فاتورة الشراء؟ لن يمكن التراجع.</>}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {isManager && !isAdmin && (
-            <div className="px-1">
-              <Label>سبب الحذف *</Label>
-              <Input className="mt-1.5" value={delReason} onChange={(e) => setDelReason(e.target.value)} placeholder="اكتب السبب..." />
-            </div>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={delBusy}>تراجع</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={delBusy} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              {delBusy ? "جاري..." : (isManager && !isAdmin ? "إرسال الطلب" : "احذف")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CancelPurchaseDialog open={cancelOpen} onOpenChange={setCancelOpen} shipment={ship} onDone={() => nav(`/branch/${branchId}/invoices?tab=purchase`)} />
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-w-lg">

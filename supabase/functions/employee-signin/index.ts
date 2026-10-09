@@ -93,7 +93,8 @@ Deno.serve(async (req) => {
         email,
         password,
         email_confirm: true,
-        user_metadata: { name: emp.name, tenant_id: emp.tenant_id },
+        user_metadata: { name: emp.name },
+        app_metadata: { tenant_id: emp.tenant_id },
       });
       if (createErr) {
         // SECURITY: an auth account already exists for this email but it is NOT linked

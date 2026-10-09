@@ -58,7 +58,7 @@ export default function BranchProfile() {
       supabase.from("employees").select("*").eq("branch_id", branchId).order("name"),
       fetchAllRows<any>(() => supabase.from("products").select("*").eq("branch_id", branchId).is("archived_at", null).order("quantity").order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("invoices").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
-      fetchAllRows<any>(() => supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).order("arrival_date", { ascending: false }).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("shipments").select("*, contacts:contact_id(name)").eq("branch_id", branchId).eq("status", "active").order("arrival_date", { ascending: false }).order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("vouchers").select("*, voucher_categories(name)").eq("branch_id", branchId).eq("type", "payment").eq("status", "active").order("voucher_date", { ascending: false }).order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("treasury").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
       fetchAllRows<any>(() => supabase.from("returns").select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),

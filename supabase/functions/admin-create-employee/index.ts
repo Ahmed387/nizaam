@@ -231,7 +231,9 @@ async function createAccount(
     email: opts.email,
     password: opts.password,
     email_confirm: true,
-    user_metadata: { name: opts.name, username: opts.email.split('@')[0], tenant_id: opts.tenantId },
+    user_metadata: { name: opts.name, username: opts.email.split('@')[0] },
+    // company is set by the server only (users can edit user_metadata, not app_metadata)
+    app_metadata: { tenant_id: opts.tenantId },
   });
 
   if (authErr || !authUser?.user) {
@@ -249,7 +251,8 @@ async function createAccount(
     await admin.auth.admin.updateUserById(existingId, {
       password: opts.password,
       email_confirm: true,
-      user_metadata: { name: opts.name, username: opts.email.split('@')[0], tenant_id: opts.tenantId },
+      user_metadata: { name: opts.name, username: opts.email.split('@')[0] },
+      app_metadata: { tenant_id: opts.tenantId },
     });
     userId = existingId;
     createdNew = false;

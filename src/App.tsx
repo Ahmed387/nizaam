@@ -49,7 +49,6 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Setup from "./pages/Setup";
 import SetupWizard from "./pages/SetupWizard";
-import Signup from "./pages/Signup";
 import Landing from "./pages/Landing";
 import Profile from "./pages/Profile";
 import Guide from "./pages/Guide";
@@ -98,7 +97,6 @@ import BranchReports from "./pages/branch/Reports";
 import AdminReports from "./pages/admin/Reports";
 import StockTransfers from "./pages/branch/StockTransfers";
 import Settings from "./pages/admin/Settings";
-import SeedData from "./pages/admin/SeedData";
 import ScheduledReports from "./pages/admin/ScheduledReports";
 import AllAttendance from "./pages/admin/AllAttendance";
 import Presence from "./pages/admin/Presence";
@@ -206,7 +204,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/signup" element={<Signup />} />
+            <Route path="/signup" element={<Navigate to="/login" replace />} />
             <Route path="/setup" element={<Setup />} />
             <Route path="/admin/setup-wizard" element={<SetupWizard />} />
             <Route path="/setup-wizard" element={<SetupWizard />} />
@@ -234,7 +232,6 @@ const App = () => (
             <Route path="/admin/settings" element={<ProtectedRoute perm="admin_settings.view" adminOnly><Settings /></ProtectedRoute>} />
             <Route path="/admin/approval-requests" element={<ProtectedRoute adminOnly><Navigate to="/admin/approvals-hub?tab=approvals" replace /></ProtectedRoute>} />
             <Route path="/admin/approvals-hub" element={<ProtectedRoute perm="admin_approvals.view" adminOnly><AdminApprovalsHub /></ProtectedRoute>} />
-            <Route path="/admin/seed" element={<ProtectedRoute adminOnly><SeedData /></ProtectedRoute>} />
             <Route path="/admin/attendance" element={<ProtectedRoute roles={["supervisor"]}><AllAttendance /></ProtectedRoute>} />
             <Route path="/admin/presence" element={<ProtectedRoute perm="admin_presence.view" roles={["admin", "supervisor", "viewer"]}><Presence /></ProtectedRoute>} />
             <Route path="/admin/attachments" element={<ProtectedRoute adminOnly><AttachmentsHub scope="admin" /></ProtectedRoute>} />
