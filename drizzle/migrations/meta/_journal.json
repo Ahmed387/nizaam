@@ -330,6 +330,13 @@
       "when": 1791522247777,
       "tag": "0046_sec002_tenant_isolation",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1791522544482,
+      "tag": "0047_sec003_access_guard_and_cancel_only",
+      "breakpoints": true
     }
   ]
 }

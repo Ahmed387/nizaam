@@ -5656,7 +5656,9 @@ export type Database = {
           admin_cost: number
           arrival_date: string
           branch_id: string
+          cancel_reason: string | null
           cancelled_at: string | null
+          cancelled_by: string | null
           contact_id: string
           created_at: string
           current_balance: number | null
@@ -5689,7 +5691,9 @@ export type Database = {
           admin_cost?: number
           arrival_date: string
           branch_id: string
+          cancel_reason?: string | null
           cancelled_at?: string | null
+          cancelled_by?: string | null
           contact_id: string
           created_at?: string
           current_balance?: number | null
@@ -5722,7 +5726,9 @@ export type Database = {
           admin_cost?: number
           arrival_date?: string
           branch_id?: string
+          cancel_reason?: string | null
           cancelled_at?: string | null
+          cancelled_by?: string | null
           contact_id?: string
           created_at?: string
           current_balance?: number | null
@@ -7183,8 +7189,6 @@ export type Database = {
         }
         Returns: string
       }
-      admin_cancel_all_invoices: { Args: never; Returns: number }
-      admin_clear_treasury: { Args: never; Returns: number }
       admin_reset_branch_data: {
         Args: { p_branch_id: string; p_options: Json }
         Returns: Json
@@ -7259,6 +7263,10 @@ export type Database = {
           columns: string
           table_name: string
         }[]
+      }
+      assert_access: {
+        Args: { p_branch_id: string; p_permission: string }
+        Returns: undefined
       }
       assert_can_edit_invoice: {
         Args: { p_invoice_id: string }
@@ -7355,6 +7363,10 @@ export type Database = {
       cancel_pre_order: {
         Args: { p_pre_order_id: string; p_refund: boolean }
         Returns: undefined
+      }
+      cancel_purchase_invoice: {
+        Args: { p_reason: string; p_shipment_id: string }
+        Returns: Json
       }
       cancel_purchase_return: {
         Args: { _reason: string; _return_id: string }
@@ -7580,14 +7592,6 @@ export type Database = {
         Args: { p_approve: boolean; p_note?: string; p_request_id: string }
         Returns: Json
       }
-      delete_partner_transaction: {
-        Args: { _tx_id: string }
-        Returns: undefined
-      }
-      delete_voucher_admin: {
-        Args: { p_reason?: string; p_voucher_id: string }
-        Returns: Json
-      }
       detect_anomalies: { Args: never; Returns: number }
       detect_orphaned_batches: {
         Args: never
@@ -7726,6 +7730,10 @@ export type Database = {
         }
         Returns: Json
       }
+      effective_permission: {
+        Args: { _key: string; _uid: string }
+        Returns: boolean
+      }
       enforce_cycle_counts: { Args: { p_stale_days?: number }; Returns: number }
       ensure_account: {
         Args: {
@@ -7856,7 +7864,6 @@ export type Database = {
         }
         Returns: string
       }
-      hard_delete_invoice: { Args: { _invoice_id: string }; Returns: undefined }
       has_central_access: { Args: { _uid: string }; Returns: boolean }
       has_permission: {
         Args: { _key: string; _user_id: string }
@@ -8475,6 +8482,10 @@ export type Database = {
       revoke_owner_expense_access: {
         Args: { target_user_id: string }
         Returns: undefined
+      }
+      role_permission_default: {
+        Args: { p_key: string; p_role: string }
+        Returns: boolean
       }
       run_regression_checks: { Args: { p_source?: string }; Returns: string }
       run_shift_maintenance: {
