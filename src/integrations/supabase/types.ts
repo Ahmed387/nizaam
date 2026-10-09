@@ -7273,6 +7273,7 @@ export type Database = {
         Returns: undefined
       }
       assert_can_import_opening_debt: { Args: never; Returns: undefined }
+      assert_company_access: { Args: { p_permission: string }; Returns: string }
       assert_same_tenant: { Args: { p_tenant: string }; Returns: undefined }
       available_to_distribute: {
         Args: { p_from: string; p_tenant_id: string; p_to: string }
@@ -7538,6 +7539,18 @@ export type Database = {
         }
         Returns: string
       }
+      create_payment_plan: {
+        Args: {
+          p_existing_plan_id?: string
+          p_fee_on_customer?: boolean
+          p_installments?: Json
+          p_plan_type?: string
+          p_reference_id: string
+          p_reference_type: string
+          p_total: number
+        }
+        Returns: string
+      }
       create_pre_order: {
         Args: {
           p_branch_id: string
@@ -7560,6 +7573,10 @@ export type Database = {
       }
       create_product_with_opening_stock: {
         Args: { p_initial_stock_date?: string; p_product: Json }
+        Returns: Json
+      }
+      create_purchase_return: {
+        Args: { p_header: Json; p_items: Json }
         Returns: Json
       }
       current_shift_schedule: {
@@ -7592,6 +7609,7 @@ export type Database = {
         Args: { p_approve: boolean; p_note?: string; p_request_id: string }
         Returns: Json
       }
+      delete_contact: { Args: { p_id: string }; Returns: undefined }
       detect_anomalies: { Args: never; Returns: number }
       detect_orphaned_batches: {
         Args: never
@@ -7750,6 +7768,10 @@ export type Database = {
       }
       expected_opening_cash: { Args: { p_branch_id: string }; Returns: number }
       expire_old_reservations: { Args: never; Returns: number }
+      finalize_sale_pricing: {
+        Args: { p_discount_request_ids?: string[]; p_invoice_id: string }
+        Returns: number
+      }
       generate_alerts: {
         Args: never
         Returns: {
@@ -8497,6 +8519,7 @@ export type Database = {
         }[]
       }
       safe_delete_product: { Args: { _product_id: string }; Returns: undefined }
+      save_contact: { Args: { p_data: Json; p_id: string }; Returns: Json }
       search_branch_contacts: {
         Args: {
           p_branch_id: string
@@ -8742,6 +8765,10 @@ export type Database = {
           p_return_id: string
         }
         Returns: undefined
+      }
+      update_shipment_date: {
+        Args: { p_new_date: string; p_reason?: string; p_shipment_id: string }
+        Returns: Json
       }
       upsert_inventory_counts: {
         Args: { _items: Json; _session_id: string }
