@@ -43,6 +43,7 @@ import { ColorChip } from "@/components/ColorPicker";
 import { ProductCell, VariantLine } from "@/components/VariantChips";
 import type { VariantAttrs } from "@/lib/productVariant";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
+import { saveContact } from "@/lib/contactWrites";
 
 
 
@@ -253,14 +254,13 @@ export default function NewSale() {
     if (!newCust.name.trim()) return toast.error("الاسم مطلوب");
     if (!tenantId) return toast.error("مفيش حساب مرتبط — جرّب تعمل تسجيل خروج ودخول تاني");
     setSavingCust(true);
-    const { data, error } = await supabase.from("contacts").insert({
-      tenant_id: tenantId,
+    const { data, error } = await saveContact(null, {
       type: "customer",
       name: newCust.name.trim(),
       phone: newCust.phone || null,
       address: newCust.address || null,
       branch_id: branchId!,
-    }).select("id, name, phone").single();
+    });
     setSavingCust(false);
     if (error) return toast.error(error.message);
     setCustomers((prev) => [...prev, data]);
@@ -1030,46 +1030,18 @@ export default function NewSale() {
         throw rpcErr;
       }
 
-      // === Profit/pricing columns only ===
-      // ملاحظة: خصم المخزون + طبقات FIFO (consume_product_batches_json) بيتنفذوا داخل process_sale
-      // على السيرفر. أي استدعاء تاني من المتصفح كان بيسبب خصم مزدوج للمخزون — لذلك اتشال.
+      // === Profit/pricing columns + approved discount requests ===
+      // Computed on the server from the saved lines (finalize_sale_pricing, SEC-004); stock and FIFO
+      // layers are handled inside process_sale. Non-fatal: the sale itself is already saved.
       try {
-        for (const it of items) {
-          if (!it.product_id) continue;
-          const lineTotal = Math.max(0, it.quantity * it.selling_price - it.line_discount);
-          const finalUnit = lineTotal / Math.max(1, it.quantity);
-          const orig = Math.max(it.market_price, it.selling_price);
-          const pct = orig > 0 ? +(((orig - finalUnit) / orig) * 100).toFixed(2) : 0;
-          await supabase.from("invoice_items").update({
-            original_price: orig,
-            final_price: finalUnit,
-            discount_percent: pct,
-          } as any).eq("invoice_id", invId as string).eq("product_id", it.product_id);
-        }
+        const { error: fpErr } = await (supabase.rpc as any)("finalize_sale_pricing", {
+          p_invoice_id: invId as string,
+          p_discount_request_ids: resumeDraft?.requestIds ?? [],
+        });
+        if (fpErr) console.warn("profit update failed:", fpErr.message);
+        if (resumeDraft) setResumeDraft(null);
       } catch (e: any) {
         console.warn("profit update failed:", e);
-      }
-
-
-      // === Link approved discount requests to invoice + copy approval data ===
-      if (resumeDraft) {
-        try {
-          await supabase.from("discount_approval_requests" as any)
-            .update({ invoice_id: invId as string })
-            .in("id", resumeDraft.requestIds);
-          const { data: reqs } = await supabase.from("discount_approval_requests" as any)
-            .select("product_id, decided_by, admin_note, requested_price")
-            .in("id", resumeDraft.requestIds);
-          for (const r of (reqs ?? []) as any[]) {
-            if (!r.product_id) continue;
-            await supabase.from("invoice_items").update({
-              discount_approved_by: r.decided_by,
-              discount_approval_note: r.admin_note,
-              final_price: r.requested_price,
-            } as any).eq("invoice_id", invId as string).eq("product_id", r.product_id);
-          }
-          setResumeDraft(null);
-        } catch (e) { console.warn("link discount requests failed", e); }
       }
 
       // المستلم والملاحظات والرصيد المسبق اتحفظوا جوه process_sale_full

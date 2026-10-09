@@ -263,40 +263,29 @@ export default function NewPurchaseReturn() {
     setBusy(true);
     try {
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
-      const { data: pr, error } = await supabase.from("purchase_returns" as any).insert({
-        branch_id: branchId,
-        contact_id: supplier.id,
-        shipment_id: shipment.id,
-        reason: finalReason,
-        notes: notes.trim() || null,
-        recipient_name: recipientName.trim() || null,
-        created_by: user!.id,
-        total_amount: total,
-        status: "active",
-        refund_method: refundMethodFinal,
-        refund_reference: refundRef.trim() || null,
-        refund_account: refundAccount.trim() || null,
-        refund_cash_amount: cashPart,
-        refund_transfer_amount: transferPart,
-        refund_balance_amount: balancePart,
-        invoice_date: invoiceDate,
-      } as any).select().single();
+      // Header + lines in one transaction on the server (create_purchase_return, SEC-004): quantities are
+      // checked against the purchase invoice, unit cost and total come from it, backdating is admin-only.
+      const { data: pr, error } = await (supabase.rpc as any)("create_purchase_return", {
+        p_header: {
+          shipment_id: shipment.id,
+          reason: finalReason,
+          notes: notes.trim() || null,
+          recipient_name: recipientName.trim() || null,
+          refund_method: refundMethodFinal,
+          refund_reference: refundRef.trim() || null,
+          refund_account: refundAccount.trim() || null,
+          refund_cash_amount: cashPart,
+          refund_transfer_amount: transferPart,
+          refund_balance_amount: balancePart,
+          invoice_date: invoiceDate,
+        },
+        p_items: activeLines.map((l) => ({ shipment_item_id: l.shipment_item_id, quantity: l.quantity })),
+      });
       if (error || !pr) throw error ?? new Error("فشل الحفظ");
       const number = (pr as any).return_number as string;
       // The DB rewrites the settlement split (supplier debt first, surplus back as cash).
       const appliedToDebt = Number((pr as any).refund_balance_amount ?? 0);
       const cashBack = Number((pr as any).refund_cash_amount ?? 0) + Number((pr as any).refund_transfer_amount ?? 0);
-
-      const items = activeLines.map((l) => ({
-        purchase_return_id: (pr as any).id,
-        product_id: l.product_id,
-        product_name: l.product_name,
-        quantity: l.quantity,
-        unit_cost: l.unit_cost,
-        total: l.quantity * l.unit_cost,
-      }));
-      const { error: e2 } = await supabase.from("purchase_return_items" as any).insert(items);
-      if (e2) throw e2;
 
       // Inventory deduction (products + product_batches FIFO, branch-scoped) and the
       // treasury inflow for the cash/transfer portion are both handled atomically by

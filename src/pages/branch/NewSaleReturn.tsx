@@ -312,13 +312,13 @@ export default function NewSaleReturn() {
       const appliedToDebt = Number((rr as any).applied_to_debt ?? 0);
       const cashBack = Number((rr as any).cash_refund ?? 0) + Number((rr as any).transfer_refund ?? 0);
 
-      // Persist invoice_date if backdated (DB trigger enforces admin-only)
+      // Persist invoice_date if backdated (admin-only)
       const today = cairoTodayDay();
-      if (invoiceDate && invoiceDate !== today && number) {
-        const { error: dErr } = await supabase
-          .from("returns")
-          .update({ invoice_date: invoiceDate } as any)
-          .eq("return_number", number);
+      if (invoiceDate && invoiceDate !== today && (rr as any).id) {
+        // Central dated path (admin-only; moves the journal and treasury rows with the return).
+        const { error: dErr } = await (supabase.rpc as any)("update_return_sovereign", {
+          p_kind: "sale_return", p_return_id: (rr as any).id, p_date: invoiceDate, p_notes: null,
+        });
         if (dErr) console.warn("invoice_date update blocked:", dErr.message);
       }
 

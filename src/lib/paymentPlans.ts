@@ -20,49 +20,29 @@ interface CreatePlanArgs {
 }
 
 /**
- * Creates a payment_plan + installments (if scheduled) + initial payment_transaction (if mode != 'credit').
+ * Creates a payment_plan + installments (if scheduled) through create_payment_plan, then the initial
+ * payment_transaction(s) through record_payment_transaction (if mode != 'credit').
+ * branchId / entity* / createdBy stay in the signature for callers; the server derives them.
  * Returns the created plan id.
  */
 export async function createPaymentPlanWithInitial(args: CreatePlanArgs): Promise<string> {
-  const { branchId, entityType, entityId, entityName, totalAmount, referenceType, referenceId, state, direction, createdBy, existingPlanId, paymentDate } = args;
+  const { totalAmount, referenceType, referenceId, state, direction, existingPlanId, paymentDate } = args;
   const paidNow = state.mode === "credit" ? 0 : Number(state.paidNow || 0);
 
-  // If fully paid in cash with no plan needed, still create a "completed" plan for auditability.
-  const { data: plan, error: pe } = existingPlanId
-    ? { data: { id: existingPlanId } as any, error: null }
-    : await supabase
-    .from("payment_plans")
-    .insert({
-      branch_id: branchId,
-      entity_type: entityType,
-      entity_id: entityId,
-      entity_name: entityName,
-      total_amount: totalAmount,
-      paid_amount: 0,
-      remaining_amount: totalAmount,
-      plan_type: state.mode === "credit" || state.mode === "partial" ? state.scheduleType : "open",
-      reference_type: referenceType,
-      reference_id: referenceId ?? null,
-      fee_on_customer: state.feeOnCustomer,
-      status: "active",
-      created_by: createdBy,
-    })
-    .select()
-    .single();
+  // Plan header + installments are written on the server (create_payment_plan): party, branch and the
+  // document limits come from the invoice / purchase invoice, never from the browser (SEC-004).
+  const scheduled = (state.mode === "credit" || state.mode === "partial") && state.scheduleType === "scheduled" && state.installments.length > 0;
+  const { data: planId, error: pe } = await (supabase.rpc as any)("create_payment_plan", {
+    p_reference_type: referenceType,
+    p_reference_id: referenceId,
+    p_total: totalAmount,
+    p_plan_type: scheduled ? "scheduled" : "open",
+    p_fee_on_customer: !!state.feeOnCustomer,
+    p_installments: scheduled ? state.installments.map((r) => ({ due_date: r.due_date, amount: r.amount })) : [],
+    p_existing_plan_id: existingPlanId ?? null,
+  });
   if (pe) throw pe;
-
-  // Insert installments if scheduled
-  if ((state.mode === "credit" || state.mode === "partial") && state.scheduleType === "scheduled" && state.installments.length) {
-    const rows = state.installments.map((r, i) => ({
-      payment_plan_id: plan.id,
-      installment_number: i + 1,
-      due_date: r.due_date,
-      amount: r.amount,
-      status: "pending",
-    }));
-    const { error: ie } = await supabase.from("payment_installments").insert(rows);
-    if (ie) throw ie;
-  }
+  const plan = { id: String(planId) };
 
   // Record initial payment(s) — supports multi-method splits
   if (paidNow > 0) {
