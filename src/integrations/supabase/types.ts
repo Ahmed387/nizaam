@@ -7295,6 +7295,7 @@ export type Database = {
           created_by_name: string | null
           description: string | null
           fee_amount: number
+          flow_class: string | null
           id: string
           party_id: string | null
           party_name: string | null
@@ -7326,6 +7327,7 @@ export type Database = {
           created_by_name?: string | null
           description?: string | null
           fee_amount?: number
+          flow_class?: string | null
           id?: string
           party_id?: string | null
           party_name?: string | null
@@ -7357,6 +7359,7 @@ export type Database = {
           created_by_name?: string | null
           description?: string | null
           fee_amount?: number
+          flow_class?: string | null
           id?: string
           party_id?: string | null
           party_name?: string | null
@@ -8263,6 +8266,23 @@ export type Database = {
           remaining: number
         }[]
       }
+      duplicate_fee_till_rows: {
+        Args: { p_tenant?: string }
+        Returns: {
+          already_corrected: boolean
+          amount: number
+          branch_id: string
+          branch_name: string
+          description: string
+          expense_id: string
+          fee_date: string
+          kept_treasury_id: string
+          payment_method: string
+          treasury_id: string
+          voucher_id: string
+          voucher_number: string
+        }[]
+      }
       edit_invoice: {
         Args: {
           _customer_id: string
@@ -8614,6 +8634,52 @@ export type Database = {
         }
         Returns: Json
       }
+      ledger_archive_cancel_lines: {
+        Args: { p_invoice: string }
+        Returns: Json
+      }
+      ledger_archive_cancel_parts: {
+        Args: { p_invoice: string }
+        Returns: {
+          branch_id: string
+          cancel_day: string
+          cash: number
+          contact_id: string
+          forfeit: number
+          invoice_number: string
+          j: number
+          net: number
+          r1200: number
+          tenant_id: string
+          vat: number
+        }[]
+      }
+      ledger_archive_due_at_cutoff: {
+        Args: { p_invoice: string }
+        Returns: number
+      }
+      ledger_archive_paid_in_ledger: {
+        Args: { p_invoice: string }
+        Returns: number
+      }
+      ledger_archive_shipment_due: {
+        Args: { p_shipment: string }
+        Returns: {
+          due: number
+        }[]
+      }
+      ledger_archive_shipment_parts: {
+        Args: { p_shipment: string }
+        Returns: {
+          branch_id: string
+          cancel_day: string
+          contact_id: string
+          due: number
+          inc: number
+          k: number
+          paid_before: number
+        }[]
+      }
       ledger_backfill: { Args: { p_tenant?: string }; Returns: Json }
       ledger_can_see_side: { Args: { p_side: string }; Returns: boolean }
       ledger_cash_account: { Args: { p_method: string }; Returns: string }
@@ -8803,6 +8869,15 @@ export type Database = {
         Args: { p_contact: string; p_invoice?: string; p_tenant: string }
         Returns: Json
       }
+      ledger_invoice_is_archive: {
+        Args: {
+          p_batch: string
+          p_created_at: string
+          p_doc_date: string
+          p_is_migrated: boolean
+        }
+        Returns: boolean
+      }
       ledger_ip_is_voided_mirror: { Args: { p_ip: string }; Returns: boolean }
       ledger_kind_label: {
         Args: { p_effect: string; p_kind: string; p_side: string }
@@ -8811,6 +8886,21 @@ export type Database = {
       ledger_mirror_credit_balance: {
         Args: { p_contact: string }
         Returns: number
+      }
+      ledger_money_flow: {
+        Args: {
+          p_branch_id: string
+          p_contact?: string
+          p_from?: string
+          p_side: string
+          p_to?: string
+        }
+        Returns: {
+          method: string
+          money_in: number
+          money_out: number
+          movements: number
+        }[]
       }
       ledger_movement_ref: {
         Args: { p_source_id: string; p_source_table: string }
@@ -9483,6 +9573,10 @@ export type Database = {
         Args: { p_draft_id: string; p_status?: string }
         Returns: undefined
       }
+      repair_duplicate_fee_till_rows: {
+        Args: { p_apply?: boolean; p_tenant?: string }
+        Returns: Json
+      }
       repost_invoice_journal: {
         Args: { p_invoice_id: string }
         Returns: undefined
@@ -9891,6 +9985,16 @@ export type Database = {
       }
       void_payment_transaction: {
         Args: { p_reason: string; p_tx_id: string }
+        Returns: string
+      }
+      voucher_flow_class_of: {
+        Args: {
+          p_category_id: string
+          p_party_type: string
+          p_source_type: string
+          p_treasury_id: string
+          p_type: string
+        }
         Returns: string
       }
     }
