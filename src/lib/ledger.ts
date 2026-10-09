@@ -189,8 +189,9 @@ export interface ContactDocument {
   paid_money: number | null; paid_by_returns: number | null; paid_from_other_branches: number | null; remaining: number | null;
   cancel_reason: string | null;
 }
-export async function fetchContactDocuments(contactId: string, side: Side, branchId?: string | null): Promise<ContactDocument[]> {
-  const rows = await callAll<any>("ledger_contact_documents", { p_contact: contactId, p_side: side, p_branch_id: branchId ?? null }, ["doc_type", "doc_id"]);
+/** asOf = end of the period on screen (open / closed as of that day); omitted = today. */
+export async function fetchContactDocuments(contactId: string, side: Side, branchId?: string | null, asOf?: string | null): Promise<ContactDocument[]> {
+  const rows = await callAll<any>("ledger_contact_documents", { p_contact: contactId, p_side: side, p_branch_id: branchId ?? null, p_as_of: asOf || null }, ["doc_type", "doc_id"]);
   return (rows ?? []).map((r) => ({
     ...r, total: n(r.total),
     paid_money: r.paid_money == null ? null : n(r.paid_money), paid_by_returns: r.paid_by_returns == null ? null : n(r.paid_by_returns),
@@ -225,13 +226,16 @@ export async function fetchContactStatement(contactId: string, side: Side, branc
 // ---------------------------------------------------------------- documents on the six screens
 export interface DocumentStatus {
   doc_id: string; total: number; paid: number; paid_money: number; paid_by_returns: number;
-  paid_from_other_branches: number; remaining: number; state: "paid" | "partial" | "unpaid" | "cancelled" | "before_ledger";
+  paid_from_other_branches: number; remaining: number;
+  /** not_yet = issued after the as-of date */
+  state: "paid" | "partial" | "unpaid" | "cancelled" | "before_ledger" | "not_yet";
 }
-export async function fetchDocumentStatus(docType: "invoice" | "shipment", ids: (string | null | undefined)[], signal?: AbortSignal): Promise<Map<string, DocumentStatus>> {
+/** asOf = end of the period on screen: paid / open as of that day (the ledger rule replayed); omitted = today. */
+export async function fetchDocumentStatus(docType: "invoice" | "shipment", ids: (string | null | undefined)[], signal?: AbortSignal, asOf?: string | null): Promise<Map<string, DocumentStatus>> {
   const clean = Array.from(new Set(ids.filter(Boolean) as string[]));
   const out = new Map<string, DocumentStatus>();
   for (let i = 0; i < clean.length; i += 1000) {
-    let q = rpc("ledger_document_status", { p_doc_type: docType, p_ids: clean.slice(i, i + 1000) });
+    let q = rpc("ledger_document_status", { p_doc_type: docType, p_ids: clean.slice(i, i + 1000), p_as_of: asOf || null });
     if (signal) q = q.abortSignal(signal);
     const { data, error } = await q;
     if (error) throw error;
@@ -262,8 +266,8 @@ export interface AgingRow {
   contact_id: string; contact_name: string; contact_type: string; d0_30: number; d31_60: number; d61_90: number;
   d91_120: number; d120_plus: number; total_open: number; advance: number; oldest_date: string | null;
 }
-export async function fetchAging(side: Side, branchId?: string | null): Promise<AgingRow[]> {
-  const rows = await callAll<any>("ledger_aging", { p_side: side, p_branch_id: branchId ?? null }, ["contact_id"]);
+export async function fetchAging(side: Side, branchId?: string | null, asOf?: string | null): Promise<AgingRow[]> {
+  const rows = await callAll<any>("ledger_aging", { p_side: side, p_branch_id: branchId ?? null, p_as_of: asOf || null }, ["contact_id"]);
   return (rows ?? []).map((r) => ({
     ...r, d0_30: n(r.d0_30), d31_60: n(r.d31_60), d61_90: n(r.d61_90), d91_120: n(r.d91_120), d120_plus: n(r.d120_plus),
     total_open: n(r.total_open), advance: n(r.advance),
@@ -290,6 +294,32 @@ export async function fetchIntegrityAudit(): Promise<IntegrityFinding[]> {
   // The JSON form returns every finding in one value, so the 1,000-row response cap never cuts the list.
   const rows = await call<any[]>("system_integrity_audit_json", { p_tenant: null });
   return (rows ?? []).map((r) => ({ ...r, amount: r.amount == null ? null : n(r.amount) }));
+}
+
+// ---------------------------------------------------------------- books vs ledger (6D)
+export interface GlReconciliation {
+  from: string;
+  branches: { branch_id: string; branch: string; till: number; gl_cash: number; difference: number; inter_branch_1910: number }[];
+  inter_branch_1910_total: number;
+  customer_advances: { ledger: number; gl_2150: number };
+  supplier_advances: { ledger: number; gl_1460: number };
+  not_posted: { movements: number; allocations: number; closed_period_skipped: number };
+  old_entries_still_standing: number;
+  retired_old_entries: number;
+  opening: { ledger: Record<string, number>; journal: Record<string, number> };
+}
+export async function fetchGlReconciliation(): Promise<GlReconciliation> {
+  return numDeep(await call<any>("ledger_gl_reconciliation", { p_tenant: null }));
+}
+export interface OpeningReconRow {
+  contact_id: string; contact_name: string; contact_type: string; side: Side;
+  opening_in_contact: number; opening_in_ledger: number; old_prepaid_credit: number | null; ledger_advance_now: number;
+  status: "ok" | "ledger_differs" | "old_credit_differed";
+}
+export async function fetchOpeningReconciliation(): Promise<OpeningReconRow[]> {
+  const rows = await callAll<any>("opening_balances_reconciliation", {}, ["contact_id", "side"]);
+  return rows.map((r) => ({ ...r, opening_in_contact: n(r.opening_in_contact), opening_in_ledger: n(r.opening_in_ledger),
+    old_prepaid_credit: r.old_prepaid_credit == null ? null : n(r.old_prepaid_credit), ledger_advance_now: n(r.ledger_advance_now) }));
 }
 
 /** Arabic label of a stored payment method key. */

@@ -1,6 +1,6 @@
 import { ContactLookup } from "@/components/ContactLookup";
 import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
-import { applyCairoRange } from "@/lib/cairoDate";
+import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NumberedPagination } from "@/components/NumberedPagination";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -147,6 +147,8 @@ export default function Invoices() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [JSON.stringify({ ...filters, q: "", recipient: "", notes: "" }), JSON.stringify(debounced)]);
   useEffect(() => { setPage(1); }, [tab, branchId, queryFilters]);
+  // Paid / open of a past period is shown as of the period's last day (the ledger rule replayed to that day).
+  const statusAsOf = queryFilters.to && queryFilters.to < cairoTodayDay() ? queryFilters.to : null;
 
   /** Applies every active filter directly to the Supabase query (database-level). */
   const buildQuery = useCallback(async (select: string, withCount: boolean) => {
@@ -303,7 +305,7 @@ export default function Invoices() {
     if (tab === "sale") {
       const pays = data.length ? await fetchPaymentSummaries(data.map((x: { id: string }) => x.id), ctrl.signal).catch(() => new Map<string, InvoicePaymentSummary>()) : new Map<string, InvoicePaymentSummary>();
       // Paid / remaining from the unified ledger (direct payments, FIFO of general money, return credit).
-      const st = data.length ? await fetchDocumentStatus("invoice", data.map((x: any) => x.id), ctrl.signal).catch(() => new Map()) : new Map();
+      const st = data.length ? await fetchDocumentStatus("invoice", data.map((x: any) => x.id), ctrl.signal, statusAsOf).catch(() => new Map()) : new Map();
       if (stale()) return;
       for (const x of data) {
         const a = st.get(x.id);
@@ -317,7 +319,7 @@ export default function Invoices() {
       setSalePays(pays);
     } else setSalePays(null);
     if (tab === "purchase" && data.length) {
-      const st = await fetchDocumentStatus("shipment", data.map((x: any) => x.id), ctrl.signal).catch(() => new Map());
+      const st = await fetchDocumentStatus("shipment", data.map((x: any) => x.id), ctrl.signal, statusAsOf).catch(() => new Map());
       if (stale()) return;
       data = data.map((x: any) => (x.status === "cancelled"
         ? { ...x, __paid: 0, __remaining: 0 }
@@ -1071,6 +1073,9 @@ export default function Invoices() {
       )}
 
       {docKind && <UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} />}
+      {statusAsOf && (docKind === "sale" || docKind === "purchase") && (
+        <div className="text-xs text-muted-foreground -mt-2 mb-3">المدفوع والمتبقي وحالة كل فاتورة محسوبين لحد {formatDate(statusAsOf)} (آخر يوم في الفترة)، مش لحد النهارده.</div>
+      )}
 
       <div ref={tableTopRef} className="scroll-mt-4" />
       <DataTable

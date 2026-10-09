@@ -3085,6 +3085,142 @@ export type Database = {
           },
         ]
       }
+      ledger_credit_balance_snapshot: {
+        Row: {
+          contact_id: string
+          contact_type: string | null
+          ledger_customer_advance: number | null
+          ledger_supplier_advance: number | null
+          old_credit_balance: number | null
+          taken_at: string
+          tenant_id: string
+        }
+        Insert: {
+          contact_id: string
+          contact_type?: string | null
+          ledger_customer_advance?: number | null
+          ledger_supplier_advance?: number | null
+          old_credit_balance?: number | null
+          taken_at?: string
+          tenant_id: string
+        }
+        Update: {
+          contact_id?: string
+          contact_type?: string | null
+          ledger_customer_advance?: number | null
+          ledger_supplier_advance?: number | null
+          old_credit_balance?: number | null
+          taken_at?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_credit_balance_snapshot_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_credit_balance_snapshot_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
+          },
+        ]
+      }
+      ledger_gl_links: {
+        Row: {
+          created_at: string
+          id: number
+          journal_id: string
+          part: string
+          ref_id: string
+          ref_type: string
+          reversal_journal_id: string | null
+          reversed_at: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          journal_id: string
+          part?: string
+          ref_id: string
+          ref_type: string
+          reversal_journal_id?: string | null
+          reversed_at?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          journal_id?: string
+          part?: string
+          ref_id?: string
+          ref_type?: string
+          reversal_journal_id?: string | null
+          reversed_at?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_gl_links_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_gl_links_reversal_journal_id_fkey"
+            columns: ["reversal_journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ledger_gl_links_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ledger_gl_skipped: {
+        Row: {
+          created_at: string
+          entry_date: string
+          id: number
+          reason: string
+          ref_id: string
+          ref_type: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          entry_date: string
+          id?: number
+          reason: string
+          ref_id: string
+          ref_type: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          id?: number
+          reason?: string
+          ref_id?: string
+          ref_type?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       ledger_sync_errors: {
         Row: {
           contact_id: string | null
@@ -7596,6 +7732,8 @@ export type Database = {
         }
         Returns: Json
       }
+      ai_report: { Args: { p_params?: Json; p_report: string }; Returns: Json }
+      ai_report_catalog: { Args: never; Returns: Json }
       ai_sql: { Args: { query: string }; Returns: Json }
       allocate_capital_to_branch: {
         Args: {
@@ -8018,6 +8156,29 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      current_shift_schedule__unguarded: {
+        Args: { p_at?: string; p_branch_id: string }
+        Returns: {
+          branch_id: string
+          created_at: string
+          created_by: string | null
+          end_time: string
+          id: string
+          is_active: boolean
+          is_extra: boolean
+          shift_date: string | null
+          shift_name: string
+          start_time: string
+          tenant_id: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shift_schedules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_tenant_active: { Args: never; Returns: boolean }
       current_tenant_id: { Args: never; Returns: string }
       current_tenant_is_suspended: { Args: never; Returns: boolean }
@@ -8028,7 +8189,17 @@ export type Database = {
       delete_contact: { Args: { p_id: string }; Returns: undefined }
       delete_products: { Args: { p_ids: string[] }; Returns: number }
       detect_anomalies: { Args: never; Returns: number }
+      detect_anomalies__unguarded: { Args: never; Returns: number }
       detect_orphaned_batches: {
+        Args: never
+        Returns: {
+          orphan_batches: number
+          orphan_quantity_remaining: number
+          product_id: string
+          product_name: string
+        }[]
+      }
+      detect_orphaned_batches__unguarded: {
         Args: never
         Returns: {
           orphan_batches: number
@@ -8184,6 +8355,10 @@ export type Database = {
         Returns: undefined
       }
       expected_opening_cash: { Args: { p_branch_id: string }; Returns: number }
+      expected_opening_cash__unguarded: {
+        Args: { p_branch_id: string }
+        Returns: number
+      }
       expire_old_reservations: { Args: never; Returns: number }
       finalize_sale_pricing: {
         Args: { p_discount_request_ids?: string[]; p_invoice_id: string }
@@ -8196,11 +8371,30 @@ export type Database = {
           overdue_count: number
         }[]
       }
+      generate_alerts__unguarded: {
+        Args: never
+        Returns: {
+          low_stock_count: number
+          overdue_count: number
+        }[]
+      }
       get_available_quantity: {
         Args: { p_branch_id: string; p_product_id: string }
         Returns: number
       }
+      get_available_quantity__unguarded: {
+        Args: { p_branch_id: string; p_product_id: string }
+        Returns: number
+      }
       get_bank_reconciliation_summary: {
+        Args: {
+          p_bank_account_id: string
+          p_period_end: string
+          p_period_start: string
+        }
+        Returns: Json
+      }
+      get_bank_reconciliation_summary__unguarded: {
         Args: {
           p_bank_account_id: string
           p_period_end: string
@@ -8224,6 +8418,19 @@ export type Database = {
         }[]
       }
       get_budget_variance: {
+        Args: { _fiscal_period_id: string }
+        Returns: {
+          account_code: string
+          account_id: string
+          account_name: string
+          account_type: string
+          actual_amount: number
+          planned_amount: number
+          variance: number
+          variance_pct: number
+        }[]
+      }
+      get_budget_variance__unguarded: {
         Args: { _fiscal_period_id: string }
         Returns: {
           account_code: string
@@ -8295,6 +8502,10 @@ export type Database = {
         Args: { _product_id: string }
         Returns: Json
       }
+      get_product_references_count__unguarded: {
+        Args: { _product_id: string }
+        Returns: Json
+      }
       get_system_category: {
         Args: {
           _key: string
@@ -8303,6 +8514,18 @@ export type Database = {
         }
         Returns: string
       }
+      guard_admin: { Args: never; Returns: boolean }
+      guard_company_object: {
+        Args: { p_admin_only?: boolean; p_tenant: string }
+        Returns: boolean
+      }
+      guard_is_system_call: { Args: never; Returns: boolean }
+      guard_read_branch: { Args: { p_branch: string }; Returns: boolean }
+      guard_read_product: {
+        Args: { p_permission?: string; p_product: string }
+        Returns: boolean
+      }
+      guard_read_shift: { Args: { p_shift: string }; Returns: boolean }
       has_central_access: { Args: { _uid: string }; Returns: boolean }
       has_permission: {
         Args: { _key: string; _user_id: string }
@@ -8321,6 +8544,15 @@ export type Database = {
       }
       historical_branch_id_for: { Args: { p_name: string }; Returns: string }
       historical_stock_at: {
+        Args: { _as_of: string; _branch_id: string }
+        Returns: {
+          name: string
+          product_id: string
+          quantity_at_date: number
+          sku: string
+        }[]
+      }
+      historical_stock_at__unguarded: {
         Args: { _as_of: string; _branch_id: string }
         Returns: {
           name: string
@@ -8358,7 +8590,7 @@ export type Database = {
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_viewer: { Args: { _user_id: string }; Returns: boolean }
       ledger_aging: {
-        Args: { p_branch_id?: string; p_side: string }
+        Args: { p_as_of?: string; p_branch_id?: string; p_side: string }
         Returns: {
           advance: number
           contact_id: string
@@ -8384,8 +8616,14 @@ export type Database = {
       }
       ledger_backfill: { Args: { p_tenant?: string }; Returns: Json }
       ledger_can_see_side: { Args: { p_side: string }; Returns: boolean }
+      ledger_cash_account: { Args: { p_method: string }; Returns: string }
       ledger_contact_documents: {
-        Args: { p_branch_id?: string; p_contact: string; p_side: string }
+        Args: {
+          p_as_of?: string
+          p_branch_id?: string
+          p_contact: string
+          p_side: string
+        }
         Returns: {
           branch_id: string
           branch_name: string
@@ -8513,8 +8751,16 @@ export type Database = {
           treasury_id: string
         }[]
       }
+      ledger_doc_open: {
+        Args: { p_doc_id: string; p_doc_type: string }
+        Returns: number
+      }
+      ledger_doc_paid: {
+        Args: { p_doc_id: string; p_doc_type: string }
+        Returns: Record<string, unknown>
+      }
       ledger_document_status: {
-        Args: { p_doc_type: string; p_ids: string[] }
+        Args: { p_as_of?: string; p_doc_type: string; p_ids: string[] }
         Returns: {
           doc_id: string
           paid: number
@@ -8534,14 +8780,45 @@ export type Database = {
         Args: { p_contact: string; p_tenant: string }
         Returns: string
       }
+      ledger_gl_backfill: { Args: { p_tenant?: string }; Returns: Json }
+      ledger_gl_post: {
+        Args: {
+          p_branch: string
+          p_day: string
+          p_desc: string
+          p_lines: Json
+          p_source_id: string
+          p_source_type: string
+          p_tenant: string
+        }
+        Returns: string
+      }
+      ledger_gl_reconciliation: { Args: { p_tenant?: string }; Returns: Json }
+      ledger_gl_retire_old: { Args: { p_tenant: string }; Returns: Json }
+      ledger_gl_reverse: {
+        Args: { p_journal: string; p_reason: string }
+        Returns: string
+      }
+      ledger_gl_sync: {
+        Args: { p_contact: string; p_invoice?: string; p_tenant: string }
+        Returns: Json
+      }
       ledger_ip_is_voided_mirror: { Args: { p_ip: string }; Returns: boolean }
       ledger_kind_label: {
         Args: { p_effect: string; p_kind: string; p_side: string }
         Returns: string
       }
+      ledger_mirror_credit_balance: {
+        Args: { p_contact: string }
+        Returns: number
+      }
       ledger_movement_ref: {
         Args: { p_source_id: string; p_source_table: string }
         Returns: string
+      }
+      ledger_old_entry_is_contact_money: {
+        Args: { p_journal: string }
+        Returns: boolean
       }
       ledger_opening_branch: {
         Args: { p_contact: string; p_tenant: string }
@@ -8558,6 +8835,10 @@ export type Database = {
           overdue: number
           side: string
         }[]
+      }
+      ledger_period_closed: {
+        Args: { p_day: string; p_tenant: string }
+        Returns: boolean
       }
       ledger_position: { Args: { p_branch_id?: string }; Returns: Json }
       ledger_read_scope: {
@@ -8593,6 +8874,14 @@ export type Database = {
         Args: { p_tenant?: string }
         Returns: Json
       }
+      ledger_refresh_contact: {
+        Args: { p_contact: string }
+        Returns: undefined
+      }
+      ledger_side_advance: {
+        Args: { p_contact: string; p_side: string }
+        Returns: number
+      }
       ledger_side_balances: {
         Args: { p_branch?: string; p_contact?: string; p_tenant: string }
         Returns: {
@@ -8604,12 +8893,37 @@ export type Database = {
           side: string
         }[]
       }
+      ledger_simulate_as_of: {
+        Args: {
+          p_as_of: string
+          p_contact: string
+          p_invoice?: string
+          p_side: string
+          p_tenant: string
+        }
+        Returns: {
+          allocated: number
+          amount: number
+          branch_id: string
+          by_returns: number
+          debt_id: string
+          debt_type: string
+          doc_date: string
+          from_other_branches: number
+          remaining: number
+          row_kind: string
+        }[]
+      }
       ledger_sync_contact: { Args: { p_contact: string }; Returns: Json }
       ledger_sync_safe: {
         Args: { p_contact: string; p_context: string; p_invoice: string }
         Returns: undefined
       }
       ledger_sync_walkin: { Args: { p_invoice: string }; Returns: Json }
+      ledger_voucher_is_contact_money: {
+        Args: { p_voucher: string }
+        Returns: boolean
+      }
       log_audit_event: {
         Args: {
           p_action: string
@@ -8768,6 +9082,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      opening_balances_reconciliation: {
+        Args: never
+        Returns: {
+          contact_id: string
+          contact_name: string
+          contact_type: string
+          ledger_advance_now: number
+          old_prepaid_credit: number
+          opening_in_contact: number
+          opening_in_ledger: number
+          side: string
+          status: string
+        }[]
+      }
       opening_balances_summary: { Args: never; Returns: Json }
       opening_entry_section: { Args: { p_entry: string }; Returns: string }
       opening_section_key: {
@@ -8868,6 +9196,14 @@ export type Database = {
           owner_name: string
         }[]
       }
+      plan_recompute: {
+        Args: { p_extra_paid?: number; p_plan: string }
+        Returns: number
+      }
+      plan_recompute_supplier_spread: {
+        Args: { p_contact: string }
+        Returns: undefined
+      }
       post_invoice_cogs: { Args: { p_invoice_id: string }; Returns: undefined }
       post_journal: {
         Args: {
@@ -8914,6 +9250,15 @@ export type Database = {
         Returns: undefined
       }
       preview_flexible_distribution: {
+        Args: {
+          p_amount?: number
+          p_from: string
+          p_tenant_id: string
+          p_to: string
+        }
+        Returns: Json
+      }
+      preview_flexible_distribution__unguarded: {
         Args: {
           p_amount?: number
           p_from: string
@@ -9165,6 +9510,10 @@ export type Database = {
         Returns: undefined
       }
       restore_product: { Args: { _product_id: string }; Returns: undefined }
+      restore_product__unguarded: {
+        Args: { _product_id: string }
+        Returns: undefined
+      }
       restore_tenant_snapshot: {
         Args: { _payload: Json; _tenant: string }
         Returns: Json
@@ -9322,6 +9671,10 @@ export type Database = {
       }
       shift_cash_movement: { Args: { p_shift_id: string }; Returns: number }
       shift_cash_sales: { Args: { p_shift_id: string }; Returns: number }
+      shift_cash_sales__unguarded: {
+        Args: { p_shift_id: string }
+        Returns: number
+      }
       shift_handovers: {
         Args: { p_shift_id: string }
         Returns: {
@@ -9337,6 +9690,14 @@ export type Database = {
         }[]
       }
       shift_payment_breakdown: {
+        Args: { p_shift_id: string }
+        Returns: {
+          payment_method: string
+          payments_count: number
+          total: number
+        }[]
+      }
+      shift_payment_breakdown__unguarded: {
         Args: { p_shift_id: string }
         Returns: {
           payment_method: string
@@ -9393,6 +9754,24 @@ export type Database = {
       system_health_check: { Args: never; Returns: Json }
       system_integrity_audit: {
         Args: { p_tenant?: string }
+        Returns: {
+          amount: number
+          area: string
+          branch_id: string
+          branch_name: string
+          check_code: string
+          contact_id: string
+          contact_name: string
+          details: string
+          doc_id: string
+          doc_number: string
+          doc_type: string
+          severity: string
+          title: string
+        }[]
+      }
+      system_integrity_audit_gl: {
+        Args: { p_tenant: string }
         Returns: {
           amount: number
           area: string

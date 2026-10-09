@@ -22,6 +22,7 @@ import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp, Building2, L
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { ContactCreditBalancesDrawer } from "@/components/ContactCreditBalancesDrawer";
+import { GlReconciliationPanel } from "@/components/GlReconciliationPanel";
 import { fetchLedgerPosition, fetchOpeningSummary, type LedgerPosition, type OpeningSummary } from "@/lib/ledger";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 
@@ -464,6 +465,8 @@ export default function MainTreasury() {
           onOpenChange={(o) => { if (!o) setViewMovement(null); }}
           branchName={viewMovement ? branches.find(b => b.id === (viewMovement as any).branch_id)?.name : undefined}
         />
+        {/* every till against its branch's cash in the books, and the 1910 inter-branch account */}
+        <div className="mt-6"><GlReconciliationPanel /></div>
       </div>
     </AdminLayout>
   );

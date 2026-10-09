@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { IntegrityAuditPanel } from "@/components/IntegrityAuditPanel";
+import { GlReconciliationPanel } from "@/components/GlReconciliationPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -211,6 +212,7 @@ export default function SystemHealth() {
 
         {/* Automatic integrity checks of the unified ledger, documents, till, stock and journal (Step 6C) */}
         <IntegrityAuditPanel />
+        <GlReconciliationPanel />
 
         {/* Intro */}
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
