@@ -3085,6 +3085,36 @@ export type Database = {
           },
         ]
       }
+      ledger_sync_errors: {
+        Row: {
+          contact_id: string | null
+          context: string
+          created_at: string
+          error: string
+          id: number
+          invoice_id: string | null
+          tenant_id: string | null
+        }
+        Insert: {
+          contact_id?: string | null
+          context: string
+          created_at?: string
+          error: string
+          id?: number
+          invoice_id?: string | null
+          tenant_id?: string | null
+        }
+        Update: {
+          contact_id?: string | null
+          context?: string
+          created_at?: string
+          error?: string
+          id?: number
+          invoice_id?: string | null
+          tenant_id?: string | null
+        }
+        Relationships: []
+      }
       migration_batches: {
         Row: {
           branch_id: string | null
@@ -7250,6 +7280,23 @@ export type Database = {
       }
     }
     Views: {
+      ledger_document_balances: {
+        Row: {
+          amount: number | null
+          branch_id: string | null
+          contact_id: string | null
+          doc_date: string | null
+          doc_id: string | null
+          doc_type: string | null
+          paid_direct: number | null
+          paid_fifo: number | null
+          paid_from_other_branches: number | null
+          remaining: number | null
+          side: string | null
+          tenant_id: string | null
+        }
+        Relationships: []
+      }
       price_list_items_public: {
         Row: {
           category: string | null
@@ -8296,30 +8343,84 @@ export type Database = {
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_viewer: { Args: { _user_id: string }; Returns: boolean }
+      ledger_allocate: {
+        Args: {
+          p_contact: string
+          p_invoice?: string
+          p_side: string
+          p_tenant: string
+        }
+        Returns: Json
+      }
+      ledger_backfill: { Args: { p_tenant?: string }; Returns: Json }
+      ledger_contact_side_balance: {
+        Args: { p_contact: string; p_side: string }
+        Returns: number
+      }
       ledger_cutoff: { Args: never; Returns: string }
-      ledger_day: { Args: { p_ts: string }; Returns: string }
+      ledger_day: { Args: { ts: string }; Returns: string }
       ledger_desired_movements: {
         Args: { p_contact: string }
         Returns: {
           amount: number
           branch_id: string
           effect: string
-          is_void: boolean
+          fallback_branch: boolean
           kind: string
           method: string
           movement_date: string
-          notes: string
-          reference_id: string
-          reference_number: string
           side: string
           source_id: string
           source_table: string
+          target_doc_id: string
+          target_doc_type: string
+          treasury_id: string
         }[]
       }
-      ledger_ip_is_voided_mirror: {
-        Args: { p_ip_id: string }
-        Returns: boolean
+      ledger_effective_date: {
+        Args: { p_day: string; p_tenant: string }
+        Returns: string
       }
+      ledger_fallback_branch: {
+        Args: { p_contact: string; p_tenant: string }
+        Returns: string
+      }
+      ledger_ip_is_voided_mirror: { Args: { p_ip: string }; Returns: boolean }
+      ledger_reconciliation: {
+        Args: { p_tenant?: string }
+        Returns: {
+          c_advance_use_rows: number
+          c_before_cutoff: number
+          c_cancel_cash_refunds: number
+          c_credit_use_not_money: number
+          c_deposits_now_counted: number
+          c_netting_settlement: number
+          c_opening_without_branch: number
+          c_plan_payments_now_counted: number
+          c_voided_plan_mirrors: number
+          contact_id: string
+          contact_name: string
+          contact_type: string
+          difference: number
+          fallback_branch_rows: number
+          new_balance: number
+          old_balance: number
+          old_prepaid_credit: number
+          side: string
+          tenant_id: string
+          unexplained: number
+        }[]
+      }
+      ledger_reconciliation_summary: {
+        Args: { p_tenant?: string }
+        Returns: Json
+      }
+      ledger_sync_contact: { Args: { p_contact: string }; Returns: Json }
+      ledger_sync_safe: {
+        Args: { p_contact: string; p_context: string; p_invoice: string }
+        Returns: undefined
+      }
+      ledger_sync_walkin: { Args: { p_invoice: string }; Returns: Json }
       log_audit_event: {
         Args: {
           p_action: string
