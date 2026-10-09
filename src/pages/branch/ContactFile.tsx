@@ -71,6 +71,11 @@ export default function ContactFile() {
   const [payDir, setPayDir] = useState<null | "in" | "out">(null);
   // branch that receives / pays the money: the page's branch, the chosen scope, or picked by the user
   const [payPick, setPayPick] = useState<null | "in" | "out">(null);
+  // void of a payment transaction (collection / payment from this file or a plan); a cashier's request
+  // waits for a manager's approval, a manager / accountant voids at once
+  const [voidRow, setVoidRow] = useState<ContactMoneyRow | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [voidBusy, setVoidBusy] = useState(false);
   const [pickedBranch, setPickedBranch] = useState<string>("");
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -392,6 +397,9 @@ export default function ContactFile() {
                         { key: "u", header: "متبقي مقدم", render: (m: ContactMoneyRow) => (m.effect === "settle" && m.unallocated > 0.005 ? <b className="text-primary">{formatEGP(m.unallocated)}</b> : "—") },
                         { key: "x", header: "في فرع تاني", render: (m: ContactMoneyRow) => (m.used_in_other_branches > 0.005 ? formatEGP(m.used_in_other_branches) : "—") },
                         { key: "st", header: "الحالة", render: (m: ContactMoneyRow) => (m.status === "active" ? <span className="text-success text-xs">سارية</span> : <span className="text-destructive text-xs" title={m.cancel_reason ?? ""}>ملغاة</span>) },
+                        { key: "act", header: "", render: (m: ContactMoneyRow) => (m.status === "active" && m.source_table === "payment_transactions" ? (
+                          <Button size="sm" variant="ghost" className="text-destructive h-7" onClick={(e) => { e.stopPropagation(); setVoidReason(""); setVoidRow(m); }}>إلغاء</Button>
+                        ) : null) },
                       ]}
                     />
                   </TabsContent>
@@ -436,6 +444,28 @@ export default function ContactFile() {
           onSuccess={() => { setPayDir(null); setPickedBranch(""); loadOverview(); }}
         />
       )}
+
+      <Dialog open={!!voidRow} onOpenChange={(o) => { if (!o) setVoidRow(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>إلغاء {voidRow?.kind_label} {voidRow ? formatEGP(voidRow.amount) : ""}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            الحركة مش هتتمسح: هيتسجل عكسها في الخزنة وفي القيود، والفاتورة أو الخطة اللي اتخصمت منها هترجع مفتوحة بنفس المبلغ.
+          </p>
+          <Textarea placeholder="سبب الإلغاء (5 حروف على الأقل)" value={voidReason} onChange={(e) => setVoidReason(e.target.value)} />
+          <DialogFooter>
+            <Button variant="destructive" disabled={voidBusy || voidReason.trim().length < 5} onClick={async () => {
+              if (!voidRow) return;
+              setVoidBusy(true);
+              const { data, error } = await (supabase as any).rpc("request_void_payment_transaction", { p_tx_id: voidRow.source_id, p_reason: voidReason.trim() });
+              setVoidBusy(false);
+              if (error) return toast.error(error.message);
+              toast.success((data as any)?.status === "voided" ? "اتلغت الحركة" : (data as any)?.status === "already_pending" ? "فيه طلب إلغاء مستني الموافقة بالفعل" : "اتبعت طلب الإلغاء لمدير الفرع");
+              setVoidRow(null);
+              loadOverview();
+            }}>تأكيد الإلغاء</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!payPick} onOpenChange={(o) => { if (!o) setPayPick(null); }}>
         <DialogContent>

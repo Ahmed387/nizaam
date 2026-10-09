@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Sparkles, Send, Loader2, RotateCcw, Database, User2 } from "lucide-react";
 
-type Msg = { role: "user" | "assistant"; content: string; steps?: { query: string; rows: number; error?: string }[] };
+type Msg = { role: "user" | "assistant"; content: string; steps?: { report?: string; params?: unknown; query?: string; rows: number; error?: string }[] };
 
 const STORE_KEY = "nizam.askme.conversation.v1";
 
@@ -158,7 +158,7 @@ export default function AskMe() {
                   {!!m.steps?.length && (
                     <details className="text-xs text-muted-foreground">
                       <summary className="inline-flex cursor-pointer items-center gap-1 hover:text-foreground">
-                        <Database className="h-3.5 w-3.5" /> مصدر البيانات ({m.steps.length} استعلام)
+                        <Database className="h-3.5 w-3.5" /> مصدر البيانات ({m.steps.length} تقرير)
                       </summary>
                       <div className="mt-2 space-y-2">
                         {m.steps.map((s, k) => (
@@ -167,7 +167,7 @@ export default function AskMe() {
                               {s.error ? "خطأ" : `${s.rows} صف`}
                             </Badge>
                             <pre className="overflow-x-auto whitespace-pre-wrap text-[11px]" dir="ltr">
-                              {s.query}
+                              {s.report ? `${s.report} ${JSON.stringify(s.params ?? {})}` : s.query}{s.error ? `\n${s.error}` : ""}
                             </pre>
                           </div>
                         ))}

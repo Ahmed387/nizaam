@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { fetchAging, type AgingRow, type Side } from "@/lib/ledger";
 import { formatDate } from "@/lib/format";
+import { cairoTodayDay } from "@/lib/cairoDate";
 import { Users, Truck, AlertTriangle } from "lucide-react";
 
 /**
@@ -34,6 +35,8 @@ export default function AgingReport() {
   const { tenantId } = useAuth();
   const nav = useNavigate();
   const [branchId, setBranchId] = useState("all");
+  // as of a past day: what was open that day (the ledger rule replayed with the money and documents up to it)
+  const [asOf, setAsOf] = useState("");
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [rows, setRows] = useState<Record<Side, AgingRow[]>>({ customer: [], supplier: [] });
   const [search, setSearch] = useState("");
@@ -50,7 +53,8 @@ export default function AgingReport() {
     setLoadError(null);
     try {
       const b = branchId === "all" ? null : branchId;
-      const [c, s] = await Promise.all([fetchAging("customer", b), fetchAging("supplier", b)]);
+      const day = asOf && asOf < cairoTodayDay() ? asOf : null;
+      const [c, s] = await Promise.all([fetchAging("customer", b, day), fetchAging("supplier", b, day)]);
       setRows({ customer: c, supplier: s });
     } catch (e: any) {
       setRows({ customer: [], supplier: [] });
@@ -59,7 +63,7 @@ export default function AgingReport() {
       setLoading(false);
     }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId, branchId]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId, branchId, asOf]);
   useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "supplier_payments", "returns", "purchase_returns", "vouchers", "payment_transactions"], load);
 
   const filterRows = (list: AgingRow[]) => {
@@ -144,7 +148,7 @@ export default function AgingReport() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title={fin("aging")} subtitle={`${fin("receivables")} على العملاء و${fin("payables")} للموردين حسب عمر المستند — النهارده — ${branchLabel}`} />
+        <PageHeader title={fin("aging")} subtitle={`${fin("receivables")} على العملاء و${fin("payables")} للموردين حسب عمر المستند — ${asOf && asOf < cairoTodayDay() ? "حتى " + formatDate(asOf) : "النهارده"} — ${branchLabel}`} />
 
         <Card>
           <CardContent className="pt-6 flex flex-wrap gap-4 items-end">
@@ -157,6 +161,10 @@ export default function AgingReport() {
                   {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <label className="text-sm text-muted-foreground block mb-1">حتى تاريخ</label>
+              <Input type="date" className="w-44" value={asOf} max={cairoTodayDay()} onChange={(e) => setAsOf(e.target.value)} />
             </div>
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm text-muted-foreground block mb-1">بحث بالاسم</label>

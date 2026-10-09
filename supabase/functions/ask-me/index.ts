@@ -8,19 +8,36 @@ const corsHeaders = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+// SEC-005: the model never writes SQL. It picks one report from a fixed list (ai_report_catalog in the
+// database) and passes its parameters; ai_report runs a fixed, read-only, parameterised query with the
+// user's own rights, inside his company, branches and permissions.
+const REPORTS = [
+  "sales_summary", "sales_by_day", "top_products", "returns_summary", "purchases_summary", "expenses_by_type",
+  "low_stock", "till_balances", "customer_balances", "supplier_balances", "aging", "overdue_installments", "invoice_lookup",
+] as const;
+
 const TOOLS = [
   {
     type: "function",
     function: {
-      name: "run_sql",
+      name: "run_report",
       description:
-        "ينفّذ استعلام SELECT للقراءة فقط على قاعدة بيانات النظام ويرجّع النتيجة JSON (بحد أقصى 500 صف). استخدمه لأي سؤال يحتاج أرقام أو بيانات فعلية.",
+        "يشغّل تقرير جاهز (قراءة فقط) من قائمة ثابتة ويرجّع النتيجة JSON. استخدمه لأي سؤال يحتاج أرقام أو بيانات فعلية.",
       parameters: {
         type: "object",
         properties: {
-          query: { type: "string", description: "استعلام PostgreSQL يبدأ بـ SELECT أو WITH، بدون فاصلة منقوطة." },
+          report: { type: "string", enum: REPORTS, description: "اسم التقرير من القائمة." },
+          params: {
+            type: "object",
+            description: "باراميترات التقرير: from / to (YYYY-MM-DD)، branch_id، limit، side (customer|supplier)، as_of، number.",
+            properties: {
+              from: { type: "string" }, to: { type: "string" }, branch_id: { type: "string" }, limit: { type: "integer" },
+              side: { type: "string", enum: ["customer", "supplier"] }, as_of: { type: "string" }, number: { type: "string" },
+            },
+            additionalProperties: false,
+          },
         },
-        required: ["query"],
+        required: ["report"],
         additionalProperties: false,
       },
     },
@@ -42,7 +59,7 @@ Deno.serve(async (req) => {
     const user = userData?.user;
     if (!user) return json({ error: "غير مصرح" }, 401);
 
-    // Single source of truth for access — same gate the database enforces inside ai_sql().
+    // Single source of truth for access — same gate the database enforces inside ai_report().
     const { data: level, error: gateError } = await sb.rpc("ask_me_access_level", { _user_id: user.id });
     if (gateError || !level || level === "none") {
       await sb.from("ai_ask_log").insert({ user_id: user.id, kind: "denied", question: null, error: "no access" });
@@ -57,13 +74,14 @@ Deno.serve(async (req) => {
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey) return json({ error: "مفتاح الذكاء الاصطناعي غير مكوّن" }, 500);
 
-    // ── schema snapshot limited to the tables this user is allowed to query ──
-    const { data: schemaRows, error: schemaErr } = await sb.rpc("ask_me_schema");
-    if (schemaErr) return json({ error: schemaErr.message }, 400);
-
-    const schemaText = (schemaRows as any[] ?? [])
-      .map((r) => `- ${r.table_name}(${r.columns})`)
+    // ── the fixed list of reports (no table schema is sent to the model any more) ──
+    const { data: catalog, error: catErr } = await sb.rpc("ai_report_catalog");
+    if (catErr) return json({ error: catErr.message }, 400);
+    const reportsText = ((catalog as any[]) ?? [])
+      .map((r) => `- ${r.report}(${r.params}): ${r.about}`)
       .join("\n");
+    const { data: branchRows } = await sb.from("branches").select("id, name").eq("is_active", true);
+    const branchesText = ((branchRows as any[]) ?? []).map((b) => `- ${b.name}: ${b.id}`).join("\n");
 
     const today = new Date().toISOString().slice(0, 10);
 
@@ -72,24 +90,25 @@ Deno.serve(async (req) => {
 مهمتك: تجاوب على أسئلة المستخدم بأرقام حقيقية من قاعدة البيانات، في حدود الجداول المتاحة له تحت.
 
 قواعد صارمة:
-1. أي سؤال فيه أرقام أو بيانات → لازم تستدعي أداة run_sql الأول. ممنوع تخمّن أو تخترع رقم أبداً.
-2. تقدر تستدعي run_sql أكتر من مرة لحد ما توصل للإجابة الكاملة.
-3. لو الاستعلام رجع خطأ، صلّحه وجرّب تاني (بحد أقصى 3 محاولات لنفس الفكرة).
+1. أي سؤال فيه أرقام أو بيانات → لازم تستدعي أداة run_report الأول. ممنوع تخمّن أو تخترع رقم أبداً.
+2. تقدر تستدعي run_report أكتر من مرة (تقارير مختلفة أو فترات مختلفة) لحد ما توصل للإجابة الكاملة.
+3. لو التقرير رجع خطأ في الباراميترات، صلّحها وجرّب تاني (بحد أقصى 3 محاولات).
 4. الرد يكون بالعامية المصرية، مختصر وواضح، وبصيغة Markdown. استخدم جداول Markdown لما تعرض أكتر من صف، وخلي الأرقام منسّقة بفواصل وبوحدة "ج.م".
 5. لو النتيجة فاضية، قول بوضوح "مفيش بيانات للفترة/الشرط ده" ومتفبركش.
 6. ممنوع تماماً أي تعديل على البيانات (حذف/تحديث/إضافة) — الأداة للقراءة فقط.
-7. استخدم بس الجداول الموجودة في المخطط تحت. لو السؤال محتاج جدول مش موجود، قول للمستخدم: "المعلومة دي خارج صلاحياتك" ومتحاولش تلتف عليها.
+7. استخدم بس التقارير الموجودة في القائمة تحت. لو السؤال محتاج حاجة مش في القائمة، قول للمستخدم إن التقرير ده مش متاح في "اسألني" ومتحاولش تلتف عليها.
 8. في آخر الرد ممكن تقترح سؤال متابعة مفيد سطر واحد.
 ${scoped ? "\n⚠️ المستخدم ده صلاحياته محدودة: الأرقام اللي هترجع بتخص فرعه/نطاقه فقط، والبيانات الحساسة (المرتبات، الشركاء، الأرباح الموزعة، مصروفات المالك) مش متاحة له إطلاقاً. لو سأل عنها اعتذر بأدب.\n" : ""}
-معلومات مهمة عن قاعدة البيانات:
+معلومات مهمة:
 - تاريخ النهارده: ${today}
-- الفواتير في invoices (invoice_date, total, paid_amount, status='active' سارية و'cancelled' ملغية) والأصناف في invoice_items.
-- المرتجعات في returns/return_items، الشحنات في shipments/shipment_items، المصروفات في expenses، الخزنة في treasury.
-- استخدم دايماً joins لجلب أسماء مفهومة (اسم الفرع، اسم المنتج، اسم الموظف) بدل الـ id.
-- فلترة الشهر: date_trunc('month', invoice_date) = date_trunc('month', date '2026-07-01') مثلاً.
+- أرصدة العملاء والموردين من الدفتر الموحد: حساب العميل وحساب المورد منفصلين تماماً ومفيش أي مقاصة بينهم.
+- لو المستخدم ما حددش فترة، الافتراضي من أول الشهر الحالي لحد النهارده.
 
-مخطط الجداول المتاحة لك:
-${schemaText}`;
+الفروع (branch_id):
+${branchesText}
+
+التقارير المتاحة:
+${reportsText}`;
 
 
     const messages: any[] = [
@@ -97,7 +116,7 @@ ${schemaText}`;
       ...history.slice(-24).map((m) => ({ role: m.role, content: m.content })),
     ];
 
-    const steps: { query: string; rows: number; error?: string }[] = [];
+    const steps: { report: string; params: unknown; rows: number; error?: string }[] = [];
 
     for (let i = 0; i < 8; i++) {
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -133,21 +152,25 @@ ${schemaText}`;
 
       for (const call of calls) {
         let out: string;
-        let q = "";
+        let report = "";
+        let params: Record<string, unknown> = {};
         try {
-          q = JSON.parse(call.function?.arguments ?? "{}").query ?? "";
-          const { data: rows, error } = await sb.rpc("ai_sql", { query: q });
+          const args = JSON.parse(call.function?.arguments ?? "{}");
+          report = String(args.report ?? "");
+          params = args.params && typeof args.params === "object" ? args.params : {};
+          if (!(REPORTS as readonly string[]).includes(report)) throw new Error(`تقرير غير معروف: ${report}`);
+          const { data: rows, error } = await sb.rpc("ai_report", { p_report: report, p_params: params });
           if (error) {
             out = JSON.stringify({ error: error.message });
-            steps.push({ query: q, rows: 0, error: error.message });
+            steps.push({ report, params, rows: 0, error: error.message });
           } else {
             const arr = (rows as any[]) ?? [];
             out = JSON.stringify(arr).slice(0, 60000);
-            steps.push({ query: q, rows: arr.length });
+            steps.push({ report, params, rows: arr.length });
           }
         } catch (e) {
           out = JSON.stringify({ error: String(e) });
-          steps.push({ query: q, rows: 0, error: String(e) });
+          steps.push({ report, params, rows: 0, error: String(e) });
         }
         messages.push({ role: "tool", tool_call_id: call.id, content: out });
       }

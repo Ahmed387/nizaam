@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
-import { applyCairoRange } from "@/lib/cairoDate";
+import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
 import { aggregateFacts, docFacts, METRIC_SELECT, type DocKind, type DocMetricsResult } from "@/lib/documentMetrics";
 import { fetchDocumentStatus } from "@/lib/ledger";
 import { bucketOf, emptyBuckets, fetchPaymentSummaries, r2 } from "@/hooks/useSalesInvoices";
@@ -32,6 +32,8 @@ export function useDocumentMetrics(
     if (!kind || !ctx.branchId) { setMetrics(null); return; }
     const ctrl = new AbortController();
     let cancelled = false;
+    // a period that ended before today: paid / open as of its last day (not as of today)
+    const asOf = ctx.to && ctx.to < cairoTodayDay() ? ctx.to : null;
     setLoading(true);
     (async () => {
       try {
@@ -51,7 +53,7 @@ export function useDocumentMetrics(
           const active = unique.filter((r) => r.status === "active");
           const [pays, st] = await Promise.all([
             fetchPaymentSummaries(active.map((r) => r.id), ctrl.signal),
-            fetchDocumentStatus("invoice", active.map((r) => r.id), ctrl.signal),
+            fetchDocumentStatus("invoice", active.map((r) => r.id), ctrl.signal, asOf),
           ]);
           unique = unique.map((r) => {
             const s = pays.get(r.id);
@@ -64,7 +66,7 @@ export function useDocumentMetrics(
         }
 
         if (kind === "purchase") {
-          const st = await fetchDocumentStatus("shipment", unique.filter((r) => r.status !== "cancelled").map((r) => r.id), ctrl.signal);
+          const st = await fetchDocumentStatus("shipment", unique.filter((r) => r.status !== "cancelled").map((r) => r.id), ctrl.signal, asOf);
           unique = unique.map((r) => (r.status === "cancelled"
             ? { ...r, __paid: 0, __paid_money: 0, __remaining: 0 }
             : { ...r, __paid: st.get(r.id)?.paid ?? 0, __paid_money: st.get(r.id)?.paid_money ?? 0, __remaining: st.get(r.id)?.remaining ?? (Number(r.total_cost) || 0) }));
