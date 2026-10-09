@@ -8386,6 +8386,14 @@ export type Database = {
         Returns: string
       }
       ledger_ip_is_voided_mirror: { Args: { p_ip: string }; Returns: boolean }
+      ledger_opening_branch: {
+        Args: { p_contact: string; p_tenant: string }
+        Returns: string
+      }
+      ledger_opening_branch_is_fallback: {
+        Args: { p_contact: string; p_tenant: string }
+        Returns: boolean
+      }
       ledger_reconciliation: {
         Args: { p_tenant?: string }
         Returns: {
@@ -8578,6 +8586,12 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      opening_balances_summary: { Args: never; Returns: Json }
+      opening_entry_section: { Args: { p_entry: string }; Returns: string }
+      opening_section_key: {
+        Args: { p_branch?: string; p_section: string; p_tenant: string }
+        Returns: string
       }
       override_shift_opening: {
         Args: { p_note?: string; p_shift_id: string }
@@ -8982,6 +8996,10 @@ export type Database = {
           p_tenant_id: string
         }
         Returns: undefined
+      }
+      reverse_opening_entry: {
+        Args: { p_entry: string; p_reason: string }
+        Returns: string
       }
       reverse_profit_distribution: {
         Args: {
