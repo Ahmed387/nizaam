@@ -60,6 +60,13 @@ export function IntegrityAuditPanel() {
   [rows, area, sev]);
 
   const open = (r: IntegrityFinding) => {
+    // opening balances not in the books → the opening balances screen, contacts tab
+    if (r.check_code === "G7") return nav("/admin/accounting/opening-balances?section=contacts");
+    // books vs ledger, duplicated fees → the reconciliation panel on this page
+    if (r.check_code.startsWith("G") || r.check_code === "F1" || r.check_code.startsWith("T3")) {
+      document.getElementById("books")?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
     if (r.doc_type === "invoice" && r.doc_id && r.branch_id) return nav(`/branch/${r.branch_id}/sales/${r.doc_id}`);
     if (r.doc_type === "shipment" && r.doc_id && r.branch_id) return nav(`/branch/${r.branch_id}/shipments/${r.doc_id}`);
     if (r.contact_id) return nav(`/admin/contacts/${r.contact_id}`);

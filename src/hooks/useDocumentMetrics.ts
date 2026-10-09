@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
 import { aggregateFacts, docFacts, METRIC_SELECT, type DocKind, type DocMetricsResult } from "@/lib/documentMetrics";
-import { fetchDocumentStatus } from "@/lib/ledger";
+import { fetchDocumentStatus, fetchMoneyFlow, LEDGER_START } from "@/lib/ledger";
 import { bucketOf, emptyBuckets, fetchPaymentSummaries, r2 } from "@/hooks/useSalesInvoices";
 
 /** Query factory shared with the table: same filters, only the projection differs. */

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
-import { fetchGlReconciliation, fetchOpeningReconciliation, type GlReconciliation, type OpeningReconRow } from "@/lib/ledger";
+import { fetchGlReconciliation, fetchOpeningReconciliation, fetchDuplicateFees, repairDuplicateFees, type GlReconciliation, type OpeningReconRow, type DuplicateFeeRow } from "@/lib/ledger";
+import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
 import { exportToExcel } from "@/lib/export";
 import { Loader2, RefreshCcw, Scale, Download } from "lucide-react";
@@ -25,15 +26,18 @@ export function GlReconciliationPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showOpening, setShowOpening] = useState(false);
+  const [fees, setFees] = useState<DuplicateFeeRow[]>([]);
+  const [feeBusy, setFeeBusy] = useState(false);
 
   const run = async () => {
     setLoading(true);
     setError(null);
     try {
       // each part on its own: a failure of one never hides the other
-      const [g, o] = await Promise.allSettled([fetchGlReconciliation(), fetchOpeningReconciliation()]);
+      const [g, o, f] = await Promise.allSettled([fetchGlReconciliation(), fetchOpeningReconciliation(), fetchDuplicateFees()]);
       if (g.status === "fulfilled") setGl(g.value);
       if (o.status === "fulfilled") setOpening(o.value);
+      if (f.status === "fulfilled") setFees(f.value.filter((x) => !x.already_corrected));
       const err = [g, o].find((x) => x.status === "rejected") as PromiseRejectedResult | undefined;
       if (err) setError((err.reason as any)?.message ?? "تعذر تحميل جزء من المطابقة");
     } catch (e: any) {
@@ -136,7 +140,7 @@ export function GlReconciliationPanel() {
                       <td className="p-2">{a.label}</td>
                       <td className="p-2 tabular-nums">{formatEGP(l)}</td>
                       <td className="p-2 tabular-nums">{formatEGP(j)}</td>
-                      <td className="p-2">{ok(l - j) ? <span className="text-success">✓</span> : <span className="text-destructive font-semibold">فرق {formatEGP(l - j)} — رحّل الأرصدة الافتتاحية من شاشتها</span>}</td>
+                      <td className="p-2">{ok(l - j) ? <span className="text-success">✓</span> : <span className="text-destructive font-semibold">فرق {formatEGP(l - j)} — <button className="underline" onClick={() => nav("/admin/accounting/opening-balances?section=contacts")}>طابقها من شاشة الأرصدة الافتتاحية</button></span>}</td>
                     </tr>
                   );
                 })}
@@ -164,6 +168,31 @@ export function GlReconciliationPanel() {
               </div>
             )}
           </div>
+          {fees.length > 0 && (
+            <div className="rounded-lg border border-warning/50 bg-warning/5 p-3 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm">
+                  <b>عمولات تحويل اتخصمت مرتين من الخزنة:</b> {fees.length} عمولة بإجمالي {formatEGP(fees.reduce((s, x) => s + x.amount, 0))}
+                  <div className="text-xs text-muted-foreground">حصلت في دفعات خطط التقسيط وتعديلها قبل التحديث الأخير. التصحيح بيلغي السند المكرر بالطريقة العادية (حركة عكسية في الخزنة وقيد عكسي) ومفيش أي حذف؛ مصروف العمولة الحقيقي بيفضل.</div>
+                </div>
+                <Button size="sm" disabled={feeBusy} onClick={async () => {
+                  const total = fees.reduce((s, x) => s + x.amount, 0);
+                  if (!window.confirm(`هيتلغي ${fees.length} سند عمولة مكرر بإجمالي ${formatEGP(total)} (حركة عكسية في الخزنة وقيد عكسي، من غير حذف). متأكد؟`)) return;
+                  setFeeBusy(true);
+                  try {
+                    const r = await repairDuplicateFees(true);
+                    toast.success(`اتصححت ${r.count} عمولة بإجمالي ${formatEGP(r.amount)}`, (r.skipped || r.skippedClosed) ? { description: `${r.skippedClosed ? `${r.skippedClosed} في فترة مقفولة اتسابت زي ما هي` : ""}${r.skipped && r.skippedClosed ? " • " : ""}${r.skipped ? `${r.skipped} من غير سند أو اتصححت من مستخدم تاني` : ""}` } : undefined);
+                    await run();
+                  } catch (e: any) {
+                    toast.error(e?.message ?? "تعذر التصحيح");
+                  } finally {
+                    setFeeBusy(false);
+                  }
+                }}>{feeBusy ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : null} صحّح العمولات المكررة</Button>
+              </div>
+              <div className="text-xs text-muted-foreground">{fees.slice(0, 10).map((x) => `${x.voucher_number ?? "—"} (${x.branch_name}) ${formatEGP(x.amount)}`).join(" · ")}{fees.length > 10 ? " …" : ""}</div>
+            </div>
+          )}
         </>
       )}
     </div>

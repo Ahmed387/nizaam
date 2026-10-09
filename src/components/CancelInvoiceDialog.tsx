@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { AlertCircle, Banknote, Wallet } from "lucide-react";
+import { AlertCircle, Archive, Banknote, Wallet } from "lucide-react";
+import { fetchDocumentStatus, LEDGER_START } from "@/lib/ledger";
 
 interface Props {
   open: boolean;
@@ -23,6 +24,8 @@ export function CancelInvoiceDialog({ open, onOpenChange, invoice, onDone }: Pro
   const [refundMethod, setRefundMethod] = useState<"cash" | "credit" | "none">("none");
   const [busy, setBusy] = useState(false);
   const [customerName, setCustomerName] = useState<string>("");
+  const [ledgerPaid, setLedgerPaid] = useState<number | null>(null);
+  const [docDate, setDocDate] = useState<string>("");
 
   useEffect(() => {
     if (!open || !invoice?.id) return;
@@ -38,9 +41,20 @@ export function CancelInvoiceDialog({ open, onOpenChange, invoice, onDone }: Pro
         setPaidIns((ins ?? []).filter((i: any) => Number(i.paid_amount) > 0));
         setPendingIns((ins ?? []).filter((i: any) => ["pending","overdue","partial"].includes(i.status)));
       } else { setPaidIns([]); setPendingIns([]); }
+      // real money only: no voided payments or their reversals, no advance use / settlement rows
       const { data: pays } = await supabase
-        .from("invoice_payments").select("amount").eq("invoice_id", invoice.id);
-      setDirectPaid((pays ?? []).reduce((s: number, p: any) => s + Number(p.amount), 0));
+        .from("invoice_payments").select("amount, payment_method, voided_at, reverses_payment_id").eq("invoice_id", invoice.id);
+      setDirectPaid((pays ?? [])
+        .filter((p: any) => !p.voided_at && !p.reverses_payment_id && !["credit_balance", "credit_applied", "settlement"].includes(p.payment_method))
+        .reduce((s: number, p: any) => s + Number(p.amount), 0));
+      const { data: inv } = await supabase.from("invoices").select("invoice_date").eq("id", invoice.id).maybeSingle();
+      const d = String(inv?.invoice_date ?? invoice.invoice_date ?? "").slice(0, 10);
+      setDocDate(d);
+      // from 2026 the server counts what the unified ledger matched to this invoice (any branch, once)
+      setLedgerPaid(null);
+      if (invoice.contact_id && d >= LEDGER_START) {
+        try { setLedgerPaid((await fetchDocumentStatus("invoice", [invoice.id])).get(invoice.id)?.paid_money ?? null); } catch { /* keep the documents' figure */ }
+      }
       if (invoice.contact_id) {
         const { data: c } = await supabase.from("contacts").select("name").eq("id", invoice.contact_id).maybeSingle();
         setCustomerName(c?.name ?? "");
@@ -49,9 +63,12 @@ export function CancelInvoiceDialog({ open, onOpenChange, invoice, onDone }: Pro
   }, [open, invoice?.id, invoice?.contact_id]);
 
   const totalPaid = useMemo(() => {
+    if (ledgerPaid !== null) return ledgerPaid;
+    // a plan's collections are mirrored as invoice payments: count the larger of the two, not both
     const insPaid = paidIns.reduce((s, i) => s + Number(i.paid_amount || 0), 0);
-    return insPaid + directPaid;
-  }, [paidIns, directPaid]);
+    return Math.max(insPaid, directPaid);
+  }, [paidIns, directPaid, ledgerPaid]);
+  const isArchive = !!docDate && docDate < LEDGER_START;
 
   const hasPaid = totalPaid > 0.01;
   const needsChoice = hasPaid;
@@ -94,6 +111,16 @@ export function CancelInvoiceDialog({ open, onOpenChange, invoice, onDone }: Pro
               <Badge variant={pendingIns.length > 0 ? "destructive" : "secondary"}>{pendingIns.length} قسط</Badge>
             </div>
           </div>
+
+          {isArchive && (
+            <div className="p-3 rounded-md border border-primary/30 bg-primary/5 text-xs space-y-1">
+              <div className="font-semibold flex items-center gap-1"><Archive className="w-4 h-4" /> فاتورة من قبل بداية الدفتر الموحد ({docDate})</div>
+              <div>• الإلغاء بيتسجل النهارده كـ«مرتجع مبيعات» — مبيعات 2025 وتكلفتها في دفاترها زي ما هي، والبضاعة بترجع المخزن.</div>
+              {invoice?.contact_id
+                ? <div>• الباقي عليها بيتخصم من رصيد العميل الافتتاحي (في حدود الرصيد ده){hasPaid ? "، والمدفوع يترد نقدي من خزنة الفرع ده أو يتضاف لرصيده أو يفضل للشركة" : ""}. اللي دفعه عليها في 2026 بيتحسب مرة واحدة بس.</div>
+                : hasPaid ? <div>• المدفوع بيترد نقدي من خزنة الفرع ده.</div> : null}
+            </div>
+          )}
 
           <Textarea
             placeholder="سبب الإلغاء * (مطلوب)"
