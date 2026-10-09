@@ -5584,6 +5584,7 @@ export type Database = {
           admin_cost: number
           arrival_date: string
           branch_id: string
+          cancelled_at: string | null
           contact_id: string
           created_at: string
           current_balance: number | null
@@ -5604,6 +5605,7 @@ export type Database = {
           received_by: string
           shipment_number: string
           shipping_cost: number
+          status: string | null
           tenant_id: string | null
           total_cost: number
           total_extra_costs: number
@@ -5615,6 +5617,7 @@ export type Database = {
           admin_cost?: number
           arrival_date: string
           branch_id: string
+          cancelled_at?: string | null
           contact_id: string
           created_at?: string
           current_balance?: number | null
@@ -5635,6 +5638,7 @@ export type Database = {
           received_by: string
           shipment_number?: string
           shipping_cost?: number
+          status?: string | null
           tenant_id?: string | null
           total_cost?: number
           total_extra_costs?: number
@@ -5646,6 +5650,7 @@ export type Database = {
           admin_cost?: number
           arrival_date?: string
           branch_id?: string
+          cancelled_at?: string | null
           contact_id?: string
           created_at?: string
           current_balance?: number | null
@@ -5666,6 +5671,7 @@ export type Database = {
           received_by?: string
           shipment_number?: string
           shipping_cost?: number
+          status?: string | null
           tenant_id?: string | null
           total_cost?: number
           total_extra_costs?: number
@@ -7833,6 +7839,30 @@ export type Database = {
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_viewer: { Args: { _user_id: string }; Returns: boolean }
+      ledger_cutoff: { Args: never; Returns: string }
+      ledger_day: { Args: { p_ts: string }; Returns: string }
+      ledger_desired_movements: {
+        Args: { p_contact: string }
+        Returns: {
+          amount: number
+          branch_id: string
+          effect: string
+          is_void: boolean
+          kind: string
+          method: string
+          movement_date: string
+          notes: string
+          reference_id: string
+          reference_number: string
+          side: string
+          source_id: string
+          source_table: string
+        }[]
+      }
+      ledger_ip_is_voided_mirror: {
+        Args: { p_ip_id: string }
+        Returns: boolean
+      }
       manage_owner_expense_access: {
         Args: {
           allow_edit: boolean
