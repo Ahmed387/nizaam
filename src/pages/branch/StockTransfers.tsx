@@ -17,6 +17,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { notifyMany, getBranchManagers } from "@/lib/notifications";
@@ -98,9 +99,9 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     const [b, allB, p, out, inc, self] = await Promise.all([
       supabase.from("branches").select("*").eq("is_active", true).eq("is_system", false).neq("id", branchId),
       supabase.from("branches").select("*").eq("is_active", true).eq("is_system", false),
-      supabase.from("products").select("*").eq("branch_id", branchId).order("name"),
-      supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("from_branch_id", branchId).order("created_at", { ascending: false }),
-      supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("to_branch_id", branchId).order("created_at", { ascending: false }),
+      fetchAllRows<any>(() => supabase.from("products").select("*").eq("branch_id", branchId).order("name").order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("stock_transfers").select("*, to_branch:branches!to_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("from_branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("stock_transfers").select("*, from_branch:branches!from_branch_id(name), products(name, sku, brand, model, legacy_code, color, size, capacity, product_type, image)").eq("to_branch_id", branchId).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
       supabase.from("branches").select("name").eq("id", branchId).maybeSingle(),
     ]);
     setBranches(b.data ?? []);
@@ -358,17 +359,12 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       if (Array.isArray(r.hidden_for_branches) && r.hidden_for_branches.includes(branchId)) return false;
       if (fromBranchFilter && fromBranchFilter !== "ALL" && r.from_branch_id !== fromBranchFilter) return false;
       if (toBranchFilter && toBranchFilter !== "ALL" && r.to_branch_id !== toBranchFilter) return false;
-      const confirmedAt = r.confirmed_at ?? r.created_at;
-      if (confirmedAt) {
-        const d = new Date(confirmedAt);
-        if (dateFrom) {
-          const from = new Date(dateFrom); from.setHours(0, 0, 0, 0);
-          if (d < from) return false;
-        }
-        if (dateTo) {
-          const to = new Date(dateTo); to.setHours(23, 59, 59, 999);
-          if (d > to) return false;
-        }
+      // operational day of the transfer (transfer_date), else when it was confirmed / created — Cairo days
+      const day = r.transfer_date ?? (r.confirmed_at ?? r.created_at
+        ? new Date(r.confirmed_at ?? r.created_at).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" }) : null);
+      if (day) {
+        if (dateFrom && day < dateFrom) return false;
+        if (dateTo && day > dateTo) return false;
       }
       if (productQuery.trim()) {
         const prod = r.products ?? {};
@@ -381,16 +377,21 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   }, [transferRows, branchId, productQuery, fromBranchFilter, toBranchFilter, dateFrom, dateTo]);
 
   const transferMetrics = useMemo(() => {
-    const summarize = (rows: any[]) => ({
+    // a confirmed transfer moved what was RECEIVED (partial confirm sends the rest back);
+    // incoming and outgoing are separate figures (adding them together means nothing)
+    const moved = (row: any) => Number(row.received_quantity ?? row.quantity) || 0;
+    const summarize = (rows: any[], qty: (r: any) => number) => ({
       count: rows.length,
-      quantity: rows.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0),
+      quantity: rows.reduce((sum, row) => sum + qty(row), 0),
     });
+    const confirmed = filteredTransferRows.filter((row) => row.status === "confirmed");
     return {
-      total: summarize(filteredTransferRows),
-      confirmed: summarize(filteredTransferRows.filter((row) => row.status === "confirmed")),
-      unresolved: summarize(filteredTransferRows.filter((row) => row.status === "rejected" || row.status === "pending")),
+      incoming: summarize(confirmed.filter((row) => row.to_branch_id === branchId), moved),
+      outgoing: summarize(confirmed.filter((row) => row.from_branch_id === branchId), moved),
+      pending: summarize(filteredTransferRows.filter((row) => row.status === "pending"), (r) => Number(r.quantity) || 0),
+      rejected: summarize(filteredTransferRows.filter((row) => row.status === "rejected"), (r) => Number(r.quantity) || 0),
     };
-  }, [filteredTransferRows]);
+  }, [filteredTransferRows, branchId]);
 
   // السجل التاريخي يعرض المكتمل والمرفوض فقط، مع تطبيق فلتر الحالة فوق نفس البيانات التي تغذي الكروت.
   const completedRows = useMemo(() => filteredTransferRows
@@ -650,46 +651,27 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="ملخص تحويلات المخازن">
-            <MetricCardWithHint
-              label="إجمالي التحويلات"
-              value={transferMetrics.total.quantity}
-              currency={false}
-              icon={<ArrowLeftRight />}
-              tone="primary"
-              footer={<span className="tabular-nums">{transferMetrics.total.count.toLocaleString("en-US")} حركة • {transferMetrics.total.quantity.toLocaleString("en-US")} وحدة</span>}
-              metricHint={{
-                meaning: "عدد حركات التحويل وإجمالي الكميات المطابقة للفلاتر الحالية.",
-                source: "تحويلات المخزون الواردة والصادرة المرتبطة بالفرع، بعد تطبيق التاريخ والفرع المرسل والفرع المستلم.",
-                formula: "عدد الحركات = عدد الصفوف؛ إجمالي الكميات = Σ كمية كل حركة",
-              }}
-            />
-            <MetricCardWithHint
-              label="التحويلات المؤكدة"
-              value={transferMetrics.confirmed.quantity}
-              currency={false}
-              icon={<PackageCheck />}
-              tone="success"
-              footer={<span className="tabular-nums">{transferMetrics.confirmed.count.toLocaleString("en-US")} حركة • {transferMetrics.confirmed.quantity.toLocaleString("en-US")} وحدة</span>}
-              metricHint={{
-                meaning: "التحويلات التي أكد الفرع المستلم استلامها ضمن الفلاتر الحالية.",
-                source: "تحويلات المخزون المطابقة للفلاتر حيث الحالة البرمجية confirmed.",
-                formula: "عدد المؤكد = عدد الصفوف المؤكدة؛ الكمية = Σ كمية الصفوف المؤكدة",
-              }}
-            />
-            <MetricCardWithHint
-              label="التحويلات المرفوضة / المعلقة"
-              value={transferMetrics.unresolved.quantity}
-              currency={false}
-              icon={<AlertTriangle />}
-              tone="warning"
-              footer={<span className="tabular-nums">{transferMetrics.unresolved.count.toLocaleString("en-US")} حركة • {transferMetrics.unresolved.quantity.toLocaleString("en-US")} وحدة</span>}
-              metricHint={{
-                meaning: "التحويلات غير المؤكدة: المرفوضة أو التي ما زالت بانتظار قرار الفرع المستلم.",
-                source: "تحويلات المخزون المطابقة للفلاتر حيث الحالة rejected أو pending.",
-                formula: "عدد غير المؤكد = عدد الصفوف المرفوضة + المعلقة؛ الكمية = Σ كمياتها",
-              }}
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="ملخص تحويلات المخازن">
+            {([
+              { k: "incoming", label: "وارد للفرع (مستلم)", icon: <PackageCheck />, tone: "success", meaning: "الكميات اللي استلمها الفرع فعلاً من فروع تانية (التحويلات المؤكدة).", formula: "Σ الكمية المستلمة (received_quantity، وإلا الكمية المرسلة) للتحويلات المؤكدة الواردة" },
+              { k: "outgoing", label: "صادر من الفرع (استلمه الطرف التاني)", icon: <ArrowLeftRight />, tone: "primary", meaning: "الكميات اللي خرجت من الفرع واستلمها الفرع المستلم (لو الاستلام جزئي الباقي رجع للفرع).", formula: "Σ الكمية المستلمة للتحويلات المؤكدة الصادرة" },
+              { k: "pending", label: "معلقة (بانتظار الاستلام)", icon: <AlertTriangle />, tone: "warning", meaning: "تحويلات لسه ما اتأكدتش — الكمية خرجت من المرسل وما دخلتش المستلم.", formula: "Σ الكمية المرسلة للتحويلات المعلقة" },
+              { k: "rejected", label: "مرفوضة", icon: <AlertTriangle />, tone: "destructive", meaning: "تحويلات رفضها الفرع المستلم (الكمية رجعت للمرسل).", formula: "Σ الكمية المرسلة للتحويلات المرفوضة" },
+            ] as const).map((c) => {
+              const m = (transferMetrics as any)[c.k] as { count: number; quantity: number };
+              return (
+                <MetricCardWithHint
+                  key={c.k}
+                  label={c.label}
+                  value={m.quantity}
+                  currency={false}
+                  icon={c.icon}
+                  tone={c.tone as any}
+                  footer={<span className="tabular-nums">{m.count.toLocaleString("en-US")} حركة • {m.quantity.toLocaleString("en-US")} وحدة</span>}
+                  metricHint={{ meaning: c.meaning, source: "تحويلات المخزون المرتبطة بالفرع بعد فلاتر التاريخ (بتوقيت القاهرة) والفروع.", formula: c.formula }}
+                />
+              );
+            })}
           </div>
 
           <DataTable

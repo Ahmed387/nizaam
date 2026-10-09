@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
-import { formatEGP, formatDate, balanceLabel } from "@/lib/format";
+import { formatEGP, formatDate } from "@/lib/format";
 import { Loader2, Package, Phone, User, Calendar, ClipboardList, Truck, Receipt, XCircle, Printer, ArrowRight, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CancelPurchaseDialog } from "@/components/CancelPurchaseDialog";
@@ -16,7 +16,7 @@ import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { VariantLine } from "@/components/VariantChips";
 import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
-import { fetchContactLedger, withRunningBalance } from "@/lib/contactLedger";
+import { fetchContactStatement, fetchDocumentStatus, sideBalanceLabel } from "@/lib/ledger";
 
 const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -32,21 +32,26 @@ export default function ShipmentView() {
   const [loading, setLoading] = useState(true);
   const [cancelOpen, setCancelOpen] = useState(false);
 
-  // Supplier balance derived live from the contact ledger (stored snapshots are deprecated).
+  // Supplier balance around this purchase invoice, from the supplier side of the unified ledger
+  // (company-wide statement; the customer side of the same contact is never mixed in).
   const [liveBal, setLiveBal] = useState<{ prev: number; curr: number } | null>(null);
+  const [docStatus, setDocStatus] = useState<{ paid: number; remaining: number; state: string } | null>(null);
+  useEffect(() => {
+    if (!ship?.id) { setDocStatus(null); return; }
+    fetchDocumentStatus("shipment", [ship.id]).then((m) => setDocStatus(m.get(ship.id) ?? null)).catch(() => setDocStatus(null));
+  }, [ship?.id, ship?.total_cost]);
   useEffect(() => {
     if (!ship?.contact_id) { setLiveBal(null); return; }
     let cancelled = false;
-    fetchContactLedger(ship.contact_id).then((l) => {
+    // company-wide for admins; branch staff see this branch's supplier statement
+    fetchContactStatement(ship.contact_id, "supplier", isAdmin ? null : ship.branch_id).then((lines) => {
       if (cancelled) return;
-      const run = withRunningBalance(l.rows);
-      const row = run.find((r) => r.kind === "purchase" && r.link?.endsWith(`/shipments/${ship.id}`));
+      const row = lines.find((r) => r.doc_type === "shipment" && r.doc_id === ship.id);
       if (!row) { setLiveBal(null); return; }
-      const curr = Number(row.balance ?? 0);
-      setLiveBal({ curr, prev: curr - (row.debit - row.credit) });
+      setLiveBal({ curr: row.balance, prev: Math.round((row.balance - row.debit + row.credit) * 100) / 100 });
     }).catch(() => { if (!cancelled) setLiveBal(null); });
     return () => { cancelled = true; };
-  }, [ship?.contact_id, ship?.id, ship?.total_cost]);
+  }, [ship?.contact_id, ship?.id, ship?.total_cost, isAdmin]);
 
   const loadShipment = async () => {
     const { data: s } = await supabase.from("shipments").select("*, contacts:contact_id(name, phone, address)").eq("id", shipmentId!).maybeSingle();
@@ -242,11 +247,11 @@ export default function ShipmentView() {
 
       {/* Supplier balance snapshot — captured at shipment creation */}
       {ship.contact_id && liveBal && (() => {
-        const prevLbl = balanceLabel(liveBal.prev);
-        const currLbl = balanceLabel(liveBal.curr);
+        const prevLbl = sideBalanceLabel("supplier", liveBal.prev);
+        const currLbl = sideBalanceLabel("supplier", liveBal.curr);
         return (
           <div className="card-elevated p-4 mb-6">
-            <div className="font-bold text-sm mb-2">📒 رصيد المورد (محسوب من كشف الحساب الفعلي)</div>
+            <div className="font-bold text-sm mb-2">📒 حساب المورد {isAdmin ? "(كل الفروع)" : "(الفرع ده)"} — من الدفتر الموحد</div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="bg-surface-2 p-2 rounded border border-border">
                 <div className="text-xs text-muted-foreground">الرصيد السابق</div>
@@ -360,7 +365,8 @@ export default function ShipmentView() {
         subtotal={Number(itemsGross)}
         discount={Number(itemsDiscount) > 0 ? Number(itemsDiscount) : 0}
         total={Number(ship.total_cost ?? 0)}
-        paid={Number(ship.total_cost ?? 0)}
+        paid={docStatus && docStatus.state !== "before_ledger" ? docStatus.paid : undefined}
+        remaining={docStatus && docStatus.state !== "before_ledger" ? docStatus.remaining : 0}
         previousBalance={liveBal ? liveBal.prev : null}
         currentBalance={liveBal ? liveBal.curr : null}
       />

@@ -24,7 +24,7 @@ export function BranchFinancialDistribution({ rows, loading }: { rows: BranchFin
     <section className="space-y-3">
       <div>
         <h3 className="font-bold">توزيع الموقف المالي حسب الفرع</h3>
-        <p className="text-xs text-muted-foreground">ذمم كل فرع مستقلة، والخزينة الرئيسية لا تُعامل كفرع تشغيلي.</p>
+        <p className="text-xs text-muted-foreground">ذمم كل فرع مستقلة (العملاء والموردين كل واحد لوحده)، والأرصدة الافتتاحية مسجلة على الخزينة الرئيسية.</p>
       </div>
       <DataTable
         loading={loading}
@@ -36,6 +36,8 @@ export function BranchFinancialDistribution({ rows, loading }: { rows: BranchFin
           { key: "name", header: "الفرع / الوعاء", render: (row) => <span className="font-semibold">{row.name}</span> },
           { key: "receivables", header: "مستحق على العملاء", render: (row) => formatEGP(row.receivables) },
           { key: "payables", header: "مستحق للموردين", render: (row) => formatEGP(row.payables) },
+          { key: "customerAdvances", header: "مقدمات عملاء", render: (row) => formatEGP(row.customerAdvances) },
+          { key: "supplierAdvances", header: "مقدمات موردين", render: (row) => formatEGP(row.supplierAdvances) },
           { key: "cash", header: "النقدية", render: (row) => <span className="font-bold">{formatEGP(row.cash)}</span> },
         ]}
       />

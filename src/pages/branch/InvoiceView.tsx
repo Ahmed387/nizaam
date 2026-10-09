@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatEGP, formatDateTime, balanceLabel } from "@/lib/format";
+import { formatEGP, formatDateTime } from "@/lib/format";
+import { sideBalanceLabel, fetchDocumentStatus, fetchContactStatement, type DocumentStatus } from "@/lib/ledger";
 import { Printer, X, FileDown, Pencil, Wallet, CheckCircle2, Clock, CircleDashed } from "lucide-react";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
@@ -27,6 +28,7 @@ export default function InvoiceView() {
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
+  const [ledger, setLedger] = useState<DocumentStatus | null>(null);
   const [installments, setInstallments] = useState<any[]>([]);
   const [plan, setPlan] = useState<any>(null);
   const [branch, setBranch] = useState<any>(null);
@@ -37,6 +39,22 @@ export default function InvoiceView() {
   const [reloadKey, setReloadKey] = useState(0);
 
   const [error, setError] = useState<string | null>(null);
+
+  // Customer balance around this invoice, live from the customer side of the unified ledger (the stored
+  // previous/current snapshot of old invoices was netted with the supplier side, so it is not shown).
+  const [liveBal, setLiveBal] = useState<{ prev: number; curr: number } | null>(null);
+  useEffect(() => {
+    if (!inv?.contact_id || !inv?.id) { setLiveBal(null); return; }
+    let cancelled = false;
+    // company-wide for admins; branch staff see this branch's customer statement
+    fetchContactStatement(inv.contact_id, "customer", isAdmin ? null : inv.branch_id).then((lines) => {
+      if (cancelled) return;
+      const row = lines.find((r) => r.doc_type === "invoice" && r.doc_id === inv.id);
+      if (!row) { setLiveBal(null); return; }
+      setLiveBal({ curr: row.balance, prev: Math.round((row.balance - row.debit + row.credit) * 100) / 100 });
+    }).catch(() => { if (!cancelled) setLiveBal(null); });
+    return () => { cancelled = true; };
+  }, [inv?.contact_id, inv?.id, inv?.branch_id, inv?.total, isAdmin, reloadKey]);
 
   useEffect(() => {
     (async () => {
@@ -51,7 +69,7 @@ export default function InvoiceView() {
           setError("الفاتورة غير موجودة");
           return;
         }
-        // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge live ledger balance
+        // customer side of the unified ledger (no netting with a supplier side)
         if ((i as any).contact_id) {
           
           const bal = await fetchContactBalance((i as any).contact_id);
@@ -69,7 +87,9 @@ export default function InvoiceView() {
         const { data: its } = await supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId);
         setItems(its ?? []);
         const { data: pays } = await supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at");
-        setPayments(pays ?? []);
+        // voided payments, their reversal rows and old netting rows are not payments of this invoice
+        setPayments((pays ?? []).filter((p: any) => !p.voided_at && !p.reverses_payment_id && p.payment_method !== "settlement"));
+        setLedger((await fetchDocumentStatus("invoice", [invoiceId!]).catch(() => new Map())).get(invoiceId!) ?? null);
         const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();
         setPlan(pp ?? null);
         if (pp?.id) {
@@ -102,7 +122,8 @@ export default function InvoiceView() {
         setInv(i);
       }
       const { data: pays } = await supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at");
-      setPayments(pays ?? []);
+      setPayments((pays ?? []).filter((p: any) => !p.voided_at && !p.reverses_payment_id && p.payment_method !== "settlement"));
+      setLedger((await fetchDocumentStatus("invoice", [invoiceId!]).catch(() => new Map())).get(invoiceId!) ?? null);
       const { data: pp } = await supabase.from("payment_plans").select("*").eq("reference_type", "invoice").eq("reference_id", invoiceId).maybeSingle();
       setPlan(pp ?? null);
       if (pp?.id) {
@@ -295,15 +316,15 @@ export default function InvoiceView() {
           </div>
         </div>
 
-        {/* Balance snapshot — captured at invoice creation, never recalculated */}
-        {inv.contact_id && (inv.previous_balance != null || inv.current_balance != null) && (() => {
-          const prev = Number(inv.previous_balance ?? 0);
-          const curr = Number(inv.current_balance ?? 0);
-          const prevLbl = balanceLabel(prev);
-          const currLbl = balanceLabel(curr);
+        {/* Customer balance before / after this invoice — customer side of the unified ledger */}
+        {inv.contact_id && liveBal && (() => {
+          const prev = liveBal.prev;
+          const curr = liveBal.curr;
+          const prevLbl = sideBalanceLabel("customer", prev);
+          const currLbl = sideBalanceLabel("customer", curr);
           return (
             <div className="mt-4 p-3 rounded-lg border border-border bg-surface-2/40">
-              <div className="font-bold text-sm mb-2">📒 رصيد العميل (لحظة إصدار الفاتورة)</div>
+              <div className="font-bold text-sm mb-2">📒 حساب العميل (قبل وبعد الفاتورة)</div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div className="bg-card p-2 rounded border border-border">
                   <div className="text-xs text-muted-foreground">الرصيد السابق</div>
@@ -350,12 +371,12 @@ export default function InvoiceView() {
         {/* Payment summary: total / paid / remaining + installments schedule */}
         {(() => {
           const totalDue = Number(inv.total ?? 0);
-          // المدفوع = أكبر قيمة بين (مجموع invoice_payments) و (paid_amount على خطة الدفع المرتبطة)
-          // لأن دفعات الآجل بتترسجل في payment_transactions عبر الـ plan ومش بتنزل في invoice_payments
-          const paidFromInvoicePayments = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
-          const paidFromPlan = plan ? Number(plan.paid_amount ?? 0) : 0;
-          const paidNow = Math.max(paidFromInvoicePayments, paidFromPlan);
-          const remaining = Math.max(totalDue - paidNow, 0);
+          // المدفوع والمتبقي من الدفتر الموحد: دفعات الفاتورة + التحصيلات العامة والإيداعات (الأقدم أولاً،
+          // من أي فرع) + رصيد المرتجعات. لو الفاتورة قبل 2026 (أرشيف) أو الدفتر مش متاح: دفعات الفاتورة نفسها.
+          const ownPaid = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+          const useLedger = !!ledger && ledger.state !== "before_ledger" && ledger.state !== "cancelled";
+          const paidNow = useLedger ? ledger!.paid : Math.max(ownPaid, plan ? Number(plan.paid_amount ?? 0) : 0);
+          const remaining = useLedger ? Math.max(ledger!.remaining, 0) : Math.max(totalDue - paidNow, 0);
           if (totalDue <= 0) return null;
           return (
             <div className="mt-4 p-4 rounded-lg border-2 border-primary/30 bg-primary/5">
@@ -481,9 +502,9 @@ export default function InvoiceView() {
         vatAmount={Number((inv as any).vat_amount ?? 0)}
         vatRate={Number((inv as any).vat_rate ?? 0)}
         total={Number(inv.total ?? 0)}
-        paid={Math.max(payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0), Number(plan?.paid_amount ?? 0))}
-        previousBalance={inv.previous_balance != null ? Number(inv.previous_balance) : null}
-        currentBalance={inv.current_balance != null ? Number(inv.current_balance) : null}
+        paid={ledger && ledger.state !== "before_ledger" && ledger.state !== "cancelled" ? ledger.paid : Math.max(payments.reduce((s: number, p: any) => s + Number(p.amount ?? 0), 0), Number(plan?.paid_amount ?? 0))}
+        previousBalance={liveBal ? liveBal.prev : null}
+        currentBalance={liveBal ? liveBal.curr : null}
         paymentMethodLabel={inv.payment_method}
       />
 

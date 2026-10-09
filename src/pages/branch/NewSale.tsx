@@ -13,11 +13,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchSideBalance } from "@/lib/ledger";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { logAudit } from "@/lib/roles";
-import { formatEGP, balanceLabel } from "@/lib/format";
+import { formatEGP } from "@/lib/format";
 import { searchMatch, filterProductsBySearch } from "@/lib/search";
 import { toast } from "sonner";
 import { useFormDraft } from "@/hooks/useFormDraft";
@@ -121,7 +122,7 @@ export default function NewSale() {
   // Customer credit balance + ledger balance
   const [customerCredit, setCustomerCredit] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);
-  const [customerBalance, setCustomerBalance] = useState(0); // contacts.balance (>0 له عندنا، <0 علينا له)
+  const [customerBalance, setCustomerBalance] = useState(0); // ledger customer side (+ owes us, − advance)
   const [customerType, setCustomerType] = useState<string>("customer");
   // VAT (editable rate from settings)
   const [vatEnabled, setVatEnabled] = useState(false);
@@ -237,10 +238,17 @@ export default function NewSale() {
     setCreditToApply(0);
     if (!customerId) { setCustomerCredit(0); setCustomerBalance(0); setCustomerType("customer"); return; }
     const load = async () => {
-      // TODO Phase 2.2B: Remove after contacts.balance column is dropped
-      const { data } = await supabase.from("v_contact_balances" as any).select("credit_balance, total_balance, type").eq("contact_id", customerId).maybeSingle();
-      setCustomerCredit(Math.max(0, -Number((data as any)?.credit_balance ?? 0))); // credit_balance < 0 = رصيد مسبق متاح
-      setCustomerBalance(Number((data as any)?.total_balance ?? 0));
+      // Customer side of the unified ledger (+ = owes us, − = his advance with us); the supplier side of a
+      // contact that is also a supplier is never mixed in. The prepaid credit the cashier can apply is the
+      // stored credit capped by the ledger advance (an advance already used by FIFO is not available twice).
+      const [{ data }, sb] = await Promise.all([
+        supabase.from("contacts").select("credit_balance, type").eq("id", customerId).maybeSingle(),
+        fetchSideBalance(customerId).catch(() => null),
+      ]);
+      const stored = Math.max(0, -Number((data as any)?.credit_balance ?? 0));
+      const ledgerAdvance = Math.max(0, Number(sb?.customer_advance ?? 0));
+      setCustomerCredit(Math.min(stored, ledgerAdvance));
+      setCustomerBalance(Number(sb?.customer_balance ?? 0));
       setCustomerType(String((data as any)?.type ?? "customer"));
     };
     load();
@@ -1164,31 +1172,25 @@ export default function NewSale() {
               </div>
 
             {customerId && (() => {
-              const b = balanceLabel(customerBalance);
-              const isCustomer = customerType === "customer" || customerType === "both";
-              const partyWord = customerType === "supplier" ? "المورد" : isCustomer ? "العميل" : "الطرف";
-              const friendlyLabel =
-                customerBalance > 0
-                  ? `ليك رصيد عند ${partyWord}`
-                  : customerBalance < 0
-                  ? `مستحق ${partyWord === "المورد" ? "للمورد" : "على " + partyWord}`
-                  : "لا توجد مديونية سابقة";
-              const tone =
-                b.tone === "good"
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                  : b.tone === "bad"
-                  ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                  : "border-border bg-muted/40 text-muted-foreground";
-              const icon = b.tone === "good" ? "💰" : b.tone === "bad" ? "⚠️" : "ℹ️";
+              // customerBalance = customer side only: + the customer owes us, − we hold his advance
+              const owes = customerBalance > 0.005;
+              const advance = customerBalance < -0.005;
+              const friendlyLabel = owes ? "مستحق على العميل (حساب العميل)" : advance ? "مقدم من العميل عندنا" : "لا توجد مديونية سابقة على العميل";
+              const tone = advance
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                : owes
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                : "border-border bg-muted/40 text-muted-foreground";
+              const icon = advance ? "💰" : owes ? "⚠️" : "ℹ️";
               return (
                 <div className={`mt-2 p-2.5 rounded-lg border text-sm flex items-center justify-between flex-wrap gap-2 ${tone}`}>
                   <div className="flex items-center gap-2">
                     <span className="text-base leading-none">{icon}</span>
                     <span>
                       {friendlyLabel}
-                      {customerBalance !== 0 && <>: <b className="font-bold">{formatEGP(b.amount)}</b></>}
+                      {(owes || advance) && <>: <b className="font-bold">{formatEGP(Math.abs(customerBalance))}</b></>}
                     </span>
-                    {customerType === "both" && <span className="ms-2 text-xs opacity-70">(عميل ومورد)</span>}
+                    {customerType === "both" && <span className="ms-2 text-xs opacity-70">(عميل ومورد — حساب المورد منفصل ومش داخل هنا)</span>}
                   </div>
                 </div>
               );

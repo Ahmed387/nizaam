@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
+import { fetchDocumentStatus } from "@/lib/ledger";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Plus, RotateCcw, BookmarkPlus } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -23,54 +25,31 @@ export default function SalesHistory() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const { data } = await supabase
+    // `customers` was dropped long ago (the old select failed and the page stayed empty) — contacts now.
+    const data = await fetchAllRows<any>(() => supabase
       .from("invoices")
-      .select("*, customers(name)")
+      .select("*, contacts:contact_id(name)")
       .eq("branch_id", id)
-      .order("created_at", { ascending: false });
-
-    const invoiceIds = (data ?? []).map((r: any) => r.id);
-    const cashierIds = [...new Set((data ?? []).map((r: any) => r.cashier_id).filter(Boolean))];
-
-    const [cashiersRes, paysRes, plansRes] = await Promise.all([
+      .order("created_at", { ascending: false })
+      .order("id")).catch(() => [] as any[]);
+    const cashierIds = [...new Set(data.map((r: any) => r.cashier_id).filter(Boolean))];
+    const [cashiersRes, st] = await Promise.all([
       cashierIds.length
         ? supabase.from("profiles").select("id, name").in("id", cashierIds)
         : Promise.resolve({ data: [] as any[] } as any),
-      invoiceIds.length
-        ? supabase
-            .from("invoice_payments")
-            .select("invoice_id, amount, voided_at, reverses_payment_id")
-            .in("invoice_id", invoiceIds)
-        : Promise.resolve({ data: [] as any[] } as any),
-      invoiceIds.length
-        ? supabase
-            .from("payment_plans")
-            .select("reference_id, paid_amount")
-            .eq("reference_type", "invoice")
-            .in("reference_id", invoiceIds)
-        : Promise.resolve({ data: [] as any[] } as any),
+      // paid = unified ledger (direct payments, FIFO of general payments / deposits, return credit)
+      fetchDocumentStatus("invoice", data.filter((r: any) => r.status === "active").map((r: any) => r.id)).catch(() => new Map()),
     ]);
-
     const cashierMap = new Map((cashiersRes.data ?? []).map((c: any) => [c.id, c.name]));
-    const paidFromPays = new Map<string, number>();
-    (paysRes.data ?? []).forEach((p: any) => {
-      if (p.voided_at || p.reverses_payment_id) return;
-      paidFromPays.set(p.invoice_id, (paidFromPays.get(p.invoice_id) ?? 0) + Number(p.amount || 0));
-    });
-    const paidFromPlan = new Map<string, number>();
-    (plansRes.data ?? []).forEach((p: any) => {
-      paidFromPlan.set(p.reference_id, Number(p.paid_amount || 0));
-    });
-
     setRows(
-      (data ?? []).map((r: any) => {
-        const paid = Math.max(paidFromPays.get(r.id) ?? 0, paidFromPlan.get(r.id) ?? 0);
-        const payState = computePayState(Number(r.total || 0), paid);
+      data.map((r: any) => {
+        const paid = st.get(r.id)?.paid ?? 0;
         return {
           ...r,
+          customers: r.contacts ?? null,
           cashier_name: cashierMap.get(r.cashier_id) ?? "—",
           paid_amount_now: paid,
-          pay_state: payState,
+          pay_state: computePayState(Number(r.total || 0), paid),
         };
       })
     );

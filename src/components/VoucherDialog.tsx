@@ -14,6 +14,7 @@ import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./Pa
 import { validateTransferPayment, PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchSideBalance, sideBalanceLabel, type Side } from "@/lib/ledger";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
@@ -195,15 +196,11 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
           const { data } = await supabase.from("advances" as any).select("remaining").eq("employee_id", form.party_id);
           const total = ((data ?? []) as any[]).reduce((s, r) => s + Number(r.remaining || 0), 0);
           setPartyBalance({ label: "سلف مستحقة على الموظف", amount: total, tone: total > 0 ? "bad" : "neutral" });
-        } else if (form.party_type === "supplier") {
-          // TODO Phase 2.2B: Remove after contacts.balance column is dropped
-          const { data } = await supabase.from("v_contact_balances" as any).select("total_balance").eq("contact_id", form.party_id).maybeSingle();
-          const amt = Number((data as any)?.total_balance ?? 0);
-          setPartyBalance({ label: amt >= 0 ? "مستحق للمورد علينا" : "رصيد لصالحنا عند المورد", amount: Math.abs(amt), tone: amt > 0 ? "bad" : amt < 0 ? "good" : "neutral" });
-        } else if (form.party_type === "customer") {
-          const { data } = await supabase.from("payment_plans" as any).select("remaining_amount").eq("entity_type", "customer").eq("entity_id", form.party_id).eq("status", "active");
-          const total = ((data ?? []) as any[]).reduce((s, r) => s + Number(r.remaining_amount || 0), 0);
-          setPartyBalance({ label: "مستحق على العميل لنا", amount: total, tone: total > 0 ? "good" : "neutral" });
+        } else if (form.party_type === "supplier" || form.party_type === "customer") {
+          // Unified ledger, this party's side only (customer and supplier sides are never netted).
+          const sb = await fetchSideBalance(form.party_id);
+          const side = form.party_type as Side;
+          setPartyBalance(sideBalanceLabel(side, side === "customer" ? sb?.customer_balance : sb?.supplier_balance));
         }
       } catch {
         setPartyBalance(null);

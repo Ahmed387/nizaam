@@ -83,7 +83,7 @@ import Inventory from "./pages/branch/Inventory";
 import StockMovements from "./pages/branch/StockMovements";
 import PrintBarcodes from "./pages/branch/PrintBarcodes";
 import Contacts from "./pages/branch/Contacts";
-import SupplierProfile from "./pages/branch/SupplierProfile";
+import ContactFile from "./pages/branch/ContactFile";
 import ContactStatement from "./pages/branch/ContactStatement";
 import Treasury from "./pages/branch/Treasury";
 import Employees from "./pages/branch/Employees";
@@ -225,7 +225,7 @@ const App = () => (
             <Route path="/admin/pre-orders" element={<ProtectedRoute adminOnly><AllPreOrders /></ProtectedRoute>} />
             <Route path="/admin/contacts" element={<ProtectedRoute perm="admin_contacts.view" adminOnly><AllSuppliers /></ProtectedRoute>} />
             <Route path="/admin/suppliers" element={<Navigate to="/admin/contacts?type=supplier" replace />} />
-            <Route path="/admin/contacts/:contactId" element={<ProtectedRoute adminOnly><SupplierProfile /></ProtectedRoute>} />
+            <Route path="/admin/contacts/:contactId" element={<ProtectedRoute adminOnly><ContactFile /></ProtectedRoute>} />
             <Route path="/admin/suppliers/:contactId" element={<AdminRedirectToContact />} />
             <Route path="/admin/employees" element={<ProtectedRoute perm="admin_employees.view" roles={["supervisor"]}><AllEmployees /></ProtectedRoute>} />
             <Route path="/admin/employees/:id" element={<ProtectedRoute roles={["supervisor"]}><EmployeeProfile /></ProtectedRoute>} />
@@ -342,7 +342,7 @@ const App = () => (
             <Route path="/branch/:id/sale-returns/:returnId" element={<ProtectedRoute perm="sales.view"><SaleReturnView /></ProtectedRoute>} />
             <Route path="/branch/:id/purchase-returns/:returnId" element={<ProtectedRoute perm="shipments.view"><PurchaseReturnView /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts" element={<ProtectedRoute perm="customers.view"><Contacts /></ProtectedRoute>} />
-            <Route path="/branch/:id/contacts/:contactId" element={<ProtectedRoute perm="customers.view"><SupplierProfile /></ProtectedRoute>} />
+            <Route path="/branch/:id/contacts/:contactId" element={<ProtectedRoute perm="customers.view"><ContactFile /></ProtectedRoute>} />
             <Route path="/branch/:id/contacts/:contactId/statement" element={<ProtectedRoute perm="customers.view"><ContactStatement /></ProtectedRoute>} />
             <Route path="/admin/contacts/:contactId/statement" element={<ProtectedRoute adminOnly><ContactStatement /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<Navigate to="../contacts?tab=customer" replace />} />

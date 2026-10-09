@@ -136,7 +136,10 @@ export default function FinancialDashboard() {
 
       {branchFilter === ALL_FINANCIAL_BRANCHES && (
         <div className="mb-6 space-y-4">
-          <StatCard label="أرصدة تحت الحساب طرف الإدارة" value={formatEGP(metrics.managementCredit)} icon={<Wallet className="w-5 h-5" />} accent="primary" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <StatCard label="مقدمات عملاء عندنا (2150)" value={formatEGP(metrics.customerAdvances)} icon={<Wallet className="w-5 h-5" />} accent="primary" />
+            <StatCard label="مقدمات لينا عند الموردين (1460)" value={formatEGP(metrics.supplierAdvances)} icon={<Wallet className="w-5 h-5" />} accent="secondary" />
+          </div>
           <BranchFinancialDistribution rows={metrics.distribution} loading={metrics.loading} />
         </div>
       )}

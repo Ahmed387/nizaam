@@ -2,138 +2,117 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
-import { getCairoDayBounds } from "@/lib/cairoDate";
-import { fetchContactLedger, type LedgerRow } from "@/lib/contactLedger";
-import { formatEGP } from "@/lib/format";
-import type { ContactCreditBalance } from "@/hooks/useContactCreditBalances";
-import { Search, X } from "lucide-react";
+import { formatEGP, formatDate } from "@/lib/format";
+import { fetchAllContactsPage, fetchContactMoney, type ContactPageRow, type Side } from "@/lib/ledger";
+import { Search } from "lucide-react";
 
-type ContactWithLedger = ContactCreditBalance & { movements: LedgerRow[] };
-
+/**
+ * Money held on account, from the unified ledger (Step 6C): customer advances (2150) and our advances
+ * with suppliers (1460) are two separate lists — never added together and never netted against a debt
+ * of the other side. Each row opens the unused money movements of that contact and side.
+ */
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  contacts: ContactCreditBalance[];
-  summaryLoading: boolean;
+  side: Side;
 }
 
-const includesText = (value: unknown, search: string) =>
-  String(value ?? "").toLocaleLowerCase("ar-EG").includes(search.toLocaleLowerCase("ar-EG"));
+const typeLabel = (type: string) => (type === "customer" ? "عميل" : type === "supplier" ? "مورد" : "عميل ومورد");
 
-const typeLabel = (type: string) => type === "customer" ? "عميل" : type === "supplier" ? "مورد" : "عميل ومورد";
-
-export function ContactCreditBalancesDrawer({ open, onOpenChange, contacts, summaryLoading }: Props) {
+export function ContactCreditBalancesDrawer({ open, onOpenChange, side }: Props) {
   const nav = useNavigate();
-  const [rows, setRows] = useState<ContactWithLedger[]>([]);
+  const [rows, setRows] = useState<ContactPageRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [notes, setNotes] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
-  const [minAmount, setMinAmount] = useState("");
-  const [maxAmount, setMaxAmount] = useState("");
-  const contactKey = useMemo(() => contacts.map((contact) => `${contact.contactId}:${contact.availableBalance}`).join("|"), [contacts]);
+  const [detail, setDetail] = useState<{ id: string; name: string; lines: any[] } | null>(null);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
-    (async () => {
-      const loaded: ContactWithLedger[] = [];
-      for (let index = 0; index < contacts.length; index += 5) {
-        const batch = contacts.slice(index, index + 5);
-        const ledgers = await Promise.all(batch.map((contact) => fetchContactLedger(contact.contactId)));
-        if (cancelled) return;
-        loaded.push(...batch.map((contact, i) => ({ ...contact, movements: ledgers[i]?.rows ?? [] })));
-      }
-      if (!cancelled) setRows(loaded);
-    })().catch(() => { if (!cancelled) setRows([]); }).finally(() => { if (!cancelled) setLoading(false); });
+    setDetail(null);
+    fetchAllContactsPage({ branchId: null, type: "all", balance: [side === "customer" ? "customer_advance" : "supplier_advance"] })
+      .then((p) => { if (!cancelled) setRows(p.rows); })
+      .catch(() => { if (!cancelled) setRows([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [open, contactKey]); // contacts are represented by the stable key above
+  }, [open, side]);
 
+  const advanceOf = (r: ContactPageRow) => (side === "customer" ? r.customer_advance : r.supplier_advance);
   const filtered = useMemo(() => {
-    const cleanSearch = search.trim();
-    const cleanNotes = notes.trim();
-    const { startIso, endIso } = getCairoDayBounds(fromDate, toDate);
-    const start = startIso ? new Date(startIso).getTime() : undefined;
-    const end = endIso ? new Date(endIso).getTime() : undefined;
-    const min = minAmount === "" ? undefined : Number(minAmount);
-    const max = maxAmount === "" ? undefined : Number(maxAmount);
-    const hasMovementFilter = Boolean(cleanNotes || fromDate || toDate);
+    const q = search.trim().toLocaleLowerCase("ar-EG");
+    return rows
+      .filter((r) => !q || `${r.name} ${r.phone ?? ""}`.toLocaleLowerCase("ar-EG").includes(q))
+      .sort((a, b) => advanceOf(b) - advanceOf(a));
+  }, [rows, search, side]);
+  const total = Math.round(filtered.reduce((s, r) => s + advanceOf(r), 0) * 100) / 100;
 
-    return rows.filter((contact) => {
-      if (min !== undefined && Number.isFinite(min) && contact.availableBalance < min) return false;
-      if (max !== undefined && Number.isFinite(max) && contact.availableBalance > max) return false;
-      const nameMatches = cleanSearch && includesText(contact.name, cleanSearch);
-      const matchingMovements = contact.movements.filter((movement) => {
-        const time = new Date(movement.date).getTime();
-        if (start !== undefined && time < start) return false;
-        if (end !== undefined && time > end) return false;
-        if (cleanNotes && !includesText(movement.description, cleanNotes)) return false;
-        if (cleanSearch && !nameMatches && ![movement.reference, movement.description, movement.type].some((value) => includesText(value, cleanSearch))) return false;
-        return true;
-      });
-      if (cleanSearch && !nameMatches && matchingMovements.length === 0) return false;
-      if (hasMovementFilter && matchingMovements.length === 0) return false;
-      return true;
-    });
-  }, [rows, search, notes, fromDate, toDate, minAmount, maxAmount]);
-
-  const clearFilters = () => {
-    setSearch(""); setNotes(""); setFromDate(""); setToDate(""); setMinAmount(""); setMaxAmount("");
+  const openDetail = async (r: ContactPageRow) => {
+    const money = await fetchContactMoney(r.id, side).catch(() => []);
+    setDetail({ id: r.id, name: r.name, lines: money.filter((m) => m.status === "active" && m.effect === "settle" && m.unallocated > 0.005) });
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-full overflow-y-auto sm:max-w-5xl" dir="rtl">
-        <SheetHeader className="text-right">
-          <SheetTitle>أرصدة تحت الحساب (مقدمات العملاء والموردين)</SheetTitle>
-          <SheetDescription>هذه الأرصدة تخص حسابات الجهات ولا تدخل ضمن إجماليات الخزائن المعروضة.</SheetDescription>
+      <SheetContent side="left" className="w-full sm:max-w-3xl overflow-y-auto" dir="rtl">
+        <SheetHeader>
+          <SheetTitle>{side === "customer" ? "مقدمات العملاء عندنا (2150)" : "مقدماتنا عند الموردين (1460)"}</SheetTitle>
+          <SheetDescription>
+            {side === "customer"
+              ? "فلوس دفعها العملاء ولسه ما اتخصمتش من فواتير. أول ما تتسجل فاتورة للعميل بتتخصم منها تلقائياً (الأقدم أولاً)."
+              : "فلوس دفعناها للموردين مقدم ولسه ما اتخصمتش من فواتير شراء. بتتخصم تلقائياً من أقدم فاتورة شراء مفتوحة."}
+            {" "}الجانبين منفصلين تماماً.
+          </SheetDescription>
         </SheetHeader>
 
-        <div className="my-5 space-y-4">
-          <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 md:grid-cols-3">
-            <div>
-              <Label className="text-xs">اسم الجهة أو رقم السند / الفاتورة</Label>
-              <div className="relative">
-                <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input value={search} onChange={(event) => setSearch(event.target.value)} className="pr-9" placeholder="عميل، مورد، سند أو فاتورة…" />
-              </div>
-            </div>
-            <div><Label className="text-xs">الملاحظات / البيان</Label><Input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="جزء من البيان…" /></div>
-            <div className="flex items-end"><Button type="button" variant="ghost" onClick={clearFilters}><X className="ml-1 h-4 w-4" />مسح الفلاتر</Button></div>
-            <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></div>
-            <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></div>
-            <div className="grid grid-cols-2 gap-2">
-              <div><Label className="text-xs">الرصيد من</Label><Input type="number" min="0" step="0.01" value={minAmount} onChange={(event) => setMinAmount(event.target.value)} /></div>
-              <div><Label className="text-xs">الرصيد إلى</Label><Input type="number" min="0" step="0.01" value={maxAmount} onChange={(event) => setMaxAmount(event.target.value)} /></div>
-            </div>
+        <div className="mt-4 flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pr-9" placeholder="ابحث بالاسم أو التليفون" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span className="text-muted-foreground">يعرض {filtered.length} من أصل {contacts.length} جهة</span>
-            <strong>إجمالي النتائج: {formatEGP(filtered.reduce((sum, contact) => sum + contact.availableBalance, 0))}</strong>
-          </div>
-
-          <DataTable
-            rows={filtered}
-            loading={loading || summaryLoading}
-            indexColumn
-            pageSize={20}
-            empty="لا توجد أرصدة مطابقة للفلاتر"
-            getRowKey={(contact) => contact.contactId}
-            columns={[
-              { key: "name", header: "الجهة", render: (contact: ContactWithLedger) => (
-                <Button variant="link" className="h-auto p-0 font-bold" onClick={() => nav(`/admin/contacts/${contact.contactId}/statement`)}>{contact.name}</Button>
-              ) },
-              { key: "type", header: "النوع", render: (contact: ContactWithLedger) => typeLabel(contact.type) },
-              { key: "availableBalance", header: "المبلغ المتاح", numeric: true, render: (contact: ContactWithLedger) => <strong className="text-warning">{formatEGP(contact.availableBalance)}</strong> },
-            ]}
-          />
+          <div className="text-sm whitespace-nowrap">الإجمالي: <b>{formatEGP(total)}</b></div>
         </div>
+
+        {!detail ? (
+          <div className="mt-4">
+            <DataTable
+              loading={loading}
+              rows={filtered}
+              empty="مفيش مقدمات"
+              onRowClick={(r: any) => openDetail(r)}
+              columns={[
+                { key: "name", header: "الجهة", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{typeLabel(r.type)}</div></div> },
+                { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
+                { key: "adv", header: "المقدم المتاح", render: (r: any) => <b className="text-primary">{formatEGP(advanceOf(r))}</b> },
+                { key: "open", header: side === "customer" ? "فواتير مفتوحة عليه" : "فواتير شراء مفتوحة", render: (r: any) => formatEGP(side === "customer" ? r.customer_open : r.supplier_open) },
+                { key: "go", header: "", render: (r: any) => (
+                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/admin/contacts/${r.id}`); }}>الملف</Button>
+                ) },
+              ]}
+            />
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="font-bold">{detail.name} — الحركات اللي لسه ليها رصيد</div>
+              <Button size="sm" variant="ghost" onClick={() => setDetail(null)}>رجوع</Button>
+            </div>
+            <DataTable
+              rows={detail.lines}
+              empty="مفيش حركات"
+              columns={[
+                { key: "d", header: "التاريخ", render: (m: any) => formatDate(m.movement_date) },
+                { key: "k", header: "النوع", render: (m: any) => m.kind_label },
+                { key: "b", header: "الفرع", render: (m: any) => m.branch_name ?? "—" },
+                { key: "r", header: "المرجع", render: (m: any) => m.reference ?? "—" },
+                { key: "a", header: "المبلغ", render: (m: any) => formatEGP(m.amount) },
+                { key: "u", header: "المتبقي منه", render: (m: any) => <b className="text-primary">{formatEGP(m.unallocated)}</b> },
+              ]}
+            />
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );

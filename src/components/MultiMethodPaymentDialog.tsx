@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchSideBalance } from "@/lib/ledger";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -90,13 +91,13 @@ export function MultiMethodPaymentDialog({
     if (!open || mode.kind !== "contact") return;
     let cancelled = false;
     const refresh = async () => {
-      // TODO Phase 2.2B: Remove after contacts.balance column is dropped
-      const { data } = await supabase.from("v_contact_balances" as any).select("total_balance").eq("contact_id", mode.contactId).maybeSingle();
-      if (cancelled || !data) return;
-      const bal = Number((data as any).total_balance || 0);
-      // Convention: +balance = credit at supplier (they owe us), -balance = we owe them
-      setSupplierCredit(bal > 0 ? bal : 0);
-      setLiveOwed(bal < 0 ? Math.abs(bal) : 0);
+      // Supplier side of the unified ledger only (no netting with the customer side):
+      // + = we owe the supplier, − = our advance with him.
+      const sb = await fetchSideBalance(mode.contactId).catch(() => null);
+      if (cancelled || !sb) return;
+      const bal = Number(sb.supplier_balance ?? 0);
+      setSupplierCredit(bal < 0 ? Math.abs(bal) : 0);
+      setLiveOwed(bal > 0 ? bal : 0);
     };
     refresh();
     const ch = supabase
@@ -226,11 +227,11 @@ export function MultiMethodPaymentDialog({
           {isContactOut && supplierCredit > 0 && (
             <div className="card-elevated p-3 bg-success/10 border-success/30 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-success font-semibold">💰 رصيد ليك عند المورد</span>
+                <span className="text-success font-semibold">💰 مقدم لينا عند المورد</span>
                 <span className="font-bold text-success">{formatEGP(supplierCredit)}</span>
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                هيتخصم تلقائياً من أي فاتورة شراء جديدة من نفس المورد.
+                بيتخصم تلقائياً من أقدم فاتورة شراء مفتوحة لنفس المورد (حساب المورد بس — منفصل عن حساب العميل).
               </div>
             </div>
           )}

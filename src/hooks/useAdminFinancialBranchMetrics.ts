@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { fetchLedgerPosition } from "@/lib/ledger";
 
 export const ALL_FINANCIAL_BRANCHES = "all";
 
@@ -13,25 +14,33 @@ export type FinancialBranch = {
 };
 
 export type BranchFinancialSnapshot = FinancialBranch & {
+  /** customers' open documents of this branch (customer side of the unified ledger) */
   receivables: number;
+  /** suppliers' open purchase invoices of this branch (supplier side) */
   payables: number;
+  customerAdvances: number;
+  supplierAdvances: number;
   cash: number;
 };
 
-type ContactBalance = { contact_id: string; type: string; ledger_balance: number; credit_balance: number };
-
+/**
+ * Branch and company position from the unified ledger (Step 6C): customer and supplier sides are
+ * separate — never netted — and every branch adds up to the company figure. Cash = the branch till
+ * (treasury rows, opening cash included).
+ */
 export function useAdminFinancialBranchMetrics() {
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<FinancialBranch[]>([]);
   const [distribution, setDistribution] = useState<BranchFinancialSnapshot[]>([]);
   const [companyReceivables, setCompanyReceivables] = useState(0);
   const [companyPayables, setCompanyPayables] = useState(0);
-  const [managementCredit, setManagementCredit] = useState(0);
+  const [customerAdvances, setCustomerAdvances] = useState(0);
+  const [supplierAdvances, setSupplierAdvances] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [branchRows, contactRows] = await Promise.all([
+      const [branchRows, company] = await Promise.all([
         fetchAllRows<FinancialBranch>(() => supabase
           .from("branches")
           .select("id, name, code, is_system")
@@ -40,61 +49,37 @@ export function useAdminFinancialBranchMetrics() {
           .order("is_system")
           .order("name")
           .order("id")),
-        fetchAllRows<ContactBalance>(() => supabase
-          .from("v_contact_balances" as any)
-          .select("contact_id, type, ledger_balance, credit_balance")
-          .order("contact_id")),
+        fetchLedgerPosition(null),
       ]);
 
       const visibleBranches = branchRows.filter((branch) => !branch.is_system || branch.code === "MAIN-TREASURY");
       const operational = visibleBranches.filter((branch) => !branch.is_system);
       const mainTreasury = visibleBranches.find((branch) => branch.code === "MAIN-TREASURY");
+      const ordered = mainTreasury ? [...operational, mainTreasury] : operational;
 
-      let receivables = 0;
-      let payables = 0;
-      let credit = 0;
-      const contactsById = new Map(contactRows.map((contact) => [contact.contact_id, contact]));
-      for (const contact of contactRows) {
-        const balance = Number(contact.ledger_balance ?? 0);
-        const type = String(contact.type ?? "");
-        if ((type === "customer" || type === "both") && balance > 0) receivables += balance;
-        if ((type === "supplier" || type === "both") && balance < 0) payables += -balance;
-        credit += Math.max(-Number(contact.credit_balance ?? 0), 0);
-      }
-
-      const operationalRows = await Promise.all(operational.map(async (branch) => {
-        const [balancesRes, walletRes] = await Promise.all([
-          supabase.rpc("contact_branch_balances" as any, { p_branch_id: branch.id }),
+      const rows = await Promise.all(ordered.map(async (branch) => {
+        const [pos, walletRes] = await Promise.all([
+          fetchLedgerPosition(branch.id),
           supabase.rpc("get_branch_wallet_balances", { p_branch_id: branch.id }),
         ]);
-        if (balancesRes.error) throw balancesRes.error;
         if (walletRes.error) throw walletRes.error;
-        let branchReceivables = 0;
-        let branchPayables = 0;
-        for (const row of (balancesRes.data ?? []) as any[]) {
-          const balance = Number(row.balance ?? 0);
-          const contact = contactsById.get(row.contact_id);
-          const type = String(contact?.type ?? "");
-          if ((type === "customer" || type === "both") && balance > 0) branchReceivables += balance;
-          if ((type === "supplier" || type === "both") && balance < 0) branchPayables += -balance;
-        }
         const wallet = Array.isArray(walletRes.data) ? walletRes.data[0] : null;
-        return { ...branch, receivables: branchReceivables, payables: branchPayables, cash: Number((wallet as any)?.total_balance ?? 0) };
+        return {
+          ...branch,
+          receivables: pos.customers?.open ?? 0,
+          payables: pos.suppliers?.open ?? 0,
+          customerAdvances: pos.customers?.advances ?? 0,
+          supplierAdvances: pos.suppliers?.advances ?? 0,
+          cash: Number((wallet as any)?.total_balance ?? 0),
+        } as BranchFinancialSnapshot;
       }));
 
-      let mainRow: BranchFinancialSnapshot | null = null;
-      if (mainTreasury) {
-        const walletRes = await supabase.rpc("get_branch_wallet_balances", { p_branch_id: mainTreasury.id });
-        if (walletRes.error) throw walletRes.error;
-        const wallet = Array.isArray(walletRes.data) ? walletRes.data[0] : null;
-        mainRow = { ...mainTreasury, receivables: 0, payables: 0, cash: Number((wallet as any)?.total_balance ?? 0) };
-      }
-
-      setBranches(mainRow ? [...operational, mainTreasury] : operational);
-      setDistribution(mainRow ? [...operationalRows, mainRow] : operationalRows);
-      setCompanyReceivables(receivables);
-      setCompanyPayables(payables);
-      setManagementCredit(credit);
+      setBranches(ordered);
+      setDistribution(rows);
+      setCompanyReceivables(company.customers?.open ?? 0);
+      setCompanyPayables(company.suppliers?.open ?? 0);
+      setCustomerAdvances(company.customers?.advances ?? 0);
+      setSupplierAdvances(company.suppliers?.advances ?? 0);
     } finally {
       setLoading(false);
     }
@@ -108,5 +93,5 @@ export function useAdminFinancialBranchMetrics() {
 
   const totalCash = useMemo(() => distribution.reduce((sum, row) => sum + row.cash, 0), [distribution]);
 
-  return { loading, branches, distribution, companyReceivables, companyPayables, managementCredit, totalCash, reload: load };
+  return { loading, branches, distribution, companyReceivables, companyPayables, customerAdvances, supplierAdvances, totalCash, reload: load };
 }

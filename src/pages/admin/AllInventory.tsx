@@ -108,17 +108,28 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     if (branchFilter !== "all" && p.branch_id !== branchFilter) return false;
     if (catFilter !== "all" && p.category_id !== catFilter) return false;
     if (stockFilter === "low" && p.quantity > p.low_stock_alert) return false;
-    if (stockFilter === "out" && p.quantity > 0) return false;
+    if (stockFilter === "out" && Number(p.quantity) > 0) return false;
     if (stockFilter === "ok" && p.quantity <= p.low_stock_alert) return false;
     return true;
   }), [rows, search, branchFilter, catFilter, stockFilter]);
 
-  const stats = useMemo(() => ({
-    total: rows.length,
-    out: rows.filter((r) => r.quantity === 0).length,
-    low: rows.filter((r) => r.quantity > 0 && r.quantity <= r.low_stock_alert).length,
-    value: rows.reduce((s, r) => s + r.quantity * Number(r.cost_price || 0), 0),
-  }), [rows]);
+  // archived products and system branches are not stock; "out" = nothing left (zero or negative);
+  // value = open FIFO batches × their real unit cost (catalog cost only when a product has no batches)
+  const [batchValue, setBatchValue] = useState<number | null>(null);
+  useEffect(() => {
+    fetchAllRows<any>(() => supabase.from("product_batches").select("id, product_id, quantity_remaining, true_unit_cost, cost_price").gt("quantity_remaining", 0).order("id"))
+      .then((bs) => setBatchValue(Math.round(bs.reduce((s: number, b: any) => s + Number(b.quantity_remaining || 0) * Number(b.true_unit_cost ?? b.cost_price ?? 0), 0) * 100) / 100))
+      .catch(() => setBatchValue(null));
+  }, [rows]);
+  const stats = useMemo(() => {
+    const live = rows.filter((r) => !(r as any).archived_at);
+    return {
+      total: live.length,
+      out: live.filter((r) => Number(r.quantity) <= 0).length,
+      low: live.filter((r) => Number(r.quantity) > 0 && Number(r.low_stock_alert || 0) > 0 && Number(r.quantity) <= Number(r.low_stock_alert)).length,
+      value: batchValue ?? Math.round(live.reduce((s, r) => s + Math.max(0, Number(r.quantity)) * Number(r.cost_price || 0), 0) * 100) / 100,
+    };
+  }, [rows, batchValue]);
 
   const uploadImage = async (file: File, branchId: string): Promise<string | null> => {
     setUploading(true);

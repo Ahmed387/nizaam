@@ -22,19 +22,19 @@ import { ArrowDownCircle, ArrowUpCircle, Wallet, Store, TrendingUp, Building2, L
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { ContactCreditBalancesDrawer } from "@/components/ContactCreditBalancesDrawer";
-import { useContactCreditBalances } from "@/hooks/useContactCreditBalances";
+import { fetchLedgerPosition, fetchOpeningSummary, type LedgerPosition, type OpeningSummary } from "@/lib/ledger";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 
 type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
   id: string; branch_id: string; type: "income" | "expense"; category: string;
-  amount: number; description: string | null; payment_method: string; created_at: string;
+  amount: number; description: string | null; payment_method: string; created_at: string; transaction_date?: string | null;
   reference_number?: string | null;
   reference_id?: string | null;
   voucher_number?: string | null;
   invoice_number?: string | null;
 };
-type ViewBal = { branch_id: string; current_balance: number; last_transaction_date: string | null };
+type ViewBal = { branch_id: string; current_balance: number };
 
 const PAGE_SIZE = 50;
 const safeLike = (s: string) => s.replace(/[,()%*_\\]/g, " ").trim();
@@ -69,8 +69,9 @@ export default function MainTreasury() {
   const [totalCount, setTotalCount] = useState(0);
   const [tableLoading, setTableLoading] = useState(true);
   const [viewMovement, setViewMovement] = useState<TreasuryMovement | null>(null);
-  const [creditDrawerOpen, setCreditDrawerOpen] = useState(false);
-  const contactCredits = useContactCreditBalances(tenantId);
+  const [creditDrawer, setCreditDrawer] = useState<null | "customer" | "supplier">(null);
+  const [position, setPosition] = useState<LedgerPosition | null>(null);
+  const [opening, setOpening] = useState<OpeningSummary | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDq({ search: search.trim(), notes: notes.trim(), minAmt, maxAmt }), 300);
@@ -99,25 +100,33 @@ export default function MainTreasury() {
 
     if (branchList.length === 0) { setRows([]); setLoading(false); return; }
 
+    // Movements by their accounting day (transaction_date), like the branch treasury: a back-dated
+    // voucher lands in its own period.
     const tq = () => applyCairoRange(
       supabase
         .from("treasury")
-        .select("id,branch_id,type,category,amount,description,payment_method,created_at")
+        .select("id,branch_id,type,category,amount,description,payment_method,created_at,transaction_date")
         .in("branch_id", branchList.map(b => b.id)),
-      "created_at", from, to,
-    ).order("created_at", { ascending: false }).order("id");
-    const [{ data: tr }, { data: vb }] = await Promise.all([
+      "transaction_date", from, to, true,
+    ).order("transaction_date", { ascending: false }).order("id");
+    const [{ data: tr }, wallets, pos, ob] = await Promise.all([
       fetchAllRows<any>(tq).then((data) => ({ data })).catch(() => ({ data: [] as any[] })),
-      // Live GL cash balance per branch (accounts 1100+1110) — sourced from journal_entries
-      supabase
-        .from("v_treasury_balances" as any)
-        .select("branch_id,current_balance,last_transaction_date")
-        .in("branch_id", branchList.map(b => b.id)),
+      // Current till balance per branch = its treasury rows (opening cash included) — the same source
+      // as the branch treasury page and the server's balance check.
+      Promise.all(branchList.map(async (b) => {
+        const { data } = await supabase.rpc("get_branch_wallet_balances", { p_branch_id: b.id });
+        const row = Array.isArray(data) ? (data as any[])[0] : (data as any);
+        return { branch_id: b.id, current_balance: Number(row?.total_balance ?? 0) } as ViewBal;
+      })),
+      fetchLedgerPosition(null).catch(() => null),
+      fetchOpeningSummary().catch(() => null),
     ]);
     setRows((tr ?? []) as TxRow[]);
     const map: Record<string, ViewBal> = {};
-    for (const r of ((vb ?? []) as any[])) map[r.branch_id] = r as ViewBal;
+    for (const r of wallets) map[r.branch_id] = r;
     setGlBalances(map);
+    setPosition(pos);
+    setOpening(ob);
     setLoading(false);
   }, [tenantId, from, to]);
 
@@ -128,9 +137,9 @@ export default function MainTreasury() {
     let q = applyCairoRange(
       supabase
         .from("treasury")
-        .select("id,branch_id,type,category,amount,description,payment_method,created_at,reference_id,reference_number", { count: "exact" })
+        .select("id,branch_id,type,category,amount,description,payment_method,created_at,transaction_date,reference_id,reference_number", { count: "exact" })
         .in("branch_id", branchFilter === "all" ? branches.map(b => b.id) : [branchFilter]),
-      "created_at", from, to,
+      "transaction_date", from, to, true,
     );
     if (typeF !== "all") q = q.eq("type", typeF);
     if (methodF !== "all") q = q.eq("payment_method", methodF);
@@ -141,7 +150,7 @@ export default function MainTreasury() {
     if (dq.minAmt !== "" && !isNaN(Number(dq.minAmt))) q = q.gte("amount", Number(dq.minAmt));
     if (dq.maxAmt !== "" && !isNaN(Number(dq.maxAmt))) q = q.lte("amount", Number(dq.maxAmt));
     const start = (page - 1) * PAGE_SIZE;
-    const { data, count } = await q.order("created_at", { ascending: false }).range(start, start + PAGE_SIZE - 1);
+    const { data, count } = await q.order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).order("id").range(start, start + PAGE_SIZE - 1);
     const movements = (data ?? []) as TxRow[];
     const movementIds = movements.map((row) => row.id);
     const referenceIds = movements.map((row) => row.reference_id).filter((id): id is string => Boolean(id));
@@ -167,7 +176,7 @@ export default function MainTreasury() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadTable(); }, [loadTable]);
   const refreshAll = useCallback(() => { load(); loadTable(); }, [load, loadTable]);
-  useRealtimeRefresh(["treasury", "branches", "journal_entries", "journal_entry_lines"], refreshAll);
+  useRealtimeRefresh(["treasury", "branches", "vouchers", "invoice_payments", "customer_credit_log", "supplier_payments", "payment_transactions"], refreshAll);
 
   const methods = useMemo(() => Array.from(new Set(["cash", "vodafone", "instapay", "bank", ...rows.map(r => r.payment_method).filter(Boolean)])), [rows]);
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -185,7 +194,8 @@ export default function MainTreasury() {
       const amt = Number(r.amount);
       if (r.type === "income") cin += amt; else cout += amt;
     }
-    return { cin, cout, net: cin - cout };
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    return { cin: r2(cin), cout: r2(cout), net: r2(cin - cout) };
   }, [filtered]);
 
   // Per-branch rollup (uses filtered range, ignores branchFilter to always show all branches)
@@ -197,7 +207,8 @@ export default function MainTreasury() {
       if (!entry) continue;
       const amt = Number(r.amount);
       if (r.type === "income") entry.cin += amt; else entry.cout += amt;
-      if (!entry.lastAt || r.created_at > entry.lastAt) entry.lastAt = r.created_at;
+      const at = r.transaction_date ?? r.created_at;
+      if (!entry.lastAt || at > entry.lastAt) entry.lastAt = at;
     }
     return Array.from(map.values());
   }, [rows, branches]);
@@ -230,29 +241,48 @@ export default function MainTreasury() {
         <StatCard label="عدد الخزائن" value={branches.length} icon={<Store className="w-5 h-5" />} accent="primary" />
       </div>
 
-      <Button
-        type="button"
-        variant="ghost"
-        className="mb-6 block h-auto w-full rounded-2xl p-0 text-right"
-        onClick={() => setCreditDrawerOpen(true)}
-        aria-label="عرض تفاصيل أرصدة تحت الحساب"
-      >
-        <StatCard
-          label="أرصدة تحت الحساب (مقدمات العملاء والموردين)"
-          value={formatEGP(contactCredits.total)}
-          icon={<Landmark className="w-5 h-5" />}
-          hint={`${contactCredits.contacts.length} جهة لديها رصيد نشط · اضغط لعرض التفاصيل`}
-          metricHint={{ meaning: "مقدمات العملاء والموردين المتاحة للاستخدام لاحقاً والمحتفظ بها طرف الإدارة.", source: "حقل credit_balance السالب في العرض v_contact_balances لجميع الجهات ذات الرصيد النشط.", formula: "Σ |credit_balance| حيث credit_balance < 0" }}
-          accent="warning"
-          className="cursor-pointer"
-        />
-      </Button>
+      {/* Money on account — two separate cards (never added together, never netted) */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <Button type="button" variant="ghost" className="block h-auto w-full rounded-2xl p-0 text-right" onClick={() => setCreditDrawer("customer")} aria-label="مقدمات العملاء">
+          <StatCard
+            label="مقدمات عملاء عندنا (2150)"
+            value={formatEGP(position?.customers?.advances ?? 0)}
+            icon={<Landmark className="w-5 h-5" />}
+            hint={`${position?.customers?.advance_contacts ?? 0} عميل · اضغط للتفاصيل`}
+            metricHint={{ meaning: "فلوس دفعها العملاء تحت الحساب ولسه ما اتخصمتش من فواتير.", source: "الدفتر الموحد: حركات العملاء اللي لسه ليها رصيد بعد التوزيع (FIFO).", formula: "Σ (مبلغ الحركة − الموزع منها) لجانب العملاء" }}
+            accent="warning"
+            className="cursor-pointer"
+          />
+        </Button>
+        <Button type="button" variant="ghost" className="block h-auto w-full rounded-2xl p-0 text-right" onClick={() => setCreditDrawer("supplier")} aria-label="مقدمات الموردين">
+          <StatCard
+            label="مقدماتنا عند الموردين (1460)"
+            value={formatEGP(position?.suppliers?.advances ?? 0)}
+            icon={<Landmark className="w-5 h-5" />}
+            hint={`${position?.suppliers?.advance_contacts ?? 0} مورد · اضغط للتفاصيل`}
+            metricHint={{ meaning: "فلوس دفعناها للموردين مقدم ولسه ما اتخصمتش من فواتير شراء.", source: "الدفتر الموحد: حركات الموردين اللي لسه ليها رصيد بعد التوزيع (FIFO).", formula: "Σ (مبلغ الحركة − الموزع منها) لجانب الموردين" }}
+            accent="secondary"
+            className="cursor-pointer"
+          />
+        </Button>
+        <Link to="/admin/accounting/opening-balances" className="block">
+          <StatCard
+            label="الأرصدة الافتتاحية (الخزنة الرئيسية)"
+            value={formatEGP(opening?.cash_total ?? 0)}
+            icon={<Wallet className="w-5 h-5" />}
+            hint={opening?.as_of
+              ? `بتاريخ ${formatDate(opening.as_of)} · عملاء ${formatEGP(opening.customers_debt)} / مقدمات عملاء ${formatEGP(opening.customers_advance)} · موردين ${formatEGP(opening.suppliers_payable)} / مقدمات موردين ${formatEGP(opening.suppliers_advance)}`
+              : "لسه ما اترحلتش — اضغط للتسجيل"}
+            metricHint={{ meaning: "نقدية أول المدة وأرصدة العملاء والموردين الافتتاحية. أرصدة الجهات مسجلة على الخزنة الرئيسية.", source: "opening_balances_summary: حركات الخزنة «رصيد افتتاحي» + حركات الدفتر الموحد من نوع رصيد افتتاحي.", formula: "النقدية = Σ حركات «رصيد افتتاحي» في كل الخزائن" }}
+            accent="primary"
+          />
+        </Link>
+      </div>
 
       <ContactCreditBalancesDrawer
-        open={creditDrawerOpen}
-        onOpenChange={setCreditDrawerOpen}
-        contacts={contactCredits.contacts}
-        summaryLoading={contactCredits.loading}
+        open={!!creditDrawer}
+        onOpenChange={(o) => { if (!o) setCreditDrawer(null); }}
+        side={creditDrawer ?? "customer"}
       />
 
       {/* Per-branch rollup cards */}
@@ -277,7 +307,7 @@ export default function MainTreasury() {
                     </div>
                     <Wallet className="w-5 h-5 text-primary" />
                   </div>
-                  <div className="text-xs text-muted-foreground mb-1">الرصيد الحالى (دفتر الأستاذ)</div>
+                  <div className="text-xs text-muted-foreground mb-1">الرصيد الحالى للخزنة</div>
                    <FinancialAmount value={glBal} size="md" className={`mb-1 justify-start font-extrabold ${glBal >= 0 ? "text-success" : "text-destructive"}`} />
                   <div className="text-[11px] text-muted-foreground">
                     صافي حركة الفترة: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b>
@@ -292,7 +322,7 @@ export default function MainTreasury() {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs space-y-1">
                 <div className="font-bold">{branch.name}</div>
-                <div>الرصيد الحالى (GL): <b className={glBal >= 0 ? "text-success" : "text-destructive"}>{formatEGP(glBal)}</b></div>
+                <div>الرصيد الحالى: <b className={glBal >= 0 ? "text-success" : "text-destructive"}>{formatEGP(glBal)}</b></div>
                 <div>إجمالي الوارد (الفترة): <b className="text-success">{formatEGP(cin)}</b></div>
                 <div>إجمالي الصادر (الفترة): <b className="text-destructive">{formatEGP(cout)}</b></div>
                 <div>صافي حركة الفترة: <b className={net >= 0 ? "text-success" : "text-destructive"}>{formatEGP(net)}</b></div>
@@ -391,7 +421,7 @@ export default function MainTreasury() {
             { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: TxRow) => (
               <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />
             )},
-            { key: "created_at", header: "التاريخ", align: "center", width: "8.5rem", render: (r: TxRow) => formatDate(r.created_at) },
+            { key: "created_at", header: "التاريخ", align: "center", width: "8.5rem", render: (r: TxRow) => formatDate(r.transaction_date ?? r.created_at) },
             { key: "branch", header: "الفرع", align: "center", width: "9rem", render: (r: TxRow) => branches.find(b => b.id === r.branch_id)?.name ?? "—" },
             { key: "type", header: "النوع", align: "center", width: "6rem", render: (r: TxRow) => (
               <span className={r.type === "income" ? "text-success font-bold" : "text-destructive font-bold"}>

@@ -1,5 +1,5 @@
-import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { fin } from "@/lib/financeTerms";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -8,269 +8,175 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { fetchAging, type AgingRow, type Side } from "@/lib/ledger";
+import { formatDate } from "@/lib/format";
 import { Users, Truck, AlertTriangle } from "lucide-react";
 
-type Row = {
-  id: string;
-  contactName: string;
-  docNumber: string;
-  docDate: string;
-  total: number;
-  paid: number;
-  outstanding: number;
-  daysOverdue: number;
-};
-
-type Bucket = "current" | "b30" | "b60" | "b90" | "b90plus";
-const bucketLabels: Record<Bucket, string> = {
-  current: "0-30 يوم", b30: "31-60 يوم", b60: "61-90 يوم", b90: "91-120 يوم", b90plus: "أكثر من 120",
-};
-
-function bucketOf(days: number): Bucket {
-  if (days <= 30) return "current";
-  if (days <= 60) return "b30";
-  if (days <= 90) return "b60";
-  if (days <= 120) return "b90";
-  return "b90plus";
-}
+/**
+ * Aging of what is still open today, from the unified ledger (Step 6C): every open sale / purchase
+ * invoice and opening debt by its date, after payments, deposits (FIFO, any branch) and return credit.
+ * Customers and suppliers are two separate reports; advances are shown apart and never netted.
+ */
+const fmt = (n: number) => (Number(n) || 0).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const BUCKETS: { key: keyof AgingRow; label: string; tone: string }[] = [
+  { key: "d0_30", label: "0-30 يوم", tone: "bg-muted/40" },
+  { key: "d31_60", label: "31-60 يوم", tone: "bg-muted/40" },
+  { key: "d61_90", label: "61-90 يوم", tone: "bg-muted/40" },
+  { key: "d91_120", label: "91-120 يوم", tone: "bg-warning/10 border-warning/30" },
+  { key: "d120_plus", label: "أكثر من 120", tone: "bg-destructive/10 border-destructive/30" },
+];
 
 export default function AgingReport() {
   const { tenantId } = useAuth();
-  const [asOf, setAsOf] = useState<string>(() => cairoTodayDay());
-  const [ar, setAR] = useState<Row[]>([]);
-  const [ap, setAP] = useState<Row[]>([]);
+  const nav = useNavigate();
+  const [branchId, setBranchId] = useState("all");
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const [rows, setRows] = useState<Record<Side, AgingRow[]>>({ customer: [], supplier: [] });
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
+    supabase.from("branches").select("id, name").eq("is_active", true).order("name").then(({ data }) => setBranches((data ?? []) as any));
+  }, [tenantId]);
+
+  const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    (async () => {
-      // === Customer Aging (AR) ===
-      const { data: invs } = await supabase.from("invoices")
-        .select("id,invoice_number,invoice_date,total,contact_id,status,contacts(name)")
-        .eq("tenant_id", tenantId)
-        .neq("status", "cancelled")
-        .lte("invoice_date", getCairoDayBounds(undefined, asOf).endIso!);
-      const invIds = (invs ?? []).map(i => i.id);
-      let paidMap = new Map<string, number>();
-      if (invIds.length) {
-        const { data: pays } = await supabase.from("invoice_payments")
-          .select("invoice_id,amount,voided_at,created_at")
-          .in("invoice_id", invIds)
-          .is("voided_at", null)
-          .lte("created_at", getCairoDayBounds(undefined, asOf).endIso!);
-        for (const p of pays ?? []) {
-          paidMap.set(p.invoice_id, (paidMap.get(p.invoice_id) || 0) + Number(p.amount || 0));
-        }
-      }
-      const asOfDate = new Date(asOf);
-      const arRows: Row[] = [];
-      for (const inv of invs ?? []) {
-        const total = Number(inv.total || 0);
-        const paid = paidMap.get(inv.id) || 0;
-        const outstanding = total - paid;
-        if (outstanding <= 0.005) continue;
-        const days = Math.floor((asOfDate.getTime() - new Date(inv.invoice_date).getTime()) / 86400000);
-        arRows.push({
-          id: inv.id,
-          contactName: (inv as any).contacts?.name || "-",
-          docNumber: inv.invoice_number,
-          docDate: inv.invoice_date,
-          total, paid, outstanding, daysOverdue: Math.max(0, days),
-        });
-      }
-      arRows.sort((a, b) => b.daysOverdue - a.daysOverdue);
-      setAR(arRows);
-
-      // === Supplier Aging (AP) — per shipment, FIFO allocation of contact payments ===
-      const { data: shipments } = await supabase.from("shipments")
-        .select("id,shipment_number,invoice_date,total_cost,contact_id,contacts(name)")
-        .eq("tenant_id", tenantId)
-        .eq("status", "active")
-        .lte("invoice_date", getCairoDayBounds(undefined, asOf).endIso!);
-      // group shipments by contact, sort oldest first
-      const byContact = new Map<string, any[]>();
-      for (const s of shipments ?? []) {
-        const arr = byContact.get(s.contact_id) || [];
-        arr.push(s);
-        byContact.set(s.contact_id, arr);
-      }
-      // Fetch supplier payments per contact
-      const contactIds = Array.from(byContact.keys());
-      const paidByContact = new Map<string, number>();
-      if (contactIds.length) {
-        const { data: sp } = await supabase.from("supplier_payments")
-          .select("contact_id,amount,paid_at")
-          .in("contact_id", contactIds)
-          .lte("paid_at", getCairoDayBounds(undefined, asOf).endIso!);
-        for (const p of sp ?? []) {
-          paidByContact.set(p.contact_id, (paidByContact.get(p.contact_id) || 0) + Number(p.amount || 0));
-        }
-      }
-      const apRows: Row[] = [];
-      for (const [cid, list] of byContact) {
-        list.sort((a, b) => new Date(a.invoice_date).getTime() - new Date(b.invoice_date).getTime());
-        let remainingPaid = paidByContact.get(cid) || 0;
-        for (const s of list) {
-          const total = Number(s.total_cost || 0);
-          const applied = Math.min(remainingPaid, total);
-          remainingPaid -= applied;
-          const outstanding = total - applied;
-          if (outstanding <= 0.005) continue;
-          const days = Math.floor((asOfDate.getTime() - new Date(s.invoice_date).getTime()) / 86400000);
-          apRows.push({
-            id: s.id,
-            contactName: (s as any).contacts?.name || "-",
-            docNumber: s.shipment_number,
-            docDate: s.invoice_date,
-            total, paid: applied, outstanding, daysOverdue: Math.max(0, days),
-          });
-        }
-      }
-      apRows.sort((a, b) => b.daysOverdue - a.daysOverdue);
-      setAP(apRows);
+    setLoadError(null);
+    try {
+      const b = branchId === "all" ? null : branchId;
+      const [c, s] = await Promise.all([fetchAging("customer", b), fetchAging("supplier", b)]);
+      setRows({ customer: c, supplier: s });
+    } catch (e: any) {
+      setRows({ customer: [], supplier: [] });
+      setLoadError(e?.message ?? "تعذر تحميل التقرير");
+    } finally {
       setLoading(false);
-    })();
-  }, [tenantId, asOf]);
+    }
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId, branchId]);
+  useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "supplier_payments", "returns", "purchase_returns", "vouchers", "payment_transactions"], load);
 
-  const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-  const filterRows = (rows: Row[]) => {
+  const filterRows = (list: AgingRow[]) => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      r.contactName.toLowerCase().includes(q) || r.docNumber.toLowerCase().includes(q)
+    return (q ? list.filter((r) => r.contact_name.toLowerCase().includes(q)) : list).sort((a, b) => b.total_open - a.total_open);
+  };
+  const sum = (list: AgingRow[]) => {
+    const out: Record<string, number> = { total_open: 0, advance: 0 };
+    for (const b of BUCKETS) out[b.key as string] = 0;
+    for (const r of list) {
+      for (const b of BUCKETS) out[b.key as string] += Number(r[b.key]) || 0;
+      out.total_open += r.total_open;
+      out.advance += r.advance;
+    }
+    Object.keys(out).forEach((k) => { out[k] = Math.round(out[k] * 100) / 100; });
+    return out;
+  };
+
+  const Section = ({ side }: { side: Side }) => {
+    const list = filterRows(rows[side]);
+    const s = sum(list);
+    const isC = side === "customer";
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+          {BUCKETS.map((b) => (
+            <div key={b.key as string} className={`p-3 rounded-lg border ${b.tone}`}>
+              <div className="text-xs text-muted-foreground">{b.label}</div>
+              <div className="text-lg font-bold font-mono">{fmt(s[b.key as string])}</div>
+            </div>
+          ))}
+          <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
+            <div className="text-xs text-muted-foreground">إجمالي المفتوح</div>
+            <div className="text-lg font-bold font-mono">{fmt(s.total_open)}</div>
+          </div>
+          <div className="p-3 rounded-lg border">
+            <div className="text-xs text-muted-foreground">{isC ? "مقدمات عملاء (منفصلة)" : "مقدماتنا عند الموردين (منفصلة)"}</div>
+            <div className="text-lg font-bold font-mono">{fmt(s.advance)}</div>
+          </div>
+        </div>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">
+            {isC ? <Users className="w-5 h-5" /> : <Truck className="w-5 h-5" />} {isC ? "مستحق على العملاء" : "مستحق للموردين"}
+            {s.d120_plus > 0 && <Badge variant="destructive" className="mr-2"><AlertTriangle className="w-3 h-3 ml-1" />متأخرات حرجة</Badge>}
+          </CardTitle></CardHeader>
+          <CardContent>
+            {loading ? <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div> : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">الجهة</TableHead>
+                    {BUCKETS.map((b) => <TableHead key={b.key as string} className="text-right">{b.label}</TableHead>)}
+                    <TableHead className="text-right">إجمالي المفتوح</TableHead>
+                    <TableHead className="text-right">مقدم</TableHead>
+                    <TableHead className="text-right">أقدم مستند</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {list.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">لا يوجد رصيد مستحق</TableCell></TableRow>}
+                  {list.map((r) => (
+                    <TableRow key={r.contact_id} className="cursor-pointer hover:bg-muted/40" onClick={() => nav(`/admin/contacts/${r.contact_id}`)}>
+                      <TableCell className="font-medium">{r.contact_name}</TableCell>
+                      {BUCKETS.map((b) => (
+                        <TableCell key={b.key as string} className={`font-mono ${b.key === "d120_plus" && Number(r[b.key]) > 0 ? "text-destructive font-bold" : ""}`}>{fmt(Number(r[b.key]))}</TableCell>
+                      ))}
+                      <TableCell className="font-mono font-bold">{fmt(r.total_open)}</TableCell>
+                      <TableCell className="font-mono">{r.advance > 0.005 ? fmt(r.advance) : "—"}</TableCell>
+                      <TableCell>{r.oldest_date ? formatDate(r.oldest_date) : "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     );
   };
 
-  const summary = (rows: Row[]) => {
-    const buckets: Record<Bucket, number> = { current: 0, b30: 0, b60: 0, b90: 0, b90plus: 0 };
-    let total = 0;
-    for (const r of rows) {
-      buckets[bucketOf(r.daysOverdue)] += r.outstanding;
-      total += r.outstanding;
-    }
-    return { buckets, total };
-  };
-
-  const arSum = useMemo(() => summary(ar), [ar]);
-  const apSum = useMemo(() => summary(ap), [ap]);
-
-  const BucketCards = ({ s }: { s: ReturnType<typeof summary> }) => (
-    <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-      {(Object.keys(bucketLabels) as Bucket[]).map(b => (
-        <div key={b} className={`p-3 rounded-lg border ${b === "b90plus" ? "bg-destructive/10 border-destructive/30" : b === "b90" ? "bg-warning/10 border-warning/30" : "bg-muted/40"}`}>
-          <div className="text-xs text-muted-foreground">{bucketLabels[b]}</div>
-          <div className="text-lg font-bold font-mono">{fmt(s.buckets[b])}</div>
-        </div>
-      ))}
-      <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
-        <div className="text-xs text-muted-foreground">الإجمالي</div>
-        <div className="text-lg font-bold font-mono">{fmt(s.total)}</div>
-      </div>
-    </div>
-  );
-
-  const RowsTable = ({ rows }: { rows: Row[] }) => (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="text-right">الجهة</TableHead>
-          <TableHead className="text-right">رقم المستند</TableHead>
-          <TableHead className="text-right">التاريخ</TableHead>
-          <TableHead className="text-right">الإجمالي</TableHead>
-          <TableHead className="text-right">المدفوع</TableHead>
-          <TableHead className="text-right">المتبقي</TableHead>
-          <TableHead className="text-right">الأيام</TableHead>
-          <TableHead className="text-right">الشريحة</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.length === 0 && (
-          <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">لا يوجد رصيد مستحق</TableCell></TableRow>
-        )}
-        {rows.map(r => {
-          const b = bucketOf(r.daysOverdue);
-          return (
-            <TableRow key={r.id}>
-              <TableCell className="font-medium">{r.contactName}</TableCell>
-              <TableCell className="font-mono">{r.docNumber}</TableCell>
-              <TableCell>{r.docDate}</TableCell>
-              <TableCell className="font-mono">{fmt(r.total)}</TableCell>
-              <TableCell className="font-mono">{fmt(r.paid)}</TableCell>
-              <TableCell className="font-mono font-bold">{fmt(r.outstanding)}</TableCell>
-              <TableCell>
-                <span className={r.daysOverdue > 90 ? "text-destructive font-bold" : r.daysOverdue > 60 ? "text-warning font-semibold" : ""}>
-                  {r.daysOverdue}
-                </span>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline" className={
-                  b === "b90plus" ? "bg-destructive/15 text-destructive border-destructive/30"
-                  : b === "b90" ? "bg-warning/15 text-warning border-warning/30"
-                  : b === "current" ? "bg-green-500/15 text-green-600 border-green-500/30"
-                  : ""
-                }>{bucketLabels[b]}</Badge>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
-  );
+  const branchLabel = useMemo(() => (branchId === "all" ? "كل الفروع" : branches.find((b) => b.id === branchId)?.name ?? ""), [branchId, branches]);
 
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title={fin("aging")} subtitle={`${fin("receivables")} على العملاء و${fin("payables")} للموردين حسب فترات التأخير`} />
+        <PageHeader title={fin("aging")} subtitle={`${fin("receivables")} على العملاء و${fin("payables")} للموردين حسب عمر المستند — النهارده — ${branchLabel}`} />
 
         <Card>
           <CardContent className="pt-6 flex flex-wrap gap-4 items-end">
             <div>
-              <label className="text-sm text-muted-foreground block mb-1">كما في تاريخ</label>
-              <Input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} className="w-44" />
+              <label className="text-sm text-muted-foreground block mb-1">الفرع</label>
+              <Select value={branchId} onValueChange={setBranchId}>
+                <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">كل الفروع</SelectItem>
+                  {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex-1 min-w-[200px]">
-              <label className="text-sm text-muted-foreground block mb-1">بحث (اسم / رقم مستند)</label>
-              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="ابحث..." />
+              <label className="text-sm text-muted-foreground block mb-1">بحث بالاسم</label>
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث..." />
             </div>
+            <p className="text-xs text-muted-foreground w-full">
+              المتبقي محسوب من الدفتر الموحد بعد كل المدفوعات (الأقدم أولاً، من أي فرع) ورصيد المرتجعات. العملاء والموردين تقريرين منفصلين.
+            </p>
           </CardContent>
         </Card>
+
+        {loadError && <div className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">تعذر تحميل التقرير: {loadError}</div>}
 
         <Tabs defaultValue="ar">
           <TabsList className="w-full grid grid-cols-2 h-12">
             <TabsTrigger value="ar" className="text-base"><Users className="w-4 h-4 ml-2" />ذمم العملاء (مدينة)</TabsTrigger>
             <TabsTrigger value="ap" className="text-base"><Truck className="w-4 h-4 ml-2" />ذمم الموردين (دائنة)</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="ar" className="space-y-4 mt-4">
-            <BucketCards s={arSum} />
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">
-                <Users className="w-5 h-5" /> مستحق على العملاء
-                {arSum.buckets.b90plus > 0 && <Badge variant="destructive" className="mr-2"><AlertTriangle className="w-3 h-3 ml-1" />متأخرات حرجة</Badge>}
-              </CardTitle></CardHeader>
-              <CardContent>
-                {loading ? <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div> : <RowsTable rows={filterRows(ar)} />}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="ap" className="space-y-4 mt-4">
-            <BucketCards s={apSum} />
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">
-                <Truck className="w-5 h-5" /> مستحق للموردين
-                {apSum.buckets.b90plus > 0 && <Badge variant="destructive" className="mr-2"><AlertTriangle className="w-3 h-3 ml-1" />متأخرات حرجة</Badge>}
-              </CardTitle></CardHeader>
-              <CardContent>
-                {loading ? <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div> : <RowsTable rows={filterRows(ap)} />}
-              </CardContent>
-            </Card>
-          </TabsContent>
+          <TabsContent value="ar" className="mt-4"><Section side="customer" /></TabsContent>
+          <TabsContent value="ap" className="mt-4"><Section side="supplier" /></TabsContent>
         </Tabs>
       </div>
     </AdminLayout>

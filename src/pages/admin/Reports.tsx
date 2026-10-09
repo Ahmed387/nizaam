@@ -1,4 +1,4 @@
-import { fetchContactBalanceMap, mergeBalancesById } from "@/lib/contactBalances";
+import { fetchSideBalances } from "@/lib/ledger";
 import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
@@ -98,11 +98,10 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       description: v.description ?? v.voucher_number,
     })));
     setProducts(pr.data ?? []);
-    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
+    // Supplier side of the unified ledger (+ = we owe them, − = our advance with them); never netted with sales
     const supList = (sup.data ?? []) as any[];
-    
-    const supBalMap = await fetchContactBalanceMap(supList.map((c: any) => c.id));
-    setSuppliers(mergeBalancesById(supList, supBalMap) as any);
+    const supBal = await fetchSideBalances(supList.map((c: any) => c.id));
+    setSuppliers(supList.map((c: any) => ({ ...c, balance: supBal.get(c.id)?.supplier_balance ?? 0 })) as any);
     setShipments(sh.data ?? []);
     setSupplierPayments(sp.data ?? []);
     setEmployees(emp.data ?? []);
@@ -355,7 +354,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     () => [...suppliersWithTotals].sort((a, b) => b.remaining - a.remaining).slice(0, 50),
     [suppliersWithTotals]
   );
-  const supplierDebt = suppliersWithTotals.reduce((s, x) => s + x.remaining, 0);
+  const supplierDebt = suppliersWithTotals.reduce((s, x) => s + Math.max(x.remaining, 0), 0);
   const supplierTotalOwed = suppliersWithTotals.reduce((s, x) => s + x.totalOwed, 0);
   const supplierTotalPaid = suppliersWithTotals.reduce((s, x) => s + x.totalPaid, 0);
 
@@ -620,7 +619,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <MiniKpi label="تكلفة فواتير الشراء (الفترة)" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} فاتورة شراء`} />
             <MiniKpi label="مدفوع للموردين (الفترة)" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" />
-            <MiniKpi label="إجمالي علينا للموردين" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint="من contacts.balance" />
+            <MiniKpi label="إجمالي علينا للموردين" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint="جانب الموردين في الدفتر الموحد" />
             <MiniKpi label="أقساط موردين متأخرة" value={String(scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier").length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />
           </div>
 

@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Banknote, Boxes, Users, Save, Scale, Search, ShieldAlert } from "lucide-react";
@@ -40,11 +41,13 @@ export default function OpeningBalances() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
 
-  const [openingDate, setOpeningDate] = useState(`${new Date().getFullYear()}-01-01`);
+  const [openingDate, setOpeningDate] = useState("2026-01-01");
   const [cash, setCash] = useState<Record<string, string>>({});
   const [contactBal, setContactBal] = useState<Record<string, string>>({});
   const [inv, setInv] = useState<Record<string, { quantity: string; cost_price: string }>>({});
   const [postedAt, setPostedAt] = useState<string | null>(null);
+  const [invLocked, setInvLocked] = useState(false);
+  const [mainTreasury, setMainTreasury] = useState<{ id: string; name: string } | null>(null);
 
   const [contactSearch, setContactSearch] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -54,9 +57,9 @@ export default function OpeningBalances() {
     setLoading(true);
     const [b, c, p, snap] = await Promise.all([
       supabase.from("branches" as any).select("id,name,code").eq("tenant_id", tenantId).order("code"),
-      supabase.from("contacts" as any).select("id,name,type,phone").eq("tenant_id", tenantId).order("name"),
-      supabase.from("products" as any).select("id,name,sku,branch_id,cost_price,quantity")
-        .eq("tenant_id", tenantId).is("archived_at", null).order("name"),
+      fetchAllRows<any>(() => supabase.from("contacts" as any).select("id,name,type,phone").eq("tenant_id", tenantId).eq("is_archived", false).order("name").order("id")).then((data) => ({ data })),
+      fetchAllRows<any>(() => supabase.from("products" as any).select("id,name,sku,branch_id,cost_price,quantity")
+        .eq("tenant_id", tenantId).is("archived_at", null).order("name").order("id")).then((data) => ({ data })),
       supabase.rpc("get_opening_balances" as any),
     ]);
     setBranches(filterBranches(((b.data as any) ?? []) as any) as any);
@@ -65,6 +68,8 @@ export default function OpeningBalances() {
 
     const s: any = snap.data ?? {};
     setPostedAt(s.posted_at ?? null);
+    setInvLocked(!!s.inventory_locked);
+    setMainTreasury(s.main_treasury ?? null);
     if (s.opening_date) setOpeningDate(String(s.opening_date).slice(0, 10));
     const cashMap: Record<string, string> = {};
     (s.cash ?? []).forEach((r: any) => { if (r.branch_id) cashMap[r.branch_id] = String(r.amount ?? ""); });
@@ -84,14 +89,27 @@ export default function OpeningBalances() {
 
   const cashTotal = useMemo(
     () => Object.values(cash).reduce((s, v) => s + (Number(v) || 0), 0), [cash]);
-  const arTotal = useMemo(
-    () => Object.values(contactBal).reduce((s, v) => (Number(v) || 0) > 0 ? s + Number(v) : s, 0), [contactBal]);
-  const apTotal = useMemo(
-    () => Object.values(contactBal).reduce((s, v) => (Number(v) || 0) < 0 ? s - Number(v) : s, 0), [contactBal]);
+  // sign: + = the contact owes us, − = we owe the contact; the side follows the contact type
+  // (customer: + receivable / − customer advance; supplier: + our advance / − payable; both: + customer / − supplier)
+  const typeOf = (id: string) => contacts.find((c) => c.id === id)?.type ?? "customer";
+  const sideTotals = useMemo(() => {
+    let ar = 0, cAdv = 0, ap = 0, sAdv = 0;
+    for (const [id, raw] of Object.entries(contactBal)) {
+      const v = Number(raw) || 0;
+      if (!v) continue;
+      const t = typeOf(id);
+      if (t === "supplier") { if (v > 0) sAdv += v; else ap += -v; }
+      else if (t === "customer") { if (v > 0) ar += v; else cAdv += -v; }
+      else { if (v > 0) ar += v; else ap += -v; }
+    }
+    return { ar, cAdv, ap, sAdv };
+  }, [contactBal, contacts]);
+  const arTotal = sideTotals.ar;
+  const apTotal = sideTotals.ap;
   const invTotal = useMemo(
     () => Object.values(inv).reduce((s, v) => s + (Number(v.quantity) || 0) * (Number(v.cost_price) || 0), 0), [inv]);
 
-  const equityTotal = cashTotal + arTotal + invTotal - apTotal;
+  const equityTotal = cashTotal + sideTotals.ar + sideTotals.sAdv + invTotal - sideTotals.ap - sideTotals.cAdv;
 
   const filteredContacts = useMemo(() => {
     const q = contactSearch.trim().toLowerCase();
@@ -124,16 +142,17 @@ export default function OpeningBalances() {
           cost_price: Number(v.cost_price) || 0,
         }));
 
+      // a stock opening that was already sold from cannot be re-posted: that section is left as it is
       const { data, error } = await supabase.rpc("post_opening_balances" as any, {
         p_date: openingDate,
         p_cash: payloadCash,
         p_contacts: payloadContacts,
-        p_inventory: payloadInv,
+        p_inventory: invLocked ? null : payloadInv,
       });
       if (error) throw error;
       const r: any = data ?? {};
       toast.success(`تم ترحيل الأرصدة الافتتاحية — ${r.entries ?? 0} قيد`, {
-        description: `نقدية ${fmt(r.cash_total)} • عملاء ${fmt(r.receivables_total)} • موردين ${fmt(r.payables_total)} • مخزون ${fmt(r.inventory_total)}`,
+        description: `نقدية ${fmt(r.cash_total)} • عملاء ${fmt(r.receivables_total)} • مقدمات عملاء ${fmt(r.customer_advances_total)} • موردين ${fmt(r.payables_total)} • مقدمات موردين ${fmt(r.supplier_advances_total)} • مخزون ${fmt(r.inventory_total)}${r.reversed_entries ? ` • اتعكس ${r.reversed_entries} قيد سابق` : ""}`,
       });
       setConfirmOpen(false);
       await load();
@@ -165,32 +184,38 @@ export default function OpeningBalances() {
         subtitle="إدخال أرصدة بداية التشغيل: نقدية الخزن، أرصدة العملاء والموردين، وكميات وتكلفة المخزون — وترحيلها تلقائيًا لقيود اليومية."
       />
 
-      <div className="grid gap-4 md:grid-cols-5 mb-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">النقدية</CardTitle></CardHeader>
-          <CardContent><FinancialAmount value={fmt(cashTotal)} size="md" className="justify-start" /></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">مديونية العملاء</CardTitle></CardHeader>
-          <CardContent><FinancialAmount value={fmt(arTotal)} size="md" className="justify-start" /></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">مستحقات الموردين</CardTitle></CardHeader>
-          <CardContent><FinancialAmount value={fmt(apTotal)} size="md" className="justify-start" /></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">قيمة المخزون</CardTitle></CardHeader>
-          <CardContent><FinancialAmount value={fmt(invTotal)} size="md" className="justify-start" /></CardContent>
-        </Card>
+      <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-7 mb-4">
+        {[
+          { l: "النقدية", v: cashTotal },
+          { l: "مديونية العملاء (1200)", v: sideTotals.ar },
+          { l: "مقدمات العملاء (2150)", v: sideTotals.cAdv },
+          { l: "مستحقات الموردين (2100)", v: sideTotals.ap },
+          { l: "مقدماتنا عند الموردين (1460)", v: sideTotals.sAdv },
+          { l: "قيمة المخزون", v: invTotal },
+        ].map((c) => (
+          <Card key={c.l}>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{c.l}</CardTitle></CardHeader>
+            <CardContent><FinancialAmount value={fmt(c.v)} size="md" className="justify-start" /></CardContent>
+          </Card>
+        ))}
         <Card className="border-primary/40 bg-primary/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Scale className="h-4 w-4" /> صافي حقوق الملكية
+              <Scale className="h-4 w-4" /> صافي حقوق الملكية (3950)
             </CardTitle>
           </CardHeader>
           <CardContent><FinancialAmount value={fmt(equityTotal)} size="md" className="justify-start text-primary" /></CardContent>
         </Card>
       </div>
+
+      <Card className="mb-4 border-primary/30 bg-primary/5">
+        <CardContent className="p-4 text-sm space-y-1">
+          <div>• أرصدة العملاء والموردين الافتتاحية بتتسجل على <b>{mainTreasury?.name ?? "الخزنة الرئيسية"}</b> وبتظهر في الصفحة الرئيسية وصفحة الخزائن.</div>
+          <div>• حساب العميل وحساب المورد منفصلين: الرصيد بيروح للجانب حسب نوع الجهة (للجهة اللي عميل ومورد: الموجب على جانب العميل، والسالب على جانب المورد).</div>
+          <div>• إعادة الترحيل مش بتمسح حاجة: القيود السابقة بتتعكس بقيود عكسية، والنقدية بتتسجل في خزنة كل فرع.</div>
+          {invLocked && <div className="text-warning font-semibold">• مخزون أول المدة اتباع أو اتحول منه بالفعل، فمش هيتعاد ترحيله — أي تعديل في الكميات يبقى بتسوية مخزون.</div>}
+        </CardContent>
+      </Card>
 
       <Card className="mb-4">
         <CardContent className="p-4 flex flex-wrap items-end gap-4">
@@ -258,7 +283,7 @@ export default function OpeningBalances() {
                   onChange={e => setContactSearch(e.target.value)} />
               </div>
               <p className="text-xs text-muted-foreground">
-                القيمة الموجبة = العميل مدين لنا. القيمة السالبة = نحن مدينون للمورد.
+                الموجب = الجهة عليها فلوس لنا (للعميل: مديونية · للمورد: مقدم دفعناه له). السالب = إحنا علينا للجهة (للعميل: مقدم دفعه لنا · للمورد: مستحق له).
               </p>
             </CardHeader>
             <CardContent className="p-0">
@@ -362,12 +387,12 @@ export default function OpeningBalances() {
             <AlertDialogTitle>تأكيد ترحيل الأرصدة الافتتاحية</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-start">
-                <p>سيتم إنشاء قيود افتتاحية بتاريخ <strong>{openingDate}</strong>، وإلغاء أي ترحيل افتتاحي سابق.</p>
+                <p>سيتم إنشاء قيود افتتاحية بتاريخ <strong>{openingDate}</strong>، والقيود الافتتاحية السابقة هتتعكس بقيود عكسية (مفيش حذف).</p>
                 <ul className="text-sm space-y-1">
                   <li>نقدية الخزن: <strong>{fmt(cashTotal)}</strong></li>
-                  <li>مديونية العملاء: <strong>{fmt(arTotal)}</strong></li>
-                  <li>مستحقات الموردين: <strong>{fmt(apTotal)}</strong></li>
-                  <li>قيمة المخزون: <strong>{fmt(invTotal)}</strong></li>
+                  <li>مديونية العملاء: <strong>{fmt(sideTotals.ar)}</strong> · مقدمات العملاء: <strong>{fmt(sideTotals.cAdv)}</strong></li>
+                  <li>مستحقات الموردين: <strong>{fmt(sideTotals.ap)}</strong> · مقدماتنا عند الموردين: <strong>{fmt(sideTotals.sAdv)}</strong></li>
+                  <li>قيمة المخزون: <strong>{fmt(invTotal)}</strong>{invLocked ? " (مش هيتعاد ترحيلها)" : ""}</li>
                   <li>صافي حقوق الملكية: <strong>{fmt(equityTotal)}</strong></li>
                 </ul>
               </div>

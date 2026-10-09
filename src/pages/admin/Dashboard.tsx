@@ -1,4 +1,5 @@
-import { cairoStart, cairoTodayDay } from "@/lib/cairoDate";
+import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
+import { fetchOpeningSummary, type OpeningSummary } from "@/lib/ledger";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -37,52 +38,41 @@ export default function AdminDashboard() {
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const toggleRow = (key: string) => setExpandedRowId((prev) => (prev === key ? null : key));
   const [activeCountBranches, setActiveCountBranches] = useState<Set<string>>(new Set());
+  const [opening, setOpening] = useState<OpeningSummary | null>(null);
+  const [integrity, setIntegrity] = useState<{ errors: number; warnings: number; info: number } | null>(null);
 
   const load = useCallback(async () => {
-    // «اليوم» حسب توقيت القاهرة — مش ساعة الجهاز
-    const today = cairoStart(cairoTodayDay());
-    const todayIso = today.toISOString();
-
-    const [
-      { data: invToday },
-      { data: prods },
-      { data: branches },
-      { data: approvals },
-      { data: sessions },
-    ] = await Promise.all([
-      supabase.from("invoices").select("total").eq("status", "active").not("is_migrated","is",true).gte("invoice_date", todayIso),
-      fetchAllRows<any>(() => supabase.from("products").select("id, quantity, low_stock_alert").is("archived_at", null).order("id")).then((data) => ({ data })),
+    // «اليوم» حسب توقيت القاهرة — مش ساعة الجهاز. كل الصفوف (بدون حد 1000) ومن نفس الاستعلام للكروت والفروع.
+    const day = cairoTodayDay();
+    const [invToday, prods, { data: branches }, { count: approvalsCount }, sessions, ob, audit] = await Promise.all([
+      fetchAllRows<any>(() => applyCairoRange(
+        supabase.from("invoices").select("id, total, branch_id").eq("status", "active").not("is_migrated", "is", true),
+        "invoice_date", day, day).order("id")),
+      fetchAllRows<any>(() => supabase.from("products").select("id, quantity, low_stock_alert").is("archived_at", null).order("id")),
       supabase.from("branches").select("*").eq("is_active", true).eq("is_system", false),
-      supabase.from("approval_requests" as any).select("id").eq("status", "pending"),
-      supabase
-        .from("inventory_sessions" as any)
-        .select("branch_id")
-        .in("status", ["counting", "reviewing", "pending_approval"]),
+      supabase.from("approval_requests" as any).select("id", { count: "exact", head: true }).eq("status", "pending"),
+      fetchAllRows<any>(() => supabase.from("inventory_sessions" as any).select("id, branch_id").in("status", ["counting", "reviewing", "pending_approval"]).order("id")),
+      fetchOpeningSummary().catch(() => null),
+      (supabase.rpc as any)("system_integrity_summary", { p_tenant: null }).then((r: any) => r.data ?? null, () => null),
     ]);
 
-    setSalesToday((invToday ?? []).reduce((s, x) => s + Number(x.total), 0));
-    setInvoicesToday((invToday ?? []).length);
-    setLowStock((prods ?? []).filter((p) => p.quantity <= p.low_stock_alert).length);
-    setPendingApprovals((approvals ?? []).length);
-    setActiveSessions((sessions ?? []).length);
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    setSalesToday(r2(invToday.reduce((s, x) => s + Number(x.total), 0)));
+    setInvoicesToday(invToday.length);
+    // one definition of "low stock" everywhere: an alert level is set and the quantity reached it
+    setLowStock(prods.filter((p) => Number(p.low_stock_alert || 0) > 0 && Number(p.quantity || 0) <= Number(p.low_stock_alert)).length);
+    setPendingApprovals(approvalsCount ?? 0);
+    setActiveSessions(sessions.length);
+    setOpening(ob);
+    setIntegrity(audit);
     setRecent(await fetchRecentDocs(5));
-    setActiveCountBranches(new Set((sessions ?? []).map((s: any) => s.branch_id)));
+    setActiveCountBranches(new Set(sessions.map((s: any) => s.branch_id)));
 
-    // Branch cards — today's sales only (operational, no profit/treasury)
-    const summary = await Promise.all(
-      (branches ?? []).map(async (b) => {
-        const { data: sales } = await supabase
-          .from("invoices")
-          .select("total")
-          .eq("branch_id", b.id)
-          .eq("status", "active")
-          .not("is_migrated","is",true)
-          .gte("invoice_date", todayIso);
-        const todaySales = (sales ?? []).reduce((s, x) => s + Number(x.total), 0);
-        return { ...b, todaySales };
-      })
-    );
-    setBranchSummary(summary);
+    // Branch cards — today's sales only (operational, no profit/treasury), same rows as the card above
+    setBranchSummary((branches ?? []).map((b) => ({
+      ...b,
+      todaySales: r2(invToday.filter((x) => x.branch_id === b.id).reduce((s, x) => s + Number(x.total), 0)),
+    })));
 
     setLoading(false);
   }, []);
@@ -121,6 +111,36 @@ export default function AdminDashboard() {
           <StatCard label="موافقات معلقة" value={pendingApprovals} icon={<CheckSquare className="w-5 h-5" />} accent={pendingApprovals > 0 ? "warning" : "secondary"} />
         </Link>
         <StatCard label="جلسات جرد نشطة" value={activeSessions} icon={<ClipboardList className="w-5 h-5" />} accent={activeSessions > 0 ? "primary" : "secondary"} />
+      </div>
+
+      {/* Opening balances (linked to the main treasury) + data integrity checks */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <Link to="/admin/accounting/opening-balances" className="card-elevated p-4 block hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="font-bold text-sm">الأرصدة الافتتاحية {opening?.main_treasury ? `— ${opening.main_treasury.name}` : ""}</div>
+            <span className="text-xs text-muted-foreground">{opening?.as_of ? `بتاريخ ${opening.as_of}` : "لسه ما اترحلتش"}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 text-xs">
+            <div><div className="text-muted-foreground">نقدية أول المدة</div><b>{formatEGP(opening?.cash_total ?? 0)}</b></div>
+            <div><div className="text-muted-foreground">مديونية عملاء</div><b>{formatEGP(opening?.customers_debt ?? 0)}</b></div>
+            <div><div className="text-muted-foreground">مقدمات عملاء</div><b>{formatEGP(opening?.customers_advance ?? 0)}</b></div>
+            <div><div className="text-muted-foreground">مستحقات موردين</div><b>{formatEGP(opening?.suppliers_payable ?? 0)}</b></div>
+            <div><div className="text-muted-foreground">مقدمات لينا عند موردين</div><b>{formatEGP(opening?.suppliers_advance ?? 0)}</b></div>
+            <div><div className="text-muted-foreground">مخزون أول المدة</div><b>{formatEGP(opening?.inventory_value ?? 0)}</b></div>
+          </div>
+        </Link>
+        <Link to="/admin/system-health?tab=integrity" className={`card-elevated p-4 block hover:shadow-md transition-shadow ${integrity && integrity.errors > 0 ? "border-destructive/40 bg-destructive/5" : ""}`}>
+          <div className="flex items-center justify-between">
+            <div className="font-bold text-sm">فحص سلامة البيانات (تلقائي)</div>
+            <AlertTriangle className={`w-4 h-4 ${integrity && integrity.errors > 0 ? "text-destructive" : "text-muted-foreground"}`} />
+          </div>
+          <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
+            <div><div className="text-muted-foreground">أخطاء</div><b className={integrity && integrity.errors > 0 ? "text-destructive" : ""}>{integrity?.errors ?? "—"}</b></div>
+            <div><div className="text-muted-foreground">تنبيهات</div><b>{integrity?.warnings ?? "—"}</b></div>
+            <div><div className="text-muted-foreground">معلومات</div><b>{integrity?.info ?? "—"}</b></div>
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-2">أرصدة افتتاحية × مقدمات بين الفروع، تكرار دفعات، مستندات ومرتجعات وخزنة ومخزون وقيود.</div>
+        </Link>
       </div>
 
       {/* Link to Financial Dashboard (treasury, receivables, payables live there) */}

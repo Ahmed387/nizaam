@@ -8,7 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import type { ContactOpenInvoice } from "@/hooks/useContactBranchBreakdown";
+/** An open sale invoice of the contact (remaining from the unified ledger). */
+export interface ContactOpenInvoice {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  branch_id: string;
+  branch_name: string;
+  total: number;
+  paid: number;
+  remaining: number;
+}
 
 interface Props {
   open: boolean;
@@ -23,8 +33,8 @@ interface Props {
 const METHODS = [
   { value: "cash", label: "نقدي" },
   { value: "instapay", label: "إنستاباي" },
-  { value: "vodafone_cash", label: "فودافون كاش" },
-  { value: "bank_transfer", label: "تحويل بنكي" },
+  { value: "vodafone", label: "فودافون كاش" },
+  { value: "bank", label: "تحويل بنكي" },
 ];
 
 /** سداد وإقفال فواتير الجهة عبر الفروع — يستدعي الـ RPC السيادي الذري. */
@@ -110,7 +120,7 @@ export function ContactSettleDialog({
                 placeholder="0"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                إجمالي المتبقي على كل الفواتير: <b>{formatEGP(totalOpen)}</b>
+                إجمالي المتبقي على فواتير العميل في كل الفروع: <b>{formatEGP(totalOpen)}</b>
               </p>
             </div>
             <div>
@@ -152,7 +162,7 @@ export function ContactSettleDialog({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            أي فائض بعد إقفال الفواتير يُحفظ تلقائيًا كرصيد دائن للجهة، والعملية كلها تُنفَّذ أو تُلغى بالكامل.
+            الفلوس بتتسجل في خزنة الفرع ده. أي فائض بعد إقفال الفواتير يفضل مقدم للعميل (حساب العميل بس — مش بيتخصم من حساب المورد)، والعملية كلها تُنفَّذ أو تُلغى بالكامل.
           </p>
         </div>
 

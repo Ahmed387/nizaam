@@ -20,9 +20,8 @@ export function KpiHealthAlert() {
     let cancelled = false;
 
     const run = async () => {
-      const y = new Date().getFullYear();
-      const start = `${y}-01-01`;
       const end = cairoTodayDay();
+      const start = `${end.slice(0, 4)}-01-01`;   // Cairo year, not the device clock
       const { data, error } = await supabase.rpc("get_financial_kpis" as any, { _start_date: start, _end_date: end });
       if (cancelled || error || !data) return;
       const next = buildKpiAlerts(data as KpiSnapshot);

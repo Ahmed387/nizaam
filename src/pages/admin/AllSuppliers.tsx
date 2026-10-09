@@ -1,4 +1,3 @@
-import { fetchContactBalanceMap, mergeBalancesById } from "@/lib/contactBalances";
 import { useEffect, useMemo, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +25,7 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { saveContact, deleteContact } from "@/lib/contactWrites";
+import { fetchAllContactsPage, type BalanceFilter, type ContactPageTotals } from "@/lib/ledger";
 
 interface Supplier {
   id: string;
@@ -35,7 +35,14 @@ interface Supplier {
   phone: string | null;
   address: string | null;
   notes: string | null;
-  balance: number;
+  customer_balance: number;
+  supplier_balance: number;
+  customer_overdue: number;
+  supplier_overdue: number;
+  customer_open: number;
+  customer_advance: number;
+  supplier_open: number;
+  supplier_advance: number;
   created_at: string;
 }
 
@@ -47,13 +54,6 @@ interface ShipmentSummary {
   count: number;
 }
 
-interface PaymentSummary {
-  contact_id: string;
-  branch_id: string;
-  branch_name: string;
-  total: number;
-  count: number;
-}
 
 export default function AllSuppliers() {
   const { tenantId, user, profile, isAdmin, hasRole } = useAuth();
@@ -62,10 +62,13 @@ export default function AllSuppliers() {
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const { filterBranches } = useBranchScope();
   const [shipSums, setShipSums] = useState<ShipmentSummary[]>([]);
-  const [paySums, setPaySums] = useState<PaymentSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [balanceFilter, setBalanceFilter] = useState<"all" | "owed_to_us" | "owed_by_us" | "settled">("all");
+  const [balanceFilter, setBalanceFilter] = useState<"all" | BalanceFilter>(
+    (new URLSearchParams(window.location.search).get("balance") as BalanceFilter) || "all"
+  );
+  const [totals, setTotals] = useState<ContactPageTotals | null>(null);
+  const [counts, setCounts] = useState({ all: 0, customer: 0, supplier: 0, both: 0 });
   const [branchFilter, setBranchFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "customer" | "supplier" | "both">(
     (new URLSearchParams(window.location.search).get("type") as any) || "all"
@@ -75,7 +78,6 @@ export default function AllSuppliers() {
   const [editing, setEditing] = useState<Supplier | null>(null);
   const [form, setForm] = useState({ name: "", contact_person: "", phone: "", address: "", notes: "" });
   const [deleteConfirm, setDeleteConfirm] = useState<Supplier | null>(null);
-  const [details, setDetails] = useState<Supplier | null>(null);
   const [shipmentsView, setShipmentsView] = useState<Supplier | null>(null);
   const [shipmentsList, setShipmentsList] = useState<any[]>([]);
   const [shipmentsLoading, setShipmentsLoading] = useState(false);
@@ -99,17 +101,16 @@ export default function AllSuppliers() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: sups }, { data: brs }, { data: ships }, { data: pays }] = await Promise.all([
-      fetchAllRows<any>(() => supabase.from("contacts").select("*").eq("is_archived", false).order("created_at", { ascending: false }).order("id")).then((data) => ({ data })),
+    // Balances from the unified ledger (contacts_page, all branches or one): customer and supplier
+    // sides separate, never netted. Purchases total from active purchase invoices.
+    const [page, { data: brs }, { data: ships }] = await Promise.all([
+      fetchAllContactsPage({ branchId: branchFilter === "all" ? null : branchFilter, type: typeFilter }),
       supabase.from("branches").select("id, name").eq("is_active", true).eq("is_system", false).order("name"),
       fetchAllRows<any>(() => supabase.from("shipments").select("id, contact_id, branch_id, total_cost, branches(name)").eq("status", "active").order("id")).then((data) => ({ data })),
-      fetchAllRows<any>(() => supabase.from("supplier_payments").select("id, contact_id, branch_id, amount, branches(name)").order("id")).then((data) => ({ data })),
     ]);
-    // TODO Phase 2.2B: Remove after contacts.balance column is dropped — merge canonical balances
-    const list = (sups ?? []) as any[];
-    
-    const balMap = await fetchContactBalanceMap(list.map((c) => c.id));
-    setSuppliers(mergeBalancesById(list, balMap) as any);
+    setSuppliers(page.rows as any);
+    setTotals(page.totals);
+    setCounts(page.counts as any);
     setBranches(filterBranches((brs ?? []) as any) as any);
 
     // تجميع فواتير الشراء لكل (مورد + فرع)
@@ -124,70 +125,42 @@ export default function AllSuppliers() {
     }
     setShipSums(Array.from(shipMap.values()));
 
-    // تجميع المدفوعات لكل (مورد + فرع)
-    const payMap = new Map<string, PaymentSummary>();
-    for (const p of (pays ?? []) as any[]) {
-      if (!p.contact_id || !p.branch_id) continue;
-      const key = `${p.contact_id}|${p.branch_id}`;
-      const cur = payMap.get(key) ?? { contact_id: p.contact_id, branch_id: p.branch_id, branch_name: p.branches?.name ?? "—", total: 0, count: 0 };
-      cur.total += Number(p.amount) || 0;
-      cur.count += 1;
-      payMap.set(key, cur);
-    }
-    setPaySums(Array.from(payMap.values()));
-
     setLoading(false);
   };
-  useEffect(() => { load(); }, []);
-  useRealtimeRefresh(["contacts", "shipments", "supplier_payments", "branches"], load);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchFilter, typeFilter]);
+  useRealtimeRefresh(["contacts", "shipments", "supplier_payments", "invoices", "invoice_payments", "vouchers", "returns", "purchase_returns", "payment_transactions", "branches"], load);
 
-  // إجمالي مشتريات + مدفوعات + فروع لكل مورد
+  // إجمالي المشتريات لكل جهة (فواتير شراء سارية، الفرع المختار أو كل الفروع)
   const enriched = useMemo(() => {
     return suppliers.map((s) => {
-      const ships = shipSums.filter((x) => x.contact_id === s.id);
-      const pays = paySums.filter((x) => x.contact_id === s.id);
-      const totalShipments = ships.reduce((a, b) => a + b.total, 0);
-      const totalPayments = pays.reduce((a, b) => a + b.total, 0);
-      const branchesUsed = new Set([...ships.map((x) => x.branch_id), ...pays.map((x) => x.branch_id)]);
-      return {
-        ...s,
-        totalShipments,
-        totalPayments,
-        branchCount: branchesUsed.size,
-        branchIds: Array.from(branchesUsed),
-      };
+      const ships = shipSums.filter((x) => x.contact_id === s.id && (branchFilter === "all" || x.branch_id === branchFilter));
+      return { ...s, totalShipments: ships.reduce((a, b) => a + b.total, 0) };
     });
-  }, [suppliers, shipSums, paySums]);
+  }, [suppliers, shipSums, branchFilter]);
 
   const filtered = useMemo(() => enriched.filter((s) => {
     if (search && !searchMatch(search, s.name, s.contact_person)) return false;
-    const bal = Number(s.balance) || 0;
-    if (balanceFilter === "owed_to_us" && bal <= 0) return false;
-    if (balanceFilter === "owed_by_us" && bal >= 0) return false;
-    if (balanceFilter === "settled" && bal !== 0) return false;
-    if (branchFilter !== "all" && !s.branchIds.includes(branchFilter)) return false;
-    if (typeFilter !== "all") {
-      if (typeFilter === "customer" && s.type !== "customer" && s.type !== "both") return false;
-      if (typeFilter === "supplier" && s.type !== "supplier" && s.type !== "both") return false;
-      if (typeFilter === "both" && s.type !== "both") return false;
+    // same rules as the server filter (contacts_page): open documents and unused advances are looked at
+    // separately, so a contact with an open invoice AND an advance shows under both
+    const co = Number(s.customer_open) || 0, ca = Number(s.customer_advance) || 0;
+    const so = Number(s.supplier_open) || 0, sa = Number(s.supplier_advance) || 0;
+    switch (balanceFilter) {
+      case "owe_us": return co > 0.005;
+      case "we_owe": return so > 0.005;
+      case "customer_advance": return ca > 0.005;
+      case "supplier_advance": return sa > 0.005;
+      case "overdue": return (Number(s.customer_overdue) || 0) > 0.005 || (Number(s.supplier_overdue) || 0) > 0.005;
+      case "settled": return co <= 0.005 && ca <= 0.005 && so <= 0.005 && sa <= 0.005;
+      default: return true;
     }
-    return true;
-  }), [enriched, search, balanceFilter, branchFilter, typeFilter]);
+  }), [enriched, search, balanceFilter]);
 
-  const typeCounts = useMemo(() => ({
-    all: enriched.length,
-    customer: enriched.filter((s) => s.type === "customer" || s.type === "both").length,
-    supplier: enriched.filter((s) => s.type === "supplier" || s.type === "both").length,
-    both: enriched.filter((s) => s.type === "both").length,
-  }), [enriched]);
+  const typeCounts = counts;
 
-  const stats = useMemo(() => {
-    const owedByUs = enriched.filter((s) => Number(s.balance) < 0).reduce((a, b) => a + Math.abs(Number(b.balance)), 0);
-    const owedToUs = enriched.filter((s) => Number(s.balance) > 0).reduce((a, b) => a + Number(b.balance), 0);
-    const totalPurchases = enriched.reduce((a, b) => a + b.totalShipments, 0);
-    const totalPaid = enriched.reduce((a, b) => a + b.totalPayments, 0);
-    return { owedByUs, owedToUs, totalPurchases, totalPaid, count: enriched.length };
-  }, [enriched]);
+  const stats = useMemo(() => ({
+    totalPurchases: Math.round(filtered.reduce((a, b) => a + b.totalShipments, 0) * 100) / 100,
+    count: filtered.length,
+  }), [filtered]);
 
   const openNew = () => { setEditing(null); setForm({ name: "", contact_person: "", phone: "", address: "", notes: "" }); setOpen(true); };
   const openEdit = (s: Supplier) => {
@@ -255,7 +228,7 @@ export default function AllSuppliers() {
         entityId: deleteConfirm.id,
         entityLabel: deleteConfirm.name,
         action: "delete",
-        reason: deleteReason || "حذف جهة تواصل",
+        reason: deleteReason || "أرشفة جهة تواصل",
         requestedBy: user!.id,
         requestedByName: profile?.name ?? "—",
       });
@@ -264,27 +237,31 @@ export default function AllSuppliers() {
     }
     const { error } = await deleteContact(deleteConfirm.id);
     if (error) return toast.error(error.message);
-    toast.success("تم حذف المورد");
+    toast.success("تمت أرشفة الجهة — بياناتها ومستنداتها محفوظة");
     setDeleteConfirm(null); load();
   };
 
   const exportExcel = () => {
+    const sideText = (side: "c" | "s", v: number) => Math.abs(v) <= 0.005 ? "مسدد"
+      : side === "c" ? (v > 0 ? "مستحق لنا على العميل" : "مقدم من العميل عندنا")
+      : (v > 0 ? "مستحق للمورد علينا" : "مقدم لينا عند المورد");
     const data = filtered.map((s) => ({
-      "اسم الشركة": s.name,
+      "الاسم": s.name,
+      "النوع": s.type === "customer" ? "عميل" : s.type === "supplier" ? "مورد" : "عميل ومورد",
       "المسؤول": s.contact_person ?? "—",
       "التليفون": s.phone ?? "—",
-      "الفروع": s.branchCount,
       "إجمالي المشتريات": s.totalShipments,
-      "إجمالي المدفوعات": s.totalPayments,
-      "الرصيد": Number(s.balance) || 0,
-      "الحالة": Number(s.balance) < 0 ? "علينا (مدينين)" : Number(s.balance) > 0 ? "لينا (دفعنا زيادة)" : "مسدد",
+      "حساب العميل": Number(s.customer_balance) || 0,
+      "حالة حساب العميل": sideText("c", Number(s.customer_balance) || 0),
+      "حساب المورد": Number(s.supplier_balance) || 0,
+      "حالة حساب المورد": sideText("s", Number(s.supplier_balance) || 0),
       "تاريخ الإضافة": formatDateTime(s.created_at),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "الموردين");
+    XLSX.utils.book_append_sheet(wb, ws, "جهات التعامل");
     XLSX.writeFile(wb, `suppliers-${cairoTodayDay()}.xlsx`);
-    toast.success(`تم تصدير ${data.length} مورد`);
+    toast.success(`تم تصدير ${data.length} جهة`);
   };
 
   const openShipments = async (s: Supplier) => {
@@ -433,24 +410,36 @@ export default function AllSuppliers() {
         }
       />
 
-      {/* بطاقات إحصائيات */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      {/* بطاقات إحصائيات — من الدفتر الموحد: العملاء والموردين كل جانب لوحده */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
         <div className="p-4 rounded-lg border bg-card">
-          <div className="text-xs text-muted-foreground">عدد الموردين</div>
+          <div className="text-xs text-muted-foreground">عدد الجهات المعروضة</div>
           <div className="text-2xl font-bold mt-1">{stats.count}</div>
         </div>
         <div className="p-4 rounded-lg border bg-card">
-          <div className="text-xs text-muted-foreground">إجمالي المشتريات</div>
-           <FinancialAmount value={stats.totalPurchases} size="md" className="mt-1 justify-start text-primary" />
+          <div className="text-xs text-muted-foreground">إجمالي المشتريات (فواتير شراء سارية)</div>
+          <FinancialAmount value={stats.totalPurchases} size="md" className="mt-1 justify-start text-primary" />
         </div>
-        <div className="p-4 rounded-lg border bg-destructive/5 border-destructive/30">
-          <div className="text-xs text-destructive flex items-center gap-1"><ArrowUp className="w-3 h-3" /> اللي علينا (نسددها)</div>
-           <FinancialAmount value={stats.owedByUs} size="md" className="mt-1 justify-start text-destructive" />
-        </div>
-        <div className="p-4 rounded-lg border bg-success/5 border-success/30">
-          <div className="text-xs text-success flex items-center gap-1"><ArrowDown className="w-3 h-3" /> اللي لينا (دفعنا زيادة)</div>
-           <FinancialAmount value={stats.owedToUs} size="md" className="mt-1 justify-start text-success" />
-        </div>
+        <button type="button" onClick={() => setBalanceFilter("owe_us")} className="text-right p-4 rounded-lg border bg-warning/5 border-warning/30">
+          <div className="text-xs text-warning flex items-center gap-1"><ArrowDown className="w-3 h-3" /> مستحق لنا على العملاء</div>
+          <FinancialAmount value={totals?.customers_open ?? 0} size="md" className="mt-1 justify-start text-warning" />
+          <div className="text-[11px] text-muted-foreground">{totals?.customers_open_count ?? 0} عميل</div>
+        </button>
+        <button type="button" onClick={() => setBalanceFilter("customer_advance")} className="text-right p-4 rounded-lg border bg-primary/5 border-primary/30">
+          <div className="text-xs text-primary">مقدمات عملاء عندنا (2150)</div>
+          <FinancialAmount value={totals?.customer_advances ?? 0} size="md" className="mt-1 justify-start text-primary" />
+          <div className="text-[11px] text-muted-foreground">{totals?.customer_advances_count ?? 0} عميل</div>
+        </button>
+        <button type="button" onClick={() => setBalanceFilter("we_owe")} className="text-right p-4 rounded-lg border bg-destructive/5 border-destructive/30">
+          <div className="text-xs text-destructive flex items-center gap-1"><ArrowUp className="w-3 h-3" /> مستحق للموردين علينا</div>
+          <FinancialAmount value={totals?.suppliers_open ?? 0} size="md" className="mt-1 justify-start text-destructive" />
+          <div className="text-[11px] text-muted-foreground">{totals?.suppliers_open_count ?? 0} مورد</div>
+        </button>
+        <button type="button" onClick={() => setBalanceFilter("supplier_advance")} className="text-right p-4 rounded-lg border bg-success/5 border-success/30">
+          <div className="text-xs text-success">مقدمات لينا عند الموردين (1460)</div>
+          <FinancialAmount value={totals?.supplier_advances ?? 0} size="md" className="mt-1 justify-start text-success" />
+          <div className="text-[11px] text-muted-foreground">{totals?.supplier_advances_count ?? 0} مورد</div>
+        </button>
       </div>
 
       <div className="flex gap-2 mb-3 flex-wrap">
@@ -472,12 +461,15 @@ export default function AllSuppliers() {
           </SelectContent>
         </Select>
         <Select value={balanceFilter} onValueChange={(v: any) => setBalanceFilter(v)}>
-          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">كل الحالات</SelectItem>
-            <SelectItem value="owed_by_us">عليّنا (مدينين)</SelectItem>
-            <SelectItem value="owed_to_us">لينا (دفعنا زيادة)</SelectItem>
-            <SelectItem value="settled">مسدد</SelectItem>
+            <SelectItem value="owe_us">مستحق لنا على العميل</SelectItem>
+            <SelectItem value="customer_advance">العميل له مقدم عندنا</SelectItem>
+            <SelectItem value="we_owe">مستحق للمورد علينا</SelectItem>
+            <SelectItem value="supplier_advance">لينا مقدم عند المورد</SelectItem>
+            <SelectItem value="overdue">أقساط متأخرة</SelectItem>
+            <SelectItem value="settled">مسدد (الجانبين صفر)</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -493,14 +485,22 @@ export default function AllSuppliers() {
             return <span className={`px-2 py-1 rounded text-xs ${cls}`}>{lbl}</span>;
           } },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
-          { key: "branches", header: "الفروع", render: (r: any) => <span className="px-2 py-1 rounded text-xs bg-primary/10 text-primary">{r.branchCount} فرع</span> },
           { key: "totalShipments", header: "إجمالي المشتريات", render: (r: any) => <span className="font-semibold">{formatEGP(r.totalShipments)}</span> },
-          { key: "totalPayments", header: "المدفوع", render: (r: any) => <span className="text-success">{formatEGP(r.totalPayments)}</span> },
-          { key: "balance", header: "الرصيد", render: (r: any) => {
-            const bal = Number(r.balance) || 0;
-            if (bal === 0) return <span className="text-muted-foreground">— مسدد —</span>;
-            if (bal < 0) return <span className="text-destructive font-bold">{formatEGP(Math.abs(bal))} <span className="text-xs">علينا</span></span>;
-            return <span className="text-success font-bold">{formatEGP(bal)} <span className="text-xs">لينا</span></span>;
+          { key: "customer_balance", header: "حساب العميل", render: (r: any) => {
+            if (r.type === "supplier") return <span className="text-muted-foreground">—</span>;
+            const v = Number(r.customer_balance) || 0;
+            if (Math.abs(v) <= 0.005) return <span className="text-muted-foreground">مسدد</span>;
+            return v > 0
+              ? <span className="text-warning font-bold">{formatEGP(v)} <span className="text-xs">لنا عليه</span></span>
+              : <span className="text-primary font-bold">{formatEGP(-v)} <span className="text-xs">مقدم منه</span></span>;
+          }},
+          { key: "supplier_balance", header: "حساب المورد", render: (r: any) => {
+            if (r.type === "customer") return <span className="text-muted-foreground">—</span>;
+            const v = Number(r.supplier_balance) || 0;
+            if (Math.abs(v) <= 0.005) return <span className="text-muted-foreground">مسدد</span>;
+            return v > 0
+              ? <span className="text-destructive font-bold">{formatEGP(v)} <span className="text-xs">علينا له</span></span>
+              : <span className="text-success font-bold">{formatEGP(-v)} <span className="text-xs">مقدم لينا عنده</span></span>;
           }},
           { key: "actions", header: "إجراءات", width: "18rem", className: "min-w-[18rem]", render: (r: any) => (
             <div className="flex min-w-max items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -572,59 +572,6 @@ export default function AllSuppliers() {
         </DialogContent>
       </Dialog>
 
-      {/* Details dialog: per-branch breakdown */}
-      <Dialog open={!!details} onOpenChange={(o) => !o && setDetails(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{details?.name}</DialogTitle>
-            <DialogDescription>تفصيل الحركة على كل فرع</DialogDescription>
-          </DialogHeader>
-          {details && (() => {
-            const ships = shipSums.filter((x) => x.contact_id === details.id);
-            const pays = paySums.filter((x) => x.contact_id === details.id);
-            const branchIds = Array.from(new Set([...ships.map((x) => x.branch_id), ...pays.map((x) => x.branch_id)]));
-            return (
-              <div className="space-y-3">
-                {branchIds.length === 0 && <div className="text-sm text-muted-foreground">لا توجد حركة لهذا المورد بعد.</div>}
-                {branchIds.map((bid) => {
-                  const branchName = branches.find((b) => b.id === bid)?.name ?? "—";
-                  const ship = ships.find((x) => x.branch_id === bid);
-                  const pay = pays.find((x) => x.branch_id === bid);
-                  return (
-                    <div key={bid} className="p-3 rounded-md border">
-                      <div className="font-semibold mb-2 flex items-center gap-2">
-                        <PackagePlus className="w-4 h-4 text-primary" /> {branchName}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <div className="text-muted-foreground text-xs">المشتريات</div>
-                          <div className="font-bold">{formatEGP(ship?.total ?? 0)} <span className="text-xs text-muted-foreground">({ship?.count ?? 0} فاتورة شراء)</span></div>
-                        </div>
-                        <div>
-                          <div className="text-muted-foreground text-xs">المدفوعات</div>
-                          <div className="font-bold text-success">{formatEGP(pay?.total ?? 0)} <span className="text-xs text-muted-foreground">({pay?.count ?? 0} دفعة)</span></div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="p-3 rounded-md border-2 border-primary/30 bg-primary/5">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">الرصيد الإجمالي:</span>
-                    <span className={`font-bold text-lg ${Number(details.balance) < 0 ? "text-destructive" : Number(details.balance) > 0 ? "text-success" : ""}`}>
-                      {formatEGP(Math.abs(Number(details.balance) || 0))}
-                      <span className="text-xs mr-2">{Number(details.balance) < 0 ? "علينا" : Number(details.balance) > 0 ? "لينا" : "مسدد"}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetails(null)}>إغلاق</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Shipments view */}
       <Dialog open={!!shipmentsView} onOpenChange={(o) => !o && setShipmentsView(null)}>
@@ -835,25 +782,25 @@ export default function AllSuppliers() {
       <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => { if (!o) { setDeleteConfirm(null); setDeleteReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{!isAdmin && hasRole("branch_manager") ? "طلب حذف للموافقة" : "حذف المورد"}</AlertDialogTitle>
+            <AlertDialogTitle>{!isAdmin && hasRole("branch_manager") ? "طلب أرشفة للموافقة" : "أرشفة جهة التعامل"}</AlertDialogTitle>
             <AlertDialogDescription>
               {!isAdmin && hasRole("branch_manager") ? (
-                <>سيتم إرسال طلب حذف <b>{deleteConfirm?.name}</b> لمدير الشركة للموافقة. سيصلك إشعار بالقرار.</>
+                <>سيتم إرسال طلب أرشفة <b>{deleteConfirm?.name}</b> لمدير الشركة للموافقة. سيصلك إشعار بالقرار.</>
               ) : (
-                <>هل أنت متأكد من حذف <b>{deleteConfirm?.name}</b>؟<br />لن يمكن التراجع. (فواتير الشراء والمدفوعات المرتبطة لن تُحذف).</>
+                <>هتتأرشف <b>{deleteConfirm?.name}</b> وتختفي من القوائم — مفيش حذف نهائي، وكل مستنداتها وحركاتها محفوظة. الأرشفة مش مسموحة لو عليها أو ليها رصيد مفتوح.</>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {!isAdmin && hasRole("branch_manager") && (
             <div className="px-1">
-              <Label>سبب الحذف</Label>
-              <Textarea className="mt-1.5" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="اكتب سبب طلب الحذف..." />
+              <Label>سبب الأرشفة</Label>
+              <Textarea className="mt-1.5" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="اكتب سبب الأرشفة..." />
             </div>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={remove}>
-              {!isAdmin && hasRole("branch_manager") ? "إرسال طلب الحذف" : "حذف"}
+              {!isAdmin && hasRole("branch_manager") ? "إرسال طلب الأرشفة" : "أرشفة"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

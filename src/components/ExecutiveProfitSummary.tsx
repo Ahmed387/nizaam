@@ -120,12 +120,12 @@ export function ExecutiveProfitSummary() {
             </div>
             <div className="p-5 rounded-xl bg-warning/5 border border-warning/30 relative overflow-hidden">
               <p className="text-foreground/80 text-sm mb-2 font-bold">التكلفة (COGS)</p>
-               <FinancialAmount value={cost} size="lg" className="relative z-10 justify-start font-extrabold text-warning" />
+               <FinancialAmount value={canViewNetProfit ? cost : NET_PROFIT_MASK} currency={canViewNetProfit} size="lg" className="relative z-10 justify-start font-extrabold text-warning" />
               <div className="absolute bottom-0 left-0 w-14 h-14 bg-warning/10 rounded-tr-full -ml-3 -mb-3" />
             </div>
             <div className="p-5 rounded-xl bg-destructive/5 border border-destructive/25 relative overflow-hidden">
               <p className="text-foreground/80 text-sm mb-2 font-bold">المصروفات التشغيلية</p>
-               <FinancialAmount value={expenses} size="lg" className="relative z-10 justify-start font-extrabold text-destructive" />
+               <FinancialAmount value={canViewNetProfit ? expenses : NET_PROFIT_MASK} currency={canViewNetProfit} size="lg" className="relative z-10 justify-start font-extrabold text-destructive" />
               <Link
                 to={`/admin/finance?tab=vouchers&type=payment&only_deducted_from_profit=true&startDate=${range.from}&endDate=${range.to}`}
                 className="relative z-10 inline-block text-xs text-muted-foreground mt-1 cursor-pointer hover:underline hover:text-destructive"
@@ -151,7 +151,9 @@ export function ExecutiveProfitSummary() {
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-foreground">مساهمة الفروع في الربح</span>
             </div>
-            {branchShares.length === 0 ? (
+            {!canViewNetProfit ? (
+              <div className="text-[11px] text-muted-foreground py-2">{NET_PROFIT_MASK}</div>
+            ) : branchShares.length === 0 ? (
               <div className="text-[11px] text-muted-foreground py-2">لا توجد فروع رابحة في الفترة</div>
             ) : (
               <>

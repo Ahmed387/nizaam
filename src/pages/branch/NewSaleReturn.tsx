@@ -479,7 +479,7 @@ export default function NewSaleReturn() {
               <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
                 {customer?.phone && <span dir="ltr" className="font-mono">{customer.phone}</span>}
                 {customer && (
-                  <span>الرصيد: <b className={Number(customer.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(customer.balance ?? 0)}</b></span>
+                  <span>حساب العميل: <b className={Number(customer.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(Math.abs(Number(customer.balance ?? 0)))} {Number(customer.balance) > 0.005 ? "لنا عليه" : Number(customer.balance) < -0.005 ? "مقدم منه" : ""}</b></span>
                 )}
                 <span>فاتورة: <b className="font-mono text-primary">{invoice.invoice_number}</b></span>
                 <span>الإجمالي: <b className="text-primary">{formatEGP(invoice.total)}</b></span>

@@ -32,17 +32,18 @@ function refundSplit(r: Row, amount: number) {
 
 export function docFacts(kind: DocKind, r: Row): DocFacts {
   const byBucket = emptyBuckets();
-  const cancelled = (r.status ?? "active") !== "active";
+  // only a cancelled document is "cancelled" (a draft return is neither active money nor cancelled)
+  const cancelled = (r.status ?? "active") === "cancelled";
   switch (kind) {
     case "sale": {
       const amount = n(r.total);
       Object.assign(byBucket, r.__byBucket ?? {});
-      return { cancelled, amount, parts: { active: amount, collected: n(r.__paid), remaining: n(r.__remaining) }, byBucket };
+      return { cancelled, amount, parts: { active: amount, collected: n(r.__paid_money ?? r.__paid), remaining: n(r.__remaining) }, byBucket };
     }
     case "purchase": {
       const amount = n(r.total_cost);
       const remaining = n(r.__remaining);
-      return { cancelled, amount, parts: { active: amount, supplierPaid: n(r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0 }, byBucket };
+      return { cancelled, amount, parts: { active: amount, supplierPaid: n(r.__paid_money ?? r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0 }, byBucket };
     }
     case "sale_return":
     case "purchase_return": {

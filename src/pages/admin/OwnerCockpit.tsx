@@ -4,13 +4,15 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchLedgerPosition } from "@/lib/ledger";
+import { cairoTodayDay, addDaysDay, monthStartDay, applyCairoRange, cairoStart } from "@/lib/cairoDate";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP } from "@/lib/format";
 import { ReportIntro } from "@/components/ReportIntro";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
-import { fetchProfitWindow, rangeFor, rangeForDates, lineProfit } from "@/lib/profitEngine";
+import { fetchProfitWindow, rangeFor, rangeForDates, invoiceProfit } from "@/lib/profitEngine";
 import {
   TrendingUp, TrendingDown, Wallet, AlertTriangle, Package,
   ArrowDownCircle, ArrowUpCircle, Loader2, ChevronLeft, Building2,
@@ -27,6 +29,7 @@ import {
  * All numbers come from profitEngine.ts (single source of truth).
  */
 export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) {
+  const canViewNetProfitMain = useCanViewNetProfit();
   const { tenantId } = useAuth();
   const [loading, setLoading] = useState(true);
 
@@ -57,6 +60,7 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
   // Alerts
   const [overdueCount, setOverdueCount] = useState(0);
   const [overdueAmount, setOverdueAmount] = useState(0);
+  const [customerAdvances, setCustomerAdvances] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
   const [stagnantCount, setStagnantCount] = useState(0);
   const [pendingReservations, setPendingReservations] = useState(0);
@@ -64,27 +68,29 @@ export default function OwnerCockpit({ embedded }: { embedded?: boolean } = {}) 
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10);
-    const yStr = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    // Cairo calendar days (the device clock / UTC drifted the day between 00:00 and 03:00 Cairo)
+    const todayStr = cairoTodayDay();
+    const monthStart = monthStartDay(todayStr);
 
-    const [tToday, tMonth, treasury, contactsRes, ovr, prods, salesByProd, reservations] =
+    const [tToday, tMonth, treasury, position, ovr, prods, salesByProd, reservations] =
       await Promise.all([
         fetchProfitWindow({ tenantId, range: rangeForDates(todayStr, todayStr) }),
         fetchProfitWindow({ tenantId, range: rangeForDates(monthStart, todayStr) }),
         // ملاحظة: جدول treasury مفيهوش عمود status، والنوع بيكون income / expense
         fetchAllRows<any>(() => supabase.from("treasury" as any).select("id, type, amount").eq("tenant_id", tenantId).order("id")).then((data) => ({ data })),
-        // TODO Phase 2.2B: Remove after contacts.balance column is dropped
-        fetchAllRows<any>(() => supabase.from("v_contact_balances" as any).select("contact_id, type, total_balance").order("contact_id")).then((data) => ({ data })),
-fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount, paid_amount, payment_plans!inner(entity_type)").eq("status", "overdue").order("id")).then((data) => ({ data })),
+        // Unified ledger, customer and supplier sides separate (never netted)
+        fetchLedgerPosition(null),
+        // overdue customer installments (plans of suppliers are payables, not collections)
+        fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount, paid_amount, payment_plans!inner(entity_type, status)")
+          .lt("due_date", todayStr).not("status", "in", "(paid,cancelled)").is("cancelled_at", null)
+          .eq("payment_plans.entity_type", "customer").neq("payment_plans.status", "cancelled").order("id")).then((data) => ({ data })),
         fetchAllRows<any>(() => supabase.from("products").select("id, quantity, low_stock_alert").is("archived_at", null).order("id")).then((data) => ({ data })),
         fetchAllRows<any>(() => supabase
           .from("invoice_items")
           .select("id, product_id, quantity, returned_quantity, invoices!inner(tenant_id, status, created_at, invoice_date)")
           .eq("invoices.tenant_id", tenantId)
           .eq("invoices.status", "active")
-          .gte("invoices.invoice_date", new Date(Date.now() - 30 * 86400000).toISOString())
+          .gte("invoices.invoice_date", cairoStart(addDaysDay(todayStr, -30)).toISOString())
           .order("id")).then((data) => ({ data })),
         supabase
           .from("pre_orders")
@@ -114,28 +120,18 @@ fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount
     const tr = (treasury.data ?? []) as any[];
     const cashIn = tr.filter((x) => x.type === "income").reduce((s, x) => s + Number(x.amount || 0), 0);
     const cashOut = tr.filter((x) => x.type === "expense").reduce((s, x) => s + Number(x.amount || 0), 0);
-    setTreasuryBalance(cashIn - cashOut);
+    setTreasuryBalance(Math.round((cashIn - cashOut) * 100) / 100);
 
-    // Supplier & customer balances
-    const contacts = (contactsRes.data ?? []) as any[];
-    let supDebt = 0, supCredit = 0, custRec = 0;
-    for (const c of contacts) {
-      const bal = Number(c.total_balance ?? c.balance ?? 0);
-      if (c.type === "supplier" || c.type === "both") {
-        if (bal > 0) supDebt += bal; else supCredit += Math.abs(bal);
-      }
-      if (c.type === "customer" || c.type === "both") {
-        if (bal > 0) custRec += bal;
-      }
-    }
-    setSupplierDebt(supDebt);
-    setSupplierCredit(supCredit);
-    setCustomerReceivable(custRec);
+    // Supplier & customer balances (ledger position; advances shown on their own)
+    setSupplierDebt(position.suppliers?.open ?? 0);
+    setSupplierCredit(position.suppliers?.advances ?? 0);
+    setCustomerReceivable((position.customers?.open ?? 0) + (position.customers?.walkin_open ?? 0));
+    setCustomerAdvances(position.customers?.advances ?? 0);
 
-    // Overdue
+    // Overdue: installments due before today (Cairo), capped by what the ledger still shows open
     const ovrRows = (ovr.data ?? []) as any[];
     setOverdueCount(ovrRows.length);
-    setOverdueAmount(ovrRows.reduce((s, r) => s + (Number(r.amount) - Number(r.paid_amount || 0)), 0));
+    setOverdueAmount(position.customers?.overdue ?? 0);
 
     // Stock + stagnant
     const prodRows = (prods.data ?? []) as any[];
@@ -152,42 +148,41 @@ fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount
 
     setPendingReservations((reservations.data ?? []).length);
 
-    // 30-day trend — one fetch then bucket by day
-    const trendFrom = new Date(now.getTime() - 29 * 86400000);
-    trendFrom.setHours(0, 0, 0, 0);
+    // 30-day trend — Cairo days, every row (no 1,000 cap), invoice-level discounts included (invoiceProfit)
+    const trendFromDay = addDaysDay(todayStr, -29);
     const [invTrend, expTrend] = await Promise.all([
-      supabase
-        .from("invoices")
-        .select("created_at, invoice_date, is_migrated, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
-        .eq("tenant_id", tenantId)
-        .eq("status", "active")
-        .gte("invoice_date", trendFrom.toISOString()),
-      supabase
+      fetchAllRows<any>(() => {
+        let q: any = supabase
+          .from("invoices")
+          .select("id, created_at, invoice_date, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)")
+          .eq("tenant_id", tenantId)
+          .eq("status", "active");
+        q = applyCairoRange(q, "invoice_date", trendFromDay, todayStr);
+        return q.order("id");
+      }),
+      fetchAllRows<any>(() => supabase
         .from("vouchers")
         .select("voucher_date, amount, voucher_categories!inner(is_deductible_from_profit)")
         .eq("tenant_id", tenantId)
         .eq("type", "payment")
         .eq("status", "active")
         .eq("voucher_categories.is_deductible_from_profit", true)
-        .gte("voucher_date", trendFrom.toISOString().slice(0, 10)),
-
+        .gte("voucher_date", trendFromDay)
+        .lte("voucher_date", todayStr)
+        .order("id")),
     ]);
 
     const byDay: Record<string, { revenue: number; cost: number; expenses: number }> = {};
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(trendFrom.getTime() + i * 86400000).toISOString().slice(0, 10);
-      byDay[d] = { revenue: 0, cost: 0, expenses: 0 };
-    }
-    for (const inv of (invTrend.data ?? []) as any[]) {
-      const d = String(inv.invoice_date ?? inv.created_at).slice(0, 10);
+    for (let i = 0; i < 30; i++) byDay[addDaysDay(trendFromDay, i)] = { revenue: 0, cost: 0, expenses: 0 };
+    const cairoDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
+    for (const inv of invTrend) {
+      const d = cairoDay(inv.invoice_date ?? inv.created_at);
       if (!byDay[d]) continue;
-      for (const it of inv.invoice_items ?? []) {
-        const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
-        byDay[d].revenue += lp.revenue;
-        byDay[d].cost += lp.cost;
-      }
+      const ip = invoiceProfit(inv);
+      byDay[d].revenue += ip.revenue;
+      byDay[d].cost += ip.cost;
     }
-    for (const v of (expTrend.data ?? []) as any[]) {
+    for (const v of expTrend) {
       const d = String(v.voucher_date).slice(0, 10);
       if (!byDay[d]) continue;
       byDay[d].expenses += Number(v.amount || 0);
@@ -195,8 +190,8 @@ fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount
     setTrend(
       Object.entries(byDay).map(([day, x]) => ({
         day: day.slice(5),
-        sales: Math.round(x.revenue),
-        net: Math.round(x.revenue - x.cost - x.expenses),
+        sales: Math.round(x.revenue * 100) / 100,
+        net: Math.round((x.revenue - x.cost - x.expenses) * 100) / 100,
       }))
     );
 
@@ -285,7 +280,7 @@ fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount
         />
         <HeroCard
           title="الشهر حتى الآن"
-          subtitle="مقارنة بنفس المدة من الشهر الماضي"
+          subtitle="مقارنة بنفس عدد الأيام اللي قبلها مباشرة"
           net={mtdNet}
           sales={mtdSales}
           expenses={mtdExp}
@@ -295,7 +290,7 @@ fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount
       </div>
 
       {/* ===== ROW 2 — Cash position ===== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <CashCard
           label="رصيد الخزنة"
           value={treasuryBalance}
@@ -308,24 +303,32 @@ fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount
           value={supplierDebt}
           icon={<ArrowUpCircle className="w-4 h-4" />}
           accent="destructive"
-          link="/admin/reports-hub?tab=insights"
-          hint="ديون مستحقة"
+          link="/admin/contacts?balance=we_owe"
+          hint="فواتير شراء مفتوحة"
         />
         <CashCard
-          label="لنا عند الموردين"
+          label="مقدمات لينا عند الموردين"
           value={supplierCredit}
           icon={<ArrowDownCircle className="w-4 h-4" />}
           accent="success"
-          link="/admin/reports-hub?tab=insights"
-          hint="رصيد دائن لنا"
+          link="/admin/contacts?balance=supplier_advance"
+          hint="فلوس دفعناها مقدم (1460)"
         />
         <CashCard
           label="لنا عند العملاء"
           value={customerReceivable}
           icon={<TrendingUp className="w-4 h-4" />}
           accent="warning"
-          link="/admin/contacts"
-          hint="مستحقات تحصيل"
+          link="/admin/contacts?balance=owe_us"
+          hint="فواتير مفتوحة على العملاء"
+        />
+        <CashCard
+          label="مقدمات عملاء عندنا"
+          value={customerAdvances}
+          icon={<ArrowDownCircle className="w-4 h-4" />}
+          accent="success"
+          link="/admin/contacts?balance=customer_advance"
+          hint="فلوس العملاء تحت الحساب (2150)"
         />
       </div>
 
@@ -357,7 +360,7 @@ fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount
               contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
             />
             <Area type="monotone" dataKey="sales" name="المبيعات" stroke="hsl(var(--primary))" fill="url(#salesGrad)" strokeWidth={2} />
-            <Area type="monotone" dataKey="net" name="صافي الربح" stroke="hsl(var(--success))" fill="url(#netGrad)" strokeWidth={2.5} />
+            {canViewNetProfitMain && <Area type="monotone" dataKey="net" name="صافي الربح" stroke="hsl(var(--success))" fill="url(#netGrad)" strokeWidth={2.5} />}
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -405,7 +408,7 @@ fetchAllRows<any>(() => supabase.from("payment_installments").select("id, amount
                     />
                   </div>
                   <span className={`font-bold text-sm w-28 text-end ${pos ? "text-success" : "text-destructive"}`}>
-                    {formatEGP(b.net)}
+                    {canViewNetProfitMain ? formatEGP(b.net) : NET_PROFIT_MASK}
                   </span>
                 </div>
               );
@@ -544,11 +547,12 @@ function CashCard({
 }
 
 function BranchCard({ title, branch, positive }: { title: string; branch: { name: string; net: number; revenue: number }; positive: boolean }) {
+  const canViewNetProfit = useCanViewNetProfit();
   return (
     <div className={`card-elevated p-6 border-2 ${positive ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"} text-center`}>
       <h4 className="text-base md:text-lg font-bold mb-3">{title}</h4>
       <div className="text-2xl md:text-3xl font-black mb-2 text-foreground">{branch.name}</div>
-       <FinancialAmount value={branch.net} size="hero" className={`mb-2 font-black ${positive ? "text-success" : "text-destructive"}`} />
+       <FinancialAmount value={canViewNetProfit ? branch.net : NET_PROFIT_MASK} currency={canViewNetProfit} size="hero" className={`mb-2 font-black ${!canViewNetProfit ? "text-muted-foreground" : positive ? "text-success" : "text-destructive"}`} />
       <div className="text-sm text-muted-foreground font-medium">
         من إجمالي مبيعات {formatEGP(branch.revenue)}
       </div>

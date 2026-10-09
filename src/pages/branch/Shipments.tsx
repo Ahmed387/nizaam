@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card } from "@/components/ui/card";
 import { CancelPurchaseDialog } from "@/components/CancelPurchaseDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchDocumentStatus } from "@/lib/ledger";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP, formatDate } from "@/lib/format";
 import { Plus, Eye, XCircle, FileDown } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -39,56 +41,33 @@ export default function Shipments() {
   const load = useCallback(async () => {
     if (!branchId) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("shipments")
-      .select("*, contacts(name)")
-      .eq("branch_id", branchId)
-      .order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
-    const ships = data ?? [];
-    // Compute paid status per shipment by allocating supplier payments FIFO (oldest shipments first)
-    const contactIds = Array.from(new Set(ships.map((s: any) => s.contact_id).filter(Boolean)));
-    let paidByContact = new Map<string, number>();
-    if (contactIds.length) {
-      const { data: pays } = await supabase
-        .from("supplier_payments")
-        .select("contact_id, amount")
-        .in("contact_id", contactIds);
-      (pays ?? []).forEach((p: any) => {
-        paidByContact.set(p.contact_id, (paidByContact.get(p.contact_id) ?? 0) + Number(p.amount || 0));
-      });
+    // every purchase invoice of the branch (no 1,000-row cap); paid / remaining from the unified ledger
+    let ships: any[] = [];
+    try {
+      ships = await fetchAllRows<any>(() => supabase
+        .from("shipments")
+        .select("*, contacts(name)")
+        .eq("branch_id", branchId)
+        .order("created_at", { ascending: false })
+        .order("id"));
+    } catch (e: any) {
+      toast.error(e?.message ?? "تعذر تحميل فواتير الشراء");
     }
-    // Allocate FIFO: oldest shipments get paid first
-    const byContact = new Map<string, any[]>();
-    // Cancelled invoices are outside the supplier statement — they take no payment.
-    [...ships].filter((s: any) => s.status !== "cancelled").sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-      .forEach((s) => {
-        if (!s.contact_id) return;
-        const arr = byContact.get(s.contact_id) ?? [];
-        arr.push(s);
-        byContact.set(s.contact_id, arr);
-      });
-    const paidStatus = new Map<string, { paid: number; total: number }>();
-    byContact.forEach((list, cid) => {
-      let remaining = paidByContact.get(cid) ?? 0;
-      list.forEach((s) => {
-        const total = Number(s.total_cost || 0);
-        const applied = Math.max(0, Math.min(remaining, total));
-        remaining -= applied;
-        paidStatus.set(s.id, { paid: applied, total });
-      });
-    });
+    const st = await fetchDocumentStatus("shipment", ships.filter((s: any) => s.status !== "cancelled").map((s: any) => s.id)).catch(() => new Map());
     const enriched = ships.map((s: any) => {
       if (s.status === "cancelled") return { ...s, _paid_amount: 0, _payment_status: "cancelled" };
-      const ps = paidStatus.get(s.id) ?? { paid: 0, total: Number(s.total_cost || 0) };
-      return { ...s, _paid_amount: ps.paid, _payment_status: ps.paid >= ps.total - 0.01 ? "paid" : ps.paid > 0 ? "partial" : "unpaid" };
+      const d = st.get(s.id);
+      const total = Number(s.total_cost || 0);
+      const paid = d ? d.paid : 0;
+      const status = d?.state === "before_ledger" ? "before_ledger" : paid >= total - 0.01 ? "paid" : paid > 0.005 ? "partial" : "unpaid";
+      return { ...s, _paid_amount: paid, _remaining: d ? d.remaining : total, _payment_status: status };
     });
     setRows(enriched);
     setLoading(false);
   }, [branchId]);
 
   useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["shipments", "supplier_payments"], load);
+  useRealtimeRefresh(["shipments", "supplier_payments", "vouchers", "payment_transactions", "purchase_returns"], load);
   const shipmentIds = useMemo(() => rows.map((r: any) => r.id), [rows]);
   const attCounts = useAttachmentCounts("shipment", shipmentIds);
 
@@ -206,6 +185,9 @@ export default function Shipments() {
               if (status === "cancelled") {
                 return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-destructive font-semibold" title={r.cancel_reason ?? undefined}>ملغاة</span>;
               }
+              if (status === "before_ledger") {
+                return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground font-medium" title="قبل 1 يناير 2026 — رصيدها في الرصيد الافتتاحي">أرشيف (قبل 2026)</span>;
+              }
               if (status === "paid") {
                 return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-emerald-500/10 text-emerald-600 font-medium">مدفوعة بالكامل</span>;
               }
@@ -214,7 +196,7 @@ export default function Shipments() {
                 return (
                   <div className="flex flex-col gap-0.5">
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-500/10 text-amber-600 font-medium w-fit">مدفوعة جزئياً ({pct}%)</span>
-                    <span className="text-[10px] text-muted-foreground">متبقي {formatEGP(total - paid)}</span>
+                    <span className="text-[10px] text-muted-foreground">متبقي {formatEGP(r._remaining ?? total - paid)}</span>
                   </div>
                 );
               }

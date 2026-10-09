@@ -593,7 +593,7 @@ export default function Inventory() {
 
   return (
     <BranchLayout>
-      <PageHeader title="المخزون" subtitle={`${rows.length} منتج`}
+      <PageHeader title="المخزون" subtitle={`${activeRows.length} منتج${archivedCount ? ` · ${archivedCount} مؤرشف` : ""}`}
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
