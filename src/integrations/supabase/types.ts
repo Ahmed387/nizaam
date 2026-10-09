@@ -9391,6 +9391,29 @@ export type Database = {
         Returns: undefined
       }
       system_health_check: { Args: never; Returns: Json }
+      system_integrity_audit: {
+        Args: { p_tenant?: string }
+        Returns: {
+          amount: number
+          area: string
+          branch_id: string
+          branch_name: string
+          check_code: string
+          contact_id: string
+          contact_name: string
+          details: string
+          doc_id: string
+          doc_number: string
+          doc_type: string
+          severity: string
+          title: string
+        }[]
+      }
+      system_integrity_audit_json: {
+        Args: { p_tenant?: string }
+        Returns: Json
+      }
+      system_integrity_summary: { Args: { p_tenant?: string }; Returns: Json }
       tenant_founder_admin: { Args: { _tenant_id: string }; Returns: string }
       transfer_stock_atomic: {
         Args: {
