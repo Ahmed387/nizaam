@@ -73,21 +73,29 @@ export function useDocumentMetrics(
         }
         const result: DocMetrics = aggregateFacts(unique.map((r) => docFacts(kind, r)));
 
+        if ((kind === "sale" || kind === "purchase") && !(ctx.to && ctx.to < LEDGER_START)) {
+          // Payment-method cards = the real money of this branch in the period, from the unified ledger
+          // (every screen that recorded it), net of money given back. Before 1 Jan 2026: from the documents.
+          // If the ledger cannot be read, the cards keep the documents' own figures.
+          try {
+            const from = !ctx.from || ctx.from < LEDGER_START ? LEDGER_START : ctx.from;
+            const flow = await fetchMoneyFlow(kind === "sale" ? "customer" : "supplier", ctx.branchId!, from, ctx.to || null, (ctx as any).partyId || null, ctrl.signal);
+            const byBucket = emptyBuckets();
+            for (const f of flow) byBucket[bucketOf(f.method)] += kind === "sale" ? f.money_in - f.money_out : f.money_out - f.money_in;
+            if (!ctx.from || ctx.from < LEDGER_START) {
+              const dateOf = (r: any) => String(r.invoice_date ?? r.created_at ?? "").slice(0, 10);
+              const before = aggregateFacts(unique.filter((r) => dateOf(r) && dateOf(r) < LEDGER_START).map((r) => docFacts(kind, r)));
+              (Object.keys(byBucket) as (keyof typeof byBucket)[]).forEach((k) => { if (k !== "other") byBucket[k] += before.byBucket[k] ?? 0; });
+            }
+            if (kind === "sale") byBucket.other = result.byBucket.other;
+            (Object.keys(byBucket) as (keyof typeof byBucket)[]).forEach((k) => { byBucket[k] = r2(byBucket[k]); });
+            result.byBucket = byBucket;
+          } catch (e) {
+            if ((e as { name?: string })?.name === "AbortError") throw e;
+            console.warn("money flow from the ledger is not available, cards show the documents' figures", e);
+          }
+        }
         if (kind === "purchase") {
-          // Supplier payments are account-level (not tied to one shipment): same branch + same period.
-          const { data: cats } = await supabase.from("voucher_categories" as any).select("id").eq("system_key", "supplier_payment");
-          const catIds = ((cats ?? []) as any[]).map((c) => c.id);
-          const orExpr = ["party_type.eq.supplier", catIds.length ? `category_id.in.(${catIds.join(",")})` : null].filter(Boolean).join(",");
-          const vouchers = await fetchAllRows<any>(() => {
-            let q: any = supabase.from("vouchers" as any).select("id, amount, payment_method")
-              .eq("branch_id", ctx.branchId!).eq("type", "payment").eq("status", "active").or(orExpr);
-            q = applyCairoRange(q, "voucher_date", ctx.from, ctx.to, true);
-            return q.order("id").abortSignal(ctrl.signal);
-          });
-          const byBucket = emptyBuckets();
-          for (const v of vouchers) { const a = Number(v.amount) || 0; byBucket[bucketOf(v.payment_method)] += a; }
-          (Object.keys(byBucket) as (keyof typeof byBucket)[]).forEach((b) => { byBucket[b] = r2(byBucket[b]); });
-          result.byBucket = byBucket;
           // «المسدد للموردين» = money allocated to these purchase invoices; purchase-return credit is not money.
           result.supplierPaid = r2(unique.reduce((s, r) => s + (Number(r.__paid_money) || 0), 0));
           result.supplierDue = r2(result.values.supplierDue ?? 0);
