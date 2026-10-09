@@ -40,7 +40,7 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from "@/components/CancelReturnButton";
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
-import { fetchPurchaseAllocation } from "@/lib/purchaseAllocation";
+import { fetchDocumentStatus } from "@/lib/ledger";
 import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
@@ -302,15 +302,26 @@ export default function Invoices() {
     }
     if (tab === "sale") {
       const pays = data.length ? await fetchPaymentSummaries(data.map((x: { id: string }) => x.id), ctrl.signal).catch(() => new Map<string, InvoicePaymentSummary>()) : new Map<string, InvoicePaymentSummary>();
+      // Paid / remaining from the unified ledger (direct payments, FIFO of general money, return credit).
+      const st = data.length ? await fetchDocumentStatus("invoice", data.map((x: any) => x.id), ctrl.signal).catch(() => new Map()) : new Map();
       if (stale()) return;
+      for (const x of data) {
+        const a = st.get(x.id);
+        if (!a) continue;
+        const s = pays.get(x.id) ?? { paid: 0, byBucket: emptyBuckets(), methods: [] };
+        pays.set(x.id, { ...s, paid: a.paid });
+        x.__paid_money = a.paid_money;
+        x.__paid_returns = a.paid_by_returns;
+        x.__ledger_state = a.state;
+      }
       setSalePays(pays);
     } else setSalePays(null);
     if (tab === "purchase" && data.length) {
-      const alloc = await fetchPurchaseAllocation(branchId!, data.map((x: any) => x.contact_id), ctrl.signal).catch(() => new Map());
+      const st = await fetchDocumentStatus("shipment", data.map((x: any) => x.id), ctrl.signal).catch(() => new Map());
       if (stale()) return;
       data = data.map((x: any) => (x.status === "cancelled"
         ? { ...x, __paid: 0, __remaining: 0 }
-        : { ...x, __paid: alloc.get(x.id)?.paid ?? 0, __remaining: alloc.get(x.id)?.remaining ?? (Number(x.total_cost) || 0) }));
+        : { ...x, __paid: st.get(x.id)?.paid ?? 0, __paid_money: st.get(x.id)?.paid_money ?? 0, __remaining: st.get(x.id)?.remaining ?? (Number(x.total_cost) || 0) }));
     }
     setRows(data);
     if (joinedDupes) {

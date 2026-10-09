@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { applyCairoRange } from "@/lib/cairoDate";
 import { aggregateFacts, docFacts, METRIC_SELECT, type DocKind, type DocMetricsResult } from "@/lib/documentMetrics";
-import { fetchPurchaseAllocation } from "@/lib/purchaseAllocation";
+import { fetchDocumentStatus } from "@/lib/ledger";
 import { bucketOf, emptyBuckets, fetchPaymentSummaries, r2 } from "@/hooks/useSalesInvoices";
 
 /** Query factory shared with the table: same filters, only the projection differs. */
@@ -48,19 +48,26 @@ export function useDocumentMetrics(
         let unique = rows.filter((r) => (seen.has(r.id) ? false : (seen.add(r.id), true)));
 
         if (kind === "sale") {
-          const pays = await fetchPaymentSummaries(unique.filter((r) => r.status === "active").map((r) => r.id), ctrl.signal);
+          const active = unique.filter((r) => r.status === "active");
+          const [pays, st] = await Promise.all([
+            fetchPaymentSummaries(active.map((r) => r.id), ctrl.signal),
+            fetchDocumentStatus("invoice", active.map((r) => r.id), ctrl.signal),
+          ]);
           unique = unique.map((r) => {
             const s = pays.get(r.id);
-            const paid = s?.paid ?? 0;
-            return { ...r, __paid: paid, __remaining: Math.max(0, r2((Number(r.total) || 0) - paid)), __byBucket: s?.byBucket ?? emptyBuckets() };
+            const a = st.get(r.id);
+            // Unified ledger: paid = every allocation (money + return credit); collected = money only.
+            const paid = a?.paid ?? s?.paid ?? 0;
+            return { ...r, __paid: paid, __paid_money: a?.paid_money ?? s?.paid ?? 0,
+                     __remaining: a ? a.remaining : Math.max(0, r2((Number(r.total) || 0) - paid)), __byBucket: s?.byBucket ?? emptyBuckets() };
           });
         }
 
         if (kind === "purchase") {
-          const alloc = await fetchPurchaseAllocation(ctx.branchId!, unique.map((r) => r.contact_id), ctrl.signal);
+          const st = await fetchDocumentStatus("shipment", unique.filter((r) => r.status !== "cancelled").map((r) => r.id), ctrl.signal);
           unique = unique.map((r) => (r.status === "cancelled"
-            ? { ...r, __paid: 0, __remaining: 0 }
-            : { ...r, __paid: alloc.get(r.id)?.paid ?? 0, __remaining: alloc.get(r.id)?.remaining ?? (Number(r.total_cost) || 0) }));
+            ? { ...r, __paid: 0, __paid_money: 0, __remaining: 0 }
+            : { ...r, __paid: st.get(r.id)?.paid ?? 0, __paid_money: st.get(r.id)?.paid_money ?? 0, __remaining: st.get(r.id)?.remaining ?? (Number(r.total_cost) || 0) }));
         }
         const result: DocMetrics = aggregateFacts(unique.map((r) => docFacts(kind, r)));
 
@@ -76,15 +83,14 @@ export function useDocumentMetrics(
             return q.order("id").abortSignal(ctrl.signal);
           });
           const byBucket = emptyBuckets();
-          let paid = 0;
-          for (const v of vouchers) { const a = Number(v.amount) || 0; paid += a; byBucket[bucketOf(v.payment_method)] += a; }
+          for (const v of vouchers) { const a = Number(v.amount) || 0; byBucket[bucketOf(v.payment_method)] += a; }
           (Object.keys(byBucket) as (keyof typeof byBucket)[]).forEach((b) => { byBucket[b] = r2(byBucket[b]); });
           result.byBucket = byBucket;
-          result.supplierPaid = r2(result.values.supplierPaid ?? 0);
+          // «المسدد للموردين» = money allocated to these purchase invoices; purchase-return credit is not money.
+          result.supplierPaid = r2(unique.reduce((s, r) => s + (Number(r.__paid_money) || 0), 0));
           result.supplierDue = r2(result.values.supplierDue ?? 0);
-          result.counts.supplierPaid = unique.filter((r) => r.__remaining <= 0.01).length;
-          result.counts.supplierDue = unique.filter((r) => r.__remaining > 0.01).length;
-          void paid;
+          result.counts.supplierPaid = unique.filter((r) => r.status !== "cancelled" && r.__remaining <= 0.01).length;
+          result.counts.supplierDue = unique.filter((r) => r.status !== "cancelled" && r.__remaining > 0.01).length;
         }
         if (!cancelled) setMetrics(result);
       } catch (e) {
