@@ -393,6 +393,34 @@
       "when": 1791547171788,
       "tag": "0055_step6c_part3_no_netting_and_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1791547572086,
+      "tag": "0056_step6d_part1_write_paths_on_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1791547734293,
+      "tag": "0057_step6d_part2_gl_from_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1791547902791,
+      "tag": "0058_step6d_part3_as_of_and_full_void",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1791548005377,
+      "tag": "0059_step6d_part4_security_sec005_sec007",
+      "breakpoints": true
     }
   ]
 }
