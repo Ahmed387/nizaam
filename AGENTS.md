@@ -25,6 +25,11 @@
 - Guarded RPCs keep their whole body in one function (no `__impl` split copies); tenant/role guards run at the top of that body — why: one callable path, no unguarded twin.
 - Never `GRANT EXECUTE … TO authenticated` in a loop over all SECURITY DEFINER functions. Internal helpers stay owner/service_role only; a new browser RPC is granted by name and added to the allow-list in `security_exposed_definer_functions()` in the same migration — why: definer functions bypass RLS (SEC-001, migration 0049).
 - The browser never calls `process_sale`; online and offline sales both go through `process_sale_full` — why: shift gate and admin-only backdating live there.
+- A new browser RPC is exposed by inserting its name into `security_rpc_allowlist` in the same migration (0050 replaced the hard-coded list) — why: the migration-end check fails on anything else.
+- `profiles.tenant_id` never changes except by the super admin or service_role (`guard_profile_tenant`); new auth users get their company from `app_metadata.tenant_id`, never `user_metadata` — why: `current_tenant_id()` reads it (SEC-002).
+- Every role helper (`has_role`, `is_admin`, `is_owner`, `has_central_access`, `user_in_branch`, `user_can_write_branch`) counts a role only inside the user's own company; only `super_admin` is platform-wide — why: no cross-company RPC calls.
+- Companies and their owners are created only from Super Admin → Tenants (`bootstrap-tenant`, super admin only); there is no public sign-up. A company with documents is never deleted — suspend it — why: owner rule, history is kept.
+- The Super Admin profit card reads `super_tenants_monthly_profit` (GL); its figures stay hidden until `platform_flags.super_profit_card` is switched on after Phase 5 — why: no estimated numbers.
 - Products with stock/document history cannot be deleted (RESTRICT FKs + guard trigger; only the guarded branch reset purges) — why: protect historical reports and COGS.
 - Payments of backdated documents pass the document date to `record_payment_transaction(p_payment_date)` so treasury/payment rows inherit it — why: periods follow accounting dates.
 - `vouchers.treasury_id` is NOT NULL with FK to `treasury` (ON DELETE CASCADE) — why: no voucher can exist without its cash movement; admin purges of treasury remove the voucher with it.

@@ -1,8 +1,7 @@
 import { Navigate } from "react-router-dom";
 
-// Legacy setup entry — unified into the Signup + SetupWizard flow.
-// New tenants sign up at /signup, then the wizard runs automatically after login
-// when tenants.setup_completed = false.
+// Legacy setup entry. Companies are created from the Super Admin dashboard only (SEC-002),
+// so there is no public setup flow any more.
 export default function Setup() {
-  return <Navigate to="/signup" replace />;
+  return <Navigate to="/login" replace />;
 }

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Store, Building2, BarChart3, Users, Shield, Zap, Check, ArrowLeft } from "lucide-react";
+import { Store, Building2, BarChart3, Users, Shield, Zap, Check } from "lucide-react";
 
 export default function Landing() {
   const features = [
@@ -34,7 +34,6 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/login"><Button variant="ghost">دخول</Button></Link>
-            <Link to="/signup"><Button className="btn-gradient">ابدأ مجاناً</Button></Link>
           </div>
         </div>
       </nav>
@@ -56,11 +55,6 @@ export default function Landing() {
             أدر فروعك ومخزونك ومبيعاتك وموظفيك من مكان واحد. سريع، آمن، وسهل الاستخدام.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link to="/signup">
-              <Button size="lg" className="btn-gradient h-12 text-base px-8">
-                أنشئ حساب شركتك الآن <ArrowLeft className="w-5 h-5 mr-2" />
-              </Button>
-            </Link>
             <Link to="/login">
               <Button size="lg" variant="outline" className="h-12 text-base px-8">
                 لدي حساب بالفعل

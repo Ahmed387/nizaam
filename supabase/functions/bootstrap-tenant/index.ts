@@ -58,19 +58,9 @@ Deno.serve(async (req) => {
     const { data: roleRows } = await admin
       .from("user_roles").select("role, tenant_id").eq("user_id", callerId);
     const roles = (roleRows ?? []).map((r: any) => r.role);
-    // إعادة التأسيس/الإنشاء: سوبر أدمن فقط، أو مالك الشركة الفعلي (tenants.owner_user_id)
-    // وشركته لسه ما اكتملش إعدادها. مجرد دور admin/owner مش كفاية.
-    let allowed = roles.includes("super_admin");
-    if (!allowed) {
-      const { data: prof } = await admin
-        .from("profiles").select("tenant_id").eq("id", callerId).maybeSingle();
-      if (prof?.tenant_id) {
-        const { data: t } = await admin
-          .from("tenants").select("setup_completed, owner_user_id").eq("id", prof.tenant_id).maybeSingle();
-        allowed = t?.owner_user_id === callerId && t?.setup_completed === false;
-      }
-    }
-    if (!allowed) return json({ error: "غير مصرح بإنشاء شركة جديدة — مالك الشركة أو السوبر أدمن فقط" }, 403);
+    // SEC-002: companies and their owners are created from the Super Admin dashboard only.
+    const allowed = roles.includes("super_admin");
+    if (!allowed) return json({ error: "إنشاء الشركات متاح للسوبر أدمن فقط" }, 403);
 
     const body: Body = await req.json();
 
@@ -127,10 +117,15 @@ Deno.serve(async (req) => {
       email: admin_email.trim(),
       password: admin_password,
       email_confirm: true,
-      user_metadata: { name: admin_name.trim(), tenant_id: tenantId },
+      user_metadata: { name: admin_name.trim() },
+      app_metadata: { tenant_id: tenantId },
     });
     if (uErr || !userRes?.user) return await rollback(friendlyAuthError(uErr?.message));
     const userId = userRes.user.id;
+
+    // The first account is the company owner (trg_sync_tenant_owner_role adds the owner role).
+    const { error: ownErr } = await supabase.from("tenants").update({ owner_user_id: userId }).eq("id", tenantId);
+    if (ownErr) return await rollback("فشل تعيين مالك الشركة: " + ownErr.message);
 
     await supabase.from("profiles").upsert({
       id: userId, name: admin_name.trim(), username: admin_email.split("@")[0], tenant_id: tenantId,

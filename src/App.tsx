@@ -49,7 +49,6 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Setup from "./pages/Setup";
 import SetupWizard from "./pages/SetupWizard";
-import Signup from "./pages/Signup";
 import Landing from "./pages/Landing";
 import Profile from "./pages/Profile";
 import Guide from "./pages/Guide";
@@ -206,7 +205,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/signup" element={<Signup />} />
+            <Route path="/signup" element={<Navigate to="/login" replace />} />
             <Route path="/setup" element={<Setup />} />
             <Route path="/admin/setup-wizard" element={<SetupWizard />} />
             <Route path="/setup-wizard" element={<SetupWizard />} />

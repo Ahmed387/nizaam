@@ -152,7 +152,7 @@ export default function Login() {
         </form>
 
         <p className="text-xs text-muted-foreground text-center mt-6">
-          ليس لديك شركة؟ <a href="/signup" className="text-primary hover:underline font-medium">أنشئ شركتك الآن مجاناً</a>
+          حسابات الشركات تُنشأ من إدارة النظام فقط — تواصل مع مسؤول النظام لفتح حساب شركتك.
         </p>
       </div>
     </div>

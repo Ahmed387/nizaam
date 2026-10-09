@@ -7,11 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Search, Power, Trash2, Building2, AlertOctagon, CheckCircle2 } from "lucide-react";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Loader2, Search, Power, Building2, AlertOctagon, CheckCircle2, Plus } from "lucide-react";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
@@ -36,7 +33,10 @@ export default function Tenants() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | "active" | "suspended">("all");
-  const [confirmDel, setConfirmDel] = useState<Tenant | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const emptyForm = { company_name: "", slug: "", admin_name: "", admin_email: "", admin_password: "", branch_name: "" };
+  const [form, setForm] = useState(emptyForm);
   const [suspendTarget, setSuspendTarget] = useState<Tenant | null>(null);
   const [reason, setReason] = useState("");
 
@@ -86,11 +86,35 @@ export default function Tenants() {
     load();
   };
 
-  const removeTenant = async (t: Tenant) => {
-    const { error } = await supabase.from("tenants").delete().eq("id", t.id);
-    if (error) return toast.error("فشل الحذف: " + error.message);
-    toast.success("تم حذف الشركة");
-    setConfirmDel(null);
+  // Companies are never deleted (SEC-002): suspension keeps all data. New companies and their
+  // owner account are created here only, through the bootstrap-tenant function (super admin only).
+  const createTenant = async () => {
+    const f = { ...form, slug: form.slug.trim().toLowerCase() };
+    if (!f.company_name.trim() || !f.slug || !f.admin_name.trim() || !f.admin_email.trim() || !f.admin_password || !f.branch_name.trim()) {
+      return toast.error("كل الحقول مطلوبة");
+    }
+    if (!/^[a-z0-9-]{3,40}$/.test(f.slug)) return toast.error("المعرف: حروف إنجليزية صغيرة وأرقام و- (3 إلى 40)");
+    if (f.admin_password.length < 8) return toast.error("كلمة مرور المالك 8 أحرف على الأقل");
+    setCreating(true);
+    const { data, error } = await supabase.functions.invoke("bootstrap-tenant", {
+      body: {
+        company_name: f.company_name.trim(), slug: f.slug,
+        admin_name: f.admin_name.trim(), admin_email: f.admin_email.trim(), admin_password: f.admin_password,
+        branches: [{ name: f.branch_name.trim() }],
+      },
+    });
+    setCreating(false);
+    const errMsg = error?.message || (data as any)?.error;
+    if (errMsg) return toast.error("فشل إنشاء الشركة: " + errMsg);
+    if (user && profile) {
+      await logAudit({
+        userId: user.id, userName: profile.name, tenantId: (data as any)?.tenant_id,
+        action: "CREATE", entity: "Tenant", entityId: (data as any)?.tenant_id,
+        details: { event: "create", tenant: f.company_name.trim(), owner_email: f.admin_email.trim() },
+      });
+    }
+    toast.success(`تم إنشاء شركة "${f.company_name.trim()}" وحساب المالك`);
+    setCreateOpen(false); setForm(emptyForm);
     load();
   };
 
@@ -109,7 +133,8 @@ export default function Tenants() {
 
   return (
     <SuperAdminLayout>
-      <PageHeader title="إدارة الشركات" subtitle={`إجمالي ${stats.total} • نشطة ${stats.active} • موقوفة ${stats.suspended}`} />
+      <PageHeader title="إدارة الشركات" subtitle={`إجمالي ${stats.total} • نشطة ${stats.active} • موقوفة ${stats.suspended}`}
+        actions={<Button className="btn-gradient" onClick={() => setCreateOpen(true)}><Plus className="w-4 h-4 ml-1" /> إنشاء شركة جديدة</Button>} />
 
       <div className="card-elevated p-4 mb-4 flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[220px]">
@@ -171,9 +196,6 @@ export default function Tenants() {
                       <Power className="w-4 h-4 ml-1" /> إيقاف
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmDel(t)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
             );
@@ -204,21 +226,29 @@ export default function Tenants() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>حذف الشركة "{confirmDel?.name}"؟</AlertDialogTitle>
-            <AlertDialogDescription>
-              تنبيه: لن يحذف بيانات الشركة (الفروع، المنتجات، الفواتير...) — سيحذف فقط سجل الشركة. للحذف الكامل تواصل مع الدعم.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmDel && removeTenant(confirmDel)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90">حذف</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Create company + owner (super admin only) */}
+      <Dialog open={createOpen} onOpenChange={(o) => { if (!creating) setCreateOpen(o); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>إنشاء شركة جديدة</DialogTitle>
+            <DialogDescription>بيتعمل الشركة وفرعها الأول وحساب المالك مرة واحدة. المالك يقدر يضيف باقي الفروع والموظفين بعد الدخول.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-1"><Label>اسم الشركة</Label><Input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></div>
+            <div className="grid gap-1"><Label>المعرف (slug)</Label><Input dir="ltr" placeholder="nile-trading" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} /></div>
+            <div className="grid gap-1"><Label>اسم الفرع الأول</Label><Input value={form.branch_name} onChange={(e) => setForm({ ...form, branch_name: e.target.value })} /></div>
+            <div className="grid gap-1"><Label>اسم المالك</Label><Input value={form.admin_name} onChange={(e) => setForm({ ...form, admin_name: e.target.value })} /></div>
+            <div className="grid gap-1"><Label>إيميل المالك</Label><Input dir="ltr" type="email" value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} /></div>
+            <div className="grid gap-1"><Label>كلمة مرور المالك</Label><Input dir="ltr" type="password" value={form.admin_password} onChange={(e) => setForm({ ...form, admin_password: e.target.value })} /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={creating} onClick={() => setCreateOpen(false)}>إلغاء</Button>
+            <Button className="btn-gradient" disabled={creating} onClick={createTenant}>
+              {creating ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Plus className="w-4 h-4 ml-1" />} إنشاء
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SuperAdminLayout>
   );
 }
