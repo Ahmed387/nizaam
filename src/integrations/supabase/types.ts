@@ -7849,6 +7849,20 @@ export type Database = {
         }[]
       }
       contact_has_legacy_docs: { Args: { p_contact: string }; Returns: boolean }
+      contact_side_balances: {
+        Args: { p_branch_id?: string; p_contact_ids: string[] }
+        Returns: {
+          contact_id: string
+          customer_advance: number
+          customer_balance: number
+          customer_open: number
+          customer_overdue: number
+          supplier_advance: number
+          supplier_balance: number
+          supplier_open: number
+          supplier_overdue: number
+        }[]
+      }
       contacts_page: {
         Args: {
           p_balance?: string[]
@@ -8343,6 +8357,22 @@ export type Database = {
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       is_viewer: { Args: { _user_id: string }; Returns: boolean }
+      ledger_aging: {
+        Args: { p_branch_id?: string; p_side: string }
+        Returns: {
+          advance: number
+          contact_id: string
+          contact_name: string
+          contact_type: string
+          d0_30: number
+          d120_plus: number
+          d31_60: number
+          d61_90: number
+          d91_120: number
+          oldest_date: string
+          total_open: number
+        }[]
+      }
       ledger_allocate: {
         Args: {
           p_contact: string
@@ -8353,12 +8383,118 @@ export type Database = {
         Returns: Json
       }
       ledger_backfill: { Args: { p_tenant?: string }; Returns: Json }
+      ledger_can_see_side: { Args: { p_side: string }; Returns: boolean }
+      ledger_contact_documents: {
+        Args: { p_branch_id?: string; p_contact: string; p_side: string }
+        Returns: {
+          branch_id: string
+          branch_name: string
+          cancel_reason: string
+          doc_date: string
+          doc_id: string
+          doc_number: string
+          doc_type: string
+          paid_by_returns: number
+          paid_from_other_branches: number
+          paid_money: number
+          remaining: number
+          state: string
+          total: number
+        }[]
+      }
+      ledger_contact_money: {
+        Args: { p_branch_id?: string; p_contact: string; p_side: string }
+        Returns: {
+          allocated: number
+          amount: number
+          branch_id: string
+          branch_name: string
+          cancel_reason: string
+          effect: string
+          kind: string
+          kind_label: string
+          method: string
+          movement_date: string
+          movement_id: string
+          reference: string
+          source_id: string
+          source_table: string
+          status: string
+          target_doc_number: string
+          unallocated: number
+          used_in_other_branches: number
+        }[]
+      }
+      ledger_contact_overview: {
+        Args: { p_branch_id?: string; p_contact: string }
+        Returns: Json
+      }
       ledger_contact_side_balance: {
         Args: { p_contact: string; p_side: string }
         Returns: number
       }
+      ledger_contact_statement: {
+        Args: {
+          p_branch_id?: string
+          p_contact: string
+          p_from?: string
+          p_side: string
+          p_to?: string
+        }
+        Returns: {
+          balance: number
+          branch_id: string
+          branch_name: string
+          credit: number
+          debit: number
+          description: string
+          doc_id: string
+          doc_type: string
+          line_date: string
+          line_no: number
+          line_type: string
+          reference: string
+        }[]
+      }
+      ledger_contact_tenant_check: {
+        Args: { p_contact: string; p_tenant: string }
+        Returns: undefined
+      }
+      ledger_credit_rows: {
+        Args: { p_contact?: string; p_tenant: string }
+        Returns: {
+          allocated: number
+          amount: number
+          branch_id: string
+          contact_id: string
+          created_at: string
+          kind: string
+          movement_date: string
+          movement_id: string
+          side: string
+          unallocated: number
+          used_in_other_branches: number
+        }[]
+      }
       ledger_cutoff: { Args: never; Returns: string }
       ledger_day: { Args: { ts: string }; Returns: string }
+      ledger_debt_rows: {
+        Args: { p_contact?: string; p_tenant: string }
+        Returns: {
+          allocated: number
+          amount: number
+          branch_id: string
+          contact_id: string
+          created_at: string
+          debt_id: string
+          debt_type: string
+          doc_date: string
+          paid_by_returns: number
+          paid_from_other_branches: number
+          remaining: number
+          side: string
+        }[]
+      }
       ledger_desired_movements: {
         Args: { p_contact: string }
         Returns: {
@@ -8377,6 +8513,19 @@ export type Database = {
           treasury_id: string
         }[]
       }
+      ledger_document_status: {
+        Args: { p_doc_type: string; p_ids: string[] }
+        Returns: {
+          doc_id: string
+          paid: number
+          paid_by_returns: number
+          paid_from_other_branches: number
+          paid_money: number
+          remaining: number
+          state: string
+          total: number
+        }[]
+      }
       ledger_effective_date: {
         Args: { p_day: string; p_tenant: string }
         Returns: string
@@ -8386,6 +8535,14 @@ export type Database = {
         Returns: string
       }
       ledger_ip_is_voided_mirror: { Args: { p_ip: string }; Returns: boolean }
+      ledger_kind_label: {
+        Args: { p_effect: string; p_kind: string; p_side: string }
+        Returns: string
+      }
+      ledger_movement_ref: {
+        Args: { p_source_id: string; p_source_table: string }
+        Returns: string
+      }
       ledger_opening_branch: {
         Args: { p_contact: string; p_tenant: string }
         Returns: string
@@ -8393,6 +8550,19 @@ export type Database = {
       ledger_opening_branch_is_fallback: {
         Args: { p_contact: string; p_tenant: string }
         Returns: boolean
+      }
+      ledger_overdue_rows: {
+        Args: { p_branch?: string; p_contact?: string; p_tenant: string }
+        Returns: {
+          contact_id: string
+          overdue: number
+          side: string
+        }[]
+      }
+      ledger_position: { Args: { p_branch_id?: string }; Returns: Json }
+      ledger_read_scope: {
+        Args: { p_branch: string; p_side: string }
+        Returns: string
       }
       ledger_reconciliation: {
         Args: { p_tenant?: string }
@@ -8422,6 +8592,17 @@ export type Database = {
       ledger_reconciliation_summary: {
         Args: { p_tenant?: string }
         Returns: Json
+      }
+      ledger_side_balances: {
+        Args: { p_branch?: string; p_contact?: string; p_tenant: string }
+        Returns: {
+          advance: number
+          balance: number
+          contact_id: string
+          open_docs: number
+          open_remaining: number
+          side: string
+        }[]
       }
       ledger_sync_contact: { Args: { p_contact: string }; Returns: Json }
       ledger_sync_safe: {

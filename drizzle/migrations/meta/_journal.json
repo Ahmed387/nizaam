@@ -379,6 +379,13 @@
       "when": 1791525297618,
       "tag": "0053_step6c_part1_opening_balances",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1791525575112,
+      "tag": "0054_step6c_part2_ledger_readers",
+      "breakpoints": true
     }
   ]
 }
