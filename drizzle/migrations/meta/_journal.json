@@ -337,6 +337,13 @@
       "when": 1791522544482,
       "tag": "0047_sec003_access_guard_and_cancel_only",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1791522915178,
+      "tag": "0048_sec004_lock_money_tables",
+      "breakpoints": true
     }
   ]
 }

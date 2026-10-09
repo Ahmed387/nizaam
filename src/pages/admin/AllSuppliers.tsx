@@ -25,6 +25,7 @@ import { useBranchScope } from "@/lib/branchScope";
 import { VoucherDialog } from "@/components/VoucherDialog";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { saveContact, deleteContact } from "@/lib/contactWrites";
 
 interface Supplier {
   id: string;
@@ -230,11 +231,11 @@ export default function AllSuppliers() {
         if (ok) setOpen(false);
         return;
       }
-      const { error } = await supabase.from("contacts").update(payload).eq("id", editing.id);
+      const { error } = await saveContact(editing.id, payload);
       if (error) return toast.error(error.message);
       toast.success("تم تحديث المورد");
     } else {
-      const { error } = await supabase.from("contacts").insert({ ...payload, tenant_id: tenantId });
+      const { error } = await saveContact(null, { ...payload, type: "both" });   // same as before (column default)
       if (error) return toast.error(error.message);
       toast.success("تمت إضافة المورد");
     }
@@ -261,7 +262,7 @@ export default function AllSuppliers() {
       if (ok) { setDeleteConfirm(null); setDeleteReason(""); }
       return;
     }
-    const { error } = await supabase.from("contacts").delete().eq("id", deleteConfirm.id);
+    const { error } = await deleteContact(deleteConfirm.id);
     if (error) return toast.error(error.message);
     toast.success("تم حذف المورد");
     setDeleteConfirm(null); load();

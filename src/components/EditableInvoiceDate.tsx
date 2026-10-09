@@ -63,9 +63,11 @@ export function EditableInvoiceDate({ table, recordId, value, fallback, compact,
           p_date: new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo" }).format(new Date(draft)),
           p_notes: null,
         })
-      : await (supabase.from(table as any) as any)
-          .update({ invoice_date: isoValue })
-          .eq("id", recordId);
+      : await (supabase.rpc as any)("update_shipment_date", {
+          p_shipment_id: recordId,
+          p_new_date: isoValue,
+          p_reason: "تعديل تاريخ فاتورة الشراء من شاشة المستندات",
+        });
     setBusy(false);
     if (error) {
       return toast.error(error.message);

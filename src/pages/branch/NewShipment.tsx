@@ -39,6 +39,7 @@ import { ColorPicker } from "@/components/ColorPicker";
 import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
 import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { saveContact } from "@/lib/contactWrites";
 
 interface Line {
   id?: string | null;
@@ -145,14 +146,13 @@ export default function NewShipment() {
     if (!newSup.name.trim()) return toast.error("اسم الشركة مطلوب");
     if (!tenantId) return toast.error("مفيش حساب مرتبط — جرّب تعمل تسجيل خروج ودخول تاني");
     setSavingSup(true);
-    const { data, error } = await supabase.from("contacts").insert({
-      tenant_id: tenantId,
+    const { data, error } = await saveContact(null, {
       type: "supplier",
       name: newSup.name.trim(),
       contact_person: newSup.contact_person.trim() || null,
       phone: newSup.phone.trim() || null,
       address: newSup.address.trim() || null,
-    }).select().single();
+    });
     setSavingSup(false);
     if (error || !data) return toast.error(error?.message ?? "فشل الإضافة");
     setSuppliers([data, ...suppliers]);
@@ -564,6 +564,9 @@ export default function NewShipment() {
           vat_type: vatType,
           vat_value: Number(vatValue || 0),
           notes: notes.trim() || null,
+          // Backdated invoice: saved in the same transaction, so the journal entry is posted on this
+          // date (SEC-004). Backdating stays admin-only (DB trigger).
+          invoice_date: invoiceDate && invoiceDate !== cairoTodayDay() ? invoiceDate : null,
         },
         p_lines: linesPayload,
         // Atomic: shipment + payment plan header + supplier advance deduction in one transaction.
@@ -581,12 +584,6 @@ export default function NewShipment() {
         toast.success(`✓ تم خصم ${appliedCredit.toLocaleString()} ج من رصيدك المسبق عند المورد`, { duration: 6000 });
       }
 
-      // Persist invoice_date (DB trigger restricts non-today changes to admin/super_admin)
-      const today = cairoTodayDay();
-      if (invoiceDate && invoiceDate !== today) {
-        const { error: dErr } = await supabase.from("shipments").update({ invoice_date: invoiceDate } as any).eq("id", ship.id);
-        if (dErr) console.warn("invoice_date update blocked:", dErr.message);
-      }
 
 
 

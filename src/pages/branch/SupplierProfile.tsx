@@ -59,6 +59,7 @@ import {
   Building2,
 } from "lucide-react";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
+import { saveContact, deleteContact } from "@/lib/contactWrites";
 
 export default function SupplierProfile() {
   const params = useParams<{ id: string; supplierId: string; contactId: string }>();
@@ -274,7 +275,7 @@ export default function SupplierProfile() {
 
   const submitEdit = async () => {
     if (!edit.name) return toast.error("اسم الشركة مطلوب");
-    const { error } = await supabase.from("contacts").update(edit).eq("id", supplierId!);
+    const { error } = await saveContact(supplierId!, edit);
     if (error) return toast.error(error.message);
     await logAudit({
       userId: user!.id,
@@ -294,7 +295,7 @@ export default function SupplierProfile() {
     if (shipments.length > 0) {
       return toast.error("لا يمكن حذف مورد له فواتير شراء. احذف فواتير الشراء أولاً.");
     }
-    const { error } = await supabase.from("contacts").delete().eq("id", supplierId!);
+    const { error } = await deleteContact(supplierId!);
     if (error) return toast.error(error.message);
     await logAudit({
       userId: user!.id,
@@ -468,7 +469,7 @@ export default function SupplierProfile() {
             )}
             {supplier && supplier.type !== "both" && (
               <Button variant="outline" onClick={async () => {
-                const { error } = await supabase.from("contacts").update({ type: "both" } as any).eq("id", supplierId!);
+                const { error } = await saveContact(supplierId!, { type: "both" });
                 if (error) return toast.error(error.message);
                 toast.success(supplier.type === "supplier" ? "تمت إضافته كعميل أيضاً" : "تمت إضافته كمورد أيضاً");
                 load();

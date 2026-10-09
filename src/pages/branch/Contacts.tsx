@@ -28,6 +28,7 @@ import { confirmAlert } from "@/components/ConfirmDialog";
 import { VoucherDialog } from "@/components/VoucherDialog";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { saveContact, deleteContact } from "@/lib/contactWrites";
 
 type ContactType = "customer" | "supplier" | "both";
 
@@ -217,7 +218,7 @@ export default function Contacts() {
         notes: form.notes || null,
       };
       if (isAdmin) {
-        const { error } = await supabase.from("contacts").update(payload).eq("id", editing.id);
+        const { error } = await saveContact(editing.id, payload);
         if (error) return toast.error(error.message);
         toast.success("تم التحديث");
       } else if (isManager) {
@@ -249,7 +250,7 @@ export default function Contacts() {
       notes: form.notes || null,
       branch_id: form.type === "supplier" ? null : branchId,
     };
-    const { error } = await supabase.from("contacts").insert(payload);
+    const { error } = await saveContact(null, payload);
     if (error) return toast.error(error.message);
     toast.success("تمت الإضافة");
     setOpen(false);
@@ -260,7 +261,7 @@ export default function Contacts() {
   const onDelete = async () => {
     if (!deleteTarget) return;
     if (isAdmin) {
-      const { error } = await supabase.from("contacts").delete().eq("id", deleteTarget.id);
+      const { error } = await deleteContact(deleteTarget.id);
       if (error) return toast.error(error.message);
       toast.success("تم الحذف");
     } else if (isManager) {
@@ -285,7 +286,7 @@ export default function Contacts() {
   const promoteToBoth = async (r: any, asWhat: "customer" | "supplier") => {
     if (r.type === "both") return;
     // لو حاليًا عميل وعايز نضيفه كمورد، أو العكس → النوع يصبح both
-    const { error } = await supabase.from("contacts").update({ type: "both" } as any).eq("id", r.id);
+    const { error } = await saveContact(r.id, { type: "both" });
     if (error) return toast.error(error.message);
     toast.success(asWhat === "supplier" ? "تمت إضافته كمورد أيضاً" : "تمت إضافته كعميل أيضاً");
     load();

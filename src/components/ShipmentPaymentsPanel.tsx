@@ -6,7 +6,6 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { PAYMENT_METHOD_OPTIONS } from "@/lib/paymentMethods";
 import { EditPaymentDialog } from "./EditPaymentDialog";
 import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
-import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 interface Props {
@@ -20,7 +19,6 @@ const methodLabel = (m: string) =>
 
 /** تعديل طريقة الدفع من جوه صفحة فاتورة الشراء نفسها */
 export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props) {
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [plan, setPlan] = useState<any>(null);
@@ -62,25 +60,17 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
     try {
       const { data: sh, error: se } = await supabase
         .from("shipments")
-        .select("id, branch_id, contact_id, total_cost, contacts(name)")
+        .select("id, total_cost")
         .eq("id", shipmentId)
         .single();
       if (se) throw se;
-      const total = Number((sh as any).total_cost || 0);
-      const { error } = await supabase.from("payment_plans").insert({
-        branch_id: (sh as any).branch_id,
-        entity_type: "supplier",
-        entity_id: (sh as any).contact_id,
-        entity_name: (sh as any).contacts?.name ?? "مورد",
-        total_amount: total,
-        paid_amount: 0,
-        remaining_amount: total,
-        plan_type: "open",
-        reference_type: "shipment",
-        reference_id: shipmentId,
-        status: "active",
-        created_by: user!.id,
-      } as any);
+      // Header written on the server from the purchase invoice (SEC-004).
+      const { error } = await (supabase.rpc as any)("create_payment_plan", {
+        p_reference_type: "shipment",
+        p_reference_id: shipmentId,
+        p_total: Number((sh as any).total_cost || 0),
+        p_plan_type: "open",
+      });
       if (error) throw error;
       toast.success("تم إنشاء خطة الدفع ✅", { description: "دلوقتي تقدر تسجّل المدفوع وتعدّل طريقة الدفع" });
       await load();
