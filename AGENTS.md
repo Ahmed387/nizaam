@@ -6,10 +6,7 @@
 - Voucher journals follow `voucher_date`; treasury periods use synchronized `treasury.transaction_date`, never `created_at`.
 - Date filters use Cairo timestamp bounds or direct SQL-date comparison.
 - Write recipient/notes only via `set_document_annotations`; leave financial fields untouched.
-- New-document recipient is the signed-in user via `LockedRecipientInput` and stays read-only.
 - Compute contact running balances before filters; dated views add a prior-balance row.
-- Render list-level `#` columns through `DataTable.indexColumn` as 1-based numeric indices with the correct server-page offset — why: numbering stays consistent and continuous across pagination.
-- Derive treasury labels with format helpers; never rewrite stored ledger text.
 - Reads over 1,000 rows use `fetchAllRows`, `.order("id")`, and lean columns.
 - Save sales only via atomic `process_sale_full`; require shifts and restrict backdating to admins.
 - Cancel vouchers through `cancel_voucher` reversal rows; never delete treasury history.
@@ -18,13 +15,10 @@
 - Contact deposits use `MAIN-TREASURY`; `PARTNER-CASH` is partner-capital-only; neither is operational.
 - Admin reports use `contact_branch_balances`, `get_branch_wallet_balances`, and `v_contact_balances.ledger_balance` for their respective scopes.
 - Show negative contact credit separately from treasury cash and flows.
-- Every statistical card uses `MetricHint` with meaning, source, and exact formula.
 - Branch queries use `scopeToBranch` with the route branch id; cross-branch views are admin/HQ only.
-- Wide tables use DataTable `minTableWidth` (wrapper gets `data-wide`); `index.css` compact CSS stays `:not([data-wide])`-guarded.
 - Filter payments in-DB via `invoice_payments!inner`, not a client id list.
 
 - Prepaid customer credit is only `contacts.credit_balance` (negative = available) consumed via `process_sale_full.p_credit_to_apply`; `settlement` is retired and `treasury` rejects non-cash methods by trigger — why: one flow, no phantom cash.
-- The six document tabs in `Invoices.tsx` use `UnifiedDocumentFilters` + `UnifiedDocumentMetrics`; card values and click-to-filter both come from `docFacts` in `lib/documentMetrics.ts` — why: one formula per card, cards and table never diverge.
 - `treasury` has no client INSERT grant; cash movements are written only by SECURITY DEFINER RPCs (e.g. `disburse_employee_advance`) — why: no phantom or half-written cash from the browser.
 - `contacts.credit_balance` is a derived cache of Σ `customer_credit_log.balance_delta`, synced by trigger; direct updates are blocked — why: one source of truth for prepaid credit.
 - Purchase invoices save via `record_shipment_with_credit` (shipment + plan header + supplier advance deduction atomically); supplier balances on shipments are computed from the contact ledger, never from stored `previous_balance/current_balance` — why: no half-saved invoices or stale balances.
@@ -36,5 +30,3 @@
 - `vouchers.treasury_id` is NOT NULL with FK to `treasury` (ON DELETE CASCADE) — why: no voucher can exist without its cash movement; admin purges of treasury remove the voucher with it.
 - Partners get central read-only access to all branches (client treats `partner` like `viewer`; a trigger auto-adds the `viewer` role) — why: one central read path, no writes outside their portal.
 - Historical import tables are scoped by `branch_id` (auto-filled from `branch_name` by trigger); `branch_name` is display-only — why: no string-based access checks.
-- Every document contact picker uses `ContactLookup` → `search_branch_contacts` RPC (eligibility: not archived, type+both, own branch / no branch / activity in branch; server-side search) — why: one rule everywhere, no 1,000-row cap.
-- The Contacts page reads through the `contacts_page` RPC (search, type tab, balance filter, paging, counts and totals in one jsonb result) — why: all contacts searchable, no 1,000-row cap.
