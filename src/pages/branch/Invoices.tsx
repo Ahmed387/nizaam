@@ -41,7 +41,7 @@ import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from 
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 import { fetchDocumentStatus } from "@/lib/ledger";
-import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
+import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, emptyBuckets, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
 import { MetricCardWithHint } from "@/components/MetricCardWithHint";
