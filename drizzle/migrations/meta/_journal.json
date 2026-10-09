@@ -372,6 +372,13 @@
       "when": 1791524591928,
       "tag": "0052_step6b_ledger_capture_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1791525297618,
+      "tag": "0053_step6c_part1_opening_balances",
+      "breakpoints": true
     }
   ]
 }
