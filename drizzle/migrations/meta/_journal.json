@@ -351,6 +351,13 @@
       "when": 1791523268814,
       "tag": "0049_step5_server_audit_and_last_writes",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1791523450680,
+      "tag": "0050_step6a_ledger_schema",
+      "breakpoints": true
     }
   ]
 }

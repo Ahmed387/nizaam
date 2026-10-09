@@ -3148,6 +3148,130 @@ export type Database = {
           },
         ]
       }
+      money_movements: {
+        Row: {
+          amount: number
+          branch_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          direction: string | null
+          effect: string
+          id: string
+          is_cash: boolean | null
+          kind: string
+          method: string | null
+          movement_date: string
+          notes: string | null
+          side: string
+          source_id: string
+          source_table: string
+          status: string
+          target_doc_id: string | null
+          target_doc_type: string | null
+          tenant_id: string
+          treasury_id: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string | null
+          effect: string
+          id?: string
+          is_cash?: boolean | null
+          kind: string
+          method?: string | null
+          movement_date: string
+          notes?: string | null
+          side: string
+          source_id: string
+          source_table: string
+          status?: string
+          target_doc_id?: string | null
+          target_doc_type?: string | null
+          tenant_id: string
+          treasury_id?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          direction?: string | null
+          effect?: string
+          id?: string
+          is_cash?: boolean | null
+          kind?: string
+          method?: string | null
+          movement_date?: string
+          notes?: string | null
+          side?: string
+          source_id?: string
+          source_table?: string
+          status?: string
+          target_doc_id?: string | null
+          target_doc_type?: string | null
+          tenant_id?: string
+          treasury_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "money_movements_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "money_movements_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "money_movements_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "money_movements_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "money_movements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "money_movements_treasury_id_fkey"
+            columns: ["treasury_id"]
+            isOneToOne: false
+            referencedRelation: "treasury"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
@@ -3746,6 +3870,136 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_allocations: {
+        Row: {
+          amount: number
+          clearing_journal_id: string | null
+          contact_id: string | null
+          created_at: string
+          debt_branch_id: string
+          debt_id: string
+          debt_type: string
+          effective_date: string
+          id: string
+          is_cross_branch: boolean | null
+          mode: string
+          movement_branch_id: string
+          movement_id: string
+          run_id: string
+          side: string
+          status: string
+          superseded_at: string | null
+          superseded_by_run: string | null
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          clearing_journal_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          debt_branch_id: string
+          debt_id: string
+          debt_type: string
+          effective_date: string
+          id?: string
+          is_cross_branch?: boolean | null
+          mode: string
+          movement_branch_id: string
+          movement_id: string
+          run_id: string
+          side: string
+          status?: string
+          superseded_at?: string | null
+          superseded_by_run?: string | null
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          clearing_journal_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          debt_branch_id?: string
+          debt_id?: string
+          debt_type?: string
+          effective_date?: string
+          id?: string
+          is_cross_branch?: boolean | null
+          mode?: string
+          movement_branch_id?: string
+          movement_id?: string
+          run_id?: string
+          side?: string
+          status?: string
+          superseded_at?: string | null
+          superseded_by_run?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_clearing_journal_id_fkey"
+            columns: ["clearing_journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "v_contact_balances"
+            referencedColumns: ["contact_id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_debt_branch_id_fkey"
+            columns: ["debt_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_debt_branch_id_fkey"
+            columns: ["debt_branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_movement_branch_id_fkey"
+            columns: ["movement_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_movement_branch_id_fkey"
+            columns: ["movement_branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: false
+            referencedRelation: "money_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
