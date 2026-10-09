@@ -235,7 +235,7 @@ export default function Inventory() {
       if (sizeChanged) patch.size = editForm.size || null;
       if (brandChanged) patch.brand = editForm.brand.trim() || null;
       if (modelChanged) patch.model = editForm.model.trim() || null;
-      const { error } = await supabase.from("products").update(patch).eq("id", editAll.id);
+      const { error } = await (supabase.rpc as any)("update_product_details", { p_id: editAll.id, p_patch: patch });
       if (error) {
         setSavingEdit(false);
         if (String(error.message).toLowerCase().includes("duplicate") || (error as any).code === "23505") {

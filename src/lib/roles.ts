@@ -357,9 +357,14 @@ export async function fetchUserContext(userId: string) {
   };
 }
 
+/**
+ * Audit rows are written by the server (log_audit_event): user, name and company come from the
+ * session, never from the browser (Step 5). userId / userName / tenantId stay in the signature for
+ * the existing callers and are ignored. A failed audit write never blocks the business action.
+ */
 export async function logAudit(params: {
-  userId: string;
-  userName: string;
+  userId?: string;
+  userName?: string;
   tenantId?: string | null;
   branchId?: string | null;
   action: "CREATE" | "UPDATE" | "DELETE" | "CANCEL";
@@ -367,14 +372,12 @@ export async function logAudit(params: {
   entityId?: string;
   details?: any;
 }) {
-  await supabase.from("audit_log").insert({
-    user_id: params.userId,
-    user_name: params.userName,
-    tenant_id: params.tenantId ?? null,
-    branch_id: params.branchId ?? null,
-    action: params.action,
-    entity: params.entity,
-    entity_id: params.entityId,
-    details: params.details ?? {},
-  } as any);
+  const { error } = await (supabase.rpc as any)("log_audit_event", {
+    p_action: params.action,
+    p_entity: params.entity,
+    p_entity_id: params.entityId ?? null,
+    p_branch_id: params.branchId ?? null,
+    p_details: params.details ?? {},
+  });
+  if (error) console.warn("audit log failed:", error.message);
 }

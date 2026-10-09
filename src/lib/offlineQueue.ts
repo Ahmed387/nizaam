@@ -22,6 +22,8 @@ export interface PendingSale {
   id?: number;
   created_at: number;
   payload: {
+    /** H-01: set when the sale is created; the server saves one invoice per id. */
+    p_client_request_id?: string;
     p_branch_id: string;
     p_customer_id: string | null;
     p_subtotal: number;
@@ -43,15 +45,23 @@ function cairoDay(ms: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
 }
 
+/** Stable id for rows queued before H-01 (no request id stored): same row → same id on every replay. */
+function legacyRequestId(p: PendingSale): string {
+  const h = (n: number, len: number) => Math.abs(Math.trunc(n)).toString(16).padStart(len, "0").slice(-len);
+  return `5a1e${h(p.id ?? 0, 4)}-0000-4000-8000-${h(p.created_at, 12)}`;
+}
+
 /**
- * Replays through process_sale_full (shift gate, admin-only backdating, same rules as an online sale).
- * process_sale is no longer callable from the browser (SEC-001). Older queued rows may lack the
- * VAT/date/payments fields, so they are filled in: the invoice keeps the day it was made offline.
+ * Replays through process_sale_once → process_sale_full (shift gate, admin-only backdating, same rules
+ * as an online sale). The request id makes a replay of a sale that already reached the server return
+ * that invoice instead of saving it twice (H-01). Older queued rows may lack the VAT/date/payments
+ * fields, so they are filled in: the invoice keeps the day it was made offline.
  */
 function toFullPayload(p: PendingSale) {
   const x = p.payload;
   return {
     ...x,
+    p_client_request_id: x.p_client_request_id ?? legacyRequestId(p),
     p_payments: Array.isArray(x.p_payments) ? x.p_payments : [],
     p_vat_rate: x.p_vat_rate ?? 0,
     p_vat_amount: x.p_vat_amount ?? 0,
@@ -124,7 +134,7 @@ export async function syncPendingSales(silent = false) {
     let fail = 0;
     let lastError = "";
     for (const p of pending) {
-      const { error } = await supabase.rpc("process_sale_full" as any, toFullPayload(p) as any);
+      const { error } = await supabase.rpc("process_sale_once" as any, toFullPayload(p) as any);
       // Failed rows stay queued (nothing is lost); a manager/admin can sync them later.
       if (error) { fail++; lastError = error.message; continue; }
       if (p.id != null) await removePending(p.id);

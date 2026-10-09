@@ -397,6 +397,7 @@ export type Database = {
           entity: string
           entity_id: string | null
           id: string
+          source: string
           tenant_id: string | null
           user_id: string | null
           user_name: string
@@ -409,6 +410,7 @@ export type Database = {
           entity: string
           entity_id?: string | null
           id?: string
+          source?: string
           tenant_id?: string | null
           user_id?: string | null
           user_name: string
@@ -421,6 +423,7 @@ export type Database = {
           entity?: string
           entity_id?: string | null
           id?: string
+          source?: string
           tenant_id?: string | null
           user_id?: string | null
           user_name?: string
@@ -3250,6 +3253,9 @@ export type Database = {
       owner_personal_deposits: {
         Row: {
           amount: number
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           category: string | null
           created_at: string
           created_by: string
@@ -3258,10 +3264,14 @@ export type Database = {
           id: string
           notes: string | null
           owner_user_id: string
+          status: string
           updated_at: string
         }
         Insert: {
           amount: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           category?: string | null
           created_at?: string
           created_by?: string
@@ -3270,10 +3280,14 @@ export type Database = {
           id?: string
           notes?: string | null
           owner_user_id: string
+          status?: string
           updated_at?: string
         }
         Update: {
           amount?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           category?: string | null
           created_at?: string
           created_by?: string
@@ -3282,6 +3296,7 @@ export type Database = {
           id?: string
           notes?: string | null
           owner_user_id?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -3289,6 +3304,9 @@ export type Database = {
       owner_personal_expenses: {
         Row: {
           amount: number
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           category: string | null
           created_at: string
           created_by: string
@@ -3297,10 +3315,14 @@ export type Database = {
           id: string
           notes: string | null
           owner_user_id: string
+          status: string
           updated_at: string
         }
         Insert: {
           amount: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           category?: string | null
           created_at?: string
           created_by?: string
@@ -3309,10 +3331,14 @@ export type Database = {
           id?: string
           notes?: string | null
           owner_user_id: string
+          status?: string
           updated_at?: string
         }
         Update: {
           amount?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           category?: string | null
           created_at?: string
           created_by?: string
@@ -3321,6 +3347,7 @@ export type Database = {
           id?: string
           notes?: string | null
           owner_user_id?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -5363,6 +5390,62 @@ export type Database = {
           },
         ]
       }
+      sale_requests: {
+        Row: {
+          branch_id: string
+          created_at: string
+          created_by: string
+          id: string
+          invoice_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          created_by: string
+          id: string
+          invoice_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          invoice_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_requests_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_requests_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "v_treasury_balances"
+            referencedColumns: ["branch_id"]
+          },
+          {
+            foreignKeyName: "sale_requests_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scheduled_reports: {
         Row: {
           created_at: string
@@ -7230,6 +7313,7 @@ export type Database = {
         }
         Returns: number
       }
+      apply_low_stock_default: { Args: { p_value: number }; Returns: number }
       apply_price_list_update: {
         Args: { p_items: Json; p_source_id: string }
         Returns: Json
@@ -7335,6 +7419,10 @@ export type Database = {
           role: string
         }[]
       }
+      bulk_update_products: {
+        Args: { p_ids: string[]; p_patch: Json; p_reason?: string }
+        Returns: number
+      }
       cairo_today: { Args: never; Returns: string }
       calculate_payment_fee: {
         Args: { p_amount: number; p_method: string }
@@ -7360,6 +7448,10 @@ export type Database = {
       cancel_partner_advance: {
         Args: { _advance_id: string; _reason?: string }
         Returns: Json
+      }
+      cancel_personal_entry: {
+        Args: { p_id: string; p_kind: string; p_reason: string }
+        Returns: undefined
       }
       cancel_pre_order: {
         Args: { p_pre_order_id: string; p_refund: boolean }
@@ -7579,6 +7671,15 @@ export type Database = {
         Args: { p_header: Json; p_items: Json }
         Returns: Json
       }
+      create_stock_adjustment: {
+        Args: {
+          p_branch_id: string
+          p_lines: Json
+          p_notes: string
+          p_reason: string
+        }
+        Returns: Json
+      }
       current_shift_schedule: {
         Args: { p_at?: string; p_branch_id: string }
         Returns: {
@@ -7610,6 +7711,7 @@ export type Database = {
         Returns: Json
       }
       delete_contact: { Args: { p_id: string }; Returns: undefined }
+      delete_products: { Args: { p_ids: string[] }; Returns: number }
       detect_anomalies: { Args: never; Returns: number }
       detect_orphaned_batches: {
         Args: never
@@ -7964,6 +8066,16 @@ export type Database = {
         Args: { p_ip_id: string }
         Returns: boolean
       }
+      log_audit_event: {
+        Args: {
+          p_action: string
+          p_branch_id?: string
+          p_details?: Json
+          p_entity: string
+          p_entity_id?: string
+        }
+        Returns: string
+      }
       manage_owner_expense_access: {
         Args: {
           allow_edit: boolean
@@ -8300,6 +8412,29 @@ export type Database = {
         }
         Returns: string
       }
+      process_sale_once: {
+        Args: {
+          p_branch_id: string
+          p_client_request_id: string
+          p_credit_to_apply?: number
+          p_customer_id: string
+          p_discount_amount: number
+          p_discount_percent: number
+          p_discount_reason: string
+          p_invoice_date: string
+          p_items: Json
+          p_notes?: string
+          p_payment_method: string
+          p_payments: Json
+          p_received_by_name?: string
+          p_recipient?: string
+          p_subtotal: number
+          p_total: number
+          p_vat_amount: number
+          p_vat_rate: number
+        }
+        Returns: string
+      }
       purge_ai_ask_log: { Args: never; Returns: number }
       purge_orphan_journal_entries: {
         Args: { p_tenant: string }
@@ -8520,6 +8655,10 @@ export type Database = {
       }
       safe_delete_product: { Args: { _product_id: string }; Returns: undefined }
       save_contact: { Args: { p_data: Json; p_id: string }; Returns: Json }
+      save_personal_entry: {
+        Args: { p_data: Json; p_id: string; p_kind: string }
+        Returns: string
+      }
       search_branch_contacts: {
         Args: {
           p_branch_id: string
@@ -8746,6 +8885,10 @@ export type Database = {
       update_invoice_date_sovereign: {
         Args: { p_invoice_id: string; p_new_date: string; p_reason?: string }
         Returns: Json
+      }
+      update_product_details: {
+        Args: { p_id: string; p_patch: Json }
+        Returns: undefined
       }
       update_product_price_with_reason: {
         Args: {

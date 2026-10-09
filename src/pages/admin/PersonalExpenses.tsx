@@ -36,6 +36,9 @@ interface Row {
   category: string | null;
   expense_datetime: string;
   notes: string | null;
+  status?: "active" | "cancelled";
+  cancel_reason?: string | null;
+  cancelled_at?: string | null;
 }
 
 interface Deposit {
@@ -46,6 +49,9 @@ interface Deposit {
   category: string | null;
   deposit_datetime: string;
   notes: string | null;
+  status?: "active" | "cancelled";
+  cancel_reason?: string | null;
+  cancelled_at?: string | null;
 }
 
 const OWNER_NAME = "حج ناصر";
@@ -212,6 +218,11 @@ export default function PersonalExpenses() {
   });
   const [saving, setSaving] = useState(false);
   const [delRow, setDelRow] = useState<Row | null>(null);
+  // No hard delete (owner rule): a wrong line is cancelled with a reason and stays visible here.
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelledExp, setCancelledExp] = useState<Row[]>([]);
+  const [cancelledDep, setCancelledDep] = useState<Deposit[]>([]);
+  const [showCancelled, setShowCancelled] = useState(false);
 
   // deposits dialog
   const [depDialogOpen, setDepDialogOpen] = useState(false);
@@ -270,10 +281,19 @@ export default function PersonalExpenses() {
       supabase.from("owner_personal_expenses" as any).select("*").eq("owner_user_id", ownerId).order("expense_datetime", { ascending: false }),
       supabase.from("owner_personal_deposits" as any).select("*").eq("owner_user_id", ownerId).order("deposit_datetime", { ascending: false }),
     ]);
+    // Totals, charts and exports use active lines only; cancelled ones are listed separately.
     if (expRes.error) toast.error(expRes.error.message);
-    else setRows((expRes.data || []) as any);
+    else {
+      const all = (expRes.data || []) as any[];
+      setRows(all.filter((r) => r.status !== "cancelled"));
+      setCancelledExp(all.filter((r) => r.status === "cancelled"));
+    }
     if (depRes.error) toast.error(depRes.error.message);
-    else setDeposits((depRes.data || []) as any);
+    else {
+      const all = (depRes.data || []) as any[];
+      setDeposits(all.filter((d) => d.status !== "cancelled"));
+      setCancelledDep(all.filter((d) => d.status === "cancelled"));
+    }
     setLoading(false);
   };
 
@@ -657,17 +677,17 @@ export default function PersonalExpenses() {
     if (missing.length) { setFormErrors(missing); return; }
     setFormErrors([]);
     setSaving(true);
-    const payload: any = {
-      owner_user_id: ownerId,
-      amount: amt,
-      description: form.description.trim(),
-      category: form.category.trim() || null,
-      expense_datetime: new Date(form.expense_datetime).toISOString(),
-      notes: form.notes.trim() || null,
-    };
-    let res;
-    if (editing) res = await supabase.from("owner_personal_expenses" as any).update(payload).eq("id", editing.id);
-    else res = await supabase.from("owner_personal_expenses" as any).insert(payload);
+    const res = await (supabase.rpc as any)("save_personal_entry", {
+      p_kind: "expense",
+      p_id: editing ? editing.id : null,
+      p_data: {
+        amount: amt,
+        description: form.description.trim(),
+        category: form.category.trim() || null,
+        at: new Date(form.expense_datetime).toISOString(),
+        notes: form.notes.trim() || null,
+      },
+    });
     setSaving(false);
     if (res.error) return toast.error(res.error.message);
     if (!isPersonalOwner) toast.success(editing ? "تم التعديل" : "تمت الإضافة");
@@ -677,10 +697,12 @@ export default function PersonalExpenses() {
 
   const remove = async () => {
     if (!delRow) return;
-    const { error } = await supabase.from("owner_personal_expenses" as any).delete().eq("id", delRow.id);
+    if (!cancelReason.trim()) return toast.error("اكتب سبب الإلغاء");
+    const { error } = await (supabase.rpc as any)("cancel_personal_entry", { p_kind: "expense", p_id: delRow.id, p_reason: cancelReason.trim() });
     if (error) return toast.error(error.message);
-    if (!isPersonalOwner) toast.success("تم الحذف");
+    if (!isPersonalOwner) toast.success("تم إلغاء المصروف");
     setDelRow(null);
+    setCancelReason("");
     load();
   };
 
@@ -713,18 +735,17 @@ export default function PersonalExpenses() {
     if (missing.length) { setDepErrors(missing); return; }
     setDepErrors([]);
     setSavingDep(true);
-    const payload: any = {
-      owner_user_id: ownerId,
-      amount: amt,
-      description: depForm.description.trim() || "إيداع",
-      category: depForm.category.trim() || null,
-      deposit_datetime: new Date(depForm.deposit_datetime).toISOString(),
-      notes: depForm.notes.trim() || null,
-      updated_at: new Date().toISOString(),
-    };
-    let res;
-    if (editingDep) res = await supabase.from("owner_personal_deposits" as any).update(payload).eq("id", editingDep.id);
-    else res = await supabase.from("owner_personal_deposits" as any).insert(payload);
+    const res = await (supabase.rpc as any)("save_personal_entry", {
+      p_kind: "deposit",
+      p_id: editingDep ? editingDep.id : null,
+      p_data: {
+        amount: amt,
+        description: depForm.description.trim() || "إيداع",
+        category: depForm.category.trim() || null,
+        at: new Date(depForm.deposit_datetime).toISOString(),
+        notes: depForm.notes.trim() || null,
+      },
+    });
     setSavingDep(false);
     if (res.error) return toast.error(res.error.message);
     if (!isPersonalOwner) toast.success(editingDep ? "تم تعديل الإيداع" : "تم تسجيل الإيداع");
@@ -733,10 +754,12 @@ export default function PersonalExpenses() {
   };
   const removeDep = async () => {
     if (!delDep) return;
-    const { error } = await supabase.from("owner_personal_deposits" as any).delete().eq("id", delDep.id);
+    if (!cancelReason.trim()) return toast.error("اكتب سبب الإلغاء");
+    const { error } = await (supabase.rpc as any)("cancel_personal_entry", { p_kind: "deposit", p_id: delDep.id, p_reason: cancelReason.trim() });
     if (error) return toast.error(error.message);
-    if (!isPersonalOwner) toast.success("تم حذف الإيداع");
+    if (!isPersonalOwner) toast.success("تم إلغاء الإيداع");
     setDelDep(null);
+    setCancelReason("");
     load();
   };
 
@@ -1123,6 +1146,11 @@ export default function PersonalExpenses() {
                   </div>
                 </PopoverContent>
               </Popover>
+            )}
+            {cancelledExp.length + cancelledDep.length > 0 && (
+              <Button onClick={() => setShowCancelled(true)} size="lg" variant="ghost" className="text-muted-foreground">
+                الملغاة ({cancelledExp.length + cancelledDep.length})
+              </Button>
             )}
             {canEdit && (
               <Button onClick={openAddDep} size="lg" variant="outline" className="border-emerald-500/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10 shadow-md hover:scale-105 transition-transform">
@@ -1743,7 +1771,7 @@ export default function PersonalExpenses() {
                   {canEdit && (
                     <td className="p-3 text-center whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(r)} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => setDelRow(r)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDelRow(r)} title="إلغاء"><Trash2 className="w-4 h-4 text-destructive" /></Button>
                     </td>
                   )}
                 </tr>
@@ -1798,7 +1826,7 @@ export default function PersonalExpenses() {
                   {canEdit && (
                     <td className="p-3 text-center whitespace-nowrap">
                       <Button size="icon" variant="ghost" onClick={() => openEditDep(d)} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
-                      <Button size="icon" variant="ghost" onClick={() => setDelDep(d)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => setDelDep(d)} title="إلغاء"><Trash2 className="w-4 h-4 text-destructive" /></Button>
                     </td>
                   )}
                 </tr>
@@ -1931,7 +1959,7 @@ export default function PersonalExpenses() {
                       {canEdit && (
                         <td className="p-2.5 text-center whitespace-nowrap">
                           <Button size="icon" variant="ghost" onClick={() => { setCatDetail(null); openEdit(r); }} title="تعديل"><Pencil className="w-4 h-4 text-sky-600" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => setDelRow(r)} title="حذف"><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => setDelRow(r)} title="إلغاء"><Trash2 className="w-4 h-4 text-destructive" /></Button>
                         </td>
                       )}
                     </tr>
@@ -2094,17 +2122,18 @@ export default function PersonalExpenses() {
 
 
       {/* Delete confirm */}
-      <AlertDialog open={!!delRow} onOpenChange={o => !o && setDelRow(null)}>
+      <AlertDialog open={!!delRow} onOpenChange={o => { if (!o) { setDelRow(null); setCancelReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف المصروف؟</AlertDialogTitle>
+            <AlertDialogTitle>إلغاء المصروف؟</AlertDialogTitle>
             <AlertDialogDescription>
-              هيتم حذف "{delRow?.description}" بمبلغ {delRow ? Number(delRow.amount).toLocaleString("ar-EG") : ""} ج.م. الحذف نهائي.
+              "{delRow?.description}" بمبلغ {delRow ? Number(delRow.amount).toLocaleString("ar-EG") : ""} ج.م هيتلغي ويخرج من الإجماليات، ويفضل ظاهر في «الملغاة» بسببه.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <Input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="سبب الإلغاء (مطلوب)" />
           <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={remove} className="bg-destructive text-destructive-foreground">حذف</AlertDialogAction>
+            <AlertDialogCancel>تراجع</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); remove(); }} disabled={!cancelReason.trim()} className="bg-destructive text-destructive-foreground">إلغاء المصروف</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -2244,20 +2273,43 @@ export default function PersonalExpenses() {
       </Dialog>
 
       {/* Delete deposit confirm */}
-      <AlertDialog open={!!delDep} onOpenChange={o => !o && setDelDep(null)}>
+      <AlertDialog open={!!delDep} onOpenChange={o => { if (!o) { setDelDep(null); setCancelReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف الإيداع؟</AlertDialogTitle>
+            <AlertDialogTitle>إلغاء الإيداع؟</AlertDialogTitle>
             <AlertDialogDescription>
-              هيتم حذف "{delDep?.description || "إيداع"}" بمبلغ {delDep ? Number(delDep.amount).toLocaleString("ar-EG") : ""} ج.م. الحذف نهائي.
+              "{delDep?.description || "إيداع"}" بمبلغ {delDep ? Number(delDep.amount).toLocaleString("ar-EG") : ""} ج.م هيتلغي ويخرج من الإجماليات، ويفضل ظاهر في «الملغاة» بسببه.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <Input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="سبب الإلغاء (مطلوب)" />
           <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={removeDep} className="bg-destructive text-destructive-foreground">حذف</AlertDialogAction>
+            <AlertDialogCancel>تراجع</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); removeDep(); }} disabled={!cancelReason.trim()} className="bg-destructive text-destructive-foreground">إلغاء الإيداع</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Cancelled lines (kept, never deleted) */}
+      <Dialog open={showCancelled} onOpenChange={setShowCancelled}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>السطور الملغاة ({cancelledExp.length + cancelledDep.length})</DialogTitle></DialogHeader>
+          <div className="space-y-2 text-sm">
+            {[...cancelledExp.map((r) => ({ kind: "مصروف", id: r.id, amount: r.amount, desc: r.description, at: r.expense_datetime, reason: r.cancel_reason, cancelledAt: r.cancelled_at })),
+              ...cancelledDep.map((d) => ({ kind: "إيداع", id: d.id, amount: d.amount, desc: d.description || "إيداع", at: d.deposit_datetime, reason: d.cancel_reason, cancelledAt: d.cancelled_at }))]
+              .sort((a, b) => String(b.cancelledAt ?? "").localeCompare(String(a.cancelledAt ?? "")))
+              .map((x) => (
+                <div key={x.kind + x.id} className="rounded-md border p-3 flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-semibold">{x.kind} — {x.desc}</div>
+                    <div className="text-xs text-muted-foreground">{new Date(x.at).toLocaleString("ar-EG")} • السبب: {x.reason || "—"}</div>
+                  </div>
+                  <div className="tabular-nums line-through text-muted-foreground">{Number(x.amount).toLocaleString("ar-EG")} ج.م</div>
+                </div>
+              ))}
+            {cancelledExp.length + cancelledDep.length === 0 && <div className="text-muted-foreground text-center py-6">لا توجد سطور ملغاة</div>}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Offscreen PDF template */}
       <div style={{ position: "fixed", left: -99999, top: 0, width: 800 }}>

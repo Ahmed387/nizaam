@@ -477,10 +477,9 @@ export default function Settings() {
             <Button
               onClick={async () => {
                 await saveKey("inventory", inventory);
-                const { error: upErr } = await supabase
-                  .from("products")
-                  .update({ low_stock_alert: inventory.default_low_stock_alert })
-                  .gte("low_stock_alert", 0);
+                const { error: upErr } = await (supabase.rpc as any)("apply_low_stock_default", {
+                  p_value: Number(inventory.default_low_stock_alert) || 0,
+                });
                 if (upErr) toast.error("تم حفظ الإعداد لكن فشل التطبيق على المنتجات: " + upErr.message);
                 else toast.success("تم التطبيق على كل المنتجات");
               }}

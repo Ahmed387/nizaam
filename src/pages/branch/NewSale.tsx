@@ -183,6 +183,8 @@ export default function NewSale() {
 
   // ===== Reservation state =====
   const draftIdRef = useRef<string>(crypto.randomUUID());
+  // H-01: one id per sale; kept across retries and in the offline queue so the server saves it once.
+  const saleRequestIdRef = useRef<string | null>(null);
   const [availability, setAvailability] = useState<Record<string, number>>({}); // available per product (excludes my own reservation)
   const [reservations, setReservations] = useState<Record<string, { reservation_id: string; expires_at: string }>>({});
   const [nowTick, setNowTick] = useState<number>(Date.now());
@@ -988,7 +990,9 @@ export default function NewSale() {
               ? "credit_balance"
               : "cash";
 
+      if (!saleRequestIdRef.current) saleRequestIdRef.current = crypto.randomUUID();
       const payload = {
+        p_client_request_id: saleRequestIdRef.current,
         p_branch_id: branchId!,
         p_customer_id: custId,
         p_subtotal: subtotal,
@@ -1013,7 +1017,7 @@ export default function NewSale() {
       }
 
       // حفظ ذري: الفاتورة + الخزينة + الملاحظات + المستلم + الرصيد السابق في معاملة واحدة
-      const { data: invId, error: rpcErr } = await supabase.rpc("process_sale_full" as any, {
+      const { data: invId, error: rpcErr } = await supabase.rpc("process_sale_once" as any, {
         ...payload,
         p_recipient: recipientName.trim() || null,
         p_notes: invoiceNotes.trim() || null,
@@ -1044,7 +1048,7 @@ export default function NewSale() {
         console.warn("profit update failed:", e);
       }
 
-      // المستلم والملاحظات والرصيد المسبق اتحفظوا جوه process_sale_full
+      // المستلم والملاحظات والرصيد المسبق اتحفظوا جوه process_sale_once → process_sale_full
 
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
@@ -1078,6 +1082,7 @@ export default function NewSale() {
       try { await releaseDraftReservations(draftIdRef.current, "completed"); } catch {}
 
 
+      saleRequestIdRef.current = null;
       localDraft.clear();
       docSuccess({
         title: "تم إنشاء فاتورة البيع بنجاح",
