@@ -26,7 +26,7 @@ const TOP: Record<DocKind, CardDef[]> = {
   ],
   purchase: [
     { key: "active", label: "إجمالي المشتريات", icon: <TrendingUp />, tone: "primary", countWord: "فاتورة شراء", meaning: "قيمة فواتير الشراء المطابقة.", formula: "Σ إجمالي التكلفة" },
-    { key: "cancelled", label: "مشتريات ملغاة", icon: <XCircle />, tone: "destructive", countWord: "فاتورة", meaning: "فواتير الشراء لا تُلغى في النظام (تُحذف بسجل تدقيق)، لذلك القيمة صفر دائمًا.", formula: "Σ فواتير الشراء الملغاة = 0" },
+    { key: "cancelled", label: "مشتريات ملغاة", icon: <XCircle />, tone: "destructive", countWord: "فاتورة", meaning: "فواتير الشراء الملغاة (لا يوجد حذف نهائي): مخزونها خرج وقيدها اتعكس، وهي خارج باقي الكروت وكشف حساب المورد.", formula: "Σ إجمالي التكلفة حيث الحالة = ملغاة" },
     { key: "supplierPaid", label: "المسدد للموردين (-)", icon: <ArrowUpCircle />, tone: "success", countWord: "فاتورة مسددة بالكامل", value: (m) => m.supplierPaid ?? 0, meaning: "المسدد من فواتير الشراء المعروضة. سندات سداد كل مورد في الفرع تُوزَّع على فواتيره من الأقدم للأحدث. النقر يعرض الفواتير المسددة بالكامل (المتبقي = 0).", formula: "Σ المسدد لكل فاتورة = min(إجمالي الفاتورة، رصيد سداد المورد المتبقي بعد الفواتير الأقدم)" },
     { key: "supplierDue", label: "المستحق للموردين / الآجل دائن (+)", icon: <Clock />, tone: "warning", countWord: "فاتورة عليها متبقي", value: (m) => m.supplierDue ?? 0, meaning: "المتبقي للموردين على فواتير الشراء المعروضة بعد توزيع سداداتهم. النقر يعرض الفواتير التي عليها متبقي (> 0).", formula: "Σ max(0, إجمالي الفاتورة − المسدد الموزع عليها)" },
   ],
