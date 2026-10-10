@@ -1,3 +1,4 @@
+import { aiChat, aiConfigured } from "../_shared/ai.ts";
 // Fast PDF price-list parser:
 // 1) Extract text from PDF using unpdf (no native deps, Deno-friendly)
 // 2) Send only text to Gemini flash-lite (5-10x faster than vision)
@@ -177,19 +178,14 @@ const TOOL = {
   },
 };
 
-async function callAI(messages: any[], apiKey: string) {
-  const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
-      messages,
-      temperature: 0,
-      tools: [TOOL],
-      tool_choice: { type: "function", function: { name: "save_price_list" } },
-    }),
+async function callAI(messages: any[], _apiKey?: string) {
+  return await aiChat({
+    model: "google/gemini-2.5-flash-lite",
+    messages,
+    temperature: 0,
+    tools: [TOOL],
+    tool_choice: { type: "function", function: { name: "save_price_list" } },
   });
-  return r;
 }
 
 Deno.serve(async (req) => {
@@ -210,8 +206,8 @@ Deno.serve(async (req) => {
     const { pdfBase64, supplierName } = await req.json();
     if (!pdfBase64) return json({ error: "pdfBase64 required" }, 400);
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+    const apiKey = "";
+    if (!aiConfigured()) throw new Error("AI_API_KEY not configured");
 
     const supplier = supplierName ?? "غير محدد";
     const t0 = Date.now();

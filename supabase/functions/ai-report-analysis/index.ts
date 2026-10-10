@@ -1,3 +1,4 @@
+import { aiChat, aiConfigured } from "../_shared/ai.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -60,20 +61,15 @@ ${(s.top_products ?? []).slice(0, 10).map((p: any) => `- ${p.name}: كمية ${p
 
 كن مباشراً ومحدداً، استخدم أرقام التقرير، تجنب العموميات.`;
 
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) return new Response(JSON.stringify({ error: "LOVABLE_API_KEY غير مكوّن" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!aiConfigured()) return new Response(JSON.stringify({ error: "مفتاح الذكاء الاصطناعي (AI_API_KEY) غير مضاف في أسرار Supabase" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const aiResp = await aiChat({
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: "أنت محلل بيانات تجاري محترف، تكتب باللغة العربية بأسلوب مختصر واضح." },
           { role: "user", content: prompt },
         ],
-      }),
-    });
+      });
 
     if (aiResp.status === 429) {
       return new Response(JSON.stringify({ error: "تم تجاوز الحد المسموح من طلبات الـ AI، حاول لاحقاً" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });

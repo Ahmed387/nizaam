@@ -89,7 +89,15 @@ Deno.serve(async (req) => {
       }
     } else {
       for (const entry of entries) {
-        if (!entry.name.startsWith("tables/") || !entry.name.endsWith(".json")) continue;
+        if (!entry.name.startsWith("tables/")) continue;
+        if (entry.name.endsWith(".json.gz")) {
+          // staged backups keep each table gzip-compressed inside the tar
+          const tableName = entry.name.slice("tables/".length, -".json.gz".length);
+          const plain = await gunzip(new Response(entry.bytes).body as ReadableStream<Uint8Array>);
+          data[tableName] = JSON.parse(new TextDecoder().decode(plain));
+          continue;
+        }
+        if (!entry.name.endsWith(".json")) continue;
         const tableName = entry.name.slice("tables/".length, -".json".length);
         data[tableName] = JSON.parse(new TextDecoder().decode(entry.bytes));
       }

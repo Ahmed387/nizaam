@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, ReactNode, Ref, useEffect, useState } from "react";
+import { Fragment, forwardRef, ReactNode, Ref, useEffect, useState, type CSSProperties } from "react";
 import { Loader2 } from "lucide-react";
 
 type Align = "right" | "left" | "center";
@@ -66,9 +66,11 @@ function DataTableInner<T>(
 
   /** Wide mode: content-driven columns inside a horizontal scroll region, never character-wrapped. */
   const wide = Boolean(minTableWidth);
-  const headPad = wide ? "px-4 py-3" : "px-2 md:px-3 py-3.5";
-  const cellPad = wide ? "px-4 py-3" : "px-2 md:px-3 py-3 md:py-3.5";
-  const textMode = wide ? "whitespace-nowrap" : "break-words whitespace-normal";
+  // On desktop (lg+) a wide table fits the page: compact padding and wrapped text, no horizontal bar.
+  // Below lg it keeps its floor width and scrolls inside its own box.
+  const headPad = wide ? "px-4 py-3 lg:px-2 lg:py-2.5" : "px-2 md:px-3 py-3.5";
+  const cellPad = wide ? "px-4 py-3 lg:px-2 lg:py-2.5" : "px-2 md:px-3 py-3 md:py-3.5";
+  const textMode = wide ? "whitespace-nowrap lg:whitespace-normal lg:break-words" : "break-words whitespace-normal";
 
   const isActionsColumn = (c: { key: string; header: any }) =>
     c.key === "actions" || (typeof c.header === "string" && c.header.includes("إجراءات"));
@@ -101,10 +103,10 @@ function DataTableInner<T>(
     return (
       <>
       {/* Wide tables scroll inside a viewport-high box: the horizontal bar stays on screen and the header sticks. */}
-      <div className={wide ? "w-full overflow-auto max-h-[calc(100vh-8rem)]" : "w-full overflow-x-auto"} data-wide={wide ? "" : undefined}>
+      <div className={wide ? "w-full overflow-auto lg:overflow-x-hidden max-h-[calc(100vh-8rem)]" : "w-full overflow-x-auto"} data-wide={wide ? "" : undefined}>
         <table
-          className={`w-full text-sm md:text-base border-collapse ${wide ? "table-auto" : "table-fixed"} ${tableClassName ?? ""}`}
-          style={wide ? { minWidth: minTableWidth } : undefined}
+          className={`w-full text-sm ${wide ? "lg:text-[13px]" : "md:text-base"} border-collapse ${wide ? "table-auto max-lg:[min-width:var(--dt-min-w)]" : "table-fixed"} ${tableClassName ?? ""}`}
+          style={wide ? ({ ["--dt-min-w" as any]: minTableWidth } as CSSProperties) : undefined}
         >
           <thead>
             <tr className={`bg-surface-2 border-b-2 border-border ${wide ? "sticky top-0 z-20 shadow-sm" : ""}`}>

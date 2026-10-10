@@ -417,7 +417,7 @@ export default function MainTreasury() {
           rows={pageRows}
           indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
           empty="لا توجد حركات مطابقة للفلاتر"
-          tableClassName="min-w-[1180px]"
+          tableClassName="max-lg:min-w-[1180px]"
           columns={[
             { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: TxRow) => (
               <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />

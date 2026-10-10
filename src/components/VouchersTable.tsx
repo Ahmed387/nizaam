@@ -66,6 +66,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
 
   const canAdd = !!branchId && (isAdmin || hasRole("branch_manager"));
 
+  // Cancelled vouchers never sit in the main table — they have their own «الملغاة» view.
+  const [showCancelled, setShowCancelled] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchText, setSearchText] = useState("");
   useEffect(() => { const t = setTimeout(() => setSearchText(searchInput.trim()), 300); return () => clearTimeout(t); }, [searchInput]);
@@ -102,7 +104,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     }
     deductibleRef.current = deductibleIds;
     const rowsQ = applyFilters(
-      supabase.from("vouchers" as any).select("*").order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).limit(500),
+      supabase.from("vouchers" as any).select("*").eq("status", showCancelled ? "cancelled" : "active").order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).limit(500),
       deductibleIds,
     );
     // Totals cover every matching active voucher, not just the 500 displayed rows.
@@ -128,7 +130,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     }
   }, [type, adminAllBranches]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters, searchText, onlyDeductedFromProfit]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters, searchText, onlyDeductedFromProfit, showCancelled]);
 
   useRealtimeRefresh(["vouchers", "voucher_categories"], () => { load(); });
 
@@ -194,6 +196,19 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
 
   return (
     <div className="space-y-4">
+      {!onlyDeductedFromProfit && (
+        <div className="flex items-center gap-2" role="tablist" aria-label="عرض السندات">
+          {[false, true].map((c) => (
+            <button key={String(c)} role="tab" aria-selected={showCancelled === c} onClick={() => setShowCancelled(c)}
+              className={`px-4 py-1.5 rounded-full text-sm font-bold border transition-colors ${showCancelled === c
+                ? (c ? "bg-destructive text-destructive-foreground border-destructive" : "bg-primary text-primary-foreground border-primary")
+                : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}>
+              {c ? "الملغاة" : "السندات النشطة"}
+            </button>
+          ))}
+          {showCancelled && <span className="text-xs text-muted-foreground">سندات اتلغت وأثرها على الخزنة اتعكس — للمراجعة بس، والكروت فوق محسوبة على النشطة فقط.</span>}
+        </div>
+      )}
       {rows.length >= 500 && (
         <div className="text-xs text-warning">الجدول بيعرض أول 500 سند بس — الكروت محسوبة على كل السندات. ضيّق الفلاتر (التاريخ / الفرع / البحث) لعرض الباقي.</div>
       )}

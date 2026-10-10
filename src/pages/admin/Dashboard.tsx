@@ -18,9 +18,7 @@ import {
   HandCoins, ClipboardCheck, Wallet, FileText, ClipboardList, Paperclip,
   BookmarkPlus, RotateCcw, Undo2, ArrowDownCircle, ArrowUpCircle, ArrowLeftRight, Truck,
 } from "lucide-react";
-import { ExecutiveProfitSummary } from "@/components/ExecutiveProfitSummary";
-import { KpiHealthAlert } from "@/components/KpiHealthAlert";
-import { BudgetAlertsWidget } from "@/components/BudgetAlertsWidget";
+import { BusinessSnapshot } from "@/components/reports/BusinessSnapshot";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { DetailsChevron } from "@/components/DetailsChevron";
 import { RecentDocDetails } from "@/components/RecentDocDetails";
@@ -91,180 +89,60 @@ export default function AdminDashboard() {
 
   return (
     <AdminLayout>
-      <PageHeader title="لوحة التحكم العامة" subtitle="نظرة تشغيلية على اليوم — كل الفروع" />
+      <PageHeader title="الرئيسية" subtitle="بنكسب ولا بنخسر — والنهارده عامل إيه" />
 
 
-      <KpiHealthAlert />
+      {/* 1) The answer first: are we winning, and what is the stock worth (this month) */}
+      <div className="mb-6"><BusinessSnapshot compact /></div>
 
-      <BudgetAlertsWidget />
-
-      <ExecutiveProfitSummary />
-
-      {/* Operational KPIs — TODAY only */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <Link to="/admin/reports?tab=central" className="block hover:scale-[1.02] transition-transform" title="افتح التقارير التفصيلية">
-          <StatCard label="مبيعات اليوم" value={formatEGP(salesToday)} icon={<DollarSign className="w-5 h-5" />} accent="success" hint={`${invoicesToday} فاتورة`} />
+      {/* 2) Today — four plain numbers */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Link to="/admin/reports-hub?tab=central" className="block hover:scale-[1.02] transition-transform" title="افتح التقارير التفصيلية">
+          <StatCard label="مبيعات النهارده" value={formatEGP(salesToday)} icon={<DollarSign className="w-5 h-5" />} accent="success" hint={`${invoicesToday} فاتورة`} />
         </Link>
-        <StatCard label="فواتير اليوم" value={invoicesToday} icon={<FileText className="w-5 h-5" />} accent="primary" />
-        <StatCard label="منتجات تحت الحد" value={lowStock} icon={<AlertTriangle className="w-5 h-5" />} accent="warning" />
+        <StatCard label="أصناف قربت تخلص" value={lowStock} icon={<AlertTriangle className="w-5 h-5" />} accent={lowStock > 0 ? "warning" : "secondary"} />
         <Link to="/admin/approvals-hub?tab=approvals" className="block hover:scale-[1.02] transition-transform">
-          <StatCard label="موافقات معلقة" value={pendingApprovals} icon={<CheckSquare className="w-5 h-5" />} accent={pendingApprovals > 0 ? "warning" : "secondary"} />
+          <StatCard label="طلبات مستنية موافقتك" value={pendingApprovals} icon={<CheckSquare className="w-5 h-5" />} accent={pendingApprovals > 0 ? "warning" : "secondary"} />
         </Link>
-        <StatCard label="جلسات جرد نشطة" value={activeSessions} icon={<ClipboardList className="w-5 h-5" />} accent={activeSessions > 0 ? "primary" : "secondary"} />
-      </div>
-
-      {/* Opening balances (linked to the main treasury) + data integrity checks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <Link to="/admin/accounting/opening-balances" className="card-elevated p-4 block hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div className="font-bold text-sm">الأرصدة الافتتاحية {opening?.main_treasury ? `— ${opening.main_treasury.name}` : ""}</div>
-            <span className="text-xs text-muted-foreground">{opening?.as_of ? `بتاريخ ${opening.as_of}` : "لسه ما اترحلتش"}</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 text-xs">
-            <div><div className="text-muted-foreground">نقدية أول المدة</div><b>{formatEGP(opening?.cash_total ?? 0)}</b></div>
-            <div><div className="text-muted-foreground">مديونية عملاء</div><b>{formatEGP(opening?.customers_debt ?? 0)}</b></div>
-            <div><div className="text-muted-foreground">مقدمات عملاء</div><b>{formatEGP(opening?.customers_advance ?? 0)}</b></div>
-            <div><div className="text-muted-foreground">مستحقات موردين</div><b>{formatEGP(opening?.suppliers_payable ?? 0)}</b></div>
-            <div><div className="text-muted-foreground">مقدمات لينا عند موردين</div><b>{formatEGP(opening?.suppliers_advance ?? 0)}</b></div>
-            <div><div className="text-muted-foreground">مخزون أول المدة</div><b>{formatEGP(opening?.inventory_value ?? 0)}</b></div>
-          </div>
-        </Link>
-        <Link to="/admin/system-health?tab=integrity" className={`card-elevated p-4 block hover:shadow-md transition-shadow ${integrity && integrity.errors > 0 ? "border-destructive/40 bg-destructive/5" : ""}`}>
-          <div className="flex items-center justify-between">
-            <div className="font-bold text-sm">فحص سلامة البيانات (تلقائي)</div>
-            <AlertTriangle className={`w-4 h-4 ${integrity && integrity.errors > 0 ? "text-destructive" : "text-muted-foreground"}`} />
-          </div>
-          <div className="grid grid-cols-3 gap-2 mt-3 text-xs">
-            <div><div className="text-muted-foreground">أخطاء</div><b className={integrity && integrity.errors > 0 ? "text-destructive" : ""}>{integrity?.errors ?? "—"}</b></div>
-            <div><div className="text-muted-foreground">تنبيهات</div><b>{integrity?.warnings ?? "—"}</b></div>
-            <div><div className="text-muted-foreground">معلومات</div><b>{integrity?.info ?? "—"}</b></div>
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-2">أرصدة افتتاحية × مقدمات بين الفروع، تكرار دفعات، مستندات ومرتجعات وخزنة ومخزون وقيود.</div>
+        <Link to="/admin/system-health?tab=integrity" className="block hover:scale-[1.02] transition-transform">
+          <StatCard label="أخطاء في البيانات" value={integrity?.errors ?? 0} icon={<ClipboardCheck className="w-5 h-5" />} accent={integrity && integrity.errors > 0 ? "warning" : "secondary"} hint={integrity ? `${integrity.warnings} تنبيه` : undefined} />
         </Link>
       </div>
 
-      {/* Link to Financial Dashboard (treasury, receivables, payables live there) */}
-      <div className="card-elevated p-4 mb-6 flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-success/15 text-success flex items-center justify-center">
-            <Wallet className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="font-bold text-sm">للأرقام المالية: الخزنة، المديونيات، الأرباح</div>
-            <div className="text-xs text-muted-foreground">شاهد التفاصيل في الداشبورد المالي والتقارير</div>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link to="/admin/financial-dashboard"><Wallet className="w-4 h-4" /> الداشبورد المالي</Link>
-          </Button>
-          <Button asChild size="sm" className="gap-2">
-            <Link to="/admin/reports"><BarChart3 className="w-4 h-4" /> التقارير التفصيلية</Link>
-          </Button>
-        </div>
-      </div>
-
-      {/* Quick actions */}
-      <div className="card-elevated p-4 mb-6">
-        <h3 className="font-bold mb-3 text-sm text-muted-foreground">إجراءات سريعة — على مستوى الشركة</h3>
-        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {[
-            { to: "/admin/branches", label: "إضافة فرع", icon: Plus, color: "text-primary", bg: "bg-primary/10" },
-            { to: "/admin/employees", label: "الموظفين", icon: Users, color: "text-secondary", bg: "bg-secondary/10" },
-            { to: "/admin/catalog?tab=pricelist", label: "الكتالوج", icon: Boxes, color: "text-primary", bg: "bg-primary/10" },
-            { to: "/admin/vouchers", label: "كل السندات", icon: Receipt, color: "text-success", bg: "bg-success/10" },
-            { to: "/admin/approvals-hub?tab=approvals", label: "الموافقات", icon: CheckSquare, color: "text-warning", bg: "bg-warning/10" },
-            { to: "/admin/receivables", label: "المديونيات", icon: HandCoins, color: "text-destructive", bg: "bg-destructive/10" },
-            { to: "/admin/reports", label: "التقارير", icon: BarChart3, color: "text-primary", bg: "bg-primary/10" },
-            { to: "/admin/attachments", label: "كل المرفقات", icon: Paperclip, color: "text-accent-foreground", bg: "bg-accent/10" },
-          ].map((s) => (
-            <Link key={s.label} to={s.to}
-              className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border hover:border-primary hover:shadow-md transition-all group">
-              <div className={`w-11 h-11 rounded-full ${s.bg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                <s.icon className={`w-5 h-5 ${s.color}`} />
-              </div>
-              <span className="text-[11px] font-semibold text-center leading-tight">{s.label}</span>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Branch entry cards — redesigned bento */}
+      {/* 3) Branches — one small card each: today's sales and the four daily actions */}
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="h-7 w-1.5 bg-primary rounded-full" />
-          <h3 className="font-bold text-xl">الفروع — دخول مباشر وإجراءات سريعة</h3>
-        </div>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <h3 className="font-bold text-lg mb-3">الفروع</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {branchSummary.map((b: any) => (
-            <div key={b.id} className="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-sm hover:shadow-lg transition-shadow">
-              {activeCountBranches.has(b.id) && (
-                <div className="absolute top-4 -left-12 rotate-[-45deg] bg-warning text-warning-foreground text-[10px] font-bold px-12 py-1 shadow-md z-10 flex items-center gap-1 justify-center">
-                  <ClipboardCheck className="w-3 h-3" /> جارٍ الجرد
+            <div key={b.id} className="card-elevated p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Building2 className="w-5 h-5 text-primary shrink-0" />
+                  <span className="font-bold truncate">{b.name}</span>
+                  {activeCountBranches.has(b.id) && <span className="text-[10px] rounded bg-warning/20 text-warning px-1.5 py-0.5 font-bold">جرد</span>}
                 </div>
-              )}
-              {/* Header strip */}
-              <div className="bg-gradient-to-l from-primary/20 via-primary/10 to-transparent p-5 border-b border-border">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 shadow-md">
-                    <Building2 className="w-6 h-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="font-bold text-xl truncate">{b.name}</div>
-                    <div className="text-sm font-medium text-muted-foreground">{b.code ?? "—"}</div>
-                  </div>
-                </div>
-                {/* Large branch entry button */}
-                <Button asChild size="lg" className="w-full mt-4 gap-2 text-base font-bold shadow-md">
-                  <Link to={`/branch/${b.id}/dashboard`}>دخول الفرع <ArrowUpRight className="w-5 h-5" /></Link>
-                </Button>
+                <Button asChild size="sm" className="gap-1"><Link to={`/branch/${b.id}/dashboard`}>دخول <ArrowUpRight className="w-4 h-4" /></Link></Button>
               </div>
-
-              {/* Today's sales */}
-              <Link
-                to={`/admin/reports?branch=${b.id}`}
-                className="mx-4 mt-4 flex items-center justify-between p-4 rounded-xl bg-card hover:bg-surface-2 transition border border-border"
-                title="عرض تقرير الفرع التفصيلي"
-              >
-                <span className="text-base font-semibold text-muted-foreground">مبيعات اليوم</span>
+              <div className="flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2">
+                <span className="text-sm text-muted-foreground">مبيعات النهارده</span>
                 <FinancialAmount value={b.todaySales} size="md" className="justify-end font-extrabold text-success" />
-              </Link>
-
-              {/* Quick actions grid — clearer colors */}
-              <div className="p-4">
-                <div className="text-sm font-bold text-foreground mb-3 px-1">الإجراءات السريعة</div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                  {[
-                    { to: `/branch/${b.id}/sales/new`, label: "بيع", icon: ShoppingCart, color: "text-success", bg: "bg-success/20", border: "border-success/40", hover: "hover:bg-success/30" },
-                    { to: `/branch/${b.id}/shipments/new`, label: "شراء", icon: PackagePlus, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
-                    { to: `/branch/${b.id}/pre-orders`, label: "حجز", icon: BookmarkPlus, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
-                    { to: `/branch/${b.id}/invoices?tab=sale_return`, label: "مرتجع بيع", icon: RotateCcw, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
-                    { to: `/branch/${b.id}/invoices?tab=purchase_return`, label: "مرتجع شراء", icon: Undo2, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
-                    { to: `/branch/${b.id}/treasury?tab=receipts`, label: "قبض", icon: ArrowDownCircle, color: "text-success", bg: "bg-success/20", border: "border-success/40", hover: "hover:bg-success/30" },
-                    { to: `/branch/${b.id}/treasury?tab=payments`, label: "صرف", icon: ArrowUpCircle, color: "text-destructive", bg: "bg-destructive/20", border: "border-destructive/40", hover: "hover:bg-destructive/30" },
-                    { to: `/branch/${b.id}/transfers`, label: "تحويل", icon: ArrowLeftRight, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
-                    { to: `/branch/${b.id}/invoices?tab=quote`, label: "عرض سعر", icon: FileText, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
-                    { to: `/branch/${b.id}/inventory?tab=count`, label: "جرد", icon: ClipboardList, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
-                    { to: `/branch/${b.id}/inventory?tab=adjustments`, label: "تسوية", icon: ClipboardList, color: "text-warning", bg: "bg-warning/20", border: "border-warning/40", hover: "hover:bg-warning/30" },
-                    { to: `/branch/${b.id}/shipments`, label: "فواتير الشراء", icon: Truck, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
-                    { to: `/branch/${b.id}/treasury`, label: "الخزنة", icon: Wallet, color: "text-primary", bg: "bg-primary/20", border: "border-primary/40", hover: "hover:bg-primary/30" },
-                    { to: `/branch/${b.id}/reports`, label: "التقارير", icon: BarChart3, color: "text-secondary", bg: "bg-secondary/20", border: "border-secondary/40", hover: "hover:bg-secondary/30" },
-                    { to: `/branch/${b.id}/attachments`, label: "المرفقات", icon: Paperclip, color: "text-muted-foreground", bg: "bg-muted", border: "border-border", hover: "hover:bg-muted/70" },
-                  ].map((q) => (
-                    <Link key={q.label} to={q.to}
-                      className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl ${q.bg} border ${q.border} ${q.hover} transition-all hover:scale-105 hover:shadow-md group`}>
-                      <q.icon className={`w-5 h-5 ${q.color}`} />
-                      <span className={`text-xs font-bold text-center leading-tight ${q.color}`}>{q.label}</span>
-                    </Link>
-                  ))}
-                </div>
               </div>
-
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { to: `/branch/${b.id}/sales/new`, label: "بيع", icon: ShoppingCart, cls: "text-success bg-success/10" },
+                  { to: `/branch/${b.id}/shipments/new`, label: "شراء", icon: PackagePlus, cls: "text-primary bg-primary/10" },
+                  { to: `/branch/${b.id}/treasury?tab=receipts`, label: "قبض", icon: ArrowDownCircle, cls: "text-success bg-success/10" },
+                  { to: `/branch/${b.id}/treasury?tab=payments`, label: "صرف", icon: ArrowUpCircle, cls: "text-destructive bg-destructive/10" },
+                ].map((q) => (
+                  <Link key={q.label} to={q.to} className={`flex flex-col items-center gap-1 rounded-lg py-2 text-xs font-bold ${q.cls} hover:opacity-80`}>
+                    <q.icon className="w-4 h-4" />{q.label}
+                  </Link>
+                ))}
+              </div>
             </div>
           ))}
         </div>
       </div>
-
 
       {/* Latest 5 documents */}
       <div>

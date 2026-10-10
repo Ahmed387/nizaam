@@ -27,6 +27,8 @@ type PartnerRow = {
   advance_offset: number;
   net_payable: number;
   outstanding_advances: number;
+  /** 0067: the month-by-month split (share in force in that month — capital increases count from the next month). */
+  months?: { month: string; profit: number; weight: number; share_pct: number; amount: number }[];
 };
 
 type Preview = {
@@ -265,16 +267,19 @@ export default function FlexibleDistribution() {
               </div>
 
               <div className="border rounded-lg p-3 bg-muted/30">
-                <div className="font-semibold mb-2">توزيع {fmt(preview.distributable)} ج.م على الشركاء</div>
+                <div className="font-semibold mb-1">توزيع {fmt(preview.distributable)} ج.م على الشركاء</div>
+                <div className="text-xs text-muted-foreground mb-2">
+                  كل شهر بيتقسم بنسب الشركاء اللي كانت سارية فيه: أي زيادة في رأس المال خلال الشهر بتغيّر النسب من أول الشهر اللي بعده.
+                  المبلغ بيتوزع على الشهور حسب ربح كل شهر (الشهر الخسران مالوش وزن).
+                </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-right">الشريك</TableHead>
                       <TableHead className="text-right">النسبة</TableHead>
                       <TableHead className="text-right">النصيب (إجمالي)</TableHead>
-                      <TableHead className="text-right">سلف مستحقة</TableHead>
-                      <TableHead className="text-right">هيتخصم من السلف</TableHead>
-                      <TableHead className="text-right">صافي للرصيد</TableHead>
+                      <TableHead className="text-right">تفاصيل الشهور (النسبة ← المبلغ)</TableHead>
+                      <TableHead className="text-right">يتضاف لرصيده</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -283,10 +288,11 @@ export default function FlexibleDistribution() {
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell>{Number(p.share_pct).toFixed(2)}%</TableCell>
                         <TableCell>{fmt(p.gross)}</TableCell>
-                        <TableCell className={Number(p.outstanding_advances) > 0 ? "text-warning" : ""}>
-                          {fmt(p.outstanding_advances)}
+                        <TableCell className="text-xs leading-relaxed">
+                          {(p.months ?? []).filter((m) => Number(m.amount) !== 0).map((m) => (
+                            <div key={m.month} className="tabular-nums">{m.month}: {Number(m.share_pct).toFixed(2)}% ← {fmt(m.amount)}</div>
+                          ))}
                         </TableCell>
-                        <TableCell className="text-warning">{fmt(p.advance_offset)}</TableCell>
                         <TableCell className="font-bold text-success">{fmt(p.net_payable)}</TableCell>
                       </TableRow>
                     ))}

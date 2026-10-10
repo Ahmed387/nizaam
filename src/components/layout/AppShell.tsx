@@ -448,7 +448,8 @@ export function AppShell({
       )}
 
       <main className="flex-1 min-w-0 pt-14 lg:pt-0">
-        <div className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
+        {/* Full width: no max-width cap, so hiding/collapsing the sidebar gives the page all the room. */}
+        <div className={`w-full p-3 md:p-4 ${hidden || collapsed ? "lg:px-4" : "lg:px-6"} lg:py-5`}>
           <div className="hidden lg:flex items-center justify-between gap-1 mb-2">
             <div className="flex items-center gap-1">
               <Button

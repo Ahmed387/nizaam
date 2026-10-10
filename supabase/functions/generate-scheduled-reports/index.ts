@@ -1,8 +1,9 @@
+import { isCronCall } from "../_shared/cron.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
 };
 
 Deno.serve(async (req) => {
@@ -18,9 +19,7 @@ Deno.serve(async (req) => {
     const onlyTenant = url.searchParams.get("tenant_id");
 
     // Authorization: allow CRON_SECRET header for automated invocation, otherwise require admin user
-    const cronSecret = Deno.env.get("CRON_SECRET");
-    const providedCron = req.headers.get("x-cron-secret");
-    const isCron = !!cronSecret && providedCron === cronSecret;
+    const isCron = await isCronCall(req, admin, "generate-scheduled-reports");
 
     let allowedTenants: string[] | undefined;
     if (!isCron) {
@@ -42,7 +41,7 @@ Deno.serve(async (req) => {
         });
       }
       // Must be admin; if tenant_id specified, must be admin of that tenant
-      let roleQuery = admin.from("user_roles").select("tenant_id").eq("user_id", userData.user.id).eq("role", "admin");
+      let roleQuery = admin.from("user_roles").select("tenant_id").eq("user_id", userData.user.id).in("role", ["admin", "owner"]);
       if (onlyTenant) roleQuery = roleQuery.eq("tenant_id", onlyTenant);
       const { data: roles } = await roleQuery.limit(1);
       if (!roles || roles.length === 0) {
@@ -53,7 +52,7 @@ Deno.serve(async (req) => {
       // If no tenant_id specified, restrict to tenants where the user is admin
       if (!onlyTenant) {
         const { data: adminTenants } = await admin.from("user_roles")
-          .select("tenant_id").eq("user_id", userData.user.id).eq("role", "admin");
+          .select("tenant_id").eq("user_id", userData.user.id).in("role", ["admin", "owner"]);
         const allowed = (adminTenants ?? []).map((r: any) => r.tenant_id);
         allowedTenants = allowed;
       }
@@ -189,7 +188,7 @@ Deno.serve(async (req) => {
 
       // Notify all admins of the tenant
       const { data: admins } = await admin
-        .from("user_roles").select("user_id").eq("tenant_id", t.id).eq("role", "admin");
+        .from("user_roles").select("user_id").eq("tenant_id", t.id).in("role", ["admin", "owner"]);
       const notifs = (admins ?? []).map((a: any) => ({
         user_id: a.user_id,
         tenant_id: t.id,

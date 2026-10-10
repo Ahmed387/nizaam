@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 import { RolePermissionsTab } from "@/components/RolePermissionsTab";
 import { UserPermissionsTab } from "@/components/UserPermissionsTab";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
+import { NegativeStockSetting } from "@/components/settings/NegativeStockSetting";
 
 import { BranchSchedulesTab } from "@/components/BranchSchedulesTab";
 import { ShiftSchedulesTab } from "@/components/ShiftSchedulesTab";
@@ -35,6 +37,9 @@ interface InvoiceSettings { footer_note: string; show_logo: boolean }
 interface InventorySettings { default_low_stock_alert: number }
 
 export default function Settings() {
+  const [settingsParams, setSettingsParams] = useSearchParams();
+  const settingsTab = settingsParams.get("tab") || "company";
+  const setSettingsTab = (v: string) => { const n = new URLSearchParams(settingsParams); n.set("tab", v); setSettingsParams(n, { replace: true }); };
   const { user, profile, branches, roles, isOwner } = useAuth();
   const canManageAdminTools = roles.includes("admin") || roles.includes("super_admin");
   // النسخ الاحتياطي والاستعادة: المالك والسوبر أدمن فقط — محجوب عن رتبة admin
@@ -214,43 +219,70 @@ export default function Settings() {
     <AdminLayout>
       <PageHeader title="الإعدادات" subtitle="إعدادات النظام العامة" />
 
-      <Tabs defaultValue="company" className="w-full">
-        <TabsList className="flex flex-wrap h-auto w-full gap-1 mb-6">
-          {[
-            { v: "company", icon: Building2, label: "بيانات الشركة" },
-            { v: "invoice", icon: Receipt, label: "الفواتير" },
-            { v: "inventory", icon: Boxes, label: "المخزون" },
-            { v: "payments", icon: Wallet, label: "المدفوعات" },
-            { v: "voucher-cats", icon: BookOpen, label: "تصنيفات السندات" },
-            { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة" },
-            { v: "targets", icon: Target, label: "أهداف المبيعات" },
-            { v: "discount", icon: Percent, label: "إعدادات الخصم" },
-            ...(isOwner || canManageAdminTools ? [{ v: "branch-hours", icon: BellRing, label: "مواعيد الفروع والإجازات" }] : []),
-            ...(isOwner || canManageAdminTools ? [{ v: "shift-schedules", icon: Clock, label: "مواعيد الورديات" }] : []),
-            ...(isOwner ? [{ v: "return-policy", icon: AlertTriangle, label: "سياسة الإرجاع" }] : []),
-            { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية" },
-            { v: "viewers", icon: Eye, label: "حسابات المراقبة" },
-            { v: "security", icon: KeyRound, label: "كلمة المرور" },
-            ...(canManageBackup ? [{ v: "backup", icon: DatabaseBackup, label: "نسخة احتياطية" }] : []),
-            
-            ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار" }] : []),
-            ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "صلاحيات موظف بعينه" }] : []),
-            ...(isOwner ? [{ v: "personal-access", icon: Wallet, label: "المصاريف الشخصية" }] : []),
-          ].map((it: any) => {
-            const Icon = it.icon;
-            return (
-              <TabsTrigger
-                key={it.v}
-                value={it.v}
-                className={`gap-1 px-3 py-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground ${it.danger ? "text-destructive data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground" : ""}`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="text-sm">{it.label}</span>
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
+      {(() => {
+        // 19 tabs → 6 related groups; each group shows its own sub-tabs. Deep links (?tab=backup) still work.
+        const items: { v: string; icon: any; label: string; group: string }[] = [
+          { v: "company", icon: Building2, label: "بيانات الشركة", group: "company" },
+          { v: "invoice", icon: Receipt, label: "شكل الفاتورة والطباعة", group: "company" },
+          { v: "inventory", icon: Boxes, label: "المخزون", group: "sales" },
+          { v: "discount", icon: Percent, label: "الخصم وحد البيع", group: "sales" },
+          ...(isOwner ? [{ v: "return-policy", icon: AlertTriangle, label: "سياسة الإرجاع", group: "sales" }] : []),
+          { v: "targets", icon: Target, label: "أهداف المبيعات", group: "sales" },
+          { v: "payments", icon: Wallet, label: "طرق الدفع والعمولات", group: "money" },
+          { v: "voucher-cats", icon: BookOpen, label: "تصنيفات السندات", group: "money" },
+          { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة", group: "money" },
+          ...(isOwner || canManageAdminTools ? [{ v: "branch-hours", icon: BellRing, label: "مواعيد الفروع والإجازات", group: "branches" }] : []),
+          ...(isOwner || canManageAdminTools ? [{ v: "shift-schedules", icon: Clock, label: "مواعيد الورديات", group: "branches" }] : []),
+          ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار", group: "people" }] : []),
+          ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "صلاحيات موظف بعينه", group: "people" }] : []),
+          { v: "viewers", icon: Eye, label: "حسابات المراقبة", group: "people" },
+          ...(isOwner ? [{ v: "personal-access", icon: Wallet, label: "الوصول للمصاريف الشخصية", group: "people" }] : []),
+          { v: "security", icon: KeyRound, label: "كلمة المرور", group: "security" },
+          { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية", group: "security" },
+          ...(canManageBackup ? [{ v: "backup", icon: DatabaseBackup, label: "النسخ الاحتياطي", group: "security" }] : []),
+        ];
+        const groups = [
+          { g: "company", label: "الشركة والفواتير", icon: Building2 },
+          { g: "sales", label: "البيع والمخزون", icon: Boxes },
+          { g: "money", label: "الفلوس والخزائن", icon: Wallet },
+          { g: "branches", label: "الفروع والورديات", icon: Clock },
+          { g: "people", label: "المستخدمين والصلاحيات", icon: Users2 },
+          { g: "security", label: "الأمان والنسخ الاحتياطي", icon: ShieldCheck },
+        ].filter((x) => items.some((i) => i.group === x.g));
+        const current = items.find((i) => i.v === settingsTab) ?? items[0];
+        const subs = items.filter((i) => i.group === current.group);
+        return (
+          <div className="mb-6 space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+              {groups.map((x) => {
+                const Icon = x.icon;
+                const on = x.g === current.group;
+                return (
+                  <button key={x.g} type="button" onClick={() => setSettingsTab(items.find((i) => i.group === x.g)!.v)}
+                    className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-bold transition-colors ${on ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/50"}`}>
+                    <Icon className="w-4 h-4" /> {x.label}
+                  </button>
+                );
+              })}
+            </div>
+            {subs.length > 1 && (
+              <div className="flex flex-wrap gap-1.5 border-b border-border pb-2">
+                {subs.map((it) => {
+                  const Icon = it.icon;
+                  return (
+                    <button key={it.v} type="button" onClick={() => setSettingsTab(it.v)}
+                      className={`flex items-center gap-1 rounded-md px-3 py-1.5 text-sm ${it.v === current.v ? "bg-primary/10 text-primary font-bold" : "text-muted-foreground hover:text-foreground"}`}>
+                      <Icon className="w-4 h-4" /> {it.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
+      <Tabs value={settingsTab} onValueChange={setSettingsTab} className="w-full">
         <div className="w-full">
 
 
@@ -489,6 +521,9 @@ export default function Settings() {
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ وتطبيق على الكل
             </Button>
+            <div className="pt-4 border-t">
+              <NegativeStockSetting />
+            </div>
             <div className="pt-4 border-t">
               <OrphanedBatchesCheck />
             </div>

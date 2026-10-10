@@ -19,12 +19,16 @@ import { fetchSchedules, fetchClosures, offDayReason, countWorkingDays } from "@
 import { computeLate, isWorkDay } from "@/components/ShiftEditor";
 import { workedMinutes, formatHours, sumWorkedMinutes } from "@/lib/attendanceHours";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { AttendanceBoard } from "@/components/attendance/AttendanceBoard";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const STATUS = {
   present: "حاضر",
   late: "متأخر",
   absent: "غائب",
   leave: "إجازة",
+  half_day: "نص يوم",
+  hourly: "بالساعة",
 };
 
 export default function Attendance({ embedded = false }: { embedded?: boolean } = {}) {
@@ -171,7 +175,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     </div>
   );
 
-  const body = (
+  const clockBody = (
     <>
       {embedded && <div className="flex justify-end mb-3">{controls}</div>}
 
@@ -371,10 +375,24 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
     </>
   );
 
+  const body = (
+    <Tabs defaultValue="board">
+      <TabsList className="mb-4">
+        <TabsTrigger value="board">التقويم والمرتبات</TabsTrigger>
+        <TabsTrigger value="clock">تسجيل الدخول والانصراف</TabsTrigger>
+      </TabsList>
+      <TabsContent value="board">{branchId && <AttendanceBoard branchId={branchId} canEdit={(e) => canManageRole(e.role)} />}</TabsContent>
+      <TabsContent value="clock">
+        {!embedded && <div className="flex justify-end mb-3">{controls}</div>}
+        {clockBody}
+      </TabsContent>
+    </Tabs>
+  );
+
   if (embedded) return body;
   return (
     <BranchLayout>
-      <PageHeader title="الحضور والانصراف" subtitle={formatDate(date)} actions={controls} />
+      <PageHeader title="الحضور والمرتبات" subtitle="سجّل حضور كل يوم من التقويم، والمرتب بيتحسب لوحده" />
       {body}
     </BranchLayout>
   );

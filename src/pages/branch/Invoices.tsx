@@ -66,12 +66,12 @@ const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
 
 // Which filters apply to each tab
 const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boolean; amount?: boolean; payment?: boolean; category?: boolean; transferBranch?: boolean; party?: "customer" | "supplier" }> = {
-  sale:            { search: true, date: true, status: true,  amount: true,  payment: true },
-  purchase:        { search: true, date: true, status: true,  amount: true },
-  sale_return:     { search: true, date: true, status: true,  amount: true, party: "customer" },
-  purchase_return: { search: true, date: true, status: true,  amount: true, party: "supplier" },
-  income:          { search: true, date: true, status: true,  amount: true, payment: true, category: true },
-  expense:         { search: true, date: true, status: true,  amount: true, payment: true, category: true },
+  sale:            { search: true, date: true,                amount: true,  payment: true },
+  purchase:        { search: true, date: true,                amount: true },
+  sale_return:     { search: true, date: true,                amount: true, party: "customer" },
+  purchase_return: { search: true, date: true,                amount: true, party: "supplier" },
+  income:          { search: true, date: true,                amount: true, payment: true, category: true },
+  expense:         { search: true, date: true,                amount: true, payment: true, category: true },
   transfer:        {              date: true, status: true,                                            transferBranch: true },
   quote:           { search: true, date: true, status: true,  amount: true },
 };
@@ -101,6 +101,14 @@ export default function Invoices() {
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
   const tab = (params.get("tab") as TabKey) || "sale";
+  // Cancelled documents never appear in the main table: they live in their own «الملغاة» view.
+  const view: "active" | "cancelled" = params.get("view") === "cancelled" ? "cancelled" : "active";
+  const hasCancelledView = isDocKind(tab) || tab === "transfer";
+  const setView = (v: "active" | "cancelled") => {
+    const next = new URLSearchParams(params);
+    if (v === "cancelled") next.set("view", "cancelled"); else next.delete("view");
+    setParams(next);
+  };
   useEffect(() => { setExpandedInvoiceId(null); }, [tab, branchId]);
   const setTab = (k: string) => {
     const next = new URLSearchParams();
@@ -248,9 +256,12 @@ export default function Invoices() {
       if (f.status) qb = qb.eq("status", f.status);
       qb = qb.order("created_at", { ascending: false });
     }
+    // Active view never shows cancelled documents; the «الملغاة» view shows only them.
+    if (isDocKind(tab)) qb = view === "cancelled" ? qb.eq("status", "cancelled") : qb.neq("status", "cancelled");
+    else if (tab === "transfer") qb = view === "cancelled" ? qb.eq("status", "rejected") : qb.neq("status", "rejected");
     // Wrap: PostgREST builders are thenables — returning one from an async fn would execute it.
     return { qb };
-  }, [tab, branchId, queryFilters]);
+  }, [tab, branchId, queryFilters, view]);
 
   const SELECTS: Record<TabKey, string> = {
     sale: "*, contacts:contact_id(name)",
@@ -388,7 +399,7 @@ export default function Invoices() {
   // Filtering now happens in the database; the current page is what we show.
   const enrichedRows = useEnrichedSaleRows(rows, tab === "sale" ? salePays : null);
   const [cardFilter, setCardFilter] = useState<DocCardKey | null>(null);
-  useEffect(() => { setCardFilter(null); }, [tab, branchId]);
+  useEffect(() => { setCardFilter(null); }, [tab, branchId, view]);
   const filteredRows = useMemo(() => docKind && cardFilter ? enrichedRows.filter((r: any) => matchesDocCard(docKind, r, cardFilter)) : enrichedRows, [enrichedRows, cardFilter, docKind]);
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -818,11 +829,11 @@ export default function Invoices() {
       case "purchase_return":
       case "income":
       case "expense": return [{ value: "active", label: "نشط" }, { value: "cancelled", label: "ملغي" }];
-      case "transfer": return [{ value: "pending", label: "معلق" }, { value: "confirmed", label: "مؤكد" }, { value: "rejected", label: "مرفوض" }];
+      case "transfer": return view === "cancelled" ? [] : [{ value: "pending", label: "معلق" }, { value: "confirmed", label: "مؤكد" }];
       case "quote": return [{ value: "draft", label: "مسودة" }, { value: "sent", label: "مُرسل" }, { value: "accepted", label: "مقبول" }, { value: "rejected", label: "مرفوض" }];
       default: return [];
     }
-  }, [tab]);
+  }, [tab, view]);
 
   const paymentOptions = [
     { value: "cash", label: "نقدي" },
@@ -912,6 +923,20 @@ export default function Invoices() {
           </button>
         ))}
       </div>
+
+      {hasCancelledView && (
+        <div className="flex items-center gap-2 mb-3" role="tablist" aria-label="عرض المستندات">
+          {(["active", "cancelled"] as const).map((v) => (
+            <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}
+              className={`px-4 py-1.5 rounded-full text-sm font-bold border transition-colors ${view === v
+                ? (v === "cancelled" ? "bg-destructive text-destructive-foreground border-destructive" : "bg-primary text-primary-foreground border-primary")
+                : "bg-background border-border text-muted-foreground hover:border-primary/50"}`}>
+              {v === "active" ? (tab === "transfer" ? "التحويلات" : "المستندات النشطة") : (tab === "transfer" ? "المرفوضة" : "الملغاة")}
+            </button>
+          ))}
+          {view === "cancelled" && <span className="text-xs text-muted-foreground">مستندات اتلغت وأثرها اتعكس بالكامل — للمراجعة بس، ومش داخلة في أي رقم.</span>}
+        </div>
+      )}
 
       <UnifiedDocumentFilters
         title={currentTabLabel}
@@ -1072,7 +1097,7 @@ export default function Invoices() {
         </div>
       )}
 
-      {docKind && <UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} />}
+      {docKind && <UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} view={view} />}
       {statusAsOf && (docKind === "sale" || docKind === "purchase") && (
         <div className="text-xs text-muted-foreground -mt-2 mb-3">المدفوع والمتبقي وحالة كل فاتورة محسوبين لحد {formatDate(statusAsOf)} (آخر يوم في الفترة)، مش لحد النهارده.</div>
       )}

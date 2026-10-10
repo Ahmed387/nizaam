@@ -474,7 +474,7 @@ export default function Treasury() {
           </div>
 
           <TooltipProvider delayDuration={200}>
-          <DataTable loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} tableClassName="min-w-[1100px]"
+          <DataTable loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} tableClassName="max-lg:min-w-[1100px]"
             columns={[
               { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: any) => (
                 <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />

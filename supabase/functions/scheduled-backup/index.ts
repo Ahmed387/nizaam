@@ -95,6 +95,18 @@ function concatArrays(arrs: Uint8Array[]): Uint8Array {
 
 type ManifestRow = { ord: number; table_name: string; scope: "tenant" | "global"; filter_sql: string };
 
+// Storage refuses objects above the project's upload limit (50 MB on the free plan), and the audit log
+// alone is bigger than that as JSON. Staged parts and the final archive are therefore gzip-compressed
+// (JSON shrinks ~10×). restore-system-backup already reads both .tar and .tar.gz.
+async function gzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function gunzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -233,10 +245,12 @@ Deno.serve(async (req) => {
           offset += PAGE;
         }
         const content = first ? enc.encode("[]") : concatArrays(parts);
+        parts.length = 0;
+        const packed = await gzipBytes(content);
         const { error: upErr } = await admin.storage.from("system-backups")
-          .upload(`${stageDir}/${t.table_name}.json`, content, { contentType: "application/json", upsert: true });
+          .upload(`${stageDir}/${t.table_name}.json.gz`, packed, { contentType: "application/gzip", upsert: true });
         if (upErr) return jsonResponse({ error: `رفع ${t.table_name}: ${upErr.message}` }, 500);
-        return jsonResponse({ ok: true, table: t.table_name, rows: total, bytes: content.byteLength });
+        return jsonResponse({ ok: true, table: t.table_name, rows: total, bytes: content.byteLength, packed: packed.byteLength });
       }
       if (mode === "finalize") {
         stagedJobDir = stageDir;
@@ -251,7 +265,8 @@ Deno.serve(async (req) => {
 
     for (const tenantId of tenantIds) {
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const filename = `backup-${stamp}.tar`;
+      // staged (cron / browser) → plain .tar holding per-table .json.gz; one-shot "full" → whole .tar.gz
+      const filename = stagedJobDir ? `backup-${stamp}.tar` : `backup-${stamp}.tar.gz`;
       const storagePath = `${tenantId}/${filename}`;
       const counts: Record<string, number> = {};
       const media: { bucket: string; path: string; size: number }[] = [];
@@ -274,10 +289,24 @@ Deno.serve(async (req) => {
         // ---------- 1) one JSON file per table (streamed one table at a time, raw text) ----------
         for (const t of tables) {
           if (stagedJobDir) {
-            const { data: f, error: fErr } = await admin.storage.from("system-backups")
-              .download(`${stagedJobDir}/${t.table_name}.json`);
-            if (fErr || !f) throw new Error(`ملف الجدول ${t.table_name} غير موجود في المرحلة`);
-            const content = new Uint8Array(await f.arrayBuffer());
+            // Staged parts are already gzip-compressed: they go into the tar as tables/<name>.json.gz untouched
+            // (no re-compression — the edge worker's CPU budget is too small to gzip the whole archive).
+            const gz = await admin.storage.from("system-backups").download(`${stagedJobDir}/${t.table_name}.json.gz`);
+            if (!gz.error && gz.data) {
+              const packed = new Uint8Array(await gz.data.arrayBuffer());
+              counts[t.table_name] = Number(stagedCounts[t.table_name] ?? 0);
+              yield tarHeader(`tables/${t.table_name}.json.gz`, packed.byteLength);
+              yield packed;
+              yield tarPadding(packed.byteLength);
+              continue;
+            }
+            let content: Uint8Array;
+            {
+              const { data: f, error: fErr } = await admin.storage.from("system-backups")
+                .download(`${stagedJobDir}/${t.table_name}.json`);
+              if (fErr || !f) throw new Error(`ملف الجدول ${t.table_name} غير موجود في المرحلة`);
+              content = new Uint8Array(await f.arrayBuffer());
+            }
             counts[t.table_name] = Number(stagedCounts[t.table_name] ?? 0);
             yield tarHeader(`tables/${t.table_name}.json`, content.byteLength);
             yield content;
@@ -375,10 +404,22 @@ Deno.serve(async (req) => {
         media.length = 0;
 
         const source = archiveChunks();
+        const raw = new ReadableStream<Uint8Array>({
+          async pull(ctrl) {
+            try {
+              const { value, done } = await source.next();
+              if (done) ctrl.close(); else ctrl.enqueue(value);
+            } catch (e: any) { streamError = e?.message ?? String(e); ctrl.error(e); }
+          },
+        });
+        const gzReader = (stagedJobDir ? raw : raw.pipeThrough(new CompressionStream("gzip"))).getReader();
         const counted = (async function* () {
-          try {
-            for await (const chunk of source) { bytesWritten += chunk.byteLength; yield chunk; }
-          } catch (e: any) { streamError = e?.message ?? String(e); throw e; }
+          while (true) {
+            const { value, done } = await gzReader.read();
+            if (done) break;
+            bytesWritten += value.byteLength;
+            yield value;
+          }
         })();
 
         try {
@@ -387,7 +428,7 @@ Deno.serve(async (req) => {
             headers: {
               Authorization: `Bearer ${serviceKey}`,
               apikey: serviceKey,
-              "Content-Type": "application/x-tar",
+              "Content-Type": stagedJobDir ? "application/x-tar" : "application/gzip",
               "x-upsert": "true",
             },
             body: counted,

@@ -13,7 +13,6 @@ import { fetchPartnerBalances } from "@/lib/partnerBalances";
 import { useAuth } from "@/contexts/AuthContext";
 import PartnersList from "./PartnersList";
 import PartnerTransactions from "./PartnerTransactions";
-import PartnerAdvances from "./PartnerAdvances";
 import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3, Package, Building2, Info, Lightbulb } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { formatEGP } from "@/lib/format";
@@ -98,12 +97,10 @@ export default function FinancialPosition() {
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="partners">الشركاء</TabsTrigger>
             <TabsTrigger value="transactions">الحركات</TabsTrigger>
-            <TabsTrigger value="advances">سلف الشركاء</TabsTrigger>
           </TabsList>
 
           <TabsContent value="partners" className="mt-4"><PartnersList embedded /></TabsContent>
           <TabsContent value="transactions" className="mt-4"><PartnerTransactions embedded /></TabsContent>
-          <TabsContent value="advances" className="mt-4"><PartnerAdvances embedded /></TabsContent>
 
           <TabsContent value="overview" className="mt-4 space-y-6">
 
@@ -160,7 +157,7 @@ export default function FinancialPosition() {
             </CardHeader>
             <CardContent>
                <FinancialAmount value={fmt(stats.balance)} size="lg" className="justify-start" />
-              <p className="text-xs text-muted-foreground mt-1">رصيد الشركاء دلوقتي بعد الأرباح والسحوبات والسلف.</p>
+              <p className="text-xs text-muted-foreground mt-1">رصيد الشركاء دلوقتي بعد الأرباح والسحوبات.</p>
             </CardContent>
           </Card>
         </div>
@@ -171,7 +168,7 @@ export default function FinancialPosition() {
             <CardTitle>الإجراءات السريعة</CardTitle>
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
               <Info className="w-3.5 h-3.5" />
-              الحاجات اللي بتعملها كتير — سلف، مساهمات، توزيع أرباح.
+              الحاجات اللي بتعملها كتير — مساهمات، سحوبات، توزيع أرباح.
             </p>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

@@ -124,7 +124,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       group: "الماليـة",
       children: [
         { to: "/admin/financial-position?tab=partners", label: "الشركاء", icon: <UserCircle className="w-4 h-4" /> },
-        { to: "/admin/financial-position?tab=advances", label: "سلف الشركاء", icon: <HandCoins className="w-4 h-4" /> },
       ],
     }),
     ...section(

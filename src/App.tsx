@@ -147,13 +147,11 @@ import SuperUsers from "./pages/super/AllUsers";
 import AttachmentsHub from "./pages/AttachmentsHub";
 import FinancialPosition from "./pages/admin/FinancialPosition";
 import AdminPartnerProfile from "./pages/admin/PartnerProfile";
-import PartnerAdvanceDetail from "./pages/admin/PartnerAdvanceDetail";
 import SystemHealth from "./pages/admin/SystemHealth";
 import PersonalExpenses from "./pages/admin/PersonalExpenses";
 import AskMe from "./pages/admin/AskMe";
 import PartnerDashboard from "./pages/partner/Dashboard";
 import PartnerLedger from "./pages/partner/Ledger";
-import PartnerAdvancesView from "./pages/partner/Advances";
 import PartnerProfilePage from "./pages/partner/Profile";
 import ChartOfAccounts from "./pages/admin/ChartOfAccounts";
 import JournalEntriesPage from "./pages/admin/JournalEntries";
@@ -269,7 +267,6 @@ const App = () => (
             <Route path="/admin/financial-position/partner/:id" element={<ProtectedRoute ownerOnly><AdminPartnerProfile /></ProtectedRoute>} />
             <Route path="/admin/financial-position/transactions" element={<Navigate to="/admin/financial-position?tab=transactions" replace />} />
             <Route path="/admin/financial-position/advances" element={<Navigate to="/admin/financial-position?tab=advances" replace />} />
-            <Route path="/admin/financial-position/advance/:id" element={<ProtectedRoute ownerOnly><PartnerAdvanceDetail /></ProtectedRoute>} />
             <Route path="/admin/shifts" element={<ProtectedRoute perm="admin_shifts.view" roles={["admin", "super_admin", "supervisor"]}><ShiftsHistory /></ProtectedRoute>} />
             <Route path="/admin/system-health" element={<ProtectedRoute perm="admin_system_health.view" ownerOnly><SystemHealth /></ProtectedRoute>} />
             <Route path="/admin/ask-me" element={<ProtectedRoute perm="admin_ask_me.view"><AskMe /></ProtectedRoute>} />
@@ -302,7 +299,6 @@ const App = () => (
             {/* Partner portal */}
             <Route path="/partner/dashboard" element={<ProtectedRoute roles={["partner"]}><PartnerDashboard /></ProtectedRoute>} />
             <Route path="/partner/ledger" element={<ProtectedRoute roles={["partner"]}><PartnerLedger /></ProtectedRoute>} />
-            <Route path="/partner/advances" element={<ProtectedRoute roles={["partner"]}><PartnerAdvancesView /></ProtectedRoute>} />
             <Route path="/partner/profile" element={<ProtectedRoute roles={["partner"]}><PartnerProfilePage /></ProtectedRoute>} />
 
 

@@ -8,6 +8,8 @@ export interface ReserveResult {
   reserved_by_others?: number;
   available?: number;
   available_for_me?: number;
+  /** 0066: the branch allows selling below zero and this quantity is more than the stock. */
+  negative?: boolean;
   requested?: number;
   expires_at?: string;
 }

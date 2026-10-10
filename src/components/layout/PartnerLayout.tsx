@@ -17,7 +17,6 @@ export function PartnerLayout({ children }: { children: ReactNode }) {
       : []),
     { to: "/partner/dashboard", label: "لوحة الشريك", icon: <LayoutDashboard className="w-4 h-4" /> },
     { to: "/partner/ledger", label: "كشف الحساب", icon: <BookOpen className="w-4 h-4" /> },
-    { to: "/partner/advances", label: "سلفي", icon: <Wallet className="w-4 h-4" /> },
     { to: "/partner/profile", label: "الملف الشخصي", icon: <UserCircle className="w-4 h-4" /> },
   ];
 

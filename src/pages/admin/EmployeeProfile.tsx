@@ -135,6 +135,8 @@ export default function EmployeeProfile() {
 
   const totalAdvancesGiven = advances.reduce((s, a) => s + Number(a.amount), 0);
   const totalAdvancesRemaining = advances.reduce((s, a) => s + Number(a.remaining), 0);
+  // Strict rule (0065): this month's advance instalments are deducted before the net salary is paid.
+  const advanceDueNow = advances.reduce((s, a) => s + Math.min(Number(a.remaining) || 0, Number(a.monthly_deduct) > 0 ? Number(a.monthly_deduct) : Number(a.remaining) || 0), 0);
   const totalAdvancesPaidBack = totalAdvancesGiven - totalAdvancesRemaining;
   const totalSalariesPaid = salaries.reduce((s, x) => s + Number(x.net_salary), 0);
 
@@ -494,7 +496,7 @@ export default function EmployeeProfile() {
 
         <TabsContent value="salaries" className="mt-4">
           <div className="flex justify-end mb-3">
-            <Button onClick={() => setSalOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> دفع راتب</Button>
+            <Button onClick={() => { setSalForm((f) => ({ ...f, advance_deduct: String(Math.round(advanceDueNow * 100) / 100) })); setSalOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> دفع راتب</Button>
           </div>
           <DataTable
             rows={salaries}
@@ -766,7 +768,7 @@ export default function EmployeeProfile() {
               <div><Label>الأساسي</Label><Input disabled value={emp.base_salary} className="mt-1.5" /></div>
               <div><Label>الحوافز</Label><Input type="number" value={salForm.bonuses} onChange={(e) => setSalForm({ ...salForm, bonuses: e.target.value })} className="mt-1.5" /></div>
               <div><Label>خصومات</Label><Input type="number" value={salForm.deductions} onChange={(e) => setSalForm({ ...salForm, deductions: e.target.value })} className="mt-1.5" /></div>
-              <div><Label>خصم سلف (متاح: {formatEGP(totalAdvancesRemaining)})</Label><Input type="number" value={salForm.advance_deduct} onChange={(e) => setSalForm({ ...salForm, advance_deduct: e.target.value })} className="mt-1.5" /></div>
+              <div><Label>خصم سلف (إجباري على الأقل {formatEGP(advanceDueNow)} — الرصيد {formatEGP(totalAdvancesRemaining)})</Label><Input type="number" value={salForm.advance_deduct} onChange={(e) => setSalForm({ ...salForm, advance_deduct: e.target.value })} className="mt-1.5" /></div>
             </div>
             <div className="bg-surface-2 rounded-lg p-3 flex justify-between text-lg">
               <span>الصافي</span>

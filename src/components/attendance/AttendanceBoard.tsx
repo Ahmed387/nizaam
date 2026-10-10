@@ -1,0 +1,344 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronRight, ChevronLeft, Wallet, CheckCircle2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PaymentMethodPicker, emptyPaymentValue, type PaymentMethodValue } from "@/components/PaymentMethodPicker";
+import { isWorkDay } from "@/components/ShiftEditor";
+import { cairoTodayDay } from "@/lib/cairoDate";
+import { formatEGP } from "@/lib/format";
+import { toast } from "sonner";
+
+/** Day kinds the owner can record for an employee. */
+export type DayKind = "present" | "absent" | "leave" | "half_day" | "hourly";
+const KINDS: { key: DayKind; label: string; short: string; cls: string }[] = [
+  { key: "present", label: "حضر", short: "ح", cls: "bg-success text-success-foreground" },
+  { key: "absent", label: "غاب", short: "غ", cls: "bg-destructive text-destructive-foreground" },
+  { key: "leave", label: "إجازة", short: "إ", cls: "bg-info text-info-foreground" },
+  { key: "half_day", label: "نص يوم", short: "½", cls: "bg-warning text-warning-foreground" },
+  { key: "hourly", label: "بالساعة", short: "س", cls: "bg-primary text-primary-foreground" },
+];
+const kindOf = (status?: string | null): DayKind | null =>
+  status === "late" ? "present" : (KINDS.some((k) => k.key === status) ? (status as DayKind) : null);
+
+const WEEKDAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"];
+const pad = (n: number) => String(n).padStart(2, "0");
+const daysIn = (ym: string) => { const [y, m] = ym.split("-").map(Number); return new Date(y, m, 0).getDate(); };
+const shiftHours = (e: any) => {
+  if (!e?.work_start || !e?.work_end) return 8;
+  const [h1, m1] = String(e.work_start).split(":").map(Number);
+  const [h2, m2] = String(e.work_end).split(":").map(Number);
+  let mins = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (mins <= 0) mins += 24 * 60;
+  return Math.max(1, Math.round((mins / 60) * 100) / 100);
+};
+
+export interface PayrollLine {
+  employee: any;
+  workDays: number;
+  paidUnits: number;
+  counts: Record<DayKind | "unrecorded", number>;
+  dailyRate: number;
+  attendanceDeduction: number;
+  attendanceAmount: number;
+}
+
+/** Monthly salary from attendance. Leave is paid; absence, and the unworked part of a half / hourly day, is deducted.
+ *  Days still ahead in the current month are not counted as absence. */
+export function computePayroll(emp: any, ym: string, att: any[], today: string): PayrollLine {
+  const dim = daysIn(ym);
+  const counts: PayrollLine["counts"] = { present: 0, absent: 0, leave: 0, half_day: 0, hourly: 0, unrecorded: 0 };
+  const byDate = new Map(att.filter((a) => a.employee_id === emp.id).map((a) => [a.date, a]));
+  const hrs = shiftHours(emp);
+  let workDays = 0, paid = 0;
+  for (let d = 1; d <= dim; d++) {
+    const date = `${ym}-${pad(d)}`;
+    const a = byDate.get(date);
+    const k = kindOf(a?.status);
+    const working = isWorkDay(date, emp.work_days);
+    if (!working && !k) continue;
+    if (working) workDays++;
+    if (!k) {
+      if (date > today) { paid += 1; continue; } // not reached yet
+      counts.unrecorded++; continue;             // a working day with no record = absent
+    }
+    counts[k]++;
+    if (k === "present" || k === "leave") paid += 1;
+    else if (k === "half_day") paid += 0.5;
+    else if (k === "hourly") paid += Math.min(1, Number(a?.hours || 0) / hrs);
+  }
+  const base = Number(emp.base_salary) || 0;
+  const dailyRate = workDays > 0 ? base / workDays : 0;
+  const attendanceAmount = Math.max(0, Math.min(base, Math.round(dailyRate * Math.min(paid, workDays))));
+  return { employee: emp, workDays, paidUnits: Math.round(paid * 100) / 100, counts, dailyRate, attendanceDeduction: base - attendanceAmount, attendanceAmount };
+}
+
+export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEdit: (emp: any) => boolean }) {
+  const { tenant, user, isAdmin } = useAuth();
+  const today = cairoTodayDay();
+  const [ym, setYm] = useState(today.slice(0, 7));
+  const [day, setDay] = useState(today);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [att, setAtt] = useState<any[]>([]);
+  const [paid, setPaid] = useState<Record<string, any>>({});
+  const [advDue, setAdvDue] = useState<Record<string, { due: number; remaining: number }>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const start = `${ym}-01`, end = `${ym}-${pad(daysIn(ym))}`;
+    const [{ data: emps }, { data: a }] = await Promise.all([
+      supabase.from("employees").select("id,name,job_title,role,base_salary,work_start,work_end,work_days,branch_id,user_id").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("attendance").select("id,employee_id,date,status,hours,check_in,check_out").eq("branch_id", branchId).gte("date", start).lte("date", end),
+    ]);
+    const list = emps ?? [];
+    setEmployees(list);
+    setAtt(a ?? []);
+    const ids = list.map((e: any) => e.id);
+    if (ids.length) {
+      const { data: sal } = await supabase.from("salaries").select("id,employee_id,net_salary,bonuses,deductions,advance_deduct").eq("month", ym).in("employee_id", ids);
+      setPaid(Object.fromEntries((sal ?? []).map((s: any) => [s.employee_id, s])));
+      const dues = await Promise.all(ids.map(async (id: string) => {
+        const { data } = await supabase.rpc("employee_advance_due" as any, { p_employee_id: id } as any);
+        return [id, { due: Number((data as any)?.due ?? 0), remaining: Number((data as any)?.remaining ?? 0) }] as const;
+      }));
+      setAdvDue(Object.fromEntries(dues));
+    } else { setPaid({}); setAdvDue({}); }
+  }, [branchId, ym]);
+  useEffect(() => { load(); }, [load]);
+  useRealtimeRefresh(["attendance", "employees", "salaries", "advances"], load);
+
+  const dayRows = useMemo(() => new Map(att.filter((a) => a.date === day).map((a) => [a.employee_id, a])), [att, day]);
+
+  const setKind = async (emp: any, kind: DayKind, hours?: number) => {
+    if (!canEdit(emp)) return toast.error("مش مسموح لك تعدّل حضور الموظف ده");
+    if (day > today) return toast.error("مينفعش تسجّل حضور ليوم لسه مجاش");
+    setBusy(emp.id);
+    const patch: any = { status: kind, hours: kind === "hourly" ? (hours ?? (Number(dayRows.get(emp.id)?.hours) || 4)) : null };
+    const existing = dayRows.get(emp.id);
+    const { error } = existing
+      ? await supabase.from("attendance").update(patch).eq("id", existing.id)
+      : await supabase.from("attendance").insert({ branch_id: branchId, tenant_id: tenant?.id ?? null, employee_id: emp.id, employee_name: emp.name, date: day, created_by: user?.id ?? null, ...patch });
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    load();
+  };
+
+  // calendar
+  const first = new Date(`${ym}-01T00:00:00`).getDay();
+  const cells: (string | null)[] = [...Array(first).fill(null), ...Array.from({ length: daysIn(ym) }, (_, i) => `${ym}-${pad(i + 1)}`)];
+  const dayStats = (date: string) => {
+    const s = { present: 0, absent: 0, leave: 0, half_day: 0, hourly: 0 } as Record<DayKind, number>;
+    for (const a of att) if (a.date === date) { const k = kindOf(a.status); if (k) s[k]++; }
+    return s;
+  };
+  const moveMonth = (delta: number) => {
+    const [y, m] = ym.split("-").map(Number);
+    const d = new Date(y, m - 1 + delta, 1);
+    const next = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+    setYm(next);
+    setDay(next === today.slice(0, 7) ? today : `${next}-01`);
+  };
+
+  const payroll = useMemo(() => employees.map((e) => computePayroll(e, ym, att, today)), [employees, ym, att, today]);
+  const [payFor, setPayFor] = useState<PayrollLine | null>(null);
+
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-4 xl:grid-cols-[minmax(360px,1fr)_minmax(0,1.4fr)]">
+        {/* Big calendar */}
+        <div className="card-elevated p-4">
+          <div className="flex items-center justify-between mb-3">
+            <Button variant="ghost" size="icon" onClick={() => moveMonth(-1)} aria-label="الشهر السابق"><ChevronRight className="w-5 h-5" /></Button>
+            <div className="font-extrabold text-lg">{new Date(`${ym}-01T00:00:00`).toLocaleDateString("ar-EG", { month: "long", year: "numeric" })}</div>
+            <Button variant="ghost" size="icon" onClick={() => moveMonth(1)} aria-label="الشهر التالي"><ChevronLeft className="w-5 h-5" /></Button>
+          </div>
+          <div className="grid grid-cols-7 gap-1.5 text-center">
+            {WEEKDAYS.map((w) => <div key={w} className="text-[11px] font-bold text-muted-foreground py-1">{w}</div>)}
+            {cells.map((date, i) => {
+              if (!date) return <div key={`b${i}`} />;
+              const s = dayStats(date);
+              const sel = date === day;
+              const future = date > today;
+              return (
+                <button key={date} type="button" onClick={() => setDay(date)}
+                  className={`min-h-[64px] rounded-lg border p-1.5 text-right flex flex-col justify-between transition-colors ${sel ? "border-primary bg-primary/10 ring-2 ring-primary/30" : "border-border hover:border-primary/40"} ${future ? "opacity-50" : ""} ${date === today ? "font-extrabold" : ""}`}>
+                  <span className="text-sm tabular-nums">{Number(date.slice(8))}</span>
+                  <span className="flex flex-wrap gap-0.5 justify-end">
+                    {KINDS.filter((k) => s[k.key] > 0).map((k) => (
+                      <span key={k.key} title={`${k.label}: ${s[k.key]}`} className={`text-[10px] leading-none rounded px-1 py-0.5 ${k.cls}`}>{k.short}{s[k.key]}</span>
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap gap-2 mt-3 text-[11px]">
+            {KINDS.map((k) => <span key={k.key} className="flex items-center gap-1"><span className={`rounded px-1 ${k.cls}`}>{k.short}</span>{k.label}</span>)}
+          </div>
+        </div>
+
+        {/* Employees of the selected day */}
+        <div className="card-elevated p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="font-extrabold">حضور يوم {new Date(`${day}T00:00:00`).toLocaleDateString("ar-EG", { weekday: "long", day: "numeric", month: "long" })}</div>
+            <span className="text-xs text-muted-foreground">اختار الحالة لكل موظف — بتتحفظ فوراً</span>
+          </div>
+          <div className="space-y-2">
+            {employees.length === 0 && <div className="text-sm text-muted-foreground py-8 text-center">لا يوجد موظفين في الفرع</div>}
+            {employees.map((e) => {
+              const a = dayRows.get(e.id);
+              const k = kindOf(a?.status);
+              const off = !isWorkDay(day, e.work_days);
+              const editable = canEdit(e) && day <= today;
+              return (
+                <div key={e.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-border p-2">
+                  <div className="min-w-[140px] flex-1">
+                    <div className="font-semibold">{e.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{e.job_title ?? ""}{off ? " • يوم إجازته الأسبوعية" : ""}{a?.check_in ? ` • دخل ${new Date(a.check_in).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" })}` : ""}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {KINDS.map((kk) => (
+                      <button key={kk.key} type="button" disabled={!editable || busy === e.id} onClick={() => setKind(e, kk.key)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-colors disabled:opacity-50 ${k === kk.key ? `${kk.cls} border-transparent` : "border-border hover:border-primary/50"}`}>
+                        {kk.label}
+                      </button>
+                    ))}
+                  </div>
+                  {k === "hourly" && (
+                    <div className="flex items-center gap-1">
+                      <Input type="number" min={0} max={24} step={0.5} defaultValue={a?.hours ?? 4} disabled={!editable}
+                        className="h-8 w-20 text-center" onBlur={(ev) => { const h = Number(ev.target.value); if (h !== Number(a?.hours)) setKind(e, "hourly", h); }} />
+                      <span className="text-xs text-muted-foreground">ساعة من {shiftHours(e)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Payroll of the month */}
+      <div className="card-elevated overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
+          <div className="font-extrabold">مرتبات شهر {ym}</div>
+          <div className="text-xs text-muted-foreground">المرتب محسوب من الحضور تلقائياً. الإجازة مدفوعة، الغياب بيتخصم، ونص اليوم والساعات بنسبتها. قسط السلف المستحق بيتخصم إجباري قبل صرف الصافي.</div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-surface-2">
+              <tr className="text-xs">
+                {["الموظف", "الأساسي", "أيام العمل", "أيام مدفوعة", "غياب", "خصم الحضور", "المستحق بالحضور", "قسط السلف المستحق", "الصافي المتوقع", ""].map((h) => <th key={h} className="px-2 py-2.5 font-extrabold text-center">{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {payroll.map((p) => {
+                const due = advDue[p.employee.id]?.due ?? 0;
+                const advance = Math.min(due, p.attendanceAmount);
+                const s = paid[p.employee.id];
+                return (
+                  <tr key={p.employee.id} className="border-t border-border/60 text-center">
+                    <td className="px-2 py-2 text-right font-semibold">{p.employee.name}</td>
+                    <td className="px-2 py-2 tabular-nums">{formatEGP(p.employee.base_salary)}</td>
+                    <td className="px-2 py-2 tabular-nums">{p.workDays}</td>
+                    <td className="px-2 py-2 tabular-nums">{p.paidUnits}</td>
+                    <td className="px-2 py-2 tabular-nums text-destructive">{p.counts.absent + p.counts.unrecorded}</td>
+                    <td className="px-2 py-2 tabular-nums text-destructive">{formatEGP(p.attendanceDeduction)}</td>
+                    <td className="px-2 py-2 tabular-nums font-bold">{formatEGP(p.attendanceAmount)}</td>
+                    <td className="px-2 py-2 tabular-nums text-warning">{formatEGP(advance)}</td>
+                    <td className="px-2 py-2 tabular-nums font-extrabold text-primary">{formatEGP(p.attendanceAmount - advance)}</td>
+                    <td className="px-2 py-2">
+                      {s ? <span className="inline-flex items-center gap-1 text-success text-xs font-bold"><CheckCircle2 className="w-4 h-4" /> اتصرف {formatEGP(s.net_salary)}</span>
+                        : <Button size="sm" className="gap-1" disabled={!isAdmin && !canEdit(p.employee)} onClick={() => setPayFor(p)}><Wallet className="w-4 h-4" /> صرف</Button>}
+                    </td>
+                  </tr>
+                );
+              })}
+              {payroll.length === 0 && <tr><td colSpan={10} className="p-8 text-center text-muted-foreground">لا يوجد موظفين</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {payFor && (
+        <PaySalaryDialog line={payFor} month={ym} advance={advDue[payFor.employee.id] ?? { due: 0, remaining: 0 }} canOverride={isAdmin}
+          onClose={() => setPayFor(null)} onDone={() => { setPayFor(null); load(); }} />
+      )}
+    </div>
+  );
+}
+
+function PaySalaryDialog({ line, month, advance, canOverride, onClose, onDone }: {
+  line: PayrollLine; month: string; advance: { due: number; remaining: number }; canOverride: boolean; onClose: () => void; onDone: () => void;
+}) {
+  const base = Number(line.employee.base_salary) || 0;
+  const [finalAmount, setFinalAmount] = useState(String(line.attendanceAmount));
+  const gross = Math.max(0, Number(finalAmount) || 0);
+  const required = Math.min(advance.due, gross);
+  const [advDed, setAdvDed] = useState(String(Math.min(advance.due, line.attendanceAmount)));
+  const adv = Number(advDed) || 0;
+  const diff = Math.round((gross - line.attendanceAmount) * 100) / 100;
+  const net = Math.round((gross - adv) * 100) / 100;
+  const [pm, setPm] = useState<PaymentMethodValue>(emptyPaymentValue());
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (adv < required) setAdvDed(String(required)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [required]);
+
+  const submit = async () => {
+    if (gross <= 0) return toast.error("المبلغ لازم يكون أكبر من صفر");
+    if (adv + 0.009 < required) return toast.error(`لازم تخصم قسط السلف المستحق الأول: ${formatEGP(required)}`);
+    if (adv > advance.remaining + 0.009) return toast.error("الخصم أكبر من رصيد السلف");
+    if (adv > gross) return toast.error("الخصم أكبر من المرتب");
+    const { validateTransferPayment } = await import("@/lib/paymentMethods");
+    const pErr = net > 0 ? validateTransferPayment(pm) : null;
+    if (pErr) return toast.error(pErr);
+    // base − attendance deduction + owner's decision (bonus if paid more, extra deduction if paid less)
+    const bonuses = Math.max(0, diff);
+    const deductions = Math.round((line.attendanceDeduction + Math.max(0, -diff)) * 100) / 100;
+    setSaving(true);
+    const { error } = await supabase.rpc("pay_employee_salary" as any, {
+      p_employee_id: line.employee.id, p_month: month, p_bonuses: bonuses, p_deductions: deductions, p_advance_deduct: adv,
+      p_payment_method: pm.method, p_reference_number: pm.reference_number ?? null, p_transfer_to_account: pm.transfer_to_account ?? null,
+      p_transfer_from_account: pm.transfer_from_account ?? null, p_fee_amount: pm.fee_amount ?? 0,
+      p_notes: diff > 0 ? `بونص بقرار المالك ${diff}` : diff < 0 ? `خصم إضافي بقرار المالك ${-diff}` : null,
+    } as any);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم صرف المرتب");
+    onDone();
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>صرف مرتب {line.employee.name} — {month}</DialogTitle></DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-2 p-3">
+            <span>الأساسي</span><b className="text-left tabular-nums">{formatEGP(base)}</b>
+            <span>خصم الحضور ({line.counts.absent + line.counts.unrecorded} غياب)</span><b className="text-left tabular-nums text-destructive">{formatEGP(line.attendanceDeduction)}</b>
+            <span>المستحق بالحضور</span><b className="text-left tabular-nums">{formatEGP(line.attendanceAmount)}</b>
+          </div>
+          <div>
+            <Label>المبلغ اللي هيتصرف قبل خصم السلف {canOverride ? "" : "(تعديله للمالك بس)"}</Label>
+            <Input type="number" value={finalAmount} disabled={!canOverride} onChange={(e) => setFinalAmount(e.target.value)} className="mt-1.5" />
+            {diff !== 0 && <div className={`text-xs mt-1 ${diff > 0 ? "text-success" : "text-destructive"}`}>{diff > 0 ? `هيتسجل بونص للموظف: ${formatEGP(diff)}` : `هيتسجل خصم إضافي: ${formatEGP(-diff)}`}</div>}
+          </div>
+          <div>
+            <Label>خصم السلف (المستحق إجباري: {formatEGP(required)} — رصيد السلف {formatEGP(advance.remaining)})</Label>
+            <Input type="number" value={advDed} min={required} max={Math.min(advance.remaining, gross)} onChange={(e) => setAdvDed(e.target.value)} className="mt-1.5" />
+          </div>
+          <div className="rounded-lg bg-primary/10 p-3 flex justify-between text-base"><span>الصافي اللي هيخرج من الخزنة</span><b className="tabular-nums">{formatEGP(net)}</b></div>
+          {net > 0 && <PaymentMethodPicker amount={net} value={pm} onChange={setPm} />}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? "جاري الصرف..." : "صرف المرتب"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

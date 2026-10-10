@@ -19,50 +19,44 @@ const SOURCE: Record<DocKind, string> = {
 
 const TOP: Record<DocKind, CardDef[]> = {
   sale: [
-    { key: "active", label: "المبيعات النشطة", icon: <TrendingUp />, tone: "primary", countWord: "فاتورة نشطة", meaning: "عدد وقيمة فواتير البيع النشطة فقط.", formula: "Σ الإجمالي حيث الحالة = نشطة" },
-    { key: "cancelled", label: "فواتير ملغاة", icon: <XCircle />, tone: "destructive", countWord: "فاتورة ملغاة", meaning: "الفواتير الملغاة، منفصلة عن المبيعات النشطة.", formula: "Σ الإجمالي حيث الحالة = ملغاة" },
-    { key: "collected", label: "المحصل فلوس (+)", icon: <ArrowDownCircle />, tone: "success", meaning: "الفلوس اللي اتخصمت فعلاً من الفواتير المعروضة حسب الدفتر الموحد: دفعات الفاتورة، والتحصيلات العامة والإيداعات تحت الحساب (الأقدم أولاً، من أي فرع)، والمقدم الافتتاحي. رصيد المرتجعات مش فلوس فمش محسوب هنا. حساب العميل بس.", formula: "Σ التوزيعات من حركات فلوس العميل على الفواتير المعروضة" },
-    { key: "remaining", label: "المتبقي / الآجل مدين (-)", icon: <Clock />, tone: "warning", meaning: "المتبقي على الفواتير المعروضة النهارده بعد الفلوس ورصيد المرتجعات.", formula: "Σ (الإجمالي − كل التوزيعات عليها) لكل فاتورة نشطة" },
+    { key: "active", label: "إجمالي المبيعات", icon: <TrendingUp />, tone: "primary", countWord: "فاتورة", meaning: "قيمة فواتير البيع النشطة المعروضة (الملغاة في تبويب «الملغاة» لوحدها).", formula: "Σ إجمالي الفاتورة للفواتير النشطة" },
+    { key: "collected", label: "المحصّل من الفواتير دي", icon: <ArrowDownCircle />, tone: "success", meaning: "الفلوس اللي اتخصمت فعلاً من الفواتير المعروضة حسب الدفتر الموحد: دفعات الفاتورة، والتحصيلات العامة والإيداعات تحت الحساب (الأقدم أولاً، من أي فرع)، والمقدم الافتتاحي. رصيد المرتجعات مش فلوس فمش محسوب هنا. حساب العميل بس.", formula: "Σ التوزيعات من حركات فلوس العميل على الفواتير المعروضة" },
+    { key: "remaining", label: "الباقي آجل على العملاء", icon: <Clock />, tone: "warning", meaning: "المتبقي على الفواتير المعروضة النهارده بعد الفلوس ورصيد المرتجعات.", formula: "Σ (الإجمالي − كل التوزيعات عليها) لكل فاتورة نشطة" },
   ],
   purchase: [
     { key: "active", label: "إجمالي المشتريات", icon: <TrendingUp />, tone: "primary", countWord: "فاتورة شراء", meaning: "قيمة فواتير الشراء المطابقة.", formula: "Σ إجمالي التكلفة" },
-    { key: "cancelled", label: "مشتريات ملغاة", icon: <XCircle />, tone: "destructive", countWord: "فاتورة", meaning: "فواتير الشراء الملغاة (لا يوجد حذف نهائي): مخزونها خرج وقيدها اتعكس، وهي خارج باقي الكروت وكشف حساب المورد.", formula: "Σ إجمالي التكلفة حيث الحالة = ملغاة" },
-    { key: "supplierPaid", label: "المسدد للموردين فلوس (-)", icon: <ArrowUpCircle />, tone: "success", countWord: "فاتورة مسددة بالكامل", value: (m) => m.supplierPaid ?? 0, meaning: "الفلوس اللي اتدفعت للموردين واتخصمت من فواتير الشراء المعروضة حسب الدفتر الموحد (دفعات وسندات صرف ومقدمات، الأقدم أولاً من أي فرع). رصيد مرتجعات الشراء مش فلوس فمش محسوب هنا. حساب المورد بس. النقر يعرض الفواتير المسددة بالكامل.", formula: "Σ التوزيعات من حركات فلوس المورد على فواتير الشراء المعروضة" },
-    { key: "supplierDue", label: "المستحق للموردين / الآجل دائن (+)", icon: <Clock />, tone: "warning", countWord: "فاتورة عليها متبقي", value: (m) => m.supplierDue ?? 0, meaning: "المتبقي للموردين على فواتير الشراء المعروضة النهارده بعد الفلوس ورصيد مرتجعات الشراء. النقر يعرض الفواتير التي عليها متبقي (> 0).", formula: "Σ (إجمالي الفاتورة − كل التوزيعات عليها)" },
+    { key: "supplierPaid", label: "المسدَّد من الفواتير دي", icon: <ArrowUpCircle />, tone: "success", countWord: "فاتورة مسددة بالكامل", value: (m) => m.supplierPaid ?? 0, meaning: "الفلوس اللي اتدفعت للموردين واتخصمت من فواتير الشراء المعروضة حسب الدفتر الموحد (دفعات وسندات صرف ومقدمات، الأقدم أولاً من أي فرع). رصيد مرتجعات الشراء مش فلوس فمش محسوب هنا. حساب المورد بس. النقر يعرض الفواتير المسددة بالكامل.", formula: "Σ التوزيعات من حركات فلوس المورد على فواتير الشراء المعروضة" },
+    { key: "supplierDue", label: "الباقي آجل للموردين", icon: <Clock />, tone: "warning", countWord: "فاتورة عليها متبقي", value: (m) => m.supplierDue ?? 0, meaning: "المتبقي للموردين على فواتير الشراء المعروضة النهارده بعد الفلوس ورصيد مرتجعات الشراء. النقر يعرض الفواتير التي عليها متبقي (> 0).", formula: "Σ (إجمالي الفاتورة − كل التوزيعات عليها)" },
   ],
   sale_return: [
     { key: "active", label: "إجمالي المرتجع", icon: <TrendingUp />, tone: "primary", countWord: "مرتجع نشط", meaning: "قيمة مرتجعات البيع النشطة.", formula: "Σ قيمة المرتجع حيث الحالة = نشط" },
-    { key: "cancelled", label: "مرتجع ملغي", icon: <XCircle />, tone: "destructive", countWord: "مرتجع ملغي", meaning: "المرتجعات الملغاة، خارج باقي الكروت.", formula: "Σ قيمة المرتجع حيث الحالة = ملغي" },
-    { key: "paidOut", label: "المنصرف نقداً للعميل (-)", icon: <ArrowUpCircle />, tone: "destructive", countWord: "مرتجع", meaning: "ما رُدّ للعملاء نقدًا أو تحويلًا من الخزينة.", formula: "Σ (الجزء النقدي + الجزء المحوّل) للمرتجعات النشطة" },
-    { key: "credit", label: "المضاف كرصيد دائن للعميل", icon: <Wallet />, tone: "warning", countWord: "مرتجع", meaning: "ما أُضيف لرصيد العميل بدل رده نقدًا — لا يحرك الخزينة.", formula: "Σ الجزء المضاف للرصيد للمرتجعات النشطة" },
+    { key: "paidOut", label: "اترد للعميل فلوس", icon: <ArrowUpCircle />, tone: "destructive", countWord: "مرتجع", meaning: "ما رُدّ للعملاء نقدًا أو تحويلًا من الخزينة.", formula: "Σ (الجزء النقدي + الجزء المحوّل) للمرتجعات النشطة" },
+    { key: "credit", label: "اتخصم من حساب العميل (بدون فلوس)", icon: <Wallet />, tone: "warning", countWord: "مرتجع", meaning: "ما أُضيف لرصيد العميل بدل رده نقدًا — لا يحرك الخزينة.", formula: "Σ الجزء المضاف للرصيد للمرتجعات النشطة" },
   ],
   purchase_return: [
     { key: "active", label: "إجمالي المرتجع", icon: <TrendingUp />, tone: "primary", countWord: "مرتجع نشط", meaning: "قيمة مرتجعات الشراء النشطة.", formula: "Σ قيمة المرتجع حيث الحالة = نشط" },
-    { key: "cancelled", label: "مرتجع ملغي", icon: <XCircle />, tone: "destructive", countWord: "مرتجع ملغي", meaning: "المرتجعات الملغاة، خارج باقي الكروت.", formula: "Σ قيمة المرتجع حيث الحالة = ملغي" },
-    { key: "refunded", label: "المسترد نقداً للخزينة (+)", icon: <ArrowDownCircle />, tone: "success", countWord: "مرتجع", meaning: "ما استرده الفرع من الموردين نقدًا أو تحويلًا.", formula: "Σ (الجزء النقدي + الجزء المحوّل) للمرتجعات النشطة" },
-    { key: "deducted", label: "المخصوم من مديونية المورد", icon: <Scale />, tone: "warning", countWord: "مرتجع", meaning: "ما خُصم من حساب المورد بدل استرداده نقدًا — لا يحرك الخزينة.", formula: "Σ الجزء المخصوم من الرصيد للمرتجعات النشطة" },
+    { key: "refunded", label: "رجع لنا فلوس من المورد", icon: <ArrowDownCircle />, tone: "success", countWord: "مرتجع", meaning: "ما استرده الفرع من الموردين نقدًا أو تحويلًا.", formula: "Σ (الجزء النقدي + الجزء المحوّل) للمرتجعات النشطة" },
+    { key: "deducted", label: "اتخصم من حساب المورد (بدون فلوس)", icon: <Scale />, tone: "warning", countWord: "مرتجع", meaning: "ما خُصم من حساب المورد بدل استرداده نقدًا — لا يحرك الخزينة.", formula: "Σ الجزء المخصوم من الرصيد للمرتجعات النشطة" },
   ],
   income: [
-    { key: "active", label: "إجمالي المقبوضات", icon: <TrendingUp />, tone: "success", countWord: "سند نشط", meaning: "قيمة سندات القبض النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
-    { key: "cancelled", label: "سندات ملغاة", icon: <XCircle />, tone: "destructive", countWord: "سند ملغي", meaning: "السندات الملغاة، خارج باقي الكروت.", formula: "Σ المبلغ حيث الحالة = ملغي" },
-    { key: "customers", label: "مقبوض من عملاء", icon: <Users />, tone: "primary", countWord: "سند", meaning: "سندات القبض اللي فلوسها من عملاء: سند على عميل، تحصيل من ملف العميل أو قسط، مبيعات نقدية، إيداع تحت الحساب — حتى لو السند اتعمل تلقائي من الخزنة.", formula: "Σ المبلغ حيث تصنيف الفلوس = عميل" },
-    { key: "otherIncome", label: "إيرادات أخرى", icon: <Receipt />, tone: "warning", countWord: "سند", meaning: "باقي سندات القبض: إيرادات أخرى وتحويلات داخلة ومرتجعات من موردين.", formula: "إجمالي المقبوضات − مقبوض من عملاء" },
+    { key: "active", label: "إجمالي سندات القبض", icon: <TrendingUp />, tone: "success", countWord: "سند نشط", meaning: "قيمة سندات القبض النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
+    { key: "customers", label: "من العملاء", icon: <Users />, tone: "primary", countWord: "سند", meaning: "سندات القبض اللي فلوسها من عملاء: سند على عميل، تحصيل من ملف العميل أو قسط، مبيعات نقدية، إيداع تحت الحساب — حتى لو السند اتعمل تلقائي من الخزنة.", formula: "Σ المبلغ حيث تصنيف الفلوس = عميل" },
+    { key: "otherIncome", label: "إيرادات وتحويلات أخرى", icon: <Receipt />, tone: "warning", countWord: "سند", meaning: "باقي سندات القبض: إيرادات أخرى وتحويلات داخلة ومرتجعات من موردين.", formula: "إجمالي المقبوضات − مقبوض من عملاء" },
   ],
   expense: [
-    { key: "active", label: "إجمالي المدفوعات", icon: <TrendingUp />, tone: "destructive", countWord: "سند نشط", meaning: "قيمة سندات الصرف النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
-    { key: "cancelled", label: "سندات ملغاة", icon: <XCircle />, tone: "warning", countWord: "سند ملغي", meaning: "السندات الملغاة، خارج باقي الكروت.", formula: "Σ المبلغ حيث الحالة = ملغي" },
-    { key: "suppliers", label: "سداد موردين", icon: <Truck />, tone: "primary", countWord: "سند", meaning: "سندات الصرف اللي فلوسها لموردين: سند على مورد، سداد من ملف المورد، أقساط خطط الشراء، الدفع عند الشراء.", formula: "Σ المبلغ حيث تصنيف الفلوس = مورد" },
-    { key: "operating", label: "مصاريف تشغيلية وإدارية", icon: <Receipt />, tone: "destructive", countWord: "سند", meaning: "المصاريف التشغيلية والإدارية الفعلية فقط (إيجارات، مرتبات، كهرباء، صيانة، ضيافة...).", formula: "إجمالي المدفوعات − سداد موردين − تحويلات داخلية ومرتجع وسلف" },
-    { key: "internal", label: "تحويلات داخلية ومرتجع وسلف", icon: <ArrowUpCircle />, tone: "warning", countWord: "سند", meaning: "تحويلات بين الخزن/الفروع، مرتجعات ومدفوعات للعملاء، وسلف الموظفين (ذمة تُسترد) — خرجت من الخزينة لكنها ليست مصروفًا تشغيليًا.", formula: "Σ المبلغ حيث التصنيف = مرتجع عميل أو تحويل (خزينة/فرع) أو سلف موظفين، أو الطرف = عميل" },
+    { key: "active", label: "إجمالي سندات الصرف", icon: <TrendingUp />, tone: "destructive", countWord: "سند نشط", meaning: "قيمة سندات الصرف النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
+    { key: "suppliers", label: "للموردين", icon: <Truck />, tone: "primary", countWord: "سند", meaning: "سندات الصرف اللي فلوسها لموردين: سند على مورد، سداد من ملف المورد، أقساط خطط الشراء، الدفع عند الشراء.", formula: "Σ المبلغ حيث تصنيف الفلوس = مورد" },
+    { key: "operating", label: "مصروفات تشغيل حقيقية", icon: <Receipt />, tone: "destructive", countWord: "سند", meaning: "المصاريف التشغيلية والإدارية الفعلية فقط (إيجارات، مرتبات، كهرباء، صيانة، ضيافة...).", formula: "إجمالي المدفوعات − سداد موردين − تحويلات داخلية ومرتجع وسلف" },
+    { key: "internal", label: "تحويلات وسلف ومرتجعات (مش مصروف)", icon: <ArrowUpCircle />, tone: "warning", countWord: "سند", meaning: "تحويلات بين الخزن/الفروع، مرتجعات ومدفوعات للعملاء، وسلف الموظفين (ذمة تُسترد) — خرجت من الخزينة لكنها ليست مصروفًا تشغيليًا.", formula: "Σ المبلغ حيث التصنيف = مرتجع عميل أو تحويل (خزينة/فرع) أو سلف موظفين، أو الطرف = عميل" },
   ],
 };
 
-const BUCKET_DEFS: { key: CollectionBucket; label: string; icon: ReactNode }[] = [
-  { key: "cash", label: "نقدي", icon: <Banknote /> },
-  { key: "instapay", label: "انستاباي", icon: <CreditCard /> },
-  { key: "wallet", label: "محفظة", icon: <Smartphone /> },
-  { key: "bank", label: "بنكي", icon: <Landmark /> },
-  { key: "other", label: "رصيد مسبق", icon: <Scale /> },
+const BUCKET_DEFS: { key: CollectionBucket; label: string; icon: ReactNode; where: string }[] = [
+  { key: "cash", label: "نقدي (درج الخزنة)", icon: <Banknote />, where: "درج خزنة الفرع النقدية — رصيد الخزنة بيتحرك فوراً" },
+  { key: "instapay", label: "انستاباي", icon: <CreditCard />, where: "الحساب البنكي المربوط بانستاباي المختار في المستند — مش في درج الكاش" },
+  { key: "wallet", label: "محفظة إلكترونية", icon: <Smartphone />, where: "المحفظة المختارة في المستند (فودافون كاش وغيرها) — مش في درج الكاش" },
+  { key: "bank", label: "تحويل / إيداع بنكي", icon: <Landmark />, where: "الحساب البنكي المختار في المستند — مش في درج الكاش" },
+  { key: "other", label: "خصم من رصيد (بدون فلوس)", icon: <Scale />, where: "مفيش فلوس اتحركت: اتخصم من رصيد/مقدم الطرف عندنا" },
 ];
 /** Vouchers always move a real treasury, so they have no prepaid-balance bucket. */
 const BUCKETS_FOR: Record<DocKind, CollectionBucket[]> = {
@@ -73,22 +67,54 @@ const BUCKETS_FOR: Record<DocKind, CollectionBucket[]> = {
   income: ["cash", "instapay", "wallet", "bank"],
   expense: ["cash", "instapay", "wallet", "bank"],
 };
+const BUCKET_TITLE: Record<DocKind, string> = {
+  sale: "الفلوس اللي دخلت الفرع من العملاء في الفترة — حسب مكان استلامها (تشمل تحصيل مديونيات قديمة ومقدمات، مش بس الفواتير المعروضة)",
+  purchase: "الفلوس اللي خرجت من الفرع للموردين في الفترة — حسب المكان اللي اتدفعت منه (تشمل سداد مديونيات قديمة ومقدمات)",
+  sale_return: "رد قيمة المرتجعات — حسب المكان اللي خرجت منه الفلوس",
+  purchase_return: "استرداد قيمة مرتجعات الشراء — حسب المكان اللي دخلت فيه الفلوس",
+  income: "سندات القبض — الفلوس دخلت فين بالظبط",
+  expense: "سندات الصرف — الفلوس خرجت منين بالظبط",
+};
 const BUCKET_VERB: Record<DocKind, string> = {
-  sale: "حُصّل", purchase: "سُدد للموردين", sale_return: "رُدّ للعملاء", purchase_return: "استُرد", income: "قُبض", expense: "صُرف",
+  sale: "دخل من العملاء", purchase: "اتدفع للموردين", sale_return: "اترد للعملاء", purchase_return: "رجع من الموردين", income: "اتقبض", expense: "اتصرف",
 };
 
-interface Props { kind: DocKind; metrics: DocMetrics | null; loading: boolean; selected: DocCardKey | null; onSelect: (k: DocCardKey | null) => void }
+interface Props { kind: DocKind; metrics: DocMetrics | null; loading: boolean; selected: DocCardKey | null; onSelect: (k: DocCardKey | null) => void; view?: "active" | "cancelled" }
 
-/** Two rows of click-to-filter accounting cards whose meaning adapts to the document type. */
-export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSelect }: Props) {
+const moneyIn = (m: DocMetrics | null) => m ? (m.byBucket.cash ?? 0) + (m.byBucket.instapay ?? 0) + (m.byBucket.wallet ?? 0) + (m.byBucket.bank ?? 0) : 0;
+
+/** Click-to-filter accounting cards whose meaning adapts to the document type. Cancelled documents have their own tab. */
+export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSelect, view = "active" }: Props) {
   const source = SOURCE[kind];
   const sel = (key: string, filterable = true) => filterable ? { active: selected === key, onClick: () => onSelect(selected === key ? null : key) } : {};
   const buckets = BUCKETS_FOR[kind];
   const verb = BUCKET_VERB[kind];
+
+  if (view === "cancelled") {
+    return (
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 transition-opacity ${loading ? "opacity-60" : ""}`}>
+        <MetricCardWithHint label="قيمة المستندات الملغاة" value={metrics?.values.cancelled ?? 0} icon={<XCircle />} tone="destructive"
+          footer={<span className="tabular-nums">{(metrics?.counts.cancelled ?? 0).toLocaleString("en-US")} مستند ملغي</span>}
+          metricHint={{ meaning: "المستندات الملغاة بس. أثرها على المخزون والخزنة والحسابات اتعكس بالكامل وقت الإلغاء، ومش داخلة في أي رقم تاني في السيستم.", source, formula: "Σ قيمة المستند حيث الحالة = ملغي" }} />
+      </div>
+    );
+  }
+
+  const top = TOP[kind];
+  const extra: CardDef | null = kind === "sale"
+    ? { key: "__moneyIn", label: "إجمالي الفلوس اللي دخلت من العملاء", icon: <Wallet />, tone: "success", filterable: false, value: moneyIn,
+        meaning: "كل الفلوس اللي دخلت الفرع فعلاً من العملاء في الفترة (نقدي + بنكي + محفظة + انستاباي)، سواء على فواتير الفترة أو تحصيل مديونية قديمة أو مقدم. عشان كده ممكن تكون أكبر من «المحصّل من الفواتير دي».",
+        formula: "Σ (فلوس داخلة − فلوس مردودة) من الدفتر الموحد لحساب العملاء، في الفرع والفترة" }
+    : kind === "purchase"
+    ? { key: "__moneyOut", label: "إجمالي الفلوس اللي اتدفعت للموردين", icon: <Wallet />, tone: "destructive", filterable: false, value: moneyIn,
+        meaning: "كل الفلوس اللي خرجت من الفرع للموردين في الفترة، سواء على فواتير الفترة أو سداد مديونية قديمة أو مقدم.",
+        formula: "Σ (فلوس خارجة − فلوس مستردة) من الدفتر الموحد لحساب الموردين، في الفرع والفترة" }
+    : null;
+  const cards = extra ? [...top, extra] : top;
   return (
     <div className={`space-y-3 mb-4 transition-opacity ${loading ? "opacity-60" : ""}`}>
-      <div className={`grid grid-cols-2 gap-3 ${TOP[kind].length === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
-        {TOP[kind].map((c) => {
+      <div className={`grid grid-cols-2 gap-3 ${cards.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+        {cards.map((c) => {
           const value = c.value ? (metrics ? c.value(metrics) : 0) : (metrics?.values[c.key] ?? 0);
           const count = metrics?.counts[c.key];
           return (
@@ -98,16 +124,15 @@ export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSel
           );
         })}
       </div>
+      <div className="text-xs font-semibold text-muted-foreground pt-1">{BUCKET_TITLE[kind]}</div>
       <div className={`grid grid-cols-2 gap-3 ${buckets.length === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
         {BUCKET_DEFS.filter((b) => buckets.includes(b.key)).map((b) => (
           <MetricCardWithHint key={b.key} label={b.label} value={metrics?.byBucket[b.key] ?? 0} icon={b.icon} tone={b.key === "other" ? "warning" : "success"}
-            {...sel(b.key, kind !== "purchase")}
+            {...sel(b.key, kind !== "purchase" && kind !== "sale")}
             metricHint={{
-              meaning: b.key === "other"
-                ? `ما ${verb} عن طريق الرصيد المسبق / الحساب، بدون أي حركة نقدية في الخزينة.`
-                : `ما ${verb} عن طريق «${b.label}» من المستندات النشطة المطابقة.`,
+              meaning: `${verb} عن طريق «${b.label}». المكان: ${b.where}.`,
               source,
-              formula: `Σ مبالغ «${b.label}» للمستندات النشطة؛ ومجموع الأوعية = ${kind === "sale" ? "المحصل الفعلي" : kind === "purchase" ? "المسدد للموردين" : kind === "sale_return" ? "المنصرف + المضاف للرصيد" : kind === "purchase_return" ? "المسترد + المخصوم" : "إجمالي السندات النشطة"}`,
+              formula: `Σ مبالغ «${b.label}» للمستندات النشطة`,
             }} />
         ))}
       </div>

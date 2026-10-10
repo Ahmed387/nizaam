@@ -628,7 +628,7 @@ export default function NewSale() {
   const addItem = async (p: any) => {
     const existing = items.find((i) => i.product_id === p.id);
     const newQty = existing ? existing.quantity + 1 : 1;
-    if (Number(p.quantity || 0) < 1 && !existing) return toast.error("المنتج غير متوفر");
+    // Out-of-stock items are allowed when the branch permits negative stock (checked by reserve_stock on the server).
     const res = await reserveStock({
       productId: p.id, branchId: branchId!,
       draftId: draftIdRef.current, quantity: newQty,
@@ -646,6 +646,11 @@ export default function NewSale() {
       return;
     }
     setReservations((prev) => ({ ...prev, [p.id]: { reservation_id: res.reservation_id!, expires_at: res.expires_at! } }));
+    if (res.negative) {
+      toast.warning(`«${p.name}» مش موجود بالكمية دي في المخزن — هيتباع بالسالب`, {
+        description: "التكلفة مؤقتاً بآخر سعر شراء، وبتتصحح لوحدها أول ما البضاعة توصل الفرع.", duration: 6000,
+      });
+    }
     if (existing) {
       setItems(items.map((i) => i.product_id === p.id ? { ...i, quantity: newQty } : i));
     } else {
@@ -1345,7 +1350,6 @@ export default function NewSale() {
                       <button
                         key={p.id}
                         onClick={() => addItem(p)}
-                        disabled={avail <= 0}
                         className="group text-right rounded-xl border-2 border-border bg-surface-1 hover:border-primary hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:border-border disabled:hover:shadow-none flex items-center gap-3 p-3 overflow-hidden"
                       >
                         <div className="w-12 h-12 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg border border-primary/20">

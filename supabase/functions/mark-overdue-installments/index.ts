@@ -1,3 +1,4 @@
+import { isCronCall } from "../_shared/cron.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -14,8 +15,7 @@ Deno.serve(async (req) => {
     );
 
     // Authorization: allow CRON_SECRET header for automated invocation, otherwise require an admin user
-    const cronSecret = Deno.env.get("CRON_SECRET");
-    const isCron = !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
+    const isCron = await isCronCall(req, supabase, "mark-overdue-installments");
 
     if (!isCron) {
       const authHeader = req.headers.get("Authorization");

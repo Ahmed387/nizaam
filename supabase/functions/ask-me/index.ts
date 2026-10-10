@@ -1,3 +1,4 @@
+import { aiChat, aiConfigured } from "../_shared/ai.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -71,8 +72,7 @@ Deno.serve(async (req) => {
     const history: { role: string; content: string }[] = Array.isArray(body?.messages) ? body.messages : [];
     if (!history.length) return json({ error: "لا توجد رسائل" }, 400);
 
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) return json({ error: "مفتاح الذكاء الاصطناعي غير مكوّن" }, 500);
+    if (!aiConfigured()) return json({ error: "مفتاح الذكاء الاصطناعي (AI_API_KEY) غير مضاف في أسرار Supabase" }, 500);
 
     // ── the fixed list of reports (no table schema is sent to the model any more) ──
     const { data: catalog, error: catErr } = await sb.rpc("ai_report_catalog");
@@ -119,11 +119,7 @@ ${reportsText}`;
     const steps: { report: string; params: unknown; rows: number; error?: string }[] = [];
 
     for (let i = 0; i < 8; i++) {
-      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "google/gemini-3.6-flash", messages, tools: TOOLS }),
-      });
+      const resp = await aiChat({ model: "google/gemini-2.5-flash", messages, tools: TOOLS });
 
       if (resp.status === 429) return json({ error: "الضغط عالي على الذكاء الاصطناعي، جرّب بعد شوية" }, 429);
       if (resp.status === 402) return json({ error: "رصيد الذكاء الاصطناعي خلص، محتاج تشحن كريدت" }, 402);
