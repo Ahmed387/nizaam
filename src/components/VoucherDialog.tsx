@@ -228,6 +228,12 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     }
 
     if (vErr) return toast.error(vErr);
+    if (type === "receipt" && form.party_type === "supplier") {
+      return toast.error("مينفعش سند قبض من مورد", {
+        description: "فلوس جاية من فرع تاني → «التحويلات بين الفروع» (تحويل خزنة). فلوس رجعها مورد → «مرتجع شراء».",
+        duration: 8000,
+      });
+    }
     if (isEdit && !editReason.trim()) return toast.error("سبب التعديل مطلوب");
     setBusy(true);
     try {
@@ -445,7 +451,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
                 <Select value={form.party_type} onValueChange={(v) => setForm({ ...form, party_type: v as any })}>
                   <SelectTrigger className="mt-1.5 h-10"><SelectValue placeholder={isReceipt ? "اختر نوع الحساب" : "اختر النوع"} /></SelectTrigger>
                   <SelectContent>
-                    {(Object.keys(PARTY_TYPE_LABEL) as VoucherPartyType[]).map((k) => (
+                    {/* a receipt can't come from a supplier: branch money is a till transfer, supplier money back is a purchase return (DB enforces it too — migration 0070) */}
+                    {(Object.keys(PARTY_TYPE_LABEL) as VoucherPartyType[]).filter((k) => !(isReceipt && k === "supplier")).map((k) => (
                       <SelectItem key={k} value={k}>{PARTY_TYPE_LABEL[k]}</SelectItem>
                     ))}
                   </SelectContent>

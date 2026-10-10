@@ -25,9 +25,7 @@ export default function Login() {
     else if (isAdmin) nav("/admin/dashboard", { replace: true });
     else if (hasRole("partner")) nav("/partner/dashboard", { replace: true });
     else if (can("admin_home.view")) nav("/admin/dashboard", { replace: true });
-    else if (can("admin_cockpit.view")) nav("/admin/cockpit", { replace: true });
     else if (can("admin_ask_me.view")) nav("/admin/ask-me", { replace: true });
-    else if (can("admin_insights.view")) nav("/admin/insights", { replace: true });
     else if (can("admin_catalog.view")) nav("/admin/catalog", { replace: true });
     else if (can("admin_contacts.view")) nav("/admin/contacts", { replace: true });
     else if (can("admin_employees.view")) nav("/admin/employees", { replace: true });

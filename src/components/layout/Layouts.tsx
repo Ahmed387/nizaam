@@ -85,8 +85,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     // ===== عام =====
     ...only(allow("admin_home.view"), { to: "/admin/dashboard", label: "الرئيسية", icon: <Home className="w-4 h-4" />, group: "عــام" }),
     ...only(allow("admin_ask_me.view"), { to: "/admin/ask-me", label: "اسألني", icon: <Sparkles className="w-4 h-4" />, group: "عــام" }),
-    ...only(allow("admin_reports_hub.view"), { to: "/admin/cockpit", label: "لوحة المالك", icon: <TrendingUp className="w-4 h-4" />, group: "عــام" }),
-    ...only(allow("admin_insights.view", { ownerOnly: true }), { to: "/admin/insights", label: "الرؤى التنفيذية", icon: <Sparkles className="w-4 h-4" />, group: "عــام" }),
+    ...only(allow("admin_reports_hub.view"), { to: "/admin/reports-hub?tab=snapshot", label: "هل بنكسب؟", icon: <TrendingUp className="w-4 h-4" />, group: "عــام" }),
 
     // ===== العمليات =====
     ...section(
@@ -140,9 +139,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       { to: "/admin/reports-hub?tab=central", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "الماليـة" },
       [
         ...(allow("admin_reports_hub.view") ? [
-          { to: "/admin/reports-hub?tab=monthly", label: "ملخص الأرباح", icon: <Coins className="w-4 h-4" /> },
           { to: "/admin/reports-hub?tab=profitability", label: "الربحية", icon: <TrendingUp className="w-4 h-4" /> },
-          { to: "/admin/reports-hub?tab=comparison", label: "مقارنة الفترات", icon: <ArrowLeftRight className="w-4 h-4" /> },
           { to: "/admin/reports-hub?tab=scheduled", label: "المجدولة", icon: <CalendarRange className="w-4 h-4" /> },
         ] : []),
         ...(allow("admin_historical_analytics.view") ? [{ to: "/admin/historical-analytics", label: "الأرشيف والتحليل التاريخي", icon: <History className="w-4 h-4" /> }] : []),

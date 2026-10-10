@@ -118,18 +118,15 @@ import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
 import AllVouchers from "./pages/admin/AllVouchers";
 import CatalogHub from "./pages/admin/CatalogHub";
 import ReportsHub from "./pages/admin/ReportsHub";
-import OwnerCockpit from "./pages/admin/OwnerCockpit";
 import HistoricalAnalytics from "./pages/admin/HistoricalAnalytics";
 
 
-import InsightsPage from "./pages/admin/InsightsPage";
 import FinanceHub from "./pages/admin/FinanceHub";
 import MainTreasury from "./pages/admin/MainTreasury";
 import ApprovalRequests from "./pages/admin/ApprovalRequests";
 import AdminApprovalsHub from "./pages/admin/AdminApprovalsHub";
 import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
 import AdminDiscountApprovals from "./pages/admin/AdminDiscountApprovals";
-import FinancialDashboard from "./pages/admin/FinancialDashboard";
 import MyApprovalRequests from "./pages/branch/MyApprovalRequests";
 import PendingDiscountApprovals from "./pages/branch/PendingDiscountApprovals";
 import PendingVoidApprovals from "./pages/branch/PendingVoidApprovals";
@@ -167,8 +164,6 @@ import BankReconciliationDetail from "./pages/admin/BankReconciliationDetail";
 import FiscalClosing from "./pages/admin/FiscalClosing";
 import OpeningBalances from "./pages/admin/OpeningBalances";
 import FlexibleDistribution from "./pages/admin/FlexibleDistribution";
-import Budgets from "./pages/admin/Budgets";
-import KpiDashboard from "./pages/admin/KpiDashboard";
 import FixedAssets from "./pages/admin/FixedAssets";
 import BranchCapital from "./pages/admin/BranchCapital";
 
@@ -239,14 +234,14 @@ const App = () => (
             <Route path="/admin/catalog" element={<ProtectedRoute perm="admin_catalog.view" adminOnly><CatalogHub /></ProtectedRoute>} />
             <Route path="/admin/reports-hub" element={<ProtectedRoute perm="admin_reports_hub.view" adminOnly><ReportsHub /></ProtectedRoute>} />
             <Route path="/admin/historical-analytics" element={<ProtectedRoute perm="admin_historical_analytics.view" adminOnly><HistoricalAnalytics /></ProtectedRoute>} />
-            <Route path="/admin/cockpit" element={<ProtectedRoute perm="admin_reports_hub.view" adminOnly><OwnerCockpit /></ProtectedRoute>} />
+            <Route path="/admin/cockpit" element={<Navigate to="/admin/reports-hub?tab=snapshot" replace />} />
 
-            <Route path="/admin/monthly-profit" element={<Navigate to="/admin/reports-hub?tab=monthly" replace />} />
-            <Route path="/admin/insights" element={<ProtectedRoute perm="admin_insights.view" ownerOnly><InsightsPage /></ProtectedRoute>} />
+            <Route path="/admin/monthly-profit" element={<Navigate to="/admin/reports-hub?tab=snapshot" replace />} />
+            <Route path="/admin/insights" element={<Navigate to="/admin/reports-hub?tab=snapshot" replace />} />
             <Route path="/admin/finance" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FinanceHub /></ProtectedRoute>} />
             <Route path="/admin/main-treasury" element={<ProtectedRoute perm="admin_main_treasury.view" adminOnly><MainTreasury /></ProtectedRoute>} />
-            <Route path="/admin/financial-dashboard" element={<ProtectedRoute adminOnly><FinancialDashboard /></ProtectedRoute>} />
-            <Route path="/admin/report-comparison" element={<Navigate to="/admin/reports-hub?tab=comparison" replace />} />
+            <Route path="/admin/financial-dashboard" element={<Navigate to="/admin/reports-hub?tab=snapshot" replace />} />
+            <Route path="/admin/report-comparison" element={<Navigate to="/admin/reports-hub?tab=snapshot" replace />} />
 
             {/* Legacy redirects → hubs */}
             <Route path="/admin/branches" element={<Navigate to="/admin/catalog?tab=branches" replace />} />
@@ -290,8 +285,8 @@ const App = () => (
             <Route path="/admin/accounting/fiscal-closing" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FiscalClosing /></ProtectedRoute>} />
             <Route path="/admin/accounting/opening-balances" element={<ProtectedRoute perm="admin_finance.view" adminOnly><OpeningBalances /></ProtectedRoute>} />
             <Route path="/admin/accounting/flexible-distribution" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FlexibleDistribution /></ProtectedRoute>} />
-            <Route path="/admin/accounting/budgets" element={<ProtectedRoute perm="admin_finance.view" adminOnly><Budgets /></ProtectedRoute>} />
-            <Route path="/admin/accounting/kpis" element={<ProtectedRoute perm="admin_finance.view" adminOnly><KpiDashboard /></ProtectedRoute>} />
+            <Route path="/admin/accounting/budgets" element={<Navigate to="/admin/reports-hub?tab=snapshot" replace />} />
+            <Route path="/admin/accounting/kpis" element={<Navigate to="/admin/reports-hub?tab=snapshot" replace />} />
             <Route path="/admin/accounting/fixed-assets" element={<ProtectedRoute perm="admin_finance.view" adminOnly><FixedAssets /></ProtectedRoute>} />
             <Route path="/admin/accounting/branch-capital" element={<ProtectedRoute perm="admin_finance.view" adminOnly><BranchCapital /></ProtectedRoute>} />
 

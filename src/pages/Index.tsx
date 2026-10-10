@@ -28,9 +28,7 @@ const Index = () => {
     }
     const grantedAdminEntry = [
       ["admin_home.view", "/admin/dashboard"],
-      ["admin_cockpit.view", "/admin/cockpit"],
       ["admin_ask_me.view", "/admin/ask-me"],
-      ["admin_insights.view", "/admin/insights"],
       ["admin_catalog.view", "/admin/catalog"],
       ["admin_contacts.view", "/admin/contacts"],
       ["admin_employees.view", "/admin/employees"],

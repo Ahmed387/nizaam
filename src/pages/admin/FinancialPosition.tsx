@@ -295,18 +295,6 @@ export default function FinancialPosition() {
               iconClass="text-warning"
             />
             <ActionButton
-              to="/admin/accounting/budgets"
-              icon={<Target className="w-4 h-4" />}
-              title="الموازنة التقديرية"
-              note="بتحط خطة كام هتصرف وكام هتكسب، وبتقارن باللي حصل فعلاً."
-            />
-            <ActionButton
-              to="/admin/accounting/kpis"
-              icon={<BarChart3 className="w-4 h-4" />}
-              title="مؤشرات الأداء KPIs"
-              note="أرقام سريعة بتقولك الشركة صحتها كويسة ولا في مشكلة."
-            />
-            <ActionButton
               to="/admin/accounting/fixed-assets"
               icon={<Package className="w-4 h-4" />}
               title="الأصول الثابتة والإهلاك"

@@ -58,7 +58,6 @@ export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
 /** Admin sidebar pages — the owner can grant any of these to any role. */
 export const ADMIN_NAV_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_home", label: "الرئيسية (لوحة التحكم العامة)", actions: ["view"] },
-  { key: "admin_cockpit", label: "لوحة المالك", actions: ["view"] },
   { key: "admin_ask_me", label: "اسألني (المساعد الذكي)", actions: ["view"] },
   { key: "admin_insights", label: "الرؤى التنفيذية", actions: ["view"] },
   { key: "admin_catalog", label: "الفروع والمخزون", actions: ["view"] },
@@ -153,7 +152,6 @@ export const PERM_HELP: Record<string, string> = {
 
   // قائمة الإدارة
   admin_home: "لوحة التحكم العامة لكل الشركة (مش فرع واحد) — أرقام كل الفروع مجمّعة.",
-  admin_cockpit: "لوحة المالك: نظرة سريعة على أهم مؤشرات الشركة والأرباح. للمالك عادةً.",
   admin_ask_me: "المساعد الذكي «اسألني» — بيسأل بالعربي عن أي رقم في الشركة ويجاوبه من الداتا. أي حد ياخدها هيقدر يعرف أرقام المبيعات والأرباح.",
   admin_insights: "الرؤى التنفيذية: تحليلات وملاحظات ذكية عن أداء الشركة.",
   admin_catalog: "الفروع والمخزون مركزيًا: إدارة الفروع، التصنيفات، قائمة الأسعار، ومخزون كل الفروع.",
