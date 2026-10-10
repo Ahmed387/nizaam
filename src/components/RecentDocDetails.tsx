@@ -9,7 +9,7 @@ type Line = { name: string; qty: number; price: number; total: number };
 type Meta = { notes: string | null; payment: string | null; recipient: string | null };
 
 const PAY: Record<string, string> = {
-  cash: "نقدي", installment: "تقسيط", bank: "بنكي", transfer: "تحويل", credit: "آجل", balance: "رصيد", mixed: "متعدد",
+  cash: "كاش", installment: "تقسيط", bank: "بنكي", transfer: "تحويل", credit: "آجل", balance: "رصيد", mixed: "متعدد",
 };
 const payLabel = (v?: string | null) => (v ? PAY[v] ?? v : null);
 

@@ -836,7 +836,7 @@ export default function Invoices() {
   }, [tab, view]);
 
   const paymentOptions = [
-    { value: "cash", label: "نقدي" },
+    { value: "cash", label: "كاش" },
     { value: "instapay", label: "انستاباي" },
     { value: "wallet", label: "محفظة" },
     { value: "bank", label: "بنكي" },

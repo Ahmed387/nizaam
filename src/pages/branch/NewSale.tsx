@@ -98,7 +98,7 @@ export default function NewSale() {
   const [items, setItems] = useState<Item[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [customerId, setCustomerId] = useState<string>("");
-  const [methodOptions, setMethodOptions] = useState<PaymentMethodOption[]>([{ value: "cash", label: "💵 نقدي", is_builtin: true, is_enabled: true }]);
+  const [methodOptions, setMethodOptions] = useState<PaymentMethodOption[]>([{ value: "cash", label: "💵 كاش", is_builtin: true, is_enabled: true }]);
 
 
   const [busy, setBusy] = useState(false);

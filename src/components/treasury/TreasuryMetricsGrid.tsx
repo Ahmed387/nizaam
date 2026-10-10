@@ -56,14 +56,14 @@ export function TreasuryMetricsGrid({ cumulativeBalance, periodRows, channels, l
       {/* 1. Global cumulative balance — independent of filters */}
       <div className="card-elevated p-6 text-center">
         <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1 flex-wrap">
-          الرصيد الفعلي الحالي للخزينة
+          رصيد الخزنة دلوقتي (كل الأوعية)
           <MetricHint
-            label="شرح الرصيد الفعلي الحالي للخزينة"
+            label="شرح رصيد الخزنة دلوقتي"
             meaning="صافي النقدية المتبقية فعليًا بكل أوعية هذا الفرع حتى اللحظة، ولا يتأثر بأي فلتر. الرقم السالب يعني أن المصروفات وسندات الصرف والتحويلات الصادرة المسجلة تجاوزت المقبوضات المسجلة للفرع."
             source="سجل حركات الخزينة للفرع كاملًا (get_branch_wallet_balances)."
             formula="Σ amount (type = income) − Σ amount (type = expense) لكل حركات الفرع منذ البداية"
           />
-          <span className="text-xs">(كل الفترات — لا يتأثر بالفلاتر)</span>
+          <span className="text-xs">(من أول يوم — الفلاتر مش بتغيّره)</span>
         </div>
         <FinancialAmount value={cumulativeBalance} size="hero" className="gradient-text font-extrabold" />
         {lowThresholdAlert}
@@ -72,19 +72,19 @@ export function TreasuryMetricsGrid({ cumulativeBalance, periodRows, channels, l
       {/* 2. Period summary — follows all filters */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <PeriodCard
-          title="إجمالي الوارد بالفترة (+)" tone="text-success" icon={<ArrowDownCircle className="w-5 h-5" />}
+          title="إجمالي اللي دخل الخزنة في الفترة (+)" tone="text-success" icon={<ArrowDownCircle className="w-5 h-5" />}
           value={overall.income} loading={loading}
           hint={{ meaning: "كل المقبوضات الداخلة للفرع ضمن الفلاتر المطبقة فقط.", source: "حركات الخزينة المفلترة (نفس فلاتر الجدول).", formula: "Σ amount حيث type = income ضمن النطاق المفلتر" }}
         />
         <PeriodCard
-          title="إجمالي المنصرف بالفترة (−)" tone="text-destructive" icon={<ArrowUpCircle className="w-5 h-5" />}
+          title="إجمالي اللي خرج من الخزنة في الفترة (−)" tone="text-destructive" icon={<ArrowUpCircle className="w-5 h-5" />}
           value={overall.expense} loading={loading}
           hint={{ meaning: "كل المصروفات وسندات الصرف والتحويلات الخارجة ضمن الفلاتر المطبقة فقط.", source: "حركات الخزينة المفلترة (نفس فلاتر الجدول).", formula: "Σ amount حيث type = expense ضمن النطاق المفلتر" }}
         />
         <PeriodCard
-          title="صافي حركة الفترة" tone={overall.net < 0 ? "text-destructive" : "text-success"} icon={<Scale className="w-5 h-5" />}
+          title="صافي حركة الخزنة في الفترة (دخل − خرج)" tone={overall.net < 0 ? "text-destructive" : "text-success"} icon={<Scale className="w-5 h-5" />}
           value={overall.net} loading={loading}
-          hint={{ meaning: "الفائض (موجب) أو العجز (سالب) النقدي خلال الفترة المفلترة تحديدًا، وليس الرصيد التراكمي.", source: "حركات الخزينة المفلترة.", formula: "إجمالي الوارد بالفترة − إجمالي المنصرف بالفترة" }}
+          hint={{ meaning: "موجب = دخل الخزنة أكتر من اللي خرج في الفترة دي بس، سالب = خرج أكتر. ده مش رصيد الخزنة الكلي.", source: "حركات الخزينة المفلترة.", formula: "اللي دخل الخزنة في الفترة − اللي خرج منها في الفترة" }}
         />
       </div>
 
@@ -106,10 +106,10 @@ export function TreasuryMetricsGrid({ cumulativeBalance, periodRows, channels, l
                 />
               </div>
               <div className="space-y-1.5 text-sm">
-                <Row label="الوارد (+)" value={t.income} tone="text-success" />
-                <Row label="المنصرف (−)" value={t.expense} tone="text-destructive" />
+                <Row label="دخل (+)" value={t.income} tone="text-success" />
+                <Row label="خرج (−)" value={t.expense} tone="text-destructive" />
                 <div className="border-t pt-1.5">
-                  <Row label="الصافي" value={t.net} tone={t.net < 0 ? "text-destructive" : "text-foreground"} bold />
+                  <Row label="الصافي (دخل − خرج)" value={t.net} tone={t.net < 0 ? "text-destructive" : "text-foreground"} bold />
                 </div>
               </div>
             </div>

@@ -38,7 +38,7 @@ export function BranchFinancialDistribution({ rows, loading }: { rows: BranchFin
           { key: "payables", header: "مستحق للموردين", render: (row) => formatEGP(row.payables) },
           { key: "customerAdvances", header: "مقدمات عملاء", render: (row) => formatEGP(row.customerAdvances) },
           { key: "supplierAdvances", header: "مقدمات موردين", render: (row) => formatEGP(row.supplierAdvances) },
-          { key: "cash", header: "النقدية", render: (row) => <span className="font-bold">{formatEGP(row.cash)}</span> },
+          { key: "cash", header: "الكاش في الخزنة", render: (row) => <span className="font-bold">{formatEGP(row.cash)}</span> },
         ]}
       />
     </section>

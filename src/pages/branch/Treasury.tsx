@@ -263,7 +263,7 @@ export default function Treasury() {
   const transferAttCounts = useAttachmentCounts("treasury_transfer", useMemo(() => transfers.map((t: any) => t.id), [transfers]));
 
   const wallets = [
-    { key: "cash_balance" as const, label: "نقدي", icon: Wallet, color: "text-success", method: "cash" as const },
+    { key: "cash_balance" as const, label: "كاش في الدرج", icon: Wallet, color: "text-success", method: "cash" as const },
     { key: "vodafone_balance" as const, label: "فودافون كاش", icon: Smartphone, color: "text-rose-500", method: "vodafone" as const },
     { key: "instapay_balance" as const, label: "انستاباي", icon: CreditCard, color: "text-violet-500", method: "instapay" as const },
     { key: "bank_balance" as const, label: "حساب بنكي", icon: Landmark, color: "text-blue-500", method: "bank" as const },
@@ -273,10 +273,10 @@ export default function Treasury() {
       : []),
   ];
   const channels = useMemo<TreasuryChannel[]>(() => [
-    { method: "cash", label: "نقدي", icon: Wallet, color: "text-success" },
-    { method: "vodafone", label: "فودافون كاش", icon: Smartphone, color: "text-destructive" },
-    { method: "instapay", label: "انستاباي", icon: CreditCard, color: "text-primary" },
-    { method: "bank", label: "حساب بنكي", icon: Landmark, color: "text-primary" },
+    { method: "cash", label: "حركة الكاش (الدرج)", icon: Wallet, color: "text-success" },
+    { method: "vodafone", label: "حركة فودافون كاش", icon: Smartphone, color: "text-destructive" },
+    { method: "instapay", label: "حركة انستاباي", icon: CreditCard, color: "text-primary" },
+    { method: "bank", label: "حركة الحساب البنكي", icon: Landmark, color: "text-primary" },
     ...(periodRows.some((r) => !["cash", "vodafone", "instapay", "bank"].includes(String(r.payment_method)))
       ? [{ method: "other", label: "وسائل أخرى", icon: Wallet, color: "text-warning" }] : []),
   ], [periodRows]);

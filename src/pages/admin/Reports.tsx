@@ -150,7 +150,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       const txs = scopedPayTx.filter((t) => t.payment_method === m);
       const volume = txs.reduce((s, t) => s + Number(t.amount), 0);
       const fees = txs.reduce((s, t) => s + Number(t.fee_amount || 0), 0);
-      return { method: m, label: m === "cash" ? "نقدي" : m === "vodafone" ? "فودافون كاش" : m === "instapay" ? "انستاباي" : "بنك", count: txs.length, volume, fees };
+      return { method: m, label: m === "cash" ? "كاش" : m === "vodafone" ? "فودافون كاش" : m === "instapay" ? "انستاباي" : "بنك", count: txs.length, volume, fees };
     });
     const totalFees = byMethod.reduce((s, x) => s + x.fees, 0);
     const totalVolume = byMethod.reduce((s, x) => s + x.volume, 0);
@@ -292,7 +292,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const salesByMethod = useMemo(() => {
     const m: Record<string, { method: string; label: string; count: number; total: number }> = {};
     const labels: Record<string, string> = {
-      cash: "نقدي", credit: "آجل", vodafone: "فودافون كاش",
+      cash: "كاش", credit: "آجل", vodafone: "فودافون كاش",
       instapay: "انستاباي", bank: "بنك", mixed: "متعدد",
     };
     for (const i of activeInv) {
@@ -814,7 +814,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                   <div className="mt-3 pt-3 border-t border-border">
                     <div className="text-[10px] font-bold text-muted-foreground mb-2">تفصيل المتحصلات حسب طريقة الدفع</div>
                     <div className="grid grid-cols-2 gap-1.5 text-[11px]">
-                      <PMRow label="💵 نقدي" value={b.cashIn} />
+                      <PMRow label="💵 كاش" value={b.cashIn} />
                       <PMRow label="📱 محفظة" value={b.walletIn} />
                       <PMRow label="⚡ انستاباي" value={b.instapayIn} />
                       <PMRow label="🏦 تحويل بنكي" value={b.bankIn} />

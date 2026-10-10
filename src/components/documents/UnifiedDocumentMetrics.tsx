@@ -39,24 +39,24 @@ const TOP: Record<DocKind, CardDef[]> = {
     { key: "deducted", label: "اتخصم من حساب المورد (بدون فلوس)", icon: <Scale />, tone: "warning", countWord: "مرتجع", meaning: "ما خُصم من حساب المورد بدل استرداده نقدًا — لا يحرك الخزينة.", formula: "Σ الجزء المخصوم من الرصيد للمرتجعات النشطة" },
   ],
   income: [
-    { key: "active", label: "إجمالي سندات القبض", icon: <TrendingUp />, tone: "success", countWord: "سند نشط", meaning: "قيمة سندات القبض النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
-    { key: "customers", label: "من العملاء", icon: <Users />, tone: "primary", countWord: "سند", meaning: "سندات القبض اللي فلوسها من عملاء: سند على عميل، تحصيل من ملف العميل أو قسط، مبيعات نقدية، إيداع تحت الحساب — حتى لو السند اتعمل تلقائي من الخزنة.", formula: "Σ المبلغ حيث تصنيف الفلوس = عميل" },
-    { key: "otherIncome", label: "إيرادات وتحويلات أخرى", icon: <Receipt />, tone: "warning", countWord: "سند", meaning: "باقي سندات القبض: إيرادات أخرى وتحويلات داخلة ومرتجعات من موردين.", formula: "إجمالي المقبوضات − مقبوض من عملاء" },
+    { key: "active", label: "إجمالي حركة سندات القبض", icon: <TrendingUp />, tone: "success", countWord: "سند نشط", meaning: "قيمة سندات القبض النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
+    { key: "customers", label: "قبض من العملاء", icon: <Users />, tone: "primary", countWord: "سند", meaning: "سندات القبض اللي فلوسها من عملاء: سند على عميل، تحصيل من ملف العميل أو قسط، مبيعات نقدية، إيداع تحت الحساب — حتى لو السند اتعمل تلقائي من الخزنة.", formula: "Σ المبلغ حيث تصنيف الفلوس = عميل" },
+    { key: "otherIncome", label: "قبض تاني (إيرادات وتحويلات)", icon: <Receipt />, tone: "warning", countWord: "سند", meaning: "باقي سندات القبض: إيرادات أخرى وتحويلات داخلة ومرتجعات من موردين.", formula: "إجمالي المقبوضات − مقبوض من عملاء" },
   ],
   expense: [
-    { key: "active", label: "إجمالي سندات الصرف", icon: <TrendingUp />, tone: "destructive", countWord: "سند نشط", meaning: "قيمة سندات الصرف النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
-    { key: "suppliers", label: "للموردين", icon: <Truck />, tone: "primary", countWord: "سند", meaning: "سندات الصرف اللي فلوسها لموردين: سند على مورد، سداد من ملف المورد، أقساط خطط الشراء، الدفع عند الشراء.", formula: "Σ المبلغ حيث تصنيف الفلوس = مورد" },
-    { key: "operating", label: "مصروفات تشغيل حقيقية", icon: <Receipt />, tone: "destructive", countWord: "سند", meaning: "المصاريف التشغيلية والإدارية الفعلية فقط (إيجارات، مرتبات، كهرباء، صيانة، ضيافة...).", formula: "إجمالي المدفوعات − سداد موردين − تحويلات داخلية ومرتجع وسلف" },
-    { key: "internal", label: "تحويلات وسلف ومرتجعات (مش مصروف)", icon: <ArrowUpCircle />, tone: "warning", countWord: "سند", meaning: "تحويلات بين الخزن/الفروع، مرتجعات ومدفوعات للعملاء، وسلف الموظفين (ذمة تُسترد) — خرجت من الخزينة لكنها ليست مصروفًا تشغيليًا.", formula: "Σ المبلغ حيث التصنيف = مرتجع عميل أو تحويل (خزينة/فرع) أو سلف موظفين، أو الطرف = عميل" },
+    { key: "active", label: "إجمالي حركة سندات الصرف", icon: <TrendingUp />, tone: "destructive", countWord: "سند نشط", meaning: "قيمة سندات الصرف النشطة.", formula: "Σ المبلغ حيث الحالة = نشط" },
+    { key: "suppliers", label: "اتدفع للموردين", icon: <Truck />, tone: "primary", countWord: "سند", meaning: "سندات الصرف اللي فلوسها لموردين: سند على مورد، سداد من ملف المورد، أقساط خطط الشراء، الدفع عند الشراء.", formula: "Σ المبلغ حيث تصنيف الفلوس = مورد" },
+    { key: "operating", label: "مصاريف تشغيل فعلية", icon: <Receipt />, tone: "destructive", countWord: "سند", meaning: "المصاريف التشغيلية والإدارية الفعلية فقط (إيجارات، مرتبات، كهرباء، صيانة، ضيافة...).", formula: "إجمالي المدفوعات − سداد موردين − تحويلات داخلية ومرتجع وسلف" },
+    { key: "internal", label: "تحويلات وسلف ومرتجعات (مش مصاريف)", icon: <ArrowUpCircle />, tone: "warning", countWord: "سند", meaning: "تحويلات بين الخزن/الفروع، مرتجعات ومدفوعات للعملاء، وسلف الموظفين (ذمة تُسترد) — خرجت من الخزينة لكنها ليست مصروفًا تشغيليًا.", formula: "Σ المبلغ حيث التصنيف = مرتجع عميل أو تحويل (خزينة/فرع) أو سلف موظفين، أو الطرف = عميل" },
   ],
 };
 
 const BUCKET_DEFS: { key: CollectionBucket; label: string; icon: ReactNode; where: string }[] = [
-  { key: "cash", label: "نقدي (درج الخزنة)", icon: <Banknote />, where: "درج خزنة الفرع النقدية — رصيد الخزنة بيتحرك فوراً" },
+  { key: "cash", label: "كاش (درج الخزنة)", icon: <Banknote />, where: "درج خزنة الفرع النقدية — رصيد الخزنة بيتحرك فوراً" },
   { key: "instapay", label: "انستاباي", icon: <CreditCard />, where: "الحساب البنكي المربوط بانستاباي المختار في المستند — مش في درج الكاش" },
-  { key: "wallet", label: "محفظة إلكترونية", icon: <Smartphone />, where: "المحفظة المختارة في المستند (فودافون كاش وغيرها) — مش في درج الكاش" },
+  { key: "wallet", label: "محفظة (فودافون كاش وغيرها)", icon: <Smartphone />, where: "المحفظة المختارة في المستند (فودافون كاش وغيرها) — مش في درج الكاش" },
   { key: "bank", label: "تحويل / إيداع بنكي", icon: <Landmark />, where: "الحساب البنكي المختار في المستند — مش في درج الكاش" },
-  { key: "other", label: "خصم من رصيد (بدون فلوس)", icon: <Scale />, where: "مفيش فلوس اتحركت: اتخصم من رصيد/مقدم الطرف عندنا" },
+  { key: "other", label: "خصم من الرصيد (من غير فلوس)", icon: <Scale />, where: "مفيش فلوس اتحركت: اتخصم من رصيد/مقدم الطرف عندنا" },
 ];
 /** Vouchers always move a real treasury, so they have no prepaid-balance bucket. */
 const BUCKETS_FOR: Record<DocKind, CollectionBucket[]> = {
@@ -72,8 +72,8 @@ const BUCKET_TITLE: Record<DocKind, string> = {
   purchase: "الفلوس اللي خرجت من الفرع للموردين في الفترة — حسب المكان اللي اتدفعت منه (تشمل سداد مديونيات قديمة ومقدمات)",
   sale_return: "رد قيمة المرتجعات — حسب المكان اللي خرجت منه الفلوس",
   purchase_return: "استرداد قيمة مرتجعات الشراء — حسب المكان اللي دخلت فيه الفلوس",
-  income: "سندات القبض — الفلوس دخلت فين بالظبط",
-  expense: "سندات الصرف — الفلوس خرجت منين بالظبط",
+  income: "حركة سندات القبض — الفلوس دخلت فين بالظبط (كاش ولا انستاباي ولا محفظة ولا بنك)",
+  expense: "حركة سندات الصرف — الفلوس خرجت منين بالظبط (كاش ولا انستاباي ولا محفظة ولا بنك)",
 };
 const BUCKET_VERB: Record<DocKind, string> = {
   sale: "دخل من العملاء", purchase: "اتدفع للموردين", sale_return: "اترد للعملاء", purchase_return: "رجع من الموردين", income: "اتقبض", expense: "اتصرف",
@@ -127,7 +127,7 @@ export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSel
       <div className="text-xs font-semibold text-muted-foreground pt-1">{BUCKET_TITLE[kind]}</div>
       <div className={`grid grid-cols-2 gap-3 ${buckets.length === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
         {BUCKET_DEFS.filter((b) => buckets.includes(b.key)).map((b) => (
-          <MetricCardWithHint key={b.key} label={b.label} value={metrics?.byBucket[b.key] ?? 0} icon={b.icon} tone={b.key === "other" ? "warning" : "success"}
+          <MetricCardWithHint key={b.key} label={b.key === "other" ? b.label : `${verb} ${b.label}`} value={metrics?.byBucket[b.key] ?? 0} icon={b.icon} tone={b.key === "other" ? "warning" : "success"}
             {...sel(b.key, kind !== "purchase" && kind !== "sale")}
             metricHint={{
               meaning: `${verb} عن طريق «${b.label}». المكان: ${b.where}.`,

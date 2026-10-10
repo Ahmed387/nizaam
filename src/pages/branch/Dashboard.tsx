@@ -130,7 +130,7 @@ export default function BranchDashboard() {
       const k = x.payment_method || "cash";
       payMap[k] = (payMap[k] || 0) + Number(x.amount || 0);
     });
-    const METHOD_AR: Record<string, string> = { cash: "نقدي", card: "بطاقة", instapay: "انستاباي", vodafone: "فودافون كاش", vodafone_cash: "فودافون كاش", bank: "تحويل بنكي", bank_transfer: "تحويل بنكي", credit_balance: "رصيد مسبق", wallet: "محفظة" };
+    const METHOD_AR: Record<string, string> = { cash: "كاش", card: "بطاقة", instapay: "انستاباي", vodafone: "فودافون كاش", vodafone_cash: "فودافون كاش", bank: "تحويل بنكي", bank_transfer: "تحويل بنكي", credit_balance: "رصيد مسبق", wallet: "محفظة" };
     setPaymentBreakdown(Object.entries(payMap).map(([name, value]) => ({ name: METHOD_AR[name] ?? name, value: r2(value) })));
 
     const monthNames = ["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];

@@ -31,7 +31,7 @@ interface Props {
 }
 
 const METHODS = [
-  { value: "cash", label: "نقدي" },
+  { value: "cash", label: "كاش" },
   { value: "instapay", label: "إنستاباي" },
   { value: "vodafone", label: "فودافون كاش" },
   { value: "bank", label: "تحويل بنكي" },

@@ -240,7 +240,7 @@ export default function InvoiceView() {
           <div className="bg-surface-2 rounded-lg p-3 border border-border">
             <div className="text-xs text-muted-foreground mb-1">🧾 الكاشير المسؤول</div>
             <div className="font-bold">{cashierName ?? "—"}</div>
-            <div className="text-xs text-muted-foreground mt-1">طريقة الدفع: {inv.payment_method === "cash" ? "نقدي" : inv.payment_method}</div>
+            <div className="text-xs text-muted-foreground mt-1">طريقة الدفع: {inv.payment_method === "cash" ? "كاش" : inv.payment_method}</div>
           </div>
         </div>
 

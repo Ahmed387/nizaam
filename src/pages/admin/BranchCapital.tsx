@@ -204,7 +204,7 @@ export default function BranchCapital() {
                       <Row label="المصروفات التشغيلية" value={-p.expenses} icon={<TrendingDown className="w-4 h-4 text-destructive" />} />
                       <Row label="صافي الربح" value={p.net_profit} bold className={p.net_profit >= 0 ? "text-success" : "text-destructive"} />
                       <hr className="my-2" />
-                      <Row label="النقدية بالخزنة" value={p.treasury_cash} />
+                      <Row label="الكاش في الخزنة" value={p.treasury_cash} />
                       <Row label="قيمة المخزون" value={p.inventory_value} />
                       <Row label="المدينون (لم يُحصل)" value={p.receivables} />
                       <Row label="الدائنون (لم يُدفع)" value={p.payables} className="text-warning" />
