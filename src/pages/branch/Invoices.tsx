@@ -44,6 +44,7 @@ import { fetchDocumentStatus } from "@/lib/ledger";
 import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, emptyBuckets, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
+import { TransferDetails } from "@/components/documents/TransferDetails";
 import { MetricCardWithHint } from "@/components/MetricCardWithHint";
 import { useDocumentMetrics } from "@/hooks/useDocumentMetrics";
 import { isDocKind, matchesDocCard, type DocCardKey } from "@/lib/documentMetrics";
@@ -353,7 +354,9 @@ export default function Invoices() {
   const [metricsTick, setMetricsTick] = useState(0);
   const docKind = isDocKind(tab) ? tab : null;
   const { metrics: docMetrics, loading: docMetricsLoading } = useDocumentMetrics(docKind, buildQuery, { branchId, from: queryFilters.from, to: queryFilters.to }, metricsTick);
-  const [transferMetrics, setTransferMetrics] = useState({ totalCount: 0, totalQuantity: 0, confirmedCount: 0, confirmedQuantity: 0, unresolvedCount: 0, unresolvedQuantity: 0 });
+  const [transferMetrics, setTransferMetrics] = useState({ totalCount: 0, totalQuantity: 0, confirmedCount: 0, confirmedQuantity: 0, unresolvedCount: 0, unresolvedQuantity: 0, totalValue: 0, acceptedValue: 0, rejectedValue: 0, pendingValue: 0 });
+  // value of each transfer at the sender's moving average (0080), shared by the cards, the column and the details row
+  const [transferValues, setTransferValues] = useState<Record<string, { unit: number; sent: number; received: number; rejected: number }>>({});
   const [transferMetricsLoading, setTransferMetricsLoading] = useState(false);
   useEffect(() => {
     if (tab !== "transfer" || !branchId) return;
@@ -371,6 +374,18 @@ export default function Invoices() {
         if (batch.length < pageSize) break;
       }
       if (!active) return;
+      const vals: Record<string, { unit: number; sent: number; received: number; rejected: number }> = {};
+      const ids = all.map((r) => r.id);
+      const chunks: string[][] = [];
+      for (let i = 0; i < ids.length; i += 1000) chunks.push(ids.slice(i, i + 1000));
+      await Promise.all(chunks.map(async (chunk) => {
+        const { data } = await supabase.rpc("stock_transfer_values" as any, { p_ids: chunk } as any);
+        for (const v of (data ?? []) as any[]) vals[v.transfer_id] = { unit: Number(v.unit_cost) || 0, sent: Number(v.sent_value) || 0, received: Number(v.received_value) || 0, rejected: Number(v.rejected_value) || 0 };
+      }));
+      if (!active) return;
+      setTransferValues(vals);
+      const r2v = (x: number) => Math.round(x * 100) / 100;
+      const sumV = (items: any[], f: (v: { sent: number; received: number; rejected: number }) => number) => r2v(items.reduce((s2, row) => s2 + (vals[row.id] ? f(vals[row.id]) : 0), 0));
       const summarize = (items: any[]) => ({ count: items.length, quantity: items.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0) });
       const total = summarize(all);
       const confirmed = summarize(all.filter((row) => row.status === "confirmed"));
@@ -382,6 +397,10 @@ export default function Invoices() {
         confirmedQuantity: confirmed.quantity,
         unresolvedCount: unresolved.count,
         unresolvedQuantity: unresolved.quantity,
+        totalValue: sumV(all, (v) => v.sent),
+        acceptedValue: sumV(all.filter((row) => row.status === "confirmed"), (v) => v.received),
+        rejectedValue: sumV(all.filter((row) => row.status === "rejected"), (v) => v.rejected),
+        pendingValue: sumV(all.filter((row) => row.status === "pending"), (v) => v.sent),
       });
     })().catch((error) => {
       if (active) toast.error(error?.message ?? "تعذر تحميل ملخص التحويلات");
@@ -679,7 +698,20 @@ export default function Invoices() {
       case "transfer": return {
         newLink: `${base}/transfers`, newLabel: "تحويل مخازن جديد", newPerm: "transfers.create",
         columns: [
-          { key: "from_branch_id", header: "من", align: "right", width: "10rem", render: (r: any) => <span className="inline-flex items-center justify-end gap-1.5">{branchName(r.from_branch_id)}</span> },
+          { key: "from_branch_id", header: "من", align: "right", width: "11rem", render: (r: any) => (
+            <span className="inline-flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                aria-label={expandedInvoiceId === r.id ? "إخفاء تفاصيل التحويل" : "عرض تفاصيل التحويل"}
+                aria-expanded={expandedInvoiceId === r.id}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={(event) => { event.stopPropagation(); setExpandedInvoiceId((current) => current === r.id ? null : r.id); }}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${expandedInvoiceId === r.id ? "rotate-180" : ""}`} />
+              </button>
+              {branchName(r.from_branch_id)}
+            </span>
+          ) },
           { key: "to_branch_id", header: "إلى", align: "right", width: "10rem", render: (r: any) => branchName(r.to_branch_id) },
           {
             key: "status", header: "الحالة", align: "center", width: "7rem", render: (r: any) => (
@@ -692,6 +724,18 @@ export default function Invoices() {
               </Badge>
             ),
           },
+          { key: "__value", header: "القيمة", align: "center", width: "9rem", render: (r: any) => {
+            const v = transferValues[r.id];
+            if (!v) return <span className="text-muted-foreground">—</span>;
+            return (
+              <div className="text-xs tabular-nums leading-5">
+                <div className="font-bold text-sm">{formatEGP(v.sent)}</div>
+                {r.status === "confirmed" && <div className="text-success">اتقبل {formatEGP(v.received)}</div>}
+                {r.status === "rejected" && <div className="text-destructive">اترفض {formatEGP(v.rejected)}</div>}
+                {r.status === "pending" && <div className="text-warning">معلق</div>}
+              </div>
+            );
+          } },
 { key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
           { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
           { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => r.transfer_date ? formatDate(r.transfer_date) : formatDateTime(r.created_at) },
@@ -721,7 +765,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
-  }, [tab, branchId, nav, branches, attCounts, canCancelDoc, isAdmin, isManager, expandedInvoiceId]);
+  }, [tab, branchId, nav, branches, attCounts, canCancelDoc, isAdmin, isManager, expandedInvoiceId, transferValues]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 
@@ -1054,7 +1098,25 @@ export default function Invoices() {
       />
 
       {tab === "transfer" && (
-        <div className={`mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 transition-opacity ${transferMetricsLoading ? "opacity-60" : ""}`} aria-label="ملخص تحويلات المخازن">
+        <div className={`mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 transition-opacity ${transferMetricsLoading ? "opacity-60" : ""}`} aria-label="ملخص تحويلات المخازن">
+          <MetricCardWithHint
+            label="إجمالي قيمة التحويلات"
+            value={transferMetrics.totalValue}
+            icon={<ArrowLeftRight />}
+            tone="primary"
+            footer={
+              <div className="space-y-0.5">
+                <div className="flex justify-between gap-2"><span>اتقبل</span><b className="tabular-nums text-success">{formatEGP(transferMetrics.acceptedValue)}</b></div>
+                <div className="flex justify-between gap-2"><span>اترفض</span><b className="tabular-nums text-destructive">{formatEGP(transferMetrics.rejectedValue)}</b></div>
+                <div className="flex justify-between gap-2"><span>معلق</span><b className="tabular-nums text-warning">{formatEGP(transferMetrics.pendingValue)}</b></div>
+              </div>
+            }
+            metricHint={{
+              meaning: "قيمة التحويلات المعروضة بتكلفة الفرع المرسل وقت التحويل (متوسط التكلفة)، ومقسومة: اتقبل، اترفض ورجع، ولسه معلق.",
+              source: "كل تحويلات المخزون المطابقة للفلاتر، وقيمتها من متوسط تكلفة الصنف في الفرع المرسل.",
+              formula: "Σ الكمية × متوسط تكلفة الصنف عند المرسل وقت التحويل",
+            }}
+          />
           <MetricCardWithHint
             label="إجمالي التحويلات"
             value={transferMetrics.totalQuantity}
@@ -1112,8 +1174,10 @@ export default function Invoices() {
         columns={cfg.columns as any}
         minTableWidth={tab === "sale" ? "1400px" : docKind ? "1100px" : undefined}
         getRowKey={(row: any) => row.id}
-        isRowExpanded={DOC_ITEMS_TABS.includes(tab) ? (row: any) => expandedInvoiceId === row.id : undefined}
-        renderExpandedRow={DOC_ITEMS_TABS.includes(tab) && tenantId && branchId ? (row: any) => (
+        isRowExpanded={DOC_ITEMS_TABS.includes(tab) || tab === "transfer" ? (row: any) => expandedInvoiceId === row.id : undefined}
+        renderExpandedRow={tab === "transfer" ? (row: any) => (
+          <TransferDetails transfer={row} value={transferValues[row.id]} fromName={branchName(row.from_branch_id)} toName={branchName(row.to_branch_id)} />
+        ) : DOC_ITEMS_TABS.includes(tab) && tenantId && branchId ? (row: any) => (
           tab === "sale" ? (
             <InvoiceItemsAccordion
               tenantId={tenantId}
