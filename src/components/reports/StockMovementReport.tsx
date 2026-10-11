@@ -14,7 +14,8 @@ type Line = {
   sold_qty: number; sold_cost: number;
   purchase_return_qty: number; purchase_return_value: number;
   transfer_out_qty: number; transfer_out_value: number;
-  count_diff_qty: number; count_diff_value: number;
+  count_qty: number; count_value: number;
+  unrecorded_qty: number; unrecorded_value: number;
   closing_qty: number; closing_value: number; avg_cost?: number;
 };
 type Report = { from: string; to: string; live: boolean; branches: Line[]; products: Line[] };
@@ -31,7 +32,8 @@ const COLS: { label: string; q: keyof Line; v: keyof Line; tone?: string }[] = [
   { label: "اتباع بالتكلفة (−)", q: "sold_qty", v: "sold_cost", tone: "text-destructive" },
   { label: "مرتجع شراء (−)", q: "purchase_return_qty", v: "purchase_return_value", tone: "text-destructive" },
   { label: "تحويل صادر (−)", q: "transfer_out_qty", v: "transfer_out_value", tone: "text-destructive" },
-  { label: "فروق جرد وتسويات", q: "count_diff_qty", v: "count_diff_value", tone: "text-warning" },
+  { label: "تسوية جرد (بمستند)", q: "count_qty", v: "count_value", tone: "text-warning" },
+  { label: "فرق من غير مستند", q: "unrecorded_qty", v: "unrecorded_value", tone: "text-destructive" },
 ];
 
 /**
@@ -127,7 +129,8 @@ export function StockMovementReport({ from, to }: { from: string; to: string }) 
       <p className="text-xs text-muted-foreground leading-6">
         كل الأرقام بمتوسط التكلفة لكل فرع: اللي دخل بتكلفته، واللي طلع بمتوسط الفرع وقت ما طلع.
         «الباقي دلوقتي» = الكمية الفعلية في المخزن × متوسط التكلفة.
-        «فروق جرد وتسويات» = أي فرق بين المسجّل والموجود فعلاً (جرد، تعديل كمية، بيع قبل وصول البضاعة).
+        «تسوية جرد» = كميات اتعدّلت بمستند تسوية (جرد أو تعديل كمية من شاشة المخزون).
+        «فرق من غير مستند» = اللي مفيش مستند يفسّره: كمية اتظبطت قبل ما السيستم يسجّل الحركات، أو اتباع قبل ما البضاعة تتسجل.
       </p>
       {err && <div className="text-sm text-destructive">{err}</div>}
 

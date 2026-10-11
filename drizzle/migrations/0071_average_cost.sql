@@ -4,7 +4,7 @@
 --   in  with a cost  : opening stock, purchase (landed unit cost), transfer in (sender's average),
 --                      sale return (the cost it left with) → avg = (qty×avg + in_qty×in_cost) ÷ (qty + in_qty)
 --                      (when the branch had nothing or was negative, the incoming cost becomes the average)
---   in  without cost : stock count up → quantity only, average unchanged
+--   stock count up   : at the average (average unchanged); when there is no average yet, at the count's cost
 --   out              : sale, purchase return, transfer out, stock count down → quantity only, average unchanged
 -- The source of truth is the documents themselves (no stored cost history to drift); products.avg_cost
 -- is a cache for reports, refreshed by triggers.
@@ -59,9 +59,10 @@ BEGIN
         FROM return_items ri JOIN returns r ON r.id = ri.return_id
        WHERE ri.product_id = p_product AND coalesce(r.status, 'active') = 'active'
       UNION ALL
-      -- stock count up (quantity only)
-      SELECT coalesce(b.effective_at, b.created_at), 1, 'count_in', b.id, b.quantity_purchased::numeric, NULL::numeric
-        FROM product_batches b WHERE b.product_id = p_product AND b.batch_type = 'adjustment'
+      -- stock count up (quantity only) — from the adjustment document
+      SELECT sa.created_at, 1, 'count_in', sa.id, sai.difference::numeric, nullif(sai.unit_cost, 0)::numeric
+        FROM stock_adjustment_items sai JOIN stock_adjustments sa ON sa.id = sai.adjustment_id
+       WHERE sai.product_id = p_product AND sai.difference > 0
       UNION ALL
       -- sales (out)
       SELECT i.invoice_date, 2, 'sale', i.id, ii.quantity::numeric, nullif(ii.unit_cost_at_sale, 0)::numeric
@@ -92,7 +93,9 @@ BEGIN
       IF e.e_kind = 'transfer_in' THEN
         c := public.product_avg_cost((SELECT product_id FROM stock_transfers WHERE id = e.e_ref), e.e_at - interval '1 microsecond');
       END IF;
-      IF c IS NULL OR c <= 0 THEN
+      IF e.e_kind = 'count_in' AND a IS NOT NULL AND q > 0 THEN
+        c := a; q := q + e.e_qty;                         -- stock found by a count: valued at the average, average unchanged
+      ELSIF c IS NULL OR c <= 0 THEN
         q := q + e.e_qty;                                 -- quantity only
       ELSIF q <= 0 OR a IS NULL THEN
         a := c; q := q + e.e_qty;                            -- empty / negative stock: the new cost is the average
