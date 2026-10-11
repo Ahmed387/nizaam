@@ -34,7 +34,7 @@ const COLS: { label: string; q: keyof Line; v: keyof Line; tone?: string }[] = [
   { label: "مرتجع شراء (−)", q: "purchase_return_qty", v: "purchase_return_value", tone: "text-destructive" },
   { label: "تحويل صادر (−)", q: "transfer_out_qty", v: "transfer_out_value", tone: "text-destructive" },
   { label: "تسوية جرد (بمستند)", q: "count_qty", v: "count_value", tone: "text-warning" },
-  { label: "فرق من غير مستند", q: "unrecorded_qty", v: "unrecorded_value", tone: "text-destructive" },
+  { label: "اتظبط على الفعلي (من غير قيد)", q: "unrecorded_qty", v: "unrecorded_value", tone: "text-muted-foreground" },
 ];
 
 /**
@@ -131,7 +131,7 @@ export function StockMovementReport({ from, to }: { from: string; to: string }) 
         كل الأرقام بمتوسط التكلفة لكل فرع: اللي دخل بتكلفته، واللي طلع بمتوسط الفرع وقت ما طلع.
         «الباقي دلوقتي» = الكمية الفعلية في المخزن × متوسط التكلفة.
         «تسوية جرد» = كميات اتعدّلت بمستند تسوية (جرد أو تعديل كمية من شاشة المخزون).
-        «فرق من غير مستند» = اللي مفيش مستند يفسّره: كمية اتظبطت قبل ما السيستم يسجّل الحركات، أو اتباع قبل ما البضاعة تتسجل.
+        «اتظبط على الفعلي» = الفرق بين حركات المستندات والكمية الفعلية اللي في المخزن. الكمية في السيستم = الفعلي، ومفيش مستند تسوية ولا قيد في الدفاتر للفرق ده (قرار المالك) — معروض هنا للعلم بس.
       </p>
       {err && <div className="text-sm text-destructive">{err}</div>}
 
