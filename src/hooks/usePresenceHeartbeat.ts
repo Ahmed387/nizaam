@@ -36,7 +36,8 @@ export function usePresenceHeartbeat() {
       upsert(false);
     }
 
-    const id = setInterval(() => upsert(false), 60_000);
+    // every 3 minutes, and only while the tab is on screen (a hidden tab is not «online»)
+    const id = setInterval(() => { if (document.visibilityState === "visible") upsert(false); }, 180_000);
     const onVisible = () => { if (document.visibilityState === "visible") upsert(false); };
     document.addEventListener("visibilitychange", onVisible);
 

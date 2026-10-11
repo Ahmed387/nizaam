@@ -28,7 +28,7 @@ function timeAgo(iso: string | null) {
 }
 
 function isOnline(iso: string) {
-  return (Date.now() - new Date(iso).getTime()) < 3 * 60_000;
+  return (Date.now() - new Date(iso).getTime()) < 4 * 60_000; // heartbeat every 3 min while the tab is on screen
 }
 
 export default function Presence({ embedded = false }: { embedded?: boolean } = {}) {

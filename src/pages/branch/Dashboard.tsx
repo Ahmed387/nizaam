@@ -65,39 +65,34 @@ export default function BranchDashboard() {
     const d30 = addDaysDay(td, -29);
     // Every sales figure uses the invoice's accounting day (invoice_date), like the admin dashboard and the
     // profit engine — a back-dated invoice counts on its own day, not on the day it was typed.
-    const INV = "id, total, vat_amount, discount_amount, is_migrated, invoice_date, payment_method, invoice_items(quantity, total, returned_quantity, net_quantity, selling_price, line_discount, unit_cost_at_sale, cost_price)";
-    const invQ = (sel: string, f: string, t: string) => () => applyCairoRange(
-      supabase.from("invoices").select(sel).eq("branch_id", id).eq("status", "active").not("is_migrated", "is", true),
-      "invoice_date", f, t).order("id");
+    // ONE read of the branch's active invoices with their lines, from the earliest day any card needs
+    // (last month's 1st or 30 days back) to today; every card is cut from it below. It used to be six
+    // overlapping reads of the same rows (today, yesterday, month, last month, 30 days ×2).
+    const INV = "id, total, vat_amount, discount_amount, is_migrated, invoice_date, payment_method, contact_id, contacts:contact_id(name), invoice_items(quantity, total, returned_quantity, net_quantity, selling_price, line_discount, unit_cost_at_sale, cost_price, product_name)";
+    const fromDay = lmStart < d30 ? lmStart : d30;
+    const cairoDayOf = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
 
-    const [
-      invToday, invYday, invMonth, invLastMonth, wallet, prods, custs, recentDocs,
-      invLast30, invItemsToday, payToday, invAll30, branchRow,
-    ] = await Promise.all([
-      allRows(invQ(INV, td, td)),
-      allRows(invQ(INV, yDay, yDay)),
-      allRows(invQ(INV, mStart, td)),
-      allRows(invQ(INV, lmStart, lmEnd)),
+    const [invRange, wallet, prods, custs, recentDocs, payToday, branchRow] = await Promise.all([
+      allRows(() => applyCairoRange(
+        supabase.from("invoices").select(INV).eq("branch_id", id).eq("status", "active").not("is_migrated", "is", true),
+        "invoice_date", fromDay, td).order("id")),
       // the branch till = its treasury rows (opening cash included) — same source as the treasury page
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: id! }),
       allRows(() => supabase.from("products").select("id, name, quantity, low_stock_alert").eq("branch_id", id).is("archived_at", null).order("id")),
       supabase.from("contacts").select("id", { count: "exact", head: true }).eq("branch_id", id).in("type", ["customer", "both"]).gte("created_at", today.toISOString()),
       fetchRecentDocs(5, id),
-      allRows(invQ(INV, d30, td)),
-      allRows(() => applyCairoRange(
-        supabase.from("invoice_items").select("id, product_name, quantity, returned_quantity, total, cost_price, selling_price, invoices!inner(branch_id, status, invoice_date, is_migrated)")
-          .eq("invoices.branch_id", id).eq("invoices.status", "active").not("invoices.is_migrated", "is", true),
-        "invoices.invoice_date", td, td).order("id")),
       // money actually collected today in this branch, by method (not the invoice's declared method)
       allRows(() => applyCairoRange(
         supabase.from("invoice_payments").select("id, amount, payment_method, voided_at, reverses_payment_id").eq("branch_id", id),
         "created_at", td, td).order("id")),
-      allRows(() => applyCairoRange(
-        supabase.from("invoices").select("id, contact_id, total, discount_amount, invoice_items(quantity, total, returned_quantity, net_quantity, selling_price, line_discount, unit_cost_at_sale, cost_price), contacts:contact_id(name)")
-          .eq("branch_id", id).eq("status", "active").not("is_migrated", "is", true).not("contact_id", "is", null),
-        "invoice_date", d30, td).order("id")),
       supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
     ]);
+    const all = (invRange.data ?? []).map((x: any) => ({ ...x, __day: cairoDayOf(x.invoice_date) }));
+    const between = (f: string, t: string) => ({ data: all.filter((x: any) => x.__day >= f && x.__day <= t) });
+    const invToday = between(td, td), invYday = between(yDay, yDay), invMonth = between(mStart, td);
+    const invLastMonth = between(lmStart, lmEnd), invLast30 = between(d30, td);
+    const invAll30 = { data: invLast30.data.filter((x: any) => x.contact_id) };
+    const invItemsToday = { data: invToday.data.flatMap((x: any) => x.invoice_items ?? []) };
     const r2 = (v: number) => Math.round(v * 100) / 100;
     const netInvoiceTotal = (inv: any) => {
       const rows = inv.invoice_items ?? [];
@@ -140,9 +135,8 @@ export default function BranchDashboard() {
       const [, mm, dd] = day.split("-").map(Number);
       dayMap[day] = { date: day.slice(5), displayDate: `${dd} ${monthNames[mm - 1]}`, total: 0 };
     }
-    const cairoDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
     (invLast30.data ?? []).forEach((x: any) => {
-      const k = cairoDay(x.invoice_date);
+      const k = x.__day;
       if (k in dayMap) dayMap[k].total += netInvoiceTotal(x);
     });
     setSalesByDay(Object.values(dayMap).map((d) => ({ date: d.date, displayDate: d.displayDate, total: d.total })));
