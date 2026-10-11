@@ -7,7 +7,7 @@ import { getCairoDayBounds } from "@/lib/cairoDate";
  *
  * Canonical formula (matches accounting):
  *   Revenue        = Σ unit_price × net_quantity                  (net of returns)
- *   COGS / Cost    = Σ unit_cost_at_sale × net_quantity           (FIFO snapshot at sale time)
+ *   COGS / Cost    = Σ unit_cost_at_sale × net_quantity           (branch moving average at sale time, migration 0071)
  *   Gross Profit   = Revenue − COGS
  *   Expenses       = Σ vouchers(type=payment, status=active)
  *   Net Profit     = Gross Profit − Expenses

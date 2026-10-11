@@ -83,15 +83,15 @@ export default function BranchProfile() {
     setExpenses((exps ?? []).map((v: any) => ({ id: v.id, date: v.voucher_date, amount: v.amount, type: v.voucher_categories?.name ?? "أخرى", description: v.description ?? v.voucher_number })));
     setTreasury(trs ?? []);
     setReturns(rets ?? []);
-    const [w, pos, batches] = await Promise.all([
+    const [w, pos] = await Promise.all([
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
       fetchLedgerPosition(branchId!).catch(() => null),
-      fetchAllRows<any>(() => supabase.from("product_batches").select("id, quantity_remaining, true_unit_cost, cost_price").eq("branch_id", branchId!).gt("quantity_remaining", 0).order("id")).catch(() => [] as any[]),
     ]);
     const wr = Array.isArray(w.data) ? (w.data as any[])[0] : (w.data as any);
     setTill(Number(wr?.total_balance ?? 0));
     setPosition(pos);
-    setBatchValue(Math.round(batches.reduce((s: number, b: any) => s + Number(b.quantity_remaining || 0) * Number(b.true_unit_cost ?? b.cost_price ?? 0), 0) * 100) / 100);
+    // stock value = quantity on hand × the branch moving average cost (migration 0071)
+    setBatchValue(Math.round((prods ?? []).reduce((s: number, p: any) => s + Math.max(0, Number(p.quantity || 0)) * Number(p.avg_cost ?? p.cost_price ?? 0), 0) * 100) / 100);
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);

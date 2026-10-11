@@ -114,22 +114,16 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   }), [rows, search, branchFilter, catFilter, stockFilter]);
 
   // archived products and system branches are not stock; "out" = nothing left (zero or negative);
-  // value = open FIFO batches × their real unit cost (catalog cost only when a product has no batches)
-  const [batchValue, setBatchValue] = useState<number | null>(null);
-  useEffect(() => {
-    fetchAllRows<any>(() => supabase.from("product_batches").select("id, product_id, quantity_remaining, true_unit_cost, cost_price").gt("quantity_remaining", 0).order("id"))
-      .then((bs) => setBatchValue(Math.round(bs.reduce((s: number, b: any) => s + Number(b.quantity_remaining || 0) * Number(b.true_unit_cost ?? b.cost_price ?? 0), 0) * 100) / 100))
-      .catch(() => setBatchValue(null));
-  }, [rows]);
+  // value = quantity on hand × the branch moving average cost (products.avg_cost, migration 0071)
   const stats = useMemo(() => {
     const live = rows.filter((r) => !(r as any).archived_at);
     return {
       total: live.length,
       out: live.filter((r) => Number(r.quantity) <= 0).length,
       low: live.filter((r) => Number(r.quantity) > 0 && Number(r.low_stock_alert || 0) > 0 && Number(r.quantity) <= Number(r.low_stock_alert)).length,
-      value: batchValue ?? Math.round(live.reduce((s, r) => s + Math.max(0, Number(r.quantity)) * Number(r.cost_price || 0), 0) * 100) / 100,
+      value: Math.round(live.reduce((s, r: any) => s + Math.max(0, Number(r.quantity)) * Number(r.avg_cost ?? r.cost_price ?? 0), 0) * 100) / 100,
     };
-  }, [rows, batchValue]);
+  }, [rows]);
 
   const uploadImage = async (file: File, branchId: string): Promise<string | null> => {
     setUploading(true);

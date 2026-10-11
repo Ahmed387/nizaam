@@ -243,7 +243,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
     <Wrapper>
       <PageHeader
         title="تقرير الربحية (Profitability)"
-        subtitle={`ربح فعلي محسوب من تكلفة FIFO وقت البيع — ${fin("grossProfit")} و${fin("margin")}`}
+        subtitle={`ربح فعلي محسوب من متوسط التكلفة وقت البيع — ${fin("grossProfit")} و${fin("margin")}`}
         actions={
           <Button
             onClick={() => tenantId && generateProfitReport({
@@ -263,7 +263,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       <ReportIntro
         icon="📊"
         title="تقرير الربحية — المحاسبة الدقيقة"
-        purpose="الجواب الرسمي على سؤال: 'كسبت كام فعلاً؟' محسوب بنظام FIFO على مستوى كل فاتورة ومنتج."
+        purpose="الجواب الرسمي على سؤال: 'كسبت كام فعلاً؟' محسوب بمتوسط تكلفة كل صنف في فرعه، على مستوى كل فاتورة ومنتج."
         shows={[
           "المبيعات (Revenue) − تكلفة البضاعة المباعة (COGS) = صافي الربح (Net Profit) + هامش الربح (Profit Margin) %",
           "ربح كل فاتورة، كل منتج، وكل دفعة شراء (Drill-down)",
@@ -278,7 +278,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       {hasAnyMigrated && (
         <div className="card-elevated p-3 mb-3 border-amber-500/30 bg-amber-500/5 flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-2">
-            ⚠️ <span>بعض السجلات مستوردة من نظام قديم — التكلفة فيها قد تظهر <b>"غير متاح"</b> لأنها لم تُسجل بطريقة FIFO.</span>
+            ⚠️ <span>بعض السجلات مستوردة من نظام قديم — التكلفة فيها قد تظهر <b>"غير متاح"</b> لأنها اتسجلت من غير تكلفة.</span>
           </div>
           <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
             <input type="checkbox" checked={hideLegacy} onChange={(e) => setHideLegacy(e.target.checked)} className="h-4 w-4" />
@@ -317,7 +317,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
 
       <div className="grid md:grid-cols-4 gap-3 mb-4">
         <StatCard label="المبيعات (Revenue)" value={formatEGP(totals.revenue)} icon={<DollarSign />} accent="primary" hint="إجمالي المبيعات بعد المرتجعات" />
-        <StatCard label="تكلفة البضاعة المباعة (COGS)" value={formatEGP(totals.cost)} icon={<Wallet />} accent="warning" hint="تكلفة البضاعة المباعة (FIFO)" />
+        <StatCard label="تكلفة البضاعة المباعة (COGS)" value={formatEGP(totals.cost)} icon={<Wallet />} accent="warning" hint="تكلفة البضاعة المباعة (بمتوسط التكلفة)" />
         <StatCard label="صافي الربح (Net Profit)" value={canViewNetProfit ? formatEGP(totals.profit) : NET_PROFIT_MASK} icon={<TrendingUp />} accent={canViewNetProfit ? (totals.profit >= 0 ? "success" : "destructive") : undefined} hint="الإيراد − التكلفة" />
         <div className={`rounded-2xl p-4 h-full border border-secondary/30 bg-secondary/10 flex flex-col items-center justify-center text-center`}>
           <div className="text-sm font-semibold text-muted-foreground mb-2">أعلى/أقل هامش</div>

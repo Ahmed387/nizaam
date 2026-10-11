@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { TrendingUp, TrendingDown, Boxes, Receipt, Wallet, Scale } from "lucide-react";
+import { TrendingUp, TrendingDown, Boxes, Receipt, Wallet, Scale, HandCoins, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { formatEGP } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StockMovementReport } from "@/components/reports/StockMovementReport";
 
 type Row = {
   branch_id: string; branch: string; invoices: number; sales: number; returns: number; net_sales: number; cogs: number;
+  collected: number; open_credit: number;
   gross_profit: number; expenses: number; net_profit: number; stock_value: number; stock_qty: number; stock_items: number;
   sold_ahead_of_stock: number;
 };
@@ -31,7 +33,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
     return () => { off = true; };
   }, [from, to]);
 
-  const t = data?.total;
+  const t = data?.total as (Snapshot["total"] & { collected?: number; open_credit?: number }) | undefined;
   const winning = (t?.net_profit ?? 0) >= 0;
 
   return (
@@ -62,8 +64,14 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Kpi icon={<Receipt />} label="صافي المبيعات" value={t?.net_sales} hint={`${t?.invoices ?? 0} فاتورة − مرتجعات ${formatEGP(t?.returns ?? 0)}`} />
+      {/* Money: sold vs really received vs still owed */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Kpi icon={<Receipt />} label="المبيعات (صافي)" value={t?.net_sales} hint={`${t?.invoices ?? 0} فاتورة − مرتجعات ${formatEGP(t?.returns ?? 0)}`} />
+        <Kpi icon={<HandCoins />} label="المحصّل فعلاً في الإيد" value={t?.collected} hint="كاش + بنك + محفظة دخلت من العملاء في الفترة، ناقص اللي اترد لهم" />
+        <Kpi icon={<Clock />} label="الآجل الباقي على العملاء" value={t?.open_credit} hint="اللي لسه ما اتدفعش من فواتير الفترة دي لحد النهارده" />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Kpi icon={<Scale />} label="مجمل الربح" value={t?.gross_profit} hint={t?.net_sales ? `هامش ${(((t.gross_profit || 0) / t.net_sales) * 100).toFixed(1)}%` : undefined} />
         <Kpi icon={<Wallet />} label="مصروفات التشغيل" value={t?.expenses} hint="سندات صرف من تصنيفات «تُخصم من الربح»" />
         <Kpi icon={<Boxes />} label="قيمة البضاعة دلوقتي (بالتكلفة)" value={t?.stock_value} hint={`${(t?.stock_qty ?? 0).toLocaleString("en-US")} قطعة في كل الفروع`} />
@@ -73,7 +81,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
         <table className="w-full text-sm">
           <thead className="bg-surface-2">
             <tr className="text-xs">
-              {["الفرع", "صافي المبيعات", "تكلفة المباع", "مجمل الربح", "المصروفات", "صافي الربح", "قيمة البضاعة الآن", "عدد القطع"].map((h) => (
+              {["الفرع", "صافي المبيعات", "المحصّل فعلاً", "الآجل الباقي", "تكلفة المباع", "مجمل الربح", "المصروفات", "صافي الربح", "قيمة البضاعة الآن", "عدد القطع"].map((h) => (
                 <th key={h} className="px-3 py-2.5 font-extrabold text-center">{h}</th>
               ))}
             </tr>
@@ -83,6 +91,8 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
               <tr key={b.branch_id} className="border-t border-border/60 text-center tabular-nums">
                 <td className="px-3 py-2 text-right font-semibold">{b.branch}</td>
                 <td className="px-3 py-2">{formatEGP(b.net_sales)}</td>
+                <td className="px-3 py-2 text-success">{formatEGP(b.collected ?? 0)}</td>
+                <td className="px-3 py-2 text-warning">{formatEGP(b.open_credit ?? 0)}</td>
                 <td className="px-3 py-2">{formatEGP(b.cogs)}</td>
                 <td className="px-3 py-2">{formatEGP(b.gross_profit)}</td>
                 <td className="px-3 py-2">{formatEGP(b.expenses)}</td>
@@ -98,10 +108,11 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
       </div>
       {!compact && (
         <p className="text-xs text-muted-foreground">
-          تكلفة المباع = تكلفة كل قطعة وقت بيعها (أول وارد أول صادر) × الكمية بعد المرتجع — نفس قيد تكلفة المبيعات في الحسابات.
-          قيمة البضاعة = الكمية الباقية في كل دفعة × سعر شرائها. سداد الموردين وتحويلات الفروع وسلف الموظفين مش مصروفات ومش محسوبة هنا.
+          تكلفة المباع = متوسط تكلفة الصنف في الفرع وقت بيعه × الكمية بعد المرتجع — نفس قيد تكلفة المبيعات في الحسابات.
+          قيمة البضاعة = الكمية الموجودة × متوسط التكلفة. سداد الموردين وتحويلات الفروع وسلف الموظفين مش مصروفات ومش محسوبة هنا.
         </p>
       )}
+      {!compact && <div className="pt-4 border-t border-border/60"><StockMovementReport from={from} to={to} /></div>}
     </div>
   );
 }
