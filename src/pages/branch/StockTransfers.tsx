@@ -30,11 +30,14 @@ import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { DataTable } from "@/components/DataTable";
 import { MetricCardWithHint } from "@/components/MetricCardWithHint";
+import { formatEGP } from "@/lib/format";
 import { format as formatDateFns } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type Item = { product_id: string; quantity: string };
 const cairoToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
+
+type TransferValue = { unit: number; sent: number; received: number; rejected: number };
 
 export default function StockTransfers({ embedded }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
@@ -93,6 +96,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     toast.success("تم إخفاء العملية من الشاشة النشطة");
   };
 
+  const [values, setValues] = useState<Record<string, TransferValue>>({});
   const load = async () => {
     if (!branchId) return;
     setLoading(true);
@@ -109,6 +113,14 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     setProducts(p.data ?? []);
     setOutgoing(out.data ?? []);
     setIncoming(inc.data ?? []);
+    // value of every transfer at the sender's moving average (0080)
+    const ids = [...(out.data ?? []), ...(inc.data ?? [])].map((t: any) => t.id);
+    const vals: Record<string, TransferValue> = {};
+    for (let i = 0; i < ids.length; i += 1000) {
+      const { data } = await supabase.rpc("stock_transfer_values" as any, { p_ids: ids.slice(i, i + 1000) } as any);
+      for (const v of (data ?? []) as any[]) vals[v.transfer_id] = { unit: Number(v.unit_cost) || 0, sent: Number(v.sent_value) || 0, received: Number(v.received_value) || 0, rejected: Number(v.rejected_value) || 0 };
+    }
+    setValues(vals);
     setSelfBranchName((self.data as any)?.name ?? "فرعك");
     setLoading(false);
   };
@@ -380,18 +392,21 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     // a confirmed transfer moved what was RECEIVED (partial confirm sends the rest back);
     // incoming and outgoing are separate figures (adding them together means nothing)
     const moved = (row: any) => Number(row.received_quantity ?? row.quantity) || 0;
-    const summarize = (rows: any[], qty: (r: any) => number) => ({
+    const summarize = (rows: any[], qty: (r: any) => number, val: (v: TransferValue) => number = (v) => v.sent) => ({
       count: rows.length,
       quantity: rows.reduce((sum, row) => sum + qty(row), 0),
+      value: Math.round(rows.reduce((sum, row) => sum + (values[row.id] ? val(values[row.id]) : 0), 0) * 100) / 100,
     });
     const confirmed = filteredTransferRows.filter((row) => row.status === "confirmed");
     return {
-      incoming: summarize(confirmed.filter((row) => row.to_branch_id === branchId), moved),
-      outgoing: summarize(confirmed.filter((row) => row.from_branch_id === branchId), moved),
+      incoming: summarize(confirmed.filter((row) => row.to_branch_id === branchId), moved, (v) => v.received),
+      outgoing: summarize(confirmed.filter((row) => row.from_branch_id === branchId), moved, (v) => v.received),
       pending: summarize(filteredTransferRows.filter((row) => row.status === "pending"), (r) => Number(r.quantity) || 0),
-      rejected: summarize(filteredTransferRows.filter((row) => row.status === "rejected"), (r) => Number(r.quantity) || 0),
+      rejected: summarize(filteredTransferRows.filter((row) => row.status === "rejected"), (r) => Number(r.quantity) || 0, (v) => v.rejected),
+      all: summarize(filteredTransferRows, (r) => Number(r.quantity) || 0),
+      accepted: summarize(confirmed, moved, (v) => v.received),
     };
-  }, [filteredTransferRows, branchId]);
+  }, [filteredTransferRows, branchId, values]);
 
   // السجل التاريخي يعرض المكتمل والمرفوض فقط، مع تطبيق فلتر الحالة فوق نفس البيانات التي تغذي الكروت.
   const completedRows = useMemo(() => filteredTransferRows
@@ -651,14 +666,29 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="ملخص تحويلات المخازن">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="ملخص تحويلات المخازن">
+            <MetricCardWithHint
+              label="إجمالي قيمة التحويلات"
+              value={transferMetrics.all.value}
+              icon={<ArrowLeftRight />}
+              tone="primary"
+              footer={
+                <div className="space-y-0.5">
+                  <div className="tabular-nums">{transferMetrics.all.count.toLocaleString("en-US")} تحويل • {transferMetrics.all.quantity.toLocaleString("en-US")} وحدة</div>
+                  <div className="flex justify-between gap-2"><span>اتقبل</span><b className="tabular-nums text-success">{formatEGP(transferMetrics.accepted.value)}</b></div>
+                  <div className="flex justify-between gap-2"><span>اترفض</span><b className="tabular-nums text-destructive">{formatEGP(transferMetrics.rejected.value)}</b></div>
+                  <div className="flex justify-between gap-2"><span>معلق</span><b className="tabular-nums text-warning">{formatEGP(transferMetrics.pending.value)}</b></div>
+                </div>
+              }
+              metricHint={{ meaning: "قيمة كل التحويلات المعروضة (صادر ووارد) بتكلفة الفرع المرسل وقت التحويل (متوسط التكلفة)، ومقسومة: اللي اتقبل، واللي اترفض ورجع، واللي لسه معلق.", source: "تحويلات المخزون المرتبطة بالفرع بعد فلاتر التاريخ والفروع، وقيمتها من متوسط تكلفة الصنف في الفرع المرسل.", formula: "Σ الكمية × متوسط تكلفة الصنف عند المرسل وقت التحويل" }}
+            />
             {([
               { k: "incoming", label: "وارد للفرع (مستلم)", icon: <PackageCheck />, tone: "success", meaning: "الكميات اللي استلمها الفرع فعلاً من فروع تانية (التحويلات المؤكدة).", formula: "Σ الكمية المستلمة (received_quantity، وإلا الكمية المرسلة) للتحويلات المؤكدة الواردة" },
               { k: "outgoing", label: "صادر من الفرع (استلمه الطرف التاني)", icon: <ArrowLeftRight />, tone: "primary", meaning: "الكميات اللي خرجت من الفرع واستلمها الفرع المستلم (لو الاستلام جزئي الباقي رجع للفرع).", formula: "Σ الكمية المستلمة للتحويلات المؤكدة الصادرة" },
               { k: "pending", label: "معلقة (بانتظار الاستلام)", icon: <AlertTriangle />, tone: "warning", meaning: "تحويلات لسه ما اتأكدتش — الكمية خرجت من المرسل وما دخلتش المستلم.", formula: "Σ الكمية المرسلة للتحويلات المعلقة" },
               { k: "rejected", label: "مرفوضة", icon: <AlertTriangle />, tone: "destructive", meaning: "تحويلات رفضها الفرع المستلم (الكمية رجعت للمرسل).", formula: "Σ الكمية المرسلة للتحويلات المرفوضة" },
             ] as const).map((c) => {
-              const m = (transferMetrics as any)[c.k] as { count: number; quantity: number };
+              const m = (transferMetrics as any)[c.k] as { count: number; quantity: number; value: number };
               return (
                 <MetricCardWithHint
                   key={c.k}
@@ -667,7 +697,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   currency={false}
                   icon={c.icon}
                   tone={c.tone as any}
-                  footer={<span className="tabular-nums">{m.count.toLocaleString("en-US")} حركة • {m.quantity.toLocaleString("en-US")} وحدة</span>}
+                  footer={<span className="tabular-nums">{m.count.toLocaleString("en-US")} حركة • {m.quantity.toLocaleString("en-US")} وحدة • {formatEGP(m.value)}</span>}
                   metricHint={{ meaning: c.meaning, source: "تحويلات المخزون المرتبطة بالفرع بعد فلاتر التاريخ (بتوقيت القاهرة) والفروع.", formula: c.formula }}
                 />
               );
@@ -705,6 +735,22 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                     )}
                   </div>
                 ),
+              },
+              {
+                key: "value", header: "القيمة (بالتكلفة)", align: "center", render: (r: any) => {
+                  const v = values[r.id];
+                  if (!v) return <span className="text-muted-foreground">—</span>;
+                  return (
+                    <div className="text-xs tabular-nums leading-5">
+                      <div className="font-bold text-sm">{formatEGP(v.sent)}</div>
+                      {r.status === "rejected"
+                        ? <div className="text-destructive">اترفض: {formatEGP(v.rejected)}</div>
+                        : <div className="text-success">اتقبل: {formatEGP(v.received)}</div>}
+                      {r.status === "confirmed" && v.sent - v.received > 0.01 && <div className="text-warning">رجع للمرسل: {formatEGP(v.sent - v.received)}</div>}
+                      <div className="text-muted-foreground">الوحدة: {formatEGP(v.unit)}</div>
+                    </div>
+                  );
+                },
               },
               {
                 key: "status", header: "الحالة", align: "center", render: (r: any) =>

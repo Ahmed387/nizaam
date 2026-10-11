@@ -3,16 +3,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
 import { aggregateFacts, docFacts, METRIC_SELECT, type DocKind, type DocMetricsResult } from "@/lib/documentMetrics";
-import { fetchDocumentStatus, fetchMoneyFlow, LEDGER_START } from "@/lib/ledger";
+import { fetchDocumentPaidByMethod, fetchDocumentStatus, fetchMoneyFlow, LEDGER_START } from "@/lib/ledger";
 import { bucketOf, emptyBuckets, fetchPaymentSummaries, r2 } from "@/hooks/useSalesInvoices";
 
 /** Query factory shared with the table: same filters, only the projection differs. */
 export type DocQueryBuilder = (select: string, withCount: boolean) => Promise<{ qb: any }>;
 
+/** One side of the «نقدي / آجل» split: how many documents, their total, and how they were paid. */
+export interface PaySplit {
+  count: number;
+  total: number;
+  /** money allocated to these documents, by method; `other` = return credit (not money) */
+  byBucket: Record<"cash" | "instapay" | "wallet" | "bank" | "other", number>;
+  /** still open on them (credit side only) */
+  remaining: number;
+}
+
 export interface DocMetrics extends DocMetricsResult {
   /** Purchases only: supplier payments recorded in the same branch and period. */
   supplierPaid?: number;
   supplierDue?: number;
+  /** Sale / purchase: fully paid documents («نقدي») vs documents still open («آجل»). */
+  split?: { cash: PaySplit; credit: PaySplit };
 }
 
 /**
@@ -94,6 +106,26 @@ export function useDocumentMetrics(
             if ((e as { name?: string })?.name === "AbortError") throw e;
             console.warn("money flow from the ledger is not available, cards show the documents' figures", e);
           }
+        }
+        if (kind === "sale" || kind === "purchase") {
+          // «نقدي» = nothing left on it, «آجل» = still open; each split by how its money came (unified ledger)
+          const active = unique.filter((r) => r.status !== "cancelled");
+          const byDoc = await fetchDocumentPaidByMethod(kind === "sale" ? "invoice" : "shipment", active.map((r) => r.id), ctrl.signal);
+          const mk = (): PaySplit => ({ count: 0, total: 0, byBucket: emptyBuckets(), remaining: 0 });
+          const split = { cash: mk(), credit: mk() };
+          for (const r of active) {
+            const rem = Number(r.__remaining) || 0;
+            const side = rem > 0.01 ? split.credit : split.cash;
+            side.count += 1;
+            side.total += Number(kind === "sale" ? r.total : r.total_cost) || 0;
+            side.remaining += rem > 0.01 ? rem : 0;
+            for (const [m, v] of Object.entries(byDoc.get(r.id) ?? {})) side.byBucket[m === "return_credit" ? "other" : bucketOf(m)] += v;
+          }
+          for (const s of [split.cash, split.credit]) {
+            s.total = r2(s.total); s.remaining = r2(s.remaining);
+            (Object.keys(s.byBucket) as (keyof PaySplit["byBucket"])[]).forEach((k) => { s.byBucket[k] = r2(s.byBucket[k]); });
+          }
+          result.split = split;
         }
         if (kind === "purchase") {
           // «المسدد للموردين» = money allocated to these purchase invoices; purchase-return credit is not money.

@@ -38,12 +38,13 @@ export function docFacts(kind: DocKind, r: Row): DocFacts {
     case "sale": {
       const amount = n(r.total);
       Object.assign(byBucket, r.__byBucket ?? {});
-      return { cancelled, amount, parts: { active: amount, collected: n(r.__paid_money ?? r.__paid), remaining: n(r.__remaining) }, byBucket };
+      const open = n(r.__remaining) > 0.01;
+      return { cancelled, amount, parts: { active: amount, collected: n(r.__paid_money ?? r.__paid), remaining: n(r.__remaining), cashDocs: open ? 0 : amount, creditDocs: open ? amount : 0 }, byBucket };
     }
     case "purchase": {
       const amount = n(r.total_cost);
       const remaining = n(r.__remaining);
-      return { cancelled, amount, parts: { active: amount, supplierPaid: n(r.__paid_money ?? r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0 }, byBucket };
+      return { cancelled, amount, parts: { active: amount, supplierPaid: n(r.__paid_money ?? r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0, cashDocs: remaining <= 0.01 ? amount : 0, creditDocs: remaining > 0.01 ? amount : 0 }, byBucket };
     }
     case "sale_return":
     case "purchase_return": {

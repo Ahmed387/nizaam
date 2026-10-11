@@ -249,6 +249,26 @@ export async function fetchDocumentStatus(docType: "invoice" | "shipment", ids: 
   return out;
 }
 
+/** Money the ledger allocated to each document, by payment method ('return_credit' = return credit, not money). */
+export async function fetchDocumentPaidByMethod(docType: "invoice" | "shipment", ids: (string | null | undefined)[], signal?: AbortSignal): Promise<Map<string, Record<string, number>>> {
+  const clean = Array.from(new Set(ids.filter(Boolean) as string[]));
+  const out = new Map<string, Record<string, number>>();
+  const chunks: string[][] = [];
+  for (let i = 0; i < clean.length; i += 1000) chunks.push(clean.slice(i, i + 1000));
+  await Promise.all(chunks.map(async (chunk) => {
+    let q = rpc("ledger_document_paid_by_method", { p_doc_type: docType, p_ids: chunk });
+    if (signal) q = q.abortSignal(signal);
+    const { data, error } = await q;
+    if (error) throw error;
+    for (const r of (data ?? []) as any[]) {
+      const m = out.get(r.doc_id) ?? {};
+      m[r.method] = (m[r.method] ?? 0) + n(r.amount);
+      out.set(r.doc_id, m);
+    }
+  }));
+  return out;
+}
+
 // ---------------------------------------------------------------- company / branch position
 export interface LedgerPosition {
   branch_id: string | null;
