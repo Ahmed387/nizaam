@@ -1,5 +1,5 @@
 import { withAuthRetry } from "@/lib/authRetry";
-import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission } from "@/lib/roles";
@@ -100,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // On start-up both getSession() and onAuthStateChange(INITIAL_SESSION) ask for the same context:
   // share one in-flight load per user instead of running the whole round-trip chain twice.
   const inflightRef = useRef<{ uid: string; p: Promise<void> } | null>(null);
+  const lastLoadRef = useRef<{ uid: string; at: number } | null>(null);
   const loadCtx = async (uid: string) => {
     try {
       let job = inflightRef.current?.uid === uid ? inflightRef.current.p : null;
@@ -108,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         inflightRef.current = { uid, p: job };
       }
       await withTimeout(job);
+      lastLoadRef.current = { uid, at: Date.now() };
       setConnError(false);
       setCtxReady(true);
     } catch (e) {
@@ -141,6 +143,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const sameUser = currentUserIdRef.current === nextUserId;
         currentUserIdRef.current = nextUserId;
         if (!sameUser) setCtxReady(false);
+        // Speed: a token refresh / tab focus fires this again for the same user; the context (roles,
+        // branches, permissions) was just loaded and realtime reloads it on any real change — skip.
+        if (sameUser && lastLoadRef.current?.uid === nextUserId && Date.now() - lastLoadRef.current.at < 10 * 60_000) return;
         setTimeout(() => loadCtx(nextUserId), 0);
       } else {
         currentUserIdRef.current = null;
@@ -266,6 +271,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !["view", "read"].includes(action);
   };
 
+  // stable while the roles don't change, so effects that depend on it don't re-run on every auth render
+  const hasRole = useCallback((r: AppRole) => roles.includes(r), [roles]);
+
   const value: AuthCtx = {
     user,
     session,
@@ -285,7 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // الشريك = رؤية مركزية لكل الفروع بصلاحية قراءة فقط (نفس حدود المراقب).
     isViewer: roles.includes("viewer") || roles.includes("partner"),
     isOwner: roles.includes("owner") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id),
-    hasRole: (r) => roles.includes(r),
+    hasRole,
     can: (key) => {
       if (!checkPermission(roles, permsByRole, key, userPerms)) return false;
       // Hard cap: inside a branch marked "read", every write permission is dropped

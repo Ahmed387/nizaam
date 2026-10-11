@@ -233,6 +233,9 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
   const [pendingAdvCount, setPendingAdvCount] = useState(0);
   const [pendingMyApprovals, setPendingMyApprovals] = useState(0);
   const [pendingDiscountCount, setPendingDiscountCount] = useState(0);
+  // a plain boolean for the badge effects: `hasRole` is a new function on every auth render, and using
+  // it as a dependency re-ran every badge query (3–4 identical requests per page open)
+  const isBranchMgr = hasRole("branch_manager");
 
   useEffect(() => {
     if (!id) return;
@@ -258,8 +261,7 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
 
   useEffect(() => {
     if (!id || !user) return;
-    const isBranchManager = hasRole("branch_manager");
-    if (!isBranchManager && !isAdmin) {
+    if (!isBranchMgr && !isAdmin) {
       setPendingAdvCount(0);
       return;
     }
@@ -279,11 +281,11 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
       .on("postgres_changes", { event: "*", schema: "public", table: "advance_requests", filter: `branch_id=eq.${id}` }, load)
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(ch); };
-  }, [id, user?.id, isAdmin, hasRole]);
+  }, [id, user?.id, isAdmin, isBranchMgr]);
 
   // My approval requests badge (branch manager only)
   useEffect(() => {
-    if (!user || !hasRole("branch_manager")) { setPendingMyApprovals(0); return; }
+    if (!user || !isBranchMgr) { setPendingMyApprovals(0); return; }
     let cancelled = false;
     const load = async () => {
       const { count } = await supabase
@@ -299,12 +301,12 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
       .on("postgres_changes", { event: "*", schema: "public", table: "approval_requests", filter: `requested_by=eq.${user.id}` }, load)
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(ch); };
-  }, [user?.id, hasRole]);
+  }, [user?.id, isBranchMgr]);
 
   // Pending discount approvals badge (managers + admin)
   useEffect(() => {
     if (!id || !user) return;
-    const canSee = isAdmin || hasRole("branch_manager");
+    const canSee = isAdmin || isBranchMgr;
     if (!canSee) { setPendingDiscountCount(0); return; }
     let cancelled = false;
     const load = async () => {
@@ -321,7 +323,7 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
       .on("postgres_changes", { event: "*", schema: "public", table: "discount_approval_requests", filter: `branch_id=eq.${id}` }, load)
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(ch); };
-  }, [id, user?.id, isAdmin, hasRole]);
+  }, [id, user?.id, isAdmin, isBranchMgr]);
 
   if (!branch && !isAdmin) return <Navigate to="/" replace />;
 
