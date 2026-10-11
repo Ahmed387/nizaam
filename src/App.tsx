@@ -1,3 +1,4 @@
+import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Navigate, useParams } from "react-router-dom";
 
@@ -37,6 +38,45 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
 import { PaidCelebration } from "@/components/PaidCelebration";
 
+/** Shown for the split-second a page's code is downloaded the first time (pages load on demand). */
+function RouteLoading() {
+  return (
+    <div className="min-h-[50vh] flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full border-4 border-primary/30 border-t-primary animate-spin" />
+    </div>
+  );
+}
+
+/**
+ * Pages are split into their own files (the app used to ship one 5 MB file before the login screen could show).
+ * After start-up, quietly fetch the screens a cashier needs even when the internet drops (sale, returns,
+ * dashboard), and after a new deploy reload once if an old page file is gone.
+ */
+function PageWarmup() {
+  useEffect(() => {
+    const warm = () => {
+      import("./pages/branch/NewSale"); import("./pages/branch/Dashboard"); import("./pages/branch/NewSaleReturn");
+      import("./pages/branch/InvoiceView"); import("./pages/admin/Dashboard");
+    };
+    const w = window as any;
+    const id = w.requestIdleCallback ? w.requestIdleCallback(warm, { timeout: 4000 }) : window.setTimeout(warm, 2500);
+    const onStale = (e: Event) => {
+      try {
+        if (sessionStorage.getItem("chunk-reload") === "1") return;
+        sessionStorage.setItem("chunk-reload", "1");
+      } catch { /* storage blocked: still reload once */ }
+      e.preventDefault();
+      window.location.reload();
+    };
+    window.addEventListener("vite:preloadError", onStale);
+    return () => {
+      if (w.cancelIdleCallback && w.requestIdleCallback) w.cancelIdleCallback(id); else window.clearTimeout(id);
+      window.removeEventListener("vite:preloadError", onStale);
+    };
+  }, []);
+  return null;
+}
+
 function PresenceTracker() {
   usePresenceHeartbeat();
   return null;
@@ -45,127 +85,127 @@ function PresenceTracker() {
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import Setup from "./pages/Setup";
-import SetupWizard from "./pages/SetupWizard";
-import Landing from "./pages/Landing";
-import Profile from "./pages/Profile";
-import Guide from "./pages/Guide";
-import Suspended from "./pages/Suspended";
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const Setup = lazy(() => import("./pages/Setup"));
+const SetupWizard = lazy(() => import("./pages/SetupWizard"));
+const Landing = lazy(() => import("./pages/Landing"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Guide = lazy(() => import("./pages/Guide"));
+const Suspended = lazy(() => import("./pages/Suspended"));
 
 
-import AdminDashboard from "./pages/admin/Dashboard";
-import Branches from "./pages/admin/Branches";
-import BranchProfile from "./pages/admin/BranchProfile";
+const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
+const Branches = lazy(() => import("./pages/admin/Branches"));
+const BranchProfile = lazy(() => import("./pages/admin/BranchProfile"));
 
-import Categories from "./pages/admin/Categories";
-import PriceList from "./pages/admin/PriceList";
-import AllPreOrders from "./pages/admin/AllPreOrders";
+const Categories = lazy(() => import("./pages/admin/Categories"));
+const PriceList = lazy(() => import("./pages/admin/PriceList"));
+const AllPreOrders = lazy(() => import("./pages/admin/AllPreOrders"));
 
-import AllInventory from "./pages/admin/AllInventory";
-import AllSuppliers from "./pages/admin/AllSuppliers";
-import AllEmployees from "./pages/admin/AllEmployees";
-import EmployeeProfile from "./pages/admin/EmployeeProfile";
-import AuditLog from "./pages/admin/AuditLog";
-import PriceAuditLog from "./pages/admin/PriceAuditLog";
-
-
-import BranchDashboard from "./pages/branch/Dashboard";
-import NewSale from "./pages/branch/NewSale";
-import ShiftOpen from "./pages/branch/ShiftOpen";
-import ShiftClose from "./pages/branch/ShiftClose";
-import EditSaleInvoice from "./pages/branch/EditSaleInvoice";
-import PreOrders from "./pages/branch/PreOrders";
-import SalesHistory from "./pages/branch/SalesHistory";
-import InvoiceView from "./pages/branch/InvoiceView";
-import Inventory from "./pages/branch/Inventory";
-import StockMovements from "./pages/branch/StockMovements";
-import PrintBarcodes from "./pages/branch/PrintBarcodes";
-import Contacts from "./pages/branch/Contacts";
-import ContactFile from "./pages/branch/ContactFile";
-import ContactStatement from "./pages/branch/ContactStatement";
-import Treasury from "./pages/branch/Treasury";
-import Employees from "./pages/branch/Employees";
-import AdvanceRequests from "./pages/branch/AdvanceRequests";
-import Shipments from "./pages/branch/Shipments";
-import NewShipment from "./pages/branch/NewShipment";
-import ShipmentView from "./pages/branch/ShipmentView";
+const AllInventory = lazy(() => import("./pages/admin/AllInventory"));
+const AllSuppliers = lazy(() => import("./pages/admin/AllSuppliers"));
+const AllEmployees = lazy(() => import("./pages/admin/AllEmployees"));
+const EmployeeProfile = lazy(() => import("./pages/admin/EmployeeProfile"));
+const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
+const PriceAuditLog = lazy(() => import("./pages/admin/PriceAuditLog"));
 
 
-import BranchReports from "./pages/branch/Reports";
-import AdminReports from "./pages/admin/Reports";
-import StockTransfers from "./pages/branch/StockTransfers";
-import Settings from "./pages/admin/Settings";
-import ScheduledReports from "./pages/admin/ScheduledReports";
-import AllAttendance from "./pages/admin/AllAttendance";
-import Presence from "./pages/admin/Presence";
-import ShiftsHistory from "./pages/admin/ShiftsHistory";
-import Attendance from "./pages/branch/Attendance";
-import Receivables from "./pages/admin/Receivables";
+const BranchDashboard = lazy(() => import("./pages/branch/Dashboard"));
+const NewSale = lazy(() => import("./pages/branch/NewSale"));
+const ShiftOpen = lazy(() => import("./pages/branch/ShiftOpen"));
+const ShiftClose = lazy(() => import("./pages/branch/ShiftClose"));
+const EditSaleInvoice = lazy(() => import("./pages/branch/EditSaleInvoice"));
+const PreOrders = lazy(() => import("./pages/branch/PreOrders"));
+const SalesHistory = lazy(() => import("./pages/branch/SalesHistory"));
+const InvoiceView = lazy(() => import("./pages/branch/InvoiceView"));
+const Inventory = lazy(() => import("./pages/branch/Inventory"));
+const StockMovements = lazy(() => import("./pages/branch/StockMovements"));
+const PrintBarcodes = lazy(() => import("./pages/branch/PrintBarcodes"));
+const Contacts = lazy(() => import("./pages/branch/Contacts"));
+const ContactFile = lazy(() => import("./pages/branch/ContactFile"));
+const ContactStatement = lazy(() => import("./pages/branch/ContactStatement"));
+const Treasury = lazy(() => import("./pages/branch/Treasury"));
+const Employees = lazy(() => import("./pages/branch/Employees"));
+const AdvanceRequests = lazy(() => import("./pages/branch/AdvanceRequests"));
+const Shipments = lazy(() => import("./pages/branch/Shipments"));
+const NewShipment = lazy(() => import("./pages/branch/NewShipment"));
+const ShipmentView = lazy(() => import("./pages/branch/ShipmentView"));
+
+
+const BranchReports = lazy(() => import("./pages/branch/Reports"));
+const AdminReports = lazy(() => import("./pages/admin/Reports"));
+const StockTransfers = lazy(() => import("./pages/branch/StockTransfers"));
+const Settings = lazy(() => import("./pages/admin/Settings"));
+const ScheduledReports = lazy(() => import("./pages/admin/ScheduledReports"));
+const AllAttendance = lazy(() => import("./pages/admin/AllAttendance"));
+const Presence = lazy(() => import("./pages/admin/Presence"));
+const ShiftsHistory = lazy(() => import("./pages/admin/ShiftsHistory"));
+const Attendance = lazy(() => import("./pages/branch/Attendance"));
+const Receivables = lazy(() => import("./pages/admin/Receivables"));
 import { AdminPlaceholder, BranchPlaceholder } from "./pages/Placeholder";
-import Invoices from "./pages/branch/Invoices";
-import NewPurchaseReturn from "./pages/branch/NewPurchaseReturn";
-import NewSaleReturn from "./pages/branch/NewSaleReturn";
-import SaleReturnView from "./pages/branch/SaleReturnView";
-import PurchaseReturnView from "./pages/branch/PurchaseReturnView";
-import StockTransferView from "./pages/branch/StockTransferView";
-import NewQuote from "./pages/branch/NewQuote";
-import QuoteView from "./pages/branch/QuoteView";
-import NewStockAdjustment from "./pages/branch/NewStockAdjustment";
-import PaymentVouchers from "./pages/branch/PaymentVouchers";
-import ReceiptVouchers from "./pages/branch/ReceiptVouchers";
-import AllVouchers from "./pages/admin/AllVouchers";
-import CatalogHub from "./pages/admin/CatalogHub";
-import ReportsHub from "./pages/admin/ReportsHub";
-import HistoricalAnalytics from "./pages/admin/HistoricalAnalytics";
+const Invoices = lazy(() => import("./pages/branch/Invoices"));
+const NewPurchaseReturn = lazy(() => import("./pages/branch/NewPurchaseReturn"));
+const NewSaleReturn = lazy(() => import("./pages/branch/NewSaleReturn"));
+const SaleReturnView = lazy(() => import("./pages/branch/SaleReturnView"));
+const PurchaseReturnView = lazy(() => import("./pages/branch/PurchaseReturnView"));
+const StockTransferView = lazy(() => import("./pages/branch/StockTransferView"));
+const NewQuote = lazy(() => import("./pages/branch/NewQuote"));
+const QuoteView = lazy(() => import("./pages/branch/QuoteView"));
+const NewStockAdjustment = lazy(() => import("./pages/branch/NewStockAdjustment"));
+const PaymentVouchers = lazy(() => import("./pages/branch/PaymentVouchers"));
+const ReceiptVouchers = lazy(() => import("./pages/branch/ReceiptVouchers"));
+const AllVouchers = lazy(() => import("./pages/admin/AllVouchers"));
+const CatalogHub = lazy(() => import("./pages/admin/CatalogHub"));
+const ReportsHub = lazy(() => import("./pages/admin/ReportsHub"));
+const HistoricalAnalytics = lazy(() => import("./pages/admin/HistoricalAnalytics"));
 
 
-import FinanceHub from "./pages/admin/FinanceHub";
-import MainTreasury from "./pages/admin/MainTreasury";
-import ApprovalRequests from "./pages/admin/ApprovalRequests";
-import AdminApprovalsHub from "./pages/admin/AdminApprovalsHub";
-import ProfitabilityReport from "./pages/admin/ProfitabilityReport";
-import AdminDiscountApprovals from "./pages/admin/AdminDiscountApprovals";
-import MyApprovalRequests from "./pages/branch/MyApprovalRequests";
-import PendingDiscountApprovals from "./pages/branch/PendingDiscountApprovals";
-import PendingVoidApprovals from "./pages/branch/PendingVoidApprovals";
-import InvCountSessions from "./pages/branch/inventory-count/Sessions";
-import InvCountNew from "./pages/branch/inventory-count/NewSession";
-import InvCountSheet from "./pages/branch/inventory-count/CountingSheet";
-import InvCountReview from "./pages/branch/inventory-count/Review";
-import InvCountApproval from "./pages/branch/inventory-count/Approval";
-import InvCountReport from "./pages/branch/inventory-count/Report";
-import InvCountSnapshot from "./pages/branch/inventory-count/Snapshot";
+const FinanceHub = lazy(() => import("./pages/admin/FinanceHub"));
+const MainTreasury = lazy(() => import("./pages/admin/MainTreasury"));
+const ApprovalRequests = lazy(() => import("./pages/admin/ApprovalRequests"));
+const AdminApprovalsHub = lazy(() => import("./pages/admin/AdminApprovalsHub"));
+const ProfitabilityReport = lazy(() => import("./pages/admin/ProfitabilityReport"));
+const AdminDiscountApprovals = lazy(() => import("./pages/admin/AdminDiscountApprovals"));
+const MyApprovalRequests = lazy(() => import("./pages/branch/MyApprovalRequests"));
+const PendingDiscountApprovals = lazy(() => import("./pages/branch/PendingDiscountApprovals"));
+const PendingVoidApprovals = lazy(() => import("./pages/branch/PendingVoidApprovals"));
+const InvCountSessions = lazy(() => import("./pages/branch/inventory-count/Sessions"));
+const InvCountNew = lazy(() => import("./pages/branch/inventory-count/NewSession"));
+const InvCountSheet = lazy(() => import("./pages/branch/inventory-count/CountingSheet"));
+const InvCountReview = lazy(() => import("./pages/branch/inventory-count/Review"));
+const InvCountApproval = lazy(() => import("./pages/branch/inventory-count/Approval"));
+const InvCountReport = lazy(() => import("./pages/branch/inventory-count/Report"));
+const InvCountSnapshot = lazy(() => import("./pages/branch/inventory-count/Snapshot"));
 
-import SuperDashboard from "./pages/super/Dashboard";
-import SuperTenants from "./pages/super/Tenants";
-import SuperUsers from "./pages/super/AllUsers";
-import AttachmentsHub from "./pages/AttachmentsHub";
-import FinancialPosition from "./pages/admin/FinancialPosition";
-import AdminPartnerProfile from "./pages/admin/PartnerProfile";
-import SystemHealth from "./pages/admin/SystemHealth";
-import PersonalExpenses from "./pages/admin/PersonalExpenses";
-import AskMe from "./pages/admin/AskMe";
-import PartnerDashboard from "./pages/partner/Dashboard";
-import PartnerLedger from "./pages/partner/Ledger";
-import PartnerProfilePage from "./pages/partner/Profile";
-import ChartOfAccounts from "./pages/admin/ChartOfAccounts";
-import JournalEntriesPage from "./pages/admin/JournalEntries";
-import JournalEntryDetail from "./pages/admin/JournalEntryDetail";
-import GeneralLedger from "./pages/admin/GeneralLedger";
-import TrialBalance from "./pages/admin/TrialBalance";
-import BalanceSheet from "./pages/admin/BalanceSheet";
-import IncomeStatement from "./pages/admin/IncomeStatement";
-import CashFlowStatement from "./pages/admin/CashFlowStatement";
-import AgingReport from "./pages/admin/AgingReport";
-import BankReconciliation from "./pages/admin/BankReconciliation";
-import BankReconciliationDetail from "./pages/admin/BankReconciliationDetail";
-import FiscalClosing from "./pages/admin/FiscalClosing";
-import OpeningBalances from "./pages/admin/OpeningBalances";
-import FlexibleDistribution from "./pages/admin/FlexibleDistribution";
-import FixedAssets from "./pages/admin/FixedAssets";
-import BranchCapital from "./pages/admin/BranchCapital";
+const SuperDashboard = lazy(() => import("./pages/super/Dashboard"));
+const SuperTenants = lazy(() => import("./pages/super/Tenants"));
+const SuperUsers = lazy(() => import("./pages/super/AllUsers"));
+const AttachmentsHub = lazy(() => import("./pages/AttachmentsHub"));
+const FinancialPosition = lazy(() => import("./pages/admin/FinancialPosition"));
+const AdminPartnerProfile = lazy(() => import("./pages/admin/PartnerProfile"));
+const SystemHealth = lazy(() => import("./pages/admin/SystemHealth"));
+const PersonalExpenses = lazy(() => import("./pages/admin/PersonalExpenses"));
+const AskMe = lazy(() => import("./pages/admin/AskMe"));
+const PartnerDashboard = lazy(() => import("./pages/partner/Dashboard"));
+const PartnerLedger = lazy(() => import("./pages/partner/Ledger"));
+const PartnerProfilePage = lazy(() => import("./pages/partner/Profile"));
+const ChartOfAccounts = lazy(() => import("./pages/admin/ChartOfAccounts"));
+const JournalEntriesPage = lazy(() => import("./pages/admin/JournalEntries"));
+const JournalEntryDetail = lazy(() => import("./pages/admin/JournalEntryDetail"));
+const GeneralLedger = lazy(() => import("./pages/admin/GeneralLedger"));
+const TrialBalance = lazy(() => import("./pages/admin/TrialBalance"));
+const BalanceSheet = lazy(() => import("./pages/admin/BalanceSheet"));
+const IncomeStatement = lazy(() => import("./pages/admin/IncomeStatement"));
+const CashFlowStatement = lazy(() => import("./pages/admin/CashFlowStatement"));
+const AgingReport = lazy(() => import("./pages/admin/AgingReport"));
+const BankReconciliation = lazy(() => import("./pages/admin/BankReconciliation"));
+const BankReconciliationDetail = lazy(() => import("./pages/admin/BankReconciliationDetail"));
+const FiscalClosing = lazy(() => import("./pages/admin/FiscalClosing"));
+const OpeningBalances = lazy(() => import("./pages/admin/OpeningBalances"));
+const FlexibleDistribution = lazy(() => import("./pages/admin/FlexibleDistribution"));
+const FixedAssets = lazy(() => import("./pages/admin/FixedAssets"));
+const BranchCapital = lazy(() => import("./pages/admin/BranchCapital"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -188,9 +228,11 @@ const App = () => (
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
           <PresenceTracker />
+          <PageWarmup />
           <PaidCelebration />
           <ShiftAlertBar />
           <DesktopNotifications />
+          <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/welcome" element={<Landing />} />
@@ -366,6 +408,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

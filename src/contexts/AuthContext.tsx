@@ -84,24 +84,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ]);
 
   const loadCtxInner = async (uid: string) => {
+    // Speed (login): the user's own permission overrides don't depend on the context — fetch them alongside it.
+    const overridesP = supabase.from("user_permissions" as any).select("permission_key, allowed").eq("user_id", uid);
     const ctx = await fetchUserContext(uid);
+    const [, { data: overrides }] = await Promise.all([loadPerms(ctx.tenantId), overridesP]);
     setProfile(ctx.profile as any);
     setTenantId(ctx.tenantId);
     setTenant(ctx.tenant);
     setRoles(ctx.roles);
     // الأوعية المالية النظامية ليست فروعًا تشغيلية، فتُستبعد من قوائم الفروع في الواجهة.
     setBranches((ctx.branches as any[]).filter((b) => !b?.is_system) as any);
-    await loadPerms(ctx.tenantId);
-    const { data: overrides } = await supabase
-      .from("user_permissions" as any)
-      .select("permission_key, allowed")
-      .eq("user_id", uid);
     setUserPerms(Object.fromEntries((overrides ?? []).map((r: any) => [r.permission_key, !!r.allowed])));
   };
 
+  // On start-up both getSession() and onAuthStateChange(INITIAL_SESSION) ask for the same context:
+  // share one in-flight load per user instead of running the whole round-trip chain twice.
+  const inflightRef = useRef<{ uid: string; p: Promise<void> } | null>(null);
   const loadCtx = async (uid: string) => {
     try {
-      await withTimeout(loadCtxInner(uid));
+      let job = inflightRef.current?.uid === uid ? inflightRef.current.p : null;
+      if (!job) {
+        job = loadCtxInner(uid).finally(() => { if (inflightRef.current?.p === job) inflightRef.current = null; });
+        inflightRef.current = { uid, p: job };
+      }
+      await withTimeout(job);
       setConnError(false);
       setCtxReady(true);
     } catch (e) {

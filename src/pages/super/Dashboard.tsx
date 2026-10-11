@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { SuperAdminLayout } from "@/components/layout/SuperAdminLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,9 @@ export default function SuperDashboard() {
       supabase.from("profiles").select("*", { count: "exact", head: true }),
       supabase.from("branches").select("*", { count: "exact", head: true }).eq("is_system", false),
       supabase.from("invoices").select("*", { count: "exact", head: true }),
-      supabase.from("invoices").select("total").eq("status", "active"),
+      // every active invoice of the platform (not only the first 1,000 rows) — lean column, paged by id
+      fetchAllRows<{ total: number }>(() => supabase.from("invoices").select("id,total").eq("status", "active").order("id"))
+        .then((data) => ({ data })).catch(() => ({ data: [] as { total: number }[] })),
     ]);
     const ts = t.data ?? [];
     setTenants(ts);

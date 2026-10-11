@@ -22,14 +22,14 @@ import { ROLE_LABELS, AppRole } from "@/lib/roles";
 import { formatEGP, formatDate, monthKey } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, EyeOff, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
-import { summarizeMonth, AttendanceSummary } from "@/lib/salaryCalc";
+import { PaySalaryDialog, CancelSalaryDialog, fetchSalaryPreview, type SalaryPreview } from "@/components/payroll/SalaryDialogs";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { ImageField } from "@/components/ImageField";
 
 export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
 
   const [emp, setEmp] = useState<any>(null);
   const [branch, setBranch] = useState<any>(null);
@@ -54,26 +54,11 @@ export default function EmployeeProfile() {
   const [advOpen, setAdvOpen] = useState(false);
   const [salOpen, setSalOpen] = useState(false);
   const [advForm, setAdvForm] = useState({ amount: "", monthly_deduct: "", reason: "" });
-  const [salForm, setSalForm] = useState({ month: monthKey(), bonuses: "0", deductions: "0", advance_deduct: "0" });
-  const [salSummary, setSalSummary] = useState<AttendanceSummary | null>(null);
-  const [calcLoading, setCalcLoading] = useState(false);
-
-  const computeFromAttendance = async () => {
-    if (!emp) return;
-    setCalcLoading(true);
-    try {
-      const s = await summarizeMonth(emp, salForm.month);
-      setSalSummary(s);
-      setSalForm((f) => ({ ...f, deductions: String(s.totalDeduction) }));
-      toast.success(`غياب: ${s.absentDays} يوم — تأخير: ${s.totalLateMinutes} دقيقة`);
-    } catch (e: any) {
-      toast.error(e.message ?? "فشل الحساب");
-    } finally {
-      setCalcLoading(false);
-    }
-  };
+  const [cancelSal, setCancelSal] = useState<any | null>(null);
+  const [preview, setPreview] = useState<SalaryPreview | null>(null);
+  const loadPreview = () => { if (id) fetchSalaryPreview(id, monthKey()).then(setPreview).catch(() => setPreview(null)); };
+  useEffect(() => { loadPreview(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
   const [advPm, setAdvPm] = useState<PaymentMethodValue>(emptyPaymentValue());
-  const [salPm, setSalPm] = useState<PaymentMethodValue>(emptyPaymentValue());
 
   // Account dialog
   const [acctOpen, setAcctOpen] = useState(false);
@@ -135,10 +120,9 @@ export default function EmployeeProfile() {
 
   const totalAdvancesGiven = advances.reduce((s, a) => s + Number(a.amount), 0);
   const totalAdvancesRemaining = advances.reduce((s, a) => s + Number(a.remaining), 0);
-  // Strict rule (0065): this month's advance instalments are deducted before the net salary is paid.
-  const advanceDueNow = advances.reduce((s, a) => s + Math.min(Number(a.remaining) || 0, Number(a.monthly_deduct) > 0 ? Number(a.monthly_deduct) : Number(a.remaining) || 0), 0);
+
   const totalAdvancesPaidBack = totalAdvancesGiven - totalAdvancesRemaining;
-  const totalSalariesPaid = salaries.reduce((s, x) => s + Number(x.net_salary), 0);
+  const totalSalariesPaid = salaries.filter((x) => (x.status ?? "active") === "active").reduce((s, x) => s + Number(x.net_salary), 0);
 
   const openEdit = () => {
     if (!emp) return;
@@ -246,63 +230,6 @@ export default function EmployeeProfile() {
     toast.success("تم صرف السلفة");
     setAdvOpen(false);
     setAdvForm({ amount: "", monthly_deduct: "", reason: "" });
-    load();
-  };
-
-  const submitSalary = async () => {
-    const base = Number(emp.base_salary);
-    const bonuses = Number(salForm.bonuses) || 0;
-    const ded = Number(salForm.deductions) || 0;
-    const advDed = Number(salForm.advance_deduct) || 0;
-    const net = base + bonuses - ded - advDed;
-    if (net <= 0) return toast.error("صافي الراتب يجب أن يكون موجباً");
-    if (advDed > totalAdvancesRemaining) return toast.error("خصم السلف أكبر من الرصيد المتبقي");
-    const { validateTransferPayment } = await import("@/lib/paymentMethods");
-    const sErr = validateTransferPayment(salPm);
-    if (sErr) return toast.error(sErr);
-    const { data: salaryId, error } = await supabase.rpc("pay_employee_salary" as any, {
-      p_employee_id: emp.id,
-      p_month: salForm.month,
-      p_bonuses: bonuses,
-      p_deductions: ded,
-      p_advance_deduct: advDed,
-      p_payment_method: salPm.method,
-      p_reference_number: salPm.reference_number ?? null,
-      p_transfer_to_account: salPm.transfer_to_account ?? null,
-      p_transfer_from_account: salPm.transfer_from_account ?? null,
-      p_fee_amount: salPm.fee_amount ?? 0,
-      p_notes: null,
-    } as any);
-    if (error) return toast.error(error.message);
-    const sal = { id: salaryId as unknown as string };
-    await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "salary", entityId: sal.id, details: { employee: emp.name, month: salForm.month, net, method: salPm.method } });
-
-
-    // Notify employee that their salary has been paid
-    if (emp.user_id) {
-      const parts = [
-        `صافي: ${formatEGP(net)}`,
-        `أساسي: ${formatEGP(base)}`,
-      ];
-      if (bonuses > 0) parts.push(`حوافز: ${formatEGP(bonuses)}`);
-      if (ded > 0) parts.push(`خصومات: ${formatEGP(ded)}`);
-      if (advDed > 0) parts.push(`خصم سلف: ${formatEGP(advDed)}`);
-      const { notify } = await import("@/lib/notifications");
-      await notify({
-        userId: emp.user_id,
-        title: `💰 تم صرف مرتبك لشهر ${salForm.month}`,
-        body: parts.join(" — "),
-        type: "salary_paid",
-        link: "/profile",
-        relatedEntity: "salary",
-        relatedEntityId: sal.id,
-      });
-    }
-
-    toast.success("تم دفع الراتب");
-    setSalOpen(false);
-    setSalForm({ month: monthKey(), bonuses: "0", deductions: "0", advance_deduct: "0" });
-    setSalSummary(null);
     load();
   };
 
@@ -495,20 +422,45 @@ export default function EmployeeProfile() {
         </TabsList>
 
         <TabsContent value="salaries" className="mt-4">
-          <div className="flex justify-end mb-3">
-            <Button onClick={() => { setSalForm((f) => ({ ...f, advance_deduct: String(Math.round(advanceDueNow * 100) / 100) })); setSalOpen(true); }} className="gap-2"><Plus className="w-4 h-4" /> دفع راتب</Button>
-          </div>
+          {preview && (
+            <div className="card-elevated p-4 mb-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <div className="font-extrabold">مرتب الشهر ده ({preview.month}) — من الحضور والسلف</div>
+                {preview.paid
+                  ? <span className="text-xs font-bold text-success">اتصرف {formatEGP(Number(preview.paid.net_salary))}</span>
+                  : <Button onClick={() => setSalOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> صرف المرتب (بونص / خصم)</Button>}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                <div className="rounded-lg bg-surface-2 p-2.5"><div className="text-[11px] text-muted-foreground">الأساسي</div><b className="tabular-nums">{formatEGP(preview.base)}</b></div>
+                <div className="rounded-lg bg-destructive/10 p-2.5"><div className="text-[11px] text-muted-foreground">خصم الغياب ({preview.counts.absent} يوم{preview.counts.half_day + preview.counts.hourly ? ` + ${preview.counts.half_day + preview.counts.hourly} جزئي` : ""})</div><b className="tabular-nums text-destructive">− {formatEGP(preview.attendance_deduction)}</b></div>
+                <div className="rounded-lg bg-info/10 p-2.5"><div className="text-[11px] text-muted-foreground">إجازات (مدفوعة)</div><b className="tabular-nums">{preview.counts.leave} يوم</b></div>
+                <div className="rounded-lg bg-warning/10 p-2.5"><div className="text-[11px] text-muted-foreground">قسط السلف المستحق (رصيد {formatEGP(preview.advance_remaining)})</div><b className="tabular-nums text-warning">− {formatEGP(Math.min(preview.advance_due, preview.attendance_amount))}</b></div>
+                <div className="rounded-lg bg-primary/10 p-2.5"><div className="text-[11px] text-muted-foreground">الصافي المتوقع (قبل البونص / الخصم)</div><b className="tabular-nums text-primary">{formatEGP(preview.attendance_amount - Math.min(preview.advance_due, preview.attendance_amount))}</b></div>
+              </div>
+            </div>
+          )}
+          {!preview && (
+            <div className="flex justify-end mb-3">
+              <Button onClick={() => setSalOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> صرف راتب</Button>
+            </div>
+          )}
           <DataTable
             rows={salaries}
             empty="لا توجد رواتب مدفوعة"
             columns={[
               { key: "month", header: "الشهر" },
               { key: "base_salary", header: "أساسي", render: (r: any) => formatEGP(r.base_salary) },
-              { key: "bonuses", header: "حوافز", render: (r: any) => <span className="text-success">{formatEGP(r.bonuses)}</span> },
-              { key: "deductions", header: "خصومات", render: (r: any) => <span className="text-destructive">{formatEGP(r.deductions)}</span> },
-              { key: "advance_deduct", header: "خصم سلف", render: (r: any) => <span className="text-warning">{formatEGP(r.advance_deduct)}</span> },
-              { key: "net_salary", header: "الصافي", render: (r: any) => <b className="text-primary">{formatEGP(r.net_salary)}</b> },
+              { key: "attendance_deduction", header: "خصم غياب", render: (r: any) => <span className="text-destructive">{formatEGP(r.attendance_deduction ?? 0)}</span> },
+              { key: "bonuses", header: "بونص", render: (r: any) => <span className="text-success">{formatEGP(r.bonuses)}</span> },
+              { key: "deductions", header: "خصم", render: (r: any) => <span className="text-destructive">{formatEGP(r.deductions)}</span> },
+              { key: "advance_deduct", header: "قسط سلف", render: (r: any) => <span className="text-warning">{formatEGP(r.advance_deduct)}</span> },
+              { key: "net_salary", header: "الصافي", render: (r: any) => <b className={r.status === "cancelled" ? "line-through text-muted-foreground" : "text-primary"}>{formatEGP(r.net_salary)}</b> },
               { key: "paid_at", header: "تاريخ الصرف", render: (r: any) => formatDate(r.paid_at) },
+              { key: "status", header: "الحالة", render: (r: any) => r.status === "cancelled"
+                  ? <span className="text-xs text-destructive" title={r.cancel_reason ?? ""}>ملغي{r.cancel_reason ? ` — ${r.cancel_reason}` : ""}</span>
+                  : <span className="text-xs text-success">مصروف</span> },
+              { key: "actions", header: "", render: (r: any) => r.status !== "cancelled" && isAdmin
+                  ? <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setCancelSal(r)}>إلغاء الصرف</Button> : null },
             ]}
           />
         </TabsContent>
@@ -741,47 +693,13 @@ export default function EmployeeProfile() {
         </DialogContent>
       </Dialog>
 
-      {/* Salary dialog */}
-      <Dialog open={salOpen} onOpenChange={setSalOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>دفع راتب شهر</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="flex items-end gap-2">
-              <div className="flex-1"><Label>الشهر (YYYY-MM) *</Label><Input value={salForm.month} onChange={(e) => { setSalForm({ ...salForm, month: e.target.value }); setSalSummary(null); }} className="mt-1.5" placeholder="2026-04" /></div>
-              <Button type="button" variant="outline" onClick={computeFromAttendance} disabled={calcLoading}>
-                <Calculator className="w-4 h-4 ml-1" /> {calcLoading ? "..." : "احسب من الحضور"}
-              </Button>
-            </div>
-            {salSummary && (
-              <div className="bg-surface-2 rounded-lg p-3 text-xs space-y-1">
-                <div className="flex justify-between"><span>أيام العمل في الشهر</span><b>{salSummary.workDaysInMonth}</b></div>
-                <div className="flex justify-between"><span>حضور / تأخير / غياب / إجازة</span>
-                  <b>{salSummary.presentDays} / {salSummary.lateDays} / <span className="text-destructive">{salSummary.absentDays}</span> / {salSummary.leaveDays}</b>
-                </div>
-                <div className="flex justify-between"><span>أجر اليوم</span><b>{formatEGP(salSummary.dailyRate)}</b></div>
-                <div className="flex justify-between"><span>خصم غياب</span><b>{formatEGP(salSummary.absentDeduction)}</b></div>
-                <div className="flex justify-between"><span>خصم تأخير ({salSummary.totalLateMinutes} د)</span><b>{formatEGP(salSummary.lateDeduction)}</b></div>
-                <div className="flex justify-between border-t border-border pt-1 mt-1"><span>إجمالي الخصم المقترح</span><b className="text-destructive">{formatEGP(salSummary.totalDeduction)}</b></div>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>الأساسي</Label><Input disabled value={emp.base_salary} className="mt-1.5" /></div>
-              <div><Label>الحوافز</Label><Input type="number" value={salForm.bonuses} onChange={(e) => setSalForm({ ...salForm, bonuses: e.target.value })} className="mt-1.5" /></div>
-              <div><Label>خصومات</Label><Input type="number" value={salForm.deductions} onChange={(e) => setSalForm({ ...salForm, deductions: e.target.value })} className="mt-1.5" /></div>
-              <div><Label>خصم سلف (إجباري على الأقل {formatEGP(advanceDueNow)} — الرصيد {formatEGP(totalAdvancesRemaining)})</Label><Input type="number" value={salForm.advance_deduct} onChange={(e) => setSalForm({ ...salForm, advance_deduct: e.target.value })} className="mt-1.5" /></div>
-            </div>
-            <div className="bg-surface-2 rounded-lg p-3 flex justify-between text-lg">
-              <span>الصافي</span>
-              <b className="text-primary">{formatEGP(Number(emp.base_salary) + Number(salForm.bonuses || 0) - Number(salForm.deductions || 0) - Number(salForm.advance_deduct || 0))}</b>
-            </div>
-            <PaymentMethodPicker amount={Number(emp.base_salary) + Number(salForm.bonuses || 0) - Number(salForm.deductions || 0) - Number(salForm.advance_deduct || 0)} value={salPm} onChange={setSalPm} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSalOpen(false)}>إلغاء</Button>
-            <Button onClick={submitSalary}>دفع الراتب</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {salOpen && emp && (
+        <PaySalaryDialog employee={emp} month={monthKey()} monthEditable onClose={() => setSalOpen(false)}
+          onDone={() => { setSalOpen(false); load(); loadPreview(); }} />
+      )}
+      {cancelSal && (
+        <CancelSalaryDialog salary={cancelSal} onClose={() => setCancelSal(null)} onDone={() => { setCancelSal(null); load(); loadPreview(); }} />
+      )}
 
       {/* Delete confirm */}
       <AlertDialog open={delOpen} onOpenChange={setDelOpen}>

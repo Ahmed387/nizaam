@@ -5,9 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { PaymentMethodPicker, emptyPaymentValue, type PaymentMethodValue } from "@/components/PaymentMethodPicker";
+import { PaySalaryDialog } from "@/components/payroll/SalaryDialogs";
 import { isWorkDay } from "@/components/ShiftEditor";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { formatEGP } from "@/lib/format";
@@ -47,8 +45,9 @@ export interface PayrollLine {
   attendanceAmount: number;
 }
 
-/** Monthly salary from attendance. Leave is paid; absence, and the unworked part of a half / hourly day, is deducted.
- *  Days still ahead in the current month are not counted as absence. */
+/** Monthly salary from attendance (display only — the server's `employee_salary_preview` decides when paying).
+ *  Leave is a status and is paid; only recorded absence, and the unworked part of a half / hourly day, is deducted.
+ *  A working day with nothing recorded is a normal paid day. */
 export function computePayroll(emp: any, ym: string, att: any[], today: string): PayrollLine {
   const dim = daysIn(ym);
   const counts: PayrollLine["counts"] = { present: 0, absent: 0, leave: 0, half_day: 0, hourly: 0, unrecorded: 0 };
@@ -62,9 +61,9 @@ export function computePayroll(emp: any, ym: string, att: any[], today: string):
     const working = isWorkDay(date, emp.work_days);
     if (!working && !k) continue;
     if (working) workDays++;
-    if (!k) {
-      if (date > today) { paid += 1; continue; } // not reached yet
-      counts.unrecorded++; continue;             // a working day with no record = absent
+    if (!k) {                                    // no record = a normal paid day (same rule as employee_salary_preview)
+      if (date <= today) counts.unrecorded++;
+      paid += 1; continue;
     }
     counts[k]++;
     if (k === "present" || k === "leave") paid += 1;
@@ -99,7 +98,7 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
     setAtt(a ?? []);
     const ids = list.map((e: any) => e.id);
     if (ids.length) {
-      const { data: sal } = await supabase.from("salaries").select("id,employee_id,net_salary,bonuses,deductions,advance_deduct").eq("month", ym).in("employee_id", ids);
+      const { data: sal } = await (supabase.from("salaries") as any).select("id,employee_id,net_salary,bonuses,deductions,advance_deduct").eq("month", ym).eq("status" as any, "active").in("employee_id", ids);
       setPaid(Object.fromEntries((sal ?? []).map((s: any) => [s.employee_id, s])));
       const dues = await Promise.all(ids.map(async (id: string) => {
         const { data } = await supabase.rpc("employee_advance_due" as any, { p_employee_id: id } as any);
@@ -226,7 +225,7 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
       <div className="card-elevated overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
           <div className="font-extrabold">مرتبات شهر {ym}</div>
-          <div className="text-xs text-muted-foreground">المرتب محسوب من الحضور تلقائياً. الإجازة مدفوعة، الغياب بيتخصم، ونص اليوم والساعات بنسبتها. قسط السلف المستحق بيتخصم إجباري قبل صرف الصافي.</div>
+          <div className="text-xs text-muted-foreground">المرتب محسوب من الحضور تلقائياً: الإجازة مدفوعة، الغياب المسجّل بس هو اللي بيتخصم، ونص اليوم والساعات بنسبتها. اليوم اللي مفيهوش تسجيل بيتحسب يوم عادي. البونص والخصم بيتكتبوا في شاشة الصرف، وقسط السلف المستحق إجباري.</div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -246,7 +245,7 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
                     <td className="px-2 py-2 tabular-nums">{formatEGP(p.employee.base_salary)}</td>
                     <td className="px-2 py-2 tabular-nums">{p.workDays}</td>
                     <td className="px-2 py-2 tabular-nums">{p.paidUnits}</td>
-                    <td className="px-2 py-2 tabular-nums text-destructive">{p.counts.absent + p.counts.unrecorded}</td>
+                    <td className="px-2 py-2 tabular-nums text-destructive">{p.counts.absent}{p.counts.half_day || p.counts.hourly ? <span className="text-[10px] text-muted-foreground"> +{p.counts.half_day + p.counts.hourly} جزئي</span> : null}</td>
                     <td className="px-2 py-2 tabular-nums text-destructive">{formatEGP(p.attendanceDeduction)}</td>
                     <td className="px-2 py-2 tabular-nums font-bold">{formatEGP(p.attendanceAmount)}</td>
                     <td className="px-2 py-2 tabular-nums text-warning">{formatEGP(advance)}</td>
@@ -265,80 +264,9 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
       </div>
 
       {payFor && (
-        <PaySalaryDialog line={payFor} month={ym} advance={advDue[payFor.employee.id] ?? { due: 0, remaining: 0 }} canOverride={isAdmin}
+        <PaySalaryDialog employee={payFor.employee} month={ym}
           onClose={() => setPayFor(null)} onDone={() => { setPayFor(null); load(); }} />
       )}
     </div>
-  );
-}
-
-function PaySalaryDialog({ line, month, advance, canOverride, onClose, onDone }: {
-  line: PayrollLine; month: string; advance: { due: number; remaining: number }; canOverride: boolean; onClose: () => void; onDone: () => void;
-}) {
-  const base = Number(line.employee.base_salary) || 0;
-  const [finalAmount, setFinalAmount] = useState(String(line.attendanceAmount));
-  const gross = Math.max(0, Number(finalAmount) || 0);
-  const required = Math.min(advance.due, gross);
-  const [advDed, setAdvDed] = useState(String(Math.min(advance.due, line.attendanceAmount)));
-  const adv = Number(advDed) || 0;
-  const diff = Math.round((gross - line.attendanceAmount) * 100) / 100;
-  const net = Math.round((gross - adv) * 100) / 100;
-  const [pm, setPm] = useState<PaymentMethodValue>(emptyPaymentValue());
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => { if (adv < required) setAdvDed(String(required)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [required]);
-
-  const submit = async () => {
-    if (gross <= 0) return toast.error("المبلغ لازم يكون أكبر من صفر");
-    if (adv + 0.009 < required) return toast.error(`لازم تخصم قسط السلف المستحق الأول: ${formatEGP(required)}`);
-    if (adv > advance.remaining + 0.009) return toast.error("الخصم أكبر من رصيد السلف");
-    if (adv > gross) return toast.error("الخصم أكبر من المرتب");
-    const { validateTransferPayment } = await import("@/lib/paymentMethods");
-    const pErr = net > 0 ? validateTransferPayment(pm) : null;
-    if (pErr) return toast.error(pErr);
-    // base − attendance deduction + owner's decision (bonus if paid more, extra deduction if paid less)
-    const bonuses = Math.max(0, diff);
-    const deductions = Math.round((line.attendanceDeduction + Math.max(0, -diff)) * 100) / 100;
-    setSaving(true);
-    const { error } = await supabase.rpc("pay_employee_salary" as any, {
-      p_employee_id: line.employee.id, p_month: month, p_bonuses: bonuses, p_deductions: deductions, p_advance_deduct: adv,
-      p_payment_method: pm.method, p_reference_number: pm.reference_number ?? null, p_transfer_to_account: pm.transfer_to_account ?? null,
-      p_transfer_from_account: pm.transfer_from_account ?? null, p_fee_amount: pm.fee_amount ?? 0,
-      p_notes: diff > 0 ? `بونص بقرار المالك ${diff}` : diff < 0 ? `خصم إضافي بقرار المالك ${-diff}` : null,
-    } as any);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم صرف المرتب");
-    onDone();
-  };
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>صرف مرتب {line.employee.name} — {month}</DialogTitle></DialogHeader>
-        <div className="space-y-3 text-sm">
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-surface-2 p-3">
-            <span>الأساسي</span><b className="text-left tabular-nums">{formatEGP(base)}</b>
-            <span>خصم الحضور ({line.counts.absent + line.counts.unrecorded} غياب)</span><b className="text-left tabular-nums text-destructive">{formatEGP(line.attendanceDeduction)}</b>
-            <span>المستحق بالحضور</span><b className="text-left tabular-nums">{formatEGP(line.attendanceAmount)}</b>
-          </div>
-          <div>
-            <Label>المبلغ اللي هيتصرف قبل خصم السلف {canOverride ? "" : "(تعديله للمالك بس)"}</Label>
-            <Input type="number" value={finalAmount} disabled={!canOverride} onChange={(e) => setFinalAmount(e.target.value)} className="mt-1.5" />
-            {diff !== 0 && <div className={`text-xs mt-1 ${diff > 0 ? "text-success" : "text-destructive"}`}>{diff > 0 ? `هيتسجل بونص للموظف: ${formatEGP(diff)}` : `هيتسجل خصم إضافي: ${formatEGP(-diff)}`}</div>}
-          </div>
-          <div>
-            <Label>خصم السلف (المستحق إجباري: {formatEGP(required)} — رصيد السلف {formatEGP(advance.remaining)})</Label>
-            <Input type="number" value={advDed} min={required} max={Math.min(advance.remaining, gross)} onChange={(e) => setAdvDed(e.target.value)} className="mt-1.5" />
-          </div>
-          <div className="rounded-lg bg-primary/10 p-3 flex justify-between text-base"><span>الصافي اللي هيخرج من الخزنة</span><b className="tabular-nums">{formatEGP(net)}</b></div>
-          {net > 0 && <PaymentMethodPicker amount={net} value={pm} onChange={setPm} />}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>إلغاء</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "جاري الصرف..." : "صرف المرتب"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

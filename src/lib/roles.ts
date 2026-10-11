@@ -304,21 +304,26 @@ export async function fetchUserContext(userId: string) {
     supabase.from("branch_users").select("branch_id, access_level, branches(*)").eq("user_id", userId),
   ]);
 
-  let tenant: any = null;
-  if ((profile as any)?.tenant_id) {
-    const { data: t } = await supabase
-      .from("tenants")
-      .select("id, name, slug, logo_url, primary_color, is_suspended, suspension_reason, owner_user_id, setup_completed")
-      .eq("id", (profile as any).tenant_id)
-      .maybeSingle();
-    tenant = (t as any) ?? null;
-  }
-
+  const tid = (profile as any)?.tenant_id ?? null;
   const userRoles = (roles ?? []).map((r) => r.role as AppRole);
   const isAdminOrSuper = userRoles.includes("admin") || userRoles.includes("super_admin") || userRoles.includes("owner");
   const isSupervisor = userRoles.includes("supervisor");
   // المراقب: عرض فقط لكل الفروع — لازم يشوف قائمة الفروع كاملة
   const isViewer = userRoles.includes("viewer");
+  const seesAll = (isAdminOrSuper || isSupervisor || isViewer) && !!tid;
+
+  // Speed (login): the company row and the branch list only need the profile — fetch them together.
+  const [tRes, bRes] = await Promise.all([
+    tid
+      ? supabase.from("tenants")
+          .select("id, name, slug, logo_url, primary_color, is_suspended, suspension_reason, owner_user_id, setup_completed")
+          .eq("id", tid).maybeSingle()
+      : Promise.resolve({ data: null } as any),
+    seesAll
+      ? supabase.from("branches").select("*").eq("tenant_id", tid).eq("is_active", true).order("name")
+      : Promise.resolve({ data: null } as any),
+  ]);
+  const tenant: any = (tRes as any)?.data ?? null;
 
   // Per-branch access level from branch_users (manage | read). Missing = manage (backward compatible).
   const accessByBranch: Record<string, "manage" | "read"> = {};
@@ -327,18 +332,9 @@ export async function fetchUserContext(userId: string) {
   });
 
   // Admin/Supervisor/Viewer see all tenant branches. Others see only their assigned branches.
-  let branches: any[] = [];
-  if ((isAdminOrSuper || isSupervisor || isViewer) && (profile as any)?.tenant_id) {
-    const { data: allBranches } = await supabase
-      .from("branches")
-      .select("*")
-      .eq("tenant_id", (profile as any).tenant_id)
-      .eq("is_active", true)
-      .order("name");
-    branches = allBranches ?? [];
-  } else {
-    branches = (branchUsers ?? []).map((b: any) => b.branches).filter(Boolean);
-  }
+  let branches: any[] = seesAll
+    ? ((bRes as any)?.data ?? [])
+    : (branchUsers ?? []).map((b: any) => b.branches).filter(Boolean);
 
   // Owner / admin / super admin keep permanent "manage" on every branch (owner immunity).
   branches = branches.map((b: any) => ({

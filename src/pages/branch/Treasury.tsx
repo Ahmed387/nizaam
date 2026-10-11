@@ -19,6 +19,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
 import { DataTable } from "@/components/DataTable";
 import { MetricHint } from "@/components/ui/MetricHint";
 import { VouchersTable } from "@/components/VouchersTable";
@@ -384,6 +385,8 @@ export default function Treasury() {
           أرصدة الخزينة غير متاحة لدورك. يمكنك تسجيل الحركات فقط.
         </div>
       )}
+
+      {canSeeBalances && <TransferFeeCards branchId={branchId} from={fromDate || undefined} to={toDate || undefined} />}
 
       {pendingIncoming.length > 0 && (
         <div className="card-elevated p-4 mb-6 border border-warning/40 bg-warning/5">

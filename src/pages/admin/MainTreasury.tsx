@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -227,6 +228,7 @@ export default function MainTreasury() {
           </Button>
         }
       />
+      <TransferFeeCards branchId={branchFilter === "all" ? null : branchFilter} from={from} to={to} />
 
       <div className="card-elevated p-4 mb-6 border-r-4 border-primary bg-primary/5 text-sm leading-7">
         الصفحة دي <b>للعرض بس</b>، وبتجمّعلك أرصدة خزائن الفروع والأوعية المالية المركزية في مكان واحد.

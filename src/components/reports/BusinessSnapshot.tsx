@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { TrendingUp, TrendingDown, Boxes, Receipt, Wallet, Scale, HandCoins, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { rpcErrorText } from "@/lib/rpcError";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { formatEGP } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
     setErr(null);
     supabase.rpc("owner_business_snapshot" as any, { p_from: from, p_to: to } as any).then(({ data, error }) => {
       if (off) return;
-      if (error) { setErr(error.message); setData(null); } else setData(data as any);
+      if (error) { setErr(rpcErrorText(error, "تقرير «بنكسب ولا بنخسر»")); setData(null); } else setData(data as any);
     });
     return () => { off = true; };
   }, [from, to]);

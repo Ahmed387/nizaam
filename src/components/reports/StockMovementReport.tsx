@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, Boxes, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { rpcErrorText } from "@/lib/rpcError";
 import { formatEGP } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 
@@ -54,7 +55,7 @@ export function StockMovementReport({ from, to }: { from: string; to: string }) 
     supabase.rpc("branch_stock_report" as any, { p_from: from, p_to: to } as any).then(({ data, error }) => {
       if (off) return;
       setLoading(false);
-      if (error) { setErr(error.message); setData(null); } else setData(data as any);
+      if (error) { setErr(rpcErrorText(error, "تقرير حركة المخزون")); setData(null); } else setData(data as any);
     });
     return () => { off = true; };
   }, [from, to]);
@@ -65,7 +66,7 @@ export function StockMovementReport({ from, to }: { from: string; to: string }) 
     setProducts(null);
     supabase.rpc("branch_stock_report" as any, { p_from: from, p_to: to, p_branch: branch.id } as any).then(({ data, error }) => {
       if (off) return;
-      if (error) setErr(error.message); else setProducts(((data as any)?.products ?? []) as Line[]);
+      if (error) setErr(rpcErrorText(error, "تقرير حركة المخزون")); else setProducts(((data as any)?.products ?? []) as Line[]);
     });
     return () => { off = true; };
   }, [branch, from, to]);
