@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
+import { REVERSAL_CATEGORIES } from "@/lib/treasuryReversals";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,8 @@ export default function MainTreasury() {
   const [search, setSearch] = useState("");
   const [notes, setNotes] = useState("");
   const [typeF, setTypeF] = useState<"all" | "income" | "expense">("all");
+  // reversal rows (cancel / void / refund of a cancelled document) are listed apart, like the branch till
+  const [revF, setRevF] = useState<"normal" | "reversals">("normal");
   const [methodF, setMethodF] = useState<string>("all");
   const [minAmt, setMinAmt] = useState("");
   const [maxAmt, setMaxAmt] = useState("");
@@ -81,7 +84,7 @@ export default function MainTreasury() {
   }, [search, notes, minAmt, maxAmt]);
 
   // Any filter change resets to page 1
-  useEffect(() => { setPage(1); }, [from, to, branchFilter, typeF, methodF, dq]);
+  useEffect(() => { setPage(1); }, [from, to, branchFilter, typeF, revF, methodF, dq]);
 
   const clearFilters = () => {
     setFrom(defaultFrom()); setTo(cairoTodayDay()); setSearch(""); setNotes("");
@@ -144,6 +147,7 @@ export default function MainTreasury() {
       "transaction_date", from, to, true,
     );
     if (typeF !== "all") q = q.eq("type", typeF);
+    q = revF === "reversals" ? q.in("category", REVERSAL_CATEGORIES) : q.not("category", "in", `(${REVERSAL_CATEGORIES.map((c) => `"${c}"`).join(",")})`);
     if (methodF !== "all") q = q.eq("payment_method", methodF);
     const s = safeLike(dq.search);
     if (s) q = q.or(`reference_number.ilike.%${s}%,description.ilike.%${s}%,category.ilike.%${s}%`);
@@ -173,7 +177,7 @@ export default function MainTreasury() {
     })));
     setTotalCount(count ?? 0);
     setTableLoading(false);
-  }, [tenantId, branches, branchFilter, from, to, typeF, methodF, dq, page]);
+  }, [tenantId, branches, branchFilter, from, to, typeF, revF, methodF, dq, page]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { loadTable(); }, [loadTable]);
@@ -385,6 +389,16 @@ export default function MainTreasury() {
                   <SelectItem value="all">الكل</SelectItem>
                   <SelectItem value="income">وارد / دخول</SelectItem>
                   <SelectItem value="expense">صادر / خروج</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">الحركات</label>
+              <Select value={revF} onValueChange={(v) => setRevF(v as any)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="normal">الحركات العادية</SelectItem>
+                  <SelectItem value="reversals">الحركات العكسية والإلغاءات</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -20,6 +20,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
+import { REVERSAL_CATEGORIES } from "@/lib/treasuryReversals";
 import { DataTable } from "@/components/DataTable";
 import { MetricHint } from "@/components/ui/MetricHint";
 import { VouchersTable } from "@/components/VouchersTable";
@@ -57,10 +58,13 @@ interface WalletBalances {
   total_balance: number;
 }
 
+const REVERSAL_IN = `(${REVERSAL_CATEGORIES.map((c) => `"${c}"`).join(",")})`;
+
 export default function Treasury() {
   const { id: branchId } = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = (searchParams.get("tab") as "movements" | "receipts" | "payments" | "transfers" | null) ?? "movements";
+  const initialTab = (searchParams.get("tab") as "movements" | "reversals" | "receipts" | "payments" | "transfers" | null) ?? "movements";
+  const reversalView = initialTab === "reversals";
   const { user, profile, branches, isAdmin, hasRole } = useAuth();
   const canTransfer = isAdmin || hasRole("branch_manager");
   const canSeeBalances = isAdmin || hasRole("branch_manager") || hasRole("viewer");
@@ -96,15 +100,17 @@ export default function Treasury() {
   const [periodLoading, setPeriodLoading] = useState(true);
   useEffect(() => { const t = setTimeout(() => setSearch(searchText.trim()), 300); return () => clearTimeout(t); }, [searchText]);
   useEffect(() => { const t = setTimeout(() => setNotesSearch(notesText.trim()), 300); return () => clearTimeout(t); }, [notesText]);
-  useEffect(() => { setPage(1); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter]);
+  useEffect(() => { setPage(1); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, reversalView]);
   const resetFilters = () => {
     setFromDate(""); setToDate(""); setSearchText(""); setNotesText("");
     setMinAmount(""); setMaxAmount(""); setTab("all"); setMethodFilter("all");
   };
 
   /** Applies the page's filters to any treasury query (shared by table page + period totals). */
-  const applyFilters = (q: any) => {
+  const applyFilters = (q: any, forTable = false) => {
     let tq = q.eq("branch_id", branchId!);
+    // the movements table leaves reversal rows to their own tab; period totals keep every row (true money)
+    if (forTable) tq = reversalView ? tq.in("category", REVERSAL_CATEGORIES) : tq.not("category", "in", REVERSAL_IN);
     if (fromDate) tq = tq.gte("transaction_date", fromDate);
     if (toDate) tq = tq.lte("transaction_date", toDate);
     if (tab !== "all") tq = tq.eq("type", tab);
@@ -131,7 +137,7 @@ export default function Treasury() {
 
   const load = async () => {
     setLoading(true);
-    const tq = applyFilters(supabase.from("treasury").select("*", { count: "exact" }));
+    const tq = applyFilters(supabase.from("treasury").select("*", { count: "exact" }), true);
     const offset = (page - 1) * PAGE_SIZE;
     const [tr, tt, wb, br] = await Promise.all([
       tq.order("transaction_date", { ascending: false }).order("id", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
@@ -188,7 +194,7 @@ export default function Treasury() {
       }
     }
   };
-  useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, page]);
+  useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, page, reversalView]);
   useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], () => { load(); loadPeriod(); });
 
   const filtered = rows;
@@ -405,6 +411,7 @@ export default function Treasury() {
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams((p) => { p.set("tab", v); return p; }, { replace: true })}>
         <TabsList>
           <TabsTrigger value="movements">حركات الخزنة</TabsTrigger>
+          <TabsTrigger value="reversals">الحركات العكسية والإلغاءات</TabsTrigger>
           <TabsTrigger value="receipts">سندات القبض</TabsTrigger>
           <TabsTrigger value="payments">سندات الصرف</TabsTrigger>
           <TabsTrigger value="transfers">تحويلات بين الفروع ({transfers.length})</TabsTrigger>
@@ -420,7 +427,13 @@ export default function Treasury() {
 
 
 
-        <TabsContent value="movements" className="mt-4">
+        <TabsContent value={reversalView ? "reversals" : "movements"} className="mt-4">
+          {reversalView && (
+            <div className="card-elevated p-3 mb-4 text-xs text-muted-foreground leading-6">
+              هنا الحركات اللي بتلغي حركة تانية بس: إلغاء سند، إلغاء مرتجع، رد فلوس فاتورة ملغاة، إلغاء أو تعديل دفعة وعمولتها، وقيود التصحيح العكسية.
+              هي داخلة في رصيد الخزنة وفي الكروت فوق عادي — اتشالت من جدول «حركات الخزنة» عشان يفضل نضيف.
+            </div>
+          )}
           <div className="card-elevated p-4 mb-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-bold text-sm">
