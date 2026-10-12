@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   DollarSign,
 } from "lucide-react";
+import { EmployeeLink } from "@/components/employees/EmployeeLink";
 
 export default function BranchProfile() {
   const [till, setTill] = useState(0);
@@ -249,7 +250,7 @@ export default function BranchProfile() {
             rows={employees}
             empty="لا يوجد موظفين"
             columns={[
-              { key: "name", header: "الاسم", render: (r: any) => <span className="font-semibold">{r.name}</span> },
+              { key: "name", header: "الاسم", render: (r: any) => <EmployeeLink id={r.id} name={r.name} /> },
               { key: "job_title", header: "الوظيفة" },
               { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
               { key: "hire_date", header: "تاريخ التعيين", render: (r: any) => formatDate(r.hire_date) },

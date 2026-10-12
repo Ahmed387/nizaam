@@ -40,8 +40,8 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from "@/components/CancelReturnButton";
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
-import { fetchDocumentStatus } from "@/lib/ledger";
-import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, emptyBuckets, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
+import { fetchDocumentPaidByMethod, fetchDocumentStatus } from "@/lib/ledger";
+import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, emptyBuckets, bucketOf, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
 import { TransferDetails } from "@/components/documents/TransferDetails";
@@ -317,13 +317,25 @@ export default function Invoices() {
     if (tab === "sale") {
       const pays = data.length ? await fetchPaymentSummaries(data.map((x: { id: string }) => x.id), ctrl.signal).catch(() => new Map<string, InvoicePaymentSummary>()) : new Map<string, InvoicePaymentSummary>();
       // Paid / remaining from the unified ledger (direct payments, FIFO of general money, return credit).
-      const st = data.length ? await fetchDocumentStatus("invoice", data.map((x: any) => x.id), ctrl.signal, statusAsOf).catch(() => new Map()) : new Map();
+      const [st, byMethod] = data.length
+        ? await Promise.all([
+            fetchDocumentStatus("invoice", data.map((x: any) => x.id), ctrl.signal, statusAsOf).catch(() => new Map()),
+            // how each invoice was REALLY paid: every ledger allocation (payment at sale, later collection from the
+            // contact file / voucher, plan instalment, deposit used FIFO), by method — not only the payment at sale
+            fetchDocumentPaidByMethod("invoice", data.map((x: any) => x.id), ctrl.signal).catch(() => null),
+          ])
+        : [new Map(), null];
       if (stale()) return;
       for (const x of data) {
         const a = st.get(x.id);
         if (!a) continue;
         const s = pays.get(x.id) ?? { paid: 0, byBucket: emptyBuckets(), methods: [] };
-        pays.set(x.id, { ...s, paid: a.paid });
+        let byBucket = s.byBucket;
+        if (byMethod) {
+          byBucket = emptyBuckets();
+          for (const [m, v] of Object.entries(byMethod.get(x.id) ?? {})) byBucket[m === "return_credit" ? "other" : bucketOf(m)] += Number(v) || 0;
+        }
+        pays.set(x.id, { ...s, paid: a.paid, byBucket });
         x.__paid_money = a.paid_money;
         x.__paid_returns = a.paid_by_returns;
         x.__ledger_state = a.state;
@@ -484,7 +496,7 @@ export default function Invoices() {
           { key: "__b_instapay", header: "انستاباي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.instapay) },
           { key: "__b_wallet", header: "محفظة", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.wallet) },
           { key: "__b_bank", header: "بنكي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.bank) },
-          { key: "__b_other", header: "رصيد مسبق", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.other) },
+          { key: "__b_other", header: "رصيد مرتجع (مش فلوس)", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.other) },
           { key: "status", header: "الحالة", align: "center", className: "min-w-[90px]", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
           { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
           { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },

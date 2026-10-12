@@ -22,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Attendance from "./Attendance";
 import AdvanceRequests from "./AdvanceRequests";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { EmployeeLink } from "@/components/employees/EmployeeLink";
 
 
 const POSITIONS = [
@@ -150,7 +151,7 @@ export default function Employees() {
             onRowClick={(r: any) => nav(`/admin/employees/${r.id}`)}
             empty="لا يوجد موظفين"
             columns={[
-              { key: "name", header: "الاسم", align: "center", render: (r: any) => <span className="font-semibold">{r.name}</span> },
+              { key: "name", header: "الاسم", align: "center", render: (r: any) => <EmployeeLink id={r.id} name={r.name} /> },
               { key: "job_title", header: "الوظيفة", align: "center" },
               { key: "email", header: "الإيميل", align: "center", render: (r: any) => <span dir="ltr" className="text-xs">{r.email ?? "—"}</span> },
               { key: "phone", header: "التليفون", align: "center", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },

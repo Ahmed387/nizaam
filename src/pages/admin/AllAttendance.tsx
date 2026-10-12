@@ -9,6 +9,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDate } from "@/lib/format";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { EmployeeLink } from "@/components/employees/EmployeeLink";
 
 const STATUS_LABEL: Record<string, string> = {
   present: "حاضر", late: "متأخر", absent: "غائب", leave: "إجازة",
@@ -60,7 +61,7 @@ export default function AllAttendance({ embedded = false }: { embedded?: boolean
         rows={rows}
         empty="لا توجد سجلات لهذا اليوم"
         columns={[
-          { key: "employee_name", header: "الموظف", render: (r: any) => <span className="font-semibold">{r.employee_name}</span> },
+          { key: "employee_name", header: "الموظف", render: (r: any) => <EmployeeLink id={r.employee_id} name={r.employee_name} /> },
           { key: "branch", header: "الفرع", render: (r: any) => r.branch_name ?? "—" },
           { key: "status", header: "الحالة", render: (r: any) => STATUS_LABEL[r.status] ?? r.status },
           { key: "check_in", header: "حضور", render: (r: any) => r.check_in ? <span dir="ltr" className="text-xs">{new Date(r.check_in).toLocaleTimeString("ar-EG")}</span> : "—" },

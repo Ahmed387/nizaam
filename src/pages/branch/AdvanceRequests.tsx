@@ -17,6 +17,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Check, X, Clock, AlertCircle, Wallet, HandCoins } from "lucide-react";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { EmployeeLink } from "@/components/employees/EmployeeLink";
 
 type Status = "pending_branch_manager" | "pending_admin" | "approved" | "approved_pending_funds" | "rejected";
 
@@ -239,7 +240,7 @@ export default function AdvanceRequests({ embedded = false }: { embedded?: boole
         { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
         { key: "employee", header: "الموظف", render: (r: any) => (
           <div>
-            <div className="font-semibold">{r.employees?.name ?? "—"}</div>
+            <div><EmployeeLink id={r.employee_id} name={r.employees?.name} /></div>
             <div className="text-xs text-muted-foreground">{r.employees?.job_title ?? ""}</div>
           </div>
         ) },

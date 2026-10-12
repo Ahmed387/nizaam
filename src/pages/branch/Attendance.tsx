@@ -21,6 +21,7 @@ import { workedMinutes, formatHours, sumWorkedMinutes } from "@/lib/attendanceHo
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { AttendanceBoard } from "@/components/attendance/AttendanceBoard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EmployeeLink } from "@/components/employees/EmployeeLink";
 
 const STATUS = {
   present: "حاضر",
@@ -202,7 +203,7 @@ export default function Attendance({ embedded = false }: { embedded?: boolean } 
         rows={employees}
         empty="لا يوجد موظفين"
         columns={[
-          { key: "name", header: "الموظف", render: (e: any) => <span className="font-semibold">{e.name}</span> },
+          { key: "name", header: "الموظف", render: (e: any) => <EmployeeLink id={e.id} name={e.name} /> },
           { key: "job_title", header: "الوظيفة" },
           {
             key: "shift", header: "الشيفت",

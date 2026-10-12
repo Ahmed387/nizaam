@@ -13,6 +13,7 @@ import { notifyMany } from "@/lib/notifications";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import { Check, X, Clock, Wallet, HandCoins } from "lucide-react";
+import { EmployeeLink } from "@/components/employees/EmployeeLink";
 
 const STATUS_INFO: Record<string, { label: string; color: string }> = {
   pending_branch_manager: { label: "بانتظار مدير الفرع", color: "bg-warning/15 text-warning" },
@@ -114,7 +115,7 @@ export default function AdminAdvanceApprovals({ embedded = false }: { embedded?:
           { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
           { key: "employee", header: "الموظف", render: (r: any) => (
             <div>
-              <div className="font-bold">{r.employees?.name ?? "—"}</div>
+              <div className="font-bold"><EmployeeLink id={r.employee_id} name={r.employees?.name} /></div>
               <div className="text-xs text-muted-foreground">{r.employees?.job_title ?? ""}</div>
             </div>
           ) },

@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatHours } from "@/lib/attendanceHours";
 import { isWorkDay } from "@/components/ShiftEditor";
+import { EmployeeLink } from "@/components/employees/EmployeeLink";
 
 /**
  * تقرير الحضور الشهري المجمّع (عرض فقط).
@@ -136,7 +137,7 @@ export default function MonthlyAttendanceReport({ embedded = false }: { embedded
         rows={rows}
         empty="لا توجد بيانات لهذا الشهر"
         columns={[
-          { key: "name", header: "الموظف", align: "center", render: (r: any) => <span className="font-semibold">{r.name}</span> },
+          { key: "name", header: "الموظف", align: "center", render: (r: any) => <EmployeeLink id={r.id} name={r.name} /> },
           { key: "branch_name", header: "الفرع", align: "center" },
           { key: "work_days", header: "أيام العمل", align: "center", numeric: true },
           { key: "present_days", header: "أيام الحضور", align: "center", numeric: true, render: (r: any) => <span className="text-success font-semibold tabular-nums">{r.present_days}</span> },

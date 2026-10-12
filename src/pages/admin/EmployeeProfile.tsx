@@ -22,7 +22,9 @@ import { ROLE_LABELS, AppRole } from "@/lib/roles";
 import { formatEGP, formatDate, monthKey } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, EyeOff, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
-import { PaySalaryDialog, CancelSalaryDialog, fetchSalaryPreview, type SalaryPreview } from "@/components/payroll/SalaryDialogs";
+import { PaySalaryDialog, CancelSalaryDialog, AdjustmentDialog, cancelAdjustment, fetchSalaryPreview, type SalaryPreview } from "@/components/payroll/SalaryDialogs";
+import { EmployeeAttendanceTab } from "@/components/attendance/EmployeeAttendanceTab";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { ImageField } from "@/components/ImageField";
 
@@ -59,6 +61,23 @@ export default function EmployeeProfile() {
   const loadPreview = () => { if (id) fetchSalaryPreview(id, monthKey()).then(setPreview).catch(() => setPreview(null)); };
   useEffect(() => { loadPreview(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
   const [advPm, setAdvPm] = useState<PaymentMethodValue>(emptyPaymentValue());
+  const [adjustments, setAdjustments] = useState<any[]>([]);
+  const [adjOpen, setAdjOpen] = useState<null | "bonus" | "penalty">(null);
+  const loadAdjustments = async () => {
+    if (!id) return;
+    try {
+      const rows = await fetchAllRows<any>(() => (supabase.from("employee_adjustments" as any) as any)
+        .select("id, month, entry_date, kind, amount, reason, status, salary_id, cancel_reason, created_at").eq("employee_id", id).order("id"));
+      rows.sort((a, b) => String(b.entry_date).localeCompare(String(a.entry_date)) || String(b.created_at).localeCompare(String(a.created_at)));
+      setAdjustments(rows);
+    } catch { setAdjustments([]); }
+  };
+  useEffect(() => { loadAdjustments(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
+  const doCancelAdj = async (a: any) => {
+    if (!(await confirmAlert({ title: `إلغاء ${a.kind === "bonus" ? "البونص" : "الجزاء"}؟`, description: `${formatEGP(a.amount)} — ${a.reason}. هيفضل في السجل «ملغي» ومش هيتحسب في المرتب.`, confirmLabel: "أيوه، ألغِ", cancelLabel: "رجوع", tone: "danger" }))) return;
+    try { await cancelAdjustment(a.id, "إلغاء من صفحة الموظف"); toast.success("اتلغى"); loadAdjustments(); loadPreview(); }
+    catch (e: any) { toast.error(e.message); }
+  };
 
   // Account dialog
   const [acctOpen, setAcctOpen] = useState(false);
@@ -114,8 +133,8 @@ export default function EmployeeProfile() {
   };
   useEffect(() => { load(); }, [id]);
   useRealtimeRefresh(
-    ["employees", "advances", "salaries", "advance_payments", "user_roles", "branch_users"],
-    () => load()
+    ["employees", "advances", "salaries", "advance_payments", "user_roles", "branch_users", "employee_adjustments"],
+    () => { load(); loadAdjustments(); loadPreview(); }
   );
 
   const totalAdvancesGiven = advances.reduce((s, a) => s + Number(a.amount), 0);
@@ -413,6 +432,8 @@ export default function EmployeeProfile() {
       <Tabs defaultValue="salaries">
         <TabsList>
           <TabsTrigger value="salaries"><Receipt className="w-4 h-4 ml-1" /> الرواتب</TabsTrigger>
+          <TabsTrigger value="attendance"><Calendar className="w-4 h-4 ml-1" /> الحضور</TabsTrigger>
+          <TabsTrigger value="adjustments"><Calculator className="w-4 h-4 ml-1" /> بونص وجزاءات</TabsTrigger>
           <TabsTrigger value="advances"><Wallet className="w-4 h-4 ml-1" /> السلف</TabsTrigger>
           <TabsTrigger value="payments">سداد السلف</TabsTrigger>
           <TabsTrigger value="id"><IdCard className="w-4 h-4 ml-1" /> البطاقة</TabsTrigger>
@@ -428,14 +449,19 @@ export default function EmployeeProfile() {
                 <div className="font-extrabold">مرتب الشهر ده ({preview.month}) — من الحضور والسلف</div>
                 {preview.paid
                   ? <span className="text-xs font-bold text-success">اتصرف {formatEGP(Number(preview.paid.net_salary))}</span>
-                  : <Button onClick={() => setSalOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> صرف المرتب (بونص / خصم)</Button>}
+                  : <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" onClick={() => setAdjOpen("bonus")} className="gap-1 text-success">+ بونص</Button>
+                      <Button variant="outline" onClick={() => setAdjOpen("penalty")} className="gap-1 text-destructive">− جزاء</Button>
+                      <Button onClick={() => setSalOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> صرف المرتب</Button>
+                    </div>}
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-sm">
                 <div className="rounded-lg bg-surface-2 p-2.5"><div className="text-[11px] text-muted-foreground">الأساسي</div><b className="tabular-nums">{formatEGP(preview.base)}</b></div>
                 <div className="rounded-lg bg-destructive/10 p-2.5"><div className="text-[11px] text-muted-foreground">خصم الغياب ({preview.counts.absent} يوم{preview.counts.half_day + preview.counts.hourly ? ` + ${preview.counts.half_day + preview.counts.hourly} جزئي` : ""})</div><b className="tabular-nums text-destructive">− {formatEGP(preview.attendance_deduction)}</b></div>
                 <div className="rounded-lg bg-info/10 p-2.5"><div className="text-[11px] text-muted-foreground">إجازات (مدفوعة)</div><b className="tabular-nums">{preview.counts.leave} يوم</b></div>
+                <div className="rounded-lg bg-success/10 p-2.5"><div className="text-[11px] text-muted-foreground">بونص − جزاءات متسجلة</div><b className="tabular-nums"><span className="text-success">+{formatEGP(preview.adjustments?.bonus ?? 0)}</span> / <span className="text-destructive">−{formatEGP(preview.adjustments?.penalty ?? 0)}</span></b></div>
                 <div className="rounded-lg bg-warning/10 p-2.5"><div className="text-[11px] text-muted-foreground">قسط السلف المستحق (رصيد {formatEGP(preview.advance_remaining)})</div><b className="tabular-nums text-warning">− {formatEGP(Math.min(preview.advance_due, preview.attendance_amount))}</b></div>
-                <div className="rounded-lg bg-primary/10 p-2.5"><div className="text-[11px] text-muted-foreground">الصافي المتوقع (قبل البونص / الخصم)</div><b className="tabular-nums text-primary">{formatEGP(preview.attendance_amount - Math.min(preview.advance_due, preview.attendance_amount))}</b></div>
+                <div className="rounded-lg bg-primary/10 p-2.5"><div className="text-[11px] text-muted-foreground">الصافي المتوقع</div><b className="tabular-nums text-primary">{(() => { const g = preview.attendance_amount + Number(preview.adjustments?.bonus ?? 0) - Number(preview.adjustments?.penalty ?? 0); return formatEGP(g - Math.min(preview.advance_due, Math.max(0, g))); })()}</b></div>
               </div>
             </div>
           )}
@@ -461,6 +487,36 @@ export default function EmployeeProfile() {
                   : <span className="text-xs text-success">مصروف</span> },
               { key: "actions", header: "", render: (r: any) => r.status !== "cancelled" && isAdmin
                   ? <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setCancelSal(r)}>إلغاء الصرف</Button> : null },
+            ]}
+          />
+        </TabsContent>
+
+        <TabsContent value="attendance" className="mt-4">
+          <EmployeeAttendanceTab employee={emp} />
+        </TabsContent>
+
+        <TabsContent value="adjustments" className="mt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div className="text-sm text-muted-foreground">البونص بيتضاف والجزاء بيتخصم من مرتب الشهر بتاعه لما يتصرف — وبيظهر في سند الصرف والخزنة والتقارير من خلال المرتب.</div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="text-success" onClick={() => setAdjOpen("bonus")}>+ بونص</Button>
+              <Button variant="outline" className="text-destructive" onClick={() => setAdjOpen("penalty")}>− جزاء</Button>
+            </div>
+          </div>
+          <DataTable
+            rows={adjustments}
+            empty="مفيش بونص أو جزاءات"
+            columns={[
+              { key: "entry_date", header: "التاريخ", render: (r: any) => formatDate(r.entry_date) },
+              { key: "month", header: "شهر المرتب" },
+              { key: "kind", header: "النوع", render: (r: any) => r.kind === "bonus" ? <span className="text-success font-bold">بونص</span> : <span className="text-destructive font-bold">جزاء</span> },
+              { key: "amount", header: "المبلغ", render: (r: any) => <b className={r.status === "cancelled" ? "line-through text-muted-foreground" : r.kind === "bonus" ? "text-success" : "text-destructive"}>{r.kind === "bonus" ? "+ " : "− "}{formatEGP(r.amount)}</b> },
+              { key: "reason", header: "السبب" },
+              { key: "status", header: "الحالة", render: (r: any) => r.status === "cancelled"
+                  ? <span className="text-xs text-destructive">ملغي{r.cancel_reason ? ` — ${r.cancel_reason}` : ""}</span>
+                  : r.salary_id ? <span className="text-xs text-success">اتحسب في المرتب</span> : <span className="text-xs text-warning">مستني صرف المرتب</span> },
+              { key: "actions", header: "", render: (r: any) => r.status === "active" && !r.salary_id
+                  ? <Button size="sm" variant="ghost" className="text-destructive" onClick={() => doCancelAdj(r)}>إلغاء</Button> : null },
             ]}
           />
         </TabsContent>
@@ -695,10 +751,14 @@ export default function EmployeeProfile() {
 
       {salOpen && emp && (
         <PaySalaryDialog employee={emp} month={monthKey()} monthEditable onClose={() => setSalOpen(false)}
-          onDone={() => { setSalOpen(false); load(); loadPreview(); }} />
+          onDone={() => { setSalOpen(false); load(); loadPreview(); loadAdjustments(); }} />
+      )}
+      {adjOpen && emp && (
+        <AdjustmentDialog employee={emp} kind={adjOpen} onClose={() => setAdjOpen(null)}
+          onDone={() => { setAdjOpen(null); loadAdjustments(); loadPreview(); }} />
       )}
       {cancelSal && (
-        <CancelSalaryDialog salary={cancelSal} onClose={() => setCancelSal(null)} onDone={() => { setCancelSal(null); load(); loadPreview(); }} />
+        <CancelSalaryDialog salary={cancelSal} onClose={() => setCancelSal(null)} onDone={() => { setCancelSal(null); load(); loadPreview(); loadAdjustments(); }} />
       )}
 
       {/* Delete confirm */}

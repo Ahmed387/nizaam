@@ -27,6 +27,7 @@ import Presence from "./Presence";
 import MonthlyAttendanceReport from "./MonthlyAttendanceReport";
 import { useBranchScope } from "@/lib/branchScope";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { EmployeeLink } from "@/components/employees/EmployeeLink";
 
 const POSITIONS = [
   { value: "كاشير", role: "cashier" },
@@ -335,7 +336,7 @@ export default function AllEmployees() {
         columns={[
           { key: "name", header: "الاسم", align: "right", width: "14%", render: (r: any) => (
             <div className="text-right leading-tight">
-              <div className="font-semibold">{r.name}</div>
+              <div><EmployeeLink id={r.id} name={r.name} /></div>
               <div className="text-xs text-muted-foreground mt-0.5">{r.job_title}</div>
             </div>
           )},
