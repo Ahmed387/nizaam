@@ -83,6 +83,10 @@ export default function NewShipment() {
   const [products, setProducts] = useState<any[]>([]);
   const [priceList, setPriceList] = useState<any[]>([]);
   const [supplierId, setSupplierId] = useState("");
+  /** Money we already paid this supplier («تحت حسابنا عنده») — used on this invoice only if chosen (0082). */
+  const [supplierAdvance, setSupplierAdvance] = useState(0);
+  const [advChoice, setAdvChoice] = useState<"use" | "skip" | null>(null);
+  const [advAmount, setAdvAmount] = useState(0);
   const [arrival, setArrival] = useState(cairoTodayDay());
   const [invoiceDate, setInvoiceDate] = useState(cairoTodayDay());
   const [receivedBy, setReceivedBy] = useState(profile?.name ?? "");
@@ -202,6 +206,16 @@ export default function NewShipment() {
         setCustoms((cur) => cur === 0 && c > 0 ? c : cur);
         if (s > 0 || c > 0) setShowExtrasBreakdown(true);
       });
+  }, [supplierId, isEdit]);
+
+  useEffect(() => {
+    setAdvChoice(null); setAdvAmount(0); setSupplierAdvance(0);
+    if (isEdit || !supplierId) return;
+    let off = false;
+    import("@/lib/ledger").then(({ fetchSideBalance }) => fetchSideBalance(supplierId))
+      .then((b) => { if (!off) setSupplierAdvance(Math.max(0, Number(b?.supplier_advance) || 0)); })
+      .catch(() => { /* no advance shown if the ledger cannot be read */ });
+    return () => { off = true; };
   }, [supplierId, isEdit]);
 
   useEffect(() => {
@@ -499,6 +513,11 @@ export default function NewShipment() {
   const submit = async () => {
     if (isEdit) return submitEdit();
     if (!supplierId) return toast.error("اختر المورد");
+    if (supplierAdvance > 0.005 && advChoice === null) {
+      setOpenSections((s) => ({ ...s, payment: true }));
+      return toast.error("لينا فلوس تحت حسابنا عند المورد — اختار الأول: تخصم منها ولا لأ؟");
+    }
+    if (advChoice === "use" && advAmount <= 0) return toast.error("اكتب المبلغ اللي هيتخصم من تحت حسابنا عند المورد");
     if (!receivedBy.trim()) return toast.error("أدخل اسم المستلم");
     // تجاهُل الأصناف الفاضية (اللي اتضافت تلقائي ومحدش ملّاها) — بنكمّل حفظ عادي من غير ما نوقف اليوزر
     const effLines = lines.filter((l) => !isLineBlank(l));
@@ -571,7 +590,8 @@ export default function NewShipment() {
         p_plan: {
           plan_type: plan.mode === "credit" || plan.mode === "partial" ? plan.scheduleType : "open",
           paid_now: plannedPaidNow,
-          apply_credit: true,
+          apply_credit: advChoice === "use" && advAmount > 0,
+          credit_amount: advChoice === "use" ? advAmount : null,
         },
       });
       if (rpcErr) throw rpcErr;
@@ -579,7 +599,7 @@ export default function NewShipment() {
       const atomicPlanId = String((rpcRes as any).payment_plan_id);
       const appliedCredit = Number((rpcRes as any).credit_applied || 0);
       if (appliedCredit > 0) {
-        toast.success(`✓ تم خصم ${appliedCredit.toLocaleString()} ج من رصيدك المسبق عند المورد`, { duration: 6000 });
+        toast.success(`✓ تم خصم ${appliedCredit.toLocaleString()} ج من تحت حسابنا عند المورد`, { duration: 6000 });
       }
 
 
@@ -689,6 +709,29 @@ export default function NewShipment() {
                   <UserPlus className="w-4 h-4" />
                 </Button>
               </div>
+              {!isEdit && supplierAdvance > 0.005 && (
+                <div className={`mt-2 p-2.5 rounded-lg border space-y-2 text-sm ${advChoice === null ? "border-warning bg-warning/10" : "border-primary/40 bg-primary/10"}`}>
+                  <div>
+                    لينا تحت حسابنا عند المورد: <b className="text-primary">{formatEGP(supplierAdvance)}</b>
+                    <span className="ms-2 font-bold">— تخصم منها في الفاتورة دي؟</span>
+                    {advChoice === null && <span className="ms-2 text-xs text-warning font-bold">(لازم تختار قبل الحفظ)</span>}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" size="sm" variant={advChoice === "use" ? "default" : "outline"}
+                      onClick={() => { setAdvChoice("use"); setAdvAmount(Math.min(supplierAdvance, Math.max(0, grandTotal))); }}>أيوه، اخصم</Button>
+                    <Button type="button" size="sm" variant={advChoice === "skip" ? "default" : "outline"}
+                      onClick={() => { setAdvChoice("skip"); setAdvAmount(0); }}>لأ، من غير خصم</Button>
+                    {advChoice === "use" && (
+                      <span className="flex items-center gap-1.5">
+                        المبلغ:
+                        <Input type="number" min={0} value={advAmount || ""} className="h-8 w-32 text-center"
+                          onChange={(e) => setAdvAmount(Math.max(0, Math.min(Number(e.target.value) || 0, supplierAdvance)))} />
+                        <span className="text-xs text-muted-foreground">(أقصى {formatEGP(supplierAdvance)} — ومش أكتر من الباقي على الفاتورة)</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">

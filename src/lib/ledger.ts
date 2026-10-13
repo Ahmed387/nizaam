@@ -382,5 +382,6 @@ export async function applyOpeningMatch(): Promise<{ entry_id: string | null; re
 export const METHOD_LABEL: Record<string, string> = {
   cash: "نقدي", instapay: "انستاباي", vodafone: "فودافون كاش", vodafone_cash: "فودافون كاش", wallet: "محفظة",
   bank: "تحويل بنكي", bank_transfer: "تحويل بنكي", transfer: "تحويل بنكي", card: "كارت", other: "أخرى",
+  credit_balance: "من تحت حسابه", credit_applied: "من تحت حسابه",
 };
 export const methodLabel = (m: string | null | undefined) => (m ? METHOD_LABEL[m] ?? m : "—");

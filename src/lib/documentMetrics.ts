@@ -1,4 +1,4 @@
-import { bucketOf, emptyBuckets, r2, type CollectionBucket } from "@/hooks/useSalesInvoices";
+import { bucketOf, emptyBuckets, r2, salePayState, settleBuckets, type CollectionBucket } from "@/hooks/useSalesInvoices";
 
 /** The six document screens that share the unified metrics engine. */
 export type DocKind = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense";
@@ -35,16 +35,24 @@ export function docFacts(kind: DocKind, r: Row): DocFacts {
   // only a cancelled document is "cancelled" (a draft return is neither active money nor cancelled)
   const cancelled = (r.status ?? "active") === "cancelled";
   switch (kind) {
-    case "sale": {
-      const amount = n(r.total);
-      Object.assign(byBucket, r.__byBucket ?? {});
-      const open = n(r.__remaining) > 0.01;
-      return { cancelled, amount, parts: { active: amount, collected: n(r.__paid_money ?? r.__paid), remaining: n(r.__remaining), cashDocs: open ? 0 : amount, creditDocs: open ? amount : 0 }, byBucket };
-    }
+    case "sale":
     case "purchase": {
-      const amount = n(r.total_cost);
+      // «التصنيف» (0083): نقدي = all paid in money with the document itself; آجل = anything else.
+      const amount = n(kind === "sale" ? r.total : r.total_cost);
+      const s = r.settle ?? null;
+      Object.assign(byBucket, r.__byBucket ?? settleBuckets(s));
       const remaining = n(r.__remaining);
-      return { cancelled, amount, parts: { active: amount, supplierPaid: n(r.__paid_money ?? r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0, cashDocs: remaining <= 0.01 ? amount : 0, creditDocs: remaining > 0.01 ? amount : 0 }, byBucket };
+      const credit = (r.__class ?? s?.class ?? "credit") !== "cash";
+      const c = (v: number) => (credit ? v : 0);
+      const parts: Record<string, number> = {
+        active: amount, remaining,
+        cashDocs: credit ? 0 : amount, creditDocs: credit ? amount : 0,
+        creditMoney: c(n(s?.at_sale) + n(s?.later_money)), creditAtSale: c(n(s?.at_sale)), creditLater: c(n(s?.later_money)),
+        creditAccount: c(n(s?.from_account)), creditReturn: c(n(s?.from_return)), creditOpen: c(remaining),
+      };
+      if (kind === "sale") parts.collected = n(r.__paid_money ?? r.__paid);
+      else Object.assign(parts, { supplierPaid: n(r.__paid_money ?? r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0 });
+      return { cancelled, amount, parts, byBucket };
     }
     case "sale_return":
     case "purchase_return": {
@@ -100,7 +108,7 @@ export function aggregateFacts(facts: DocFacts[]): DocMetricsResult {
   return { values, counts, byBucket };
 }
 
-const BUCKETS: CollectionBucket[] = ["cash", "instapay", "wallet", "bank", "other"];
+const BUCKETS: CollectionBucket[] = ["cash", "instapay", "wallet", "bank", "account", "other"];
 
 /** Click-to-filter on loaded rows — uses the exact facts the cards are built from. */
 export function matchesDocCard(kind: DocKind, r: Row, key: DocCardKey | null): boolean {
@@ -131,3 +139,15 @@ export function isInternalOrRefundPayment(sysKey?: string | null, name?: string 
   const n = name ?? "";
   return /تحويل/.test(n) || /مرتجع/.test(n) || /سلف/.test(n) || /مدفوعات لعملاء/.test(n);
 }
+
+/** Row enrichment for the sale / purchase tables: paid / remaining from the ledger status, the rest from the settlement row. */
+export function enrichSettled(x: any, totalRaw: unknown, a?: { paid: number; paid_money: number; paid_by_returns?: number; remaining: number }) {
+  const s = x.settle ?? null;
+  const total = Number(totalRaw) || 0;
+  if (x.status === "cancelled") return { ...x, __paid: 0, __paid_money: 0, __remaining: 0, __byBucket: settleBuckets(s), __class: s?.class ?? null };
+  const paid = a ? a.paid : Number(s?.paid) || 0;
+  const remaining = a ? a.remaining : Math.max(0, Math.round((total - paid) * 100) / 100);
+  return { ...x, __paid: paid, __paid_money: a ? a.paid_money : paid - (Number(s?.from_return) || 0), __paid_returns: a?.paid_by_returns ?? (Number(s?.from_return) || 0),
+           __remaining: remaining, __payState: salePayState(total, paid), __byBucket: settleBuckets(s), __class: s?.class ?? "credit" };
+}
+

@@ -5,7 +5,8 @@ import { fetchAllRows } from "@/lib/fetchAll";
 /** Payment status of a sale invoice, derived from net (non-voided) invoice payments. */
 export type SalePayState = "paid" | "partial" | "credit";
 
-export type CollectionBucket = "cash" | "instapay" | "wallet" | "bank" | "other";
+/** Money buckets + `account` = «من تحت حسابه» (used by choice) + `other` = «من مرتجع» (return credit, not money). */
+export type CollectionBucket = "cash" | "instapay" | "wallet" | "bank" | "account" | "other";
 
 export interface InvoicePaymentSummary {
   paid: number;
@@ -21,7 +22,7 @@ interface PaymentRow {
   reverses_payment_id: string | null;
 }
 
-export const emptyBuckets = (): Record<CollectionBucket, number> => ({ cash: 0, instapay: 0, wallet: 0, bank: 0, other: 0 });
+export const emptyBuckets = (): Record<CollectionBucket, number> => ({ cash: 0, instapay: 0, wallet: 0, bank: 0, account: 0, other: 0 });
 
 export function bucketOf(method: string | null | undefined): CollectionBucket {
   switch (method) {
@@ -34,23 +35,42 @@ export function bucketOf(method: string | null | undefined): CollectionBucket {
     case "bank_transfer":
     case "transfer":
     case "card": return "bank";
+    case "credit_balance":
+    case "credit_applied": return "account";
     default: return "other";
   }
 }
 
 export const BUCKET_LABELS: Record<CollectionBucket, string> = {
-  cash: "نقدي",
+  cash: "كاش",
   instapay: "انستاباي",
   wallet: "محفظة",
   bank: "بنكي",
-  other: "رصيد مسبق",
+  account: "من تحت حسابه",
+  other: "من مرتجع",
 };
+
+/** One row of invoice_settlement / shipment_settlement (migration 0083): how a sale / purchase invoice was settled. */
+export interface DocSettlement {
+  class: "cash" | "credit";
+  state: "paid" | "partial" | "unpaid";
+  at_sale: number; later_money: number; from_account: number; from_return: number;
+  cash: number; instapay: number; wallet: number; bank: number; paid: number; remaining: number;
+}
+export const SETTLE_COLS = "class, state, at_sale, later_money, from_account, from_return, cash, instapay, wallet, bank, paid, remaining";
+
+/** The payment columns of a document from its settlement row. */
+export function settleBuckets(s: Partial<DocSettlement> | null | undefined): Record<CollectionBucket, number> {
+  const n = (v: unknown) => Number(v) || 0;
+  return { cash: n(s?.cash), instapay: n(s?.instapay), wallet: n(s?.wallet), bank: n(s?.bank), account: n(s?.from_account), other: n(s?.from_return) };
+}
 
 /** Stored payment_method keys that belong to a collection bucket (used by the payment filter). */
 export function methodsForFilter(method: string): string[] {
   const b = bucketOf(method);
   if (b === "wallet") return ["vodafone", "vodafone_cash", "wallet"];
   if (b === "bank") return ["bank", "bank_transfer", "transfer", "card"];
+  if (b === "account") return ["credit_balance", "credit_applied"];
   if (b === "other") return [method];
   return [b];
 }

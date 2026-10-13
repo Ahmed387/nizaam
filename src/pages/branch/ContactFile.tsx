@@ -78,6 +78,10 @@ export default function ContactFile() {
   const [voidBusy, setVoidBusy] = useState(false);
   const [pickedBranch, setPickedBranch] = useState<string>("");
   const [editOpen, setEditOpen] = useState(false);
+  // «سدد من تحت حسابه»: use money already on account for one open document (owner rule, 0082)
+  const [useAcc, setUseAcc] = useState<ContactDocument | null>(null);
+  const [useAccAmount, setUseAccAmount] = useState("");
+  const [useAccBusy, setUseAccBusy] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [edit, setEdit] = useState({ name: "", type: "customer" as "customer" | "supplier" | "both", contact_person: "", phone: "", address: "", notes: "" });
 
@@ -156,6 +160,30 @@ export default function ContactFile() {
   }, [c?.id]);
 
   const sideData = side === "customer" ? ov?.customer : ov?.supplier;
+  // what is on account is company-wide (money is not split by branch)
+  const accountAvail = Math.max(0, Number((ovAll ?? ov)?.[side]?.advance) || 0);
+  const canUseAccount = isAdmin || hasRole("branch_manager") || hasRole("accountant") || hasRole("cashier");
+  const openUseAccount = (r: ContactDocument) => {
+    setUseAcc(r);
+    setUseAccAmount(String(Math.min(accountAvail, Number(r.remaining) || 0)));
+  };
+  const submitUseAccount = async () => {
+    if (!useAcc || !contactId) return;
+    const amt = Number(useAccAmount) || 0;
+    if (amt <= 0) return toast.error("اكتب مبلغ أكبر من صفر");
+    if (amt > accountAvail + 0.005) return toast.error(`اللي تحت الحساب ${formatEGP(accountAvail)} بس`);
+    if (amt > (Number(useAcc.remaining) || 0) + 0.005) return toast.error("المبلغ أكبر من الباقي على الفاتورة");
+    setUseAccBusy(true);
+    const { error } = await supabase.rpc("settle_from_account" as any, { p_contact_id: contactId, p_side: side, p_doc_id: useAcc.doc_id, p_amount: amt } as any);
+    setUseAccBusy(false);
+    if (error) {
+      const { rpcErrorText } = await import("@/lib/rpcError");
+      return toast.error(rpcErrorText(error, "السداد من تحت الحساب"));
+    }
+    toast.success(`اتخصم ${formatEGP(amt)} من تحت الحساب على ${useAcc.doc_number ?? "الفاتورة"}`);
+    setUseAcc(null);
+    loadOverview();
+  };
   const shownDocs = useMemo(() => docs.filter((d) => d.doc_type !== "movement" && (docFilter === "all" || d.state === docFilter)), [docs, docFilter]);
   const chargeRows = useMemo(() => docs.filter((d) => d.doc_type === "movement"), [docs]);
   const scopeName = scopeBranch ? (c?.branches?.find((b) => b.id === scopeBranch)?.name ?? branches.find((b) => b.id === scopeBranch)?.name ?? "فرع") : "كل الفروع";
@@ -359,6 +387,13 @@ export default function ContactFile() {
                         </Button>
                       ))}
                     </div>
+                    {accountAvail > 0.005 && docs.some((x) => x.doc_type !== "movement" && x.state === "open") && (
+                      <div className="card-elevated p-3 text-sm border-primary/40 bg-primary/5 flex flex-wrap items-center gap-2">
+                        <HandCoins className="w-4 h-4 text-primary" />
+                        {sd === "customer" ? "العميل له تحت حسابه" : "لينا تحت حسابنا عند المورد"} <b>{formatEGP(accountAvail)}</b>
+                        وعليه فواتير مفتوحة. الفلوس دي مش بتتخصم لوحدها — دوس «سدد من تحت حسابه» جنب الفاتورة اللي عاوزها.
+                      </div>
+                    )}
                     <DataTable
                       rows={shownDocs}
                       empty="لا توجد مستندات"
@@ -373,6 +408,9 @@ export default function ContactFile() {
                         { key: "pr", header: "خصم مرتجعات", render: (r: ContactDocument) => (r.paid_by_returns ? formatEGP(r.paid_by_returns) : "—") },
                         { key: "px", header: "من فرع تاني", render: (r: ContactDocument) => (r.paid_from_other_branches ? formatEGP(r.paid_from_other_branches) : "—") },
                         { key: "rm", header: "المتبقي", render: (r: ContactDocument) => (r.remaining == null ? "—" : <b className={r.remaining > 0.005 ? "text-warning" : "text-success"}>{formatEGP(r.remaining)}</b>) },
+                        { key: "acc", header: "", render: (r: ContactDocument) => canUseAccount && accountAvail > 0.005 && r.state === "open" && (Number(r.remaining) || 0) > 0.005 && (r.doc_type === "invoice" || r.doc_type === "shipment")
+                            ? <Button size="sm" variant="outline" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); openUseAccount(r); }}>{side === "customer" ? "سدد من تحت حسابه" : "سدد من تحت حسابنا"}</Button>
+                            : null },
                       ]}
                     />
                     {chargeRows.length > 0 && (
@@ -479,6 +517,24 @@ export default function ContactFile() {
           </Select>
           <DialogFooter>
             <Button disabled={!pickedBranch} onClick={() => { const d = payPick; setPayPick(null); setPayDir(d); }}>متابعة</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!useAcc} onOpenChange={(o) => { if (!o) setUseAcc(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{side === "customer" ? "سدد من تحت حسابه" : "سدد من تحت حسابنا عند المورد"} — {useAcc?.doc_number ?? ""}</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-surface-2 p-2.5"><div className="text-[11px] text-muted-foreground">الباقي على الفاتورة</div><b className="tabular-nums">{formatEGP(Number(useAcc?.remaining) || 0)}</b></div>
+              <div className="rounded-lg bg-primary/10 p-2.5"><div className="text-[11px] text-muted-foreground">{side === "customer" ? "تحت حسابه" : "تحت حسابنا عند المورد"}</div><b className="tabular-nums text-primary">{formatEGP(accountAvail)}</b></div>
+            </div>
+            <div><Label>المبلغ اللي هيتخصم</Label><Input type="number" min={0} value={useAccAmount} onChange={(e) => setUseAccAmount(e.target.value)} className="mt-1.5" /></div>
+            <p className="text-[11px] text-muted-foreground leading-5">مفيش فلوس بتدخل أو تخرج من الخزنة — الفلوس دي اتحصّلت قبل كده، وده بس بيقفل بيها الفاتورة. الفاتورة هتفضل «آجل» وتظهر في عمود «من تحت حسابه».</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUseAcc(null)}>رجوع</Button>
+            <Button onClick={submitUseAccount} disabled={useAccBusy}>{useAccBusy ? "..." : "خصم"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

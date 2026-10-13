@@ -122,6 +122,8 @@ export default function NewSale() {
   // Customer credit balance + ledger balance
   const [customerCredit, setCustomerCredit] = useState(0);
   const [creditToApply, setCreditToApply] = useState(0);
+  /** «تخصم من تحت حسابه؟» — the cashier must answer when the customer has money on account (owner rule, 0082). */
+  const [creditChoice, setCreditChoice] = useState<"use" | "skip" | null>(null);
   const [customerBalance, setCustomerBalance] = useState(0); // ledger customer side (+ owes us, − advance)
   const [customerType, setCustomerType] = useState<string>("customer");
   // VAT (editable rate from settings)
@@ -236,6 +238,7 @@ export default function NewSale() {
 
   useEffect(() => {
     setCreditToApply(0);
+    setCreditChoice(null);
     if (!customerId) { setCustomerCredit(0); setCustomerBalance(0); setCustomerType("customer"); return; }
     const load = async () => {
       // Customer side of the unified ledger (+ = owes us, − = his advance with us); the supplier side of a
@@ -987,6 +990,13 @@ export default function NewSale() {
 
     if (hasLoss && isCashierOnly) return toast.error(`لا يمكن إصدار الفاتورة — بيع بخسارة: ${lossItems.map(i => i.product_name).join("، ")}`);
 
+    if (customerId && customerCredit > 0.005 && creditChoice === null) {
+      return toast.error("العميل له فلوس تحت حسابه — اختار الأول: تخصم منها ولا لأ؟");
+    }
+    if (creditChoice === "use" && creditToApply <= 0) {
+      return toast.error("اكتب المبلغ اللي هيتخصم من تحت حسابه، أو اختار «لأ، من غير خصم»");
+    }
+
     setBusy(true);
     try {
       const custId = customerId || null;
@@ -1201,21 +1211,31 @@ export default function NewSale() {
               );
             })()}
             {customerCredit > 0 && (
-              <div className="mt-2 p-2.5 rounded-lg border border-primary/40 bg-primary/10 flex flex-wrap items-center justify-between gap-2">
+              <div className={`mt-2 p-2.5 rounded-lg border space-y-2 ${creditChoice === null ? "border-warning bg-warning/10" : "border-primary/40 bg-primary/10"}`}>
                 <div className="text-sm">
-                  رصيد مسبق متاح للعميل: <b className="text-primary">{formatEGP(customerCredit)}</b>
-                  {creditToApply > 0 && <span className="text-success ms-2">— سيتم استخدام {formatEGP(creditToApply)}</span>}
+                  العميل له تحت حسابه: <b className="text-primary">{formatEGP(customerCredit)}</b>
+                  <span className="ms-2 font-bold">— تخصم من تحت حسابه في الفاتورة دي؟</span>
+                  {creditChoice === null && <span className="ms-2 text-xs text-warning font-bold">(لازم تختار قبل الحفظ)</span>}
                 </div>
-                <div className="flex gap-2">
-                  {creditToApply === 0 ? (
-                    <Button type="button" size="sm" onClick={() => setCreditToApply(Math.min(customerCredit, total))} disabled={total <= 0}>
-                      خصم من الرصيد المسبق
-                    </Button>
-                  ) : (
-                    <Button type="button" size="sm" variant="outline" onClick={() => setCreditToApply(0)}>
-                      تجاهل
-                    </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="button" size="sm" variant={creditChoice === "use" ? "default" : "outline"} disabled={total <= 0}
+                    onClick={() => { setCreditChoice("use"); setCreditToApply(Math.min(customerCredit, total)); }}>
+                    أيوه، اخصم
+                  </Button>
+                  <Button type="button" size="sm" variant={creditChoice === "skip" ? "default" : "outline"}
+                    onClick={() => { setCreditChoice("skip"); setCreditToApply(0); }}>
+                    لأ، من غير خصم
+                  </Button>
+                  {creditChoice === "use" && (
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <span>المبلغ:</span>
+                      <Input type="number" min={0} max={Math.min(customerCredit, total)} value={creditToApply || ""}
+                        onChange={(e) => setCreditToApply(Math.max(0, Math.min(Number(e.target.value) || 0, customerCredit, total)))}
+                        className="h-8 w-32 text-center" />
+                      <span className="text-xs text-muted-foreground">(أقصى {formatEGP(Math.min(customerCredit, total))})</span>
+                    </div>
                   )}
+                  {creditChoice === "skip" && <span className="text-xs text-muted-foreground">الفلوس هتفضل تحت حسابه زي ما هي</span>}
                 </div>
               </div>
             )}

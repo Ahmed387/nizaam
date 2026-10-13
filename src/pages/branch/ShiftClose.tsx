@@ -153,7 +153,7 @@ export default function ShiftClose() {
                 const onAccount = breakdown.filter((b) => PREPAID_METHODS.includes(b.payment_method)).reduce((s, b) => s + b.total, 0);
                 return onAccount > 0 ? (
                   <div className="flex items-center justify-between text-sm rounded bg-muted/60 px-2 py-1" title="مبالغ خُصمت من الرصيد المسبق للعميل المودع لدى الإدارة، ولا تمثل نقدية داخل درج الكاشير ولا تدخل في التقفيل">
-                    <span>للعلم: سداد من رصيد مسبق <span className="text-[11px] text-muted-foreground">(ليست نقدية في الدرج)</span></span>
+                    <span>للعلم: من تحت حساب العميل <span className="text-[11px] text-muted-foreground">(ليست نقدية في الدرج)</span></span>
                     <span className="font-semibold">{formatEGP(onAccount)}</span>
                   </div>
                 ) : null;

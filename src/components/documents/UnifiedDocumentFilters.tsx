@@ -10,8 +10,10 @@ import { cn } from "@/lib/utils";
 export type DocumentFilters = {
   q: string; from: string; to: string; status: string; amountMin: string; amountMax: string; payment: string;
   categoryId: string; fromBranch: string; toBranch: string; partyId: string; recipient: string; notes: string;
+  /** sale / purchase: «التصنيف» نقدي (cash) / آجل (credit) and «حالة السداد» (paid / partial / unpaid) */
+  settleClass: string; payState: string;
 };
-export const EMPTY_DOCUMENT_FILTERS: DocumentFilters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "", recipient: "", notes: "" };
+export const EMPTY_DOCUMENT_FILTERS: DocumentFilters = { q: "", from: "", to: "", status: "", amountMin: "", amountMax: "", payment: "", categoryId: "", fromBranch: "", toBranch: "", partyId: "", recipient: "", notes: "", settleClass: "", payState: "" };
 
 export interface Opt { value: string; label: string }
 
@@ -49,6 +51,8 @@ interface Props {
   searchAddon?: ReactNode;
   statusOptions?: Opt[];
   paymentOptions?: Opt[];
+  classOptions?: Opt[];
+  payStateOptions?: Opt[];
   /** Screen-specific field in the 4th slot of the second row. */
   customField?: ReactNode;
   /** Any further screen-specific fields (party, notes, branches...). */
@@ -130,6 +134,12 @@ export function UnifiedDocumentFilters(p: Props) {
 
         {p.statusOptions && p.statusOptions.length > 0 && (
           <Field label="الحالة"><OptSelect value={v.status} options={p.statusOptions} onChange={(s) => set({ status: s })} /></Field>
+        )}
+        {p.classOptions && p.classOptions.length > 0 && (
+          <Field label="التصنيف"><OptSelect value={v.settleClass} options={p.classOptions} onChange={(s) => set({ settleClass: s })} /></Field>
+        )}
+        {p.payStateOptions && p.payStateOptions.length > 0 && (
+          <Field label="حالة السداد"><OptSelect value={v.payState} options={p.payStateOptions} onChange={(s) => set({ payState: s })} /></Field>
         )}
         {p.paymentOptions && p.paymentOptions.length > 0 && (
           <Field label="طريقة الدفع / الوعاء"><OptSelect value={v.payment} options={p.paymentOptions} onChange={(s) => set({ payment: s })} /></Field>

@@ -20,13 +20,13 @@ const SOURCE: Record<DocKind, string> = {
 const TOP: Record<DocKind, CardDef[]> = {
   sale: [
     { key: "active", label: "إجمالي المبيعات", icon: <TrendingUp />, tone: "primary", countWord: "فاتورة", meaning: "قيمة فواتير البيع النشطة المعروضة وعددها (الملغاة في تبويب «الملغاة» لوحدها).", formula: "Σ إجمالي الفاتورة للفواتير النشطة" },
-    { key: "cashDocs", label: "مبيعات نقدية (اتدفعت بالكامل)", icon: <Banknote />, tone: "success", countWord: "فاتورة", split: "cash", meaning: "الفواتير اللي مفيش عليها ولا جنيه النهارده: اتدفعت كلها (وقت البيع أو بعده). تحت الكارت: اتدفعت إزاي.", formula: "Σ إجمالي الفواتير اللي الباقي عليها = 0" },
-    { key: "creditDocs", label: "مبيعات آجلة (لسه عليها فلوس)", icon: <Clock />, tone: "warning", countWord: "فاتورة", split: "credit", meaning: "الفواتير اللي لسه عليها باقي النهارده. تحت الكارت: اللي اتدفع منها إزاي، والباقي على العملاء.", formula: "Σ إجمالي الفواتير اللي الباقي عليها > 0" },
+    { key: "cashDocs", label: "نقدي", icon: <Banknote />, tone: "success", countWord: "فاتورة", split: "cash", meaning: "الفواتير اللي اتدفعت كلها فلوس (كاش / انستاباي / محفظة / بنكي) وقت البيع نفسه. تحت الكارت: اتدفعت إزاي.", formula: "Σ إجمالي الفواتير اللي المدفوع وقت البيع = إجمالي الفاتورة" },
+    { key: "creditDocs", label: "آجل", icon: <Clock />, tone: "warning", countWord: "فاتورة", split: "credit", meaning: "أي فاتورة ما اتدفعتش كلها فلوس وقت البيع: لسه عليها، أو اتسددت بعدين، أو من تحت حسابه، أو من مرتجع. تحت الكارت: اتسدد منها إزاي والباقي.", formula: "Σ إجمالي الفواتير − الفواتير النقدية" },
   ],
   purchase: [
     { key: "active", label: "إجمالي المشتريات", icon: <TrendingUp />, tone: "primary", countWord: "فاتورة شراء", meaning: "قيمة فواتير الشراء المطابقة وعددها.", formula: "Σ إجمالي التكلفة" },
-    { key: "cashDocs", label: "مشتريات نقدية (اتسددت بالكامل)", icon: <Banknote />, tone: "success", countWord: "فاتورة شراء", split: "cash", meaning: "فواتير الشراء اللي مفيش علينا فيها حاجة النهارده. تحت الكارت: اتسددت إزاي.", formula: "Σ إجمالي الفواتير اللي الباقي عليها = 0" },
-    { key: "creditDocs", label: "مشتريات آجلة (لسه علينا فلوس)", icon: <Clock />, tone: "warning", countWord: "فاتورة شراء", split: "credit", meaning: "فواتير الشراء اللي لسه علينا فيها باقي للمورد النهارده. تحت الكارت: اللي اتسدد منها إزاي، والباقي للموردين.", formula: "Σ إجمالي الفواتير اللي الباقي عليها > 0" },
+    { key: "cashDocs", label: "نقدي", icon: <Banknote />, tone: "success", countWord: "فاتورة شراء", split: "cash", meaning: "فواتير الشراء اللي اتدفعت كلها فلوس للمورد وقت الفاتورة نفسها. تحت الكارت: اتدفعت إزاي.", formula: "Σ إجمالي الفواتير اللي المدفوع وقت الفاتورة = إجماليها" },
+    { key: "creditDocs", label: "آجل", icon: <Clock />, tone: "warning", countWord: "فاتورة شراء", split: "credit", meaning: "أي فاتورة شراء ما اتدفعتش كلها وقتها: لسه علينا، أو اتسددت بعدين، أو من تحت حسابنا عند المورد، أو من مرتجع.", formula: "Σ إجمالي الفواتير − الفواتير النقدية" },
   ],
   sale_return: [
     { key: "active", label: "إجمالي المرتجع", icon: <TrendingUp />, tone: "primary", countWord: "مرتجع نشط", meaning: "قيمة مرتجعات البيع النشطة.", formula: "Σ قيمة المرتجع حيث الحالة = نشط" },
@@ -51,6 +51,20 @@ const TOP: Record<DocKind, CardDef[]> = {
   ],
 };
 
+/** Sale / purchase second row: what happened to the «آجل» documents. */
+const CREDIT_ROW = (kind: "sale" | "purchase"): CardDef[] => [
+  { key: "creditMoney", label: "اتسدد بفلوس", icon: <Wallet />, tone: "success", countWord: "فاتورة",
+    meaning: kind === "sale" ? "فلوس دخلت على الفواتير الآجلة: اللي اندفع وقت البيع (جزء) واللي اتحصّل بعده بسند أو من ملف العميل." : "فلوس اتدفعت للمورد على الفواتير الآجلة: وقت الفاتورة (جزء) أو بعدها.",
+    formula: "Σ (المدفوع وقت البيع + المدفوع بعده) للفواتير الآجلة" },
+  { key: "creditAccount", label: kind === "sale" ? "من تحت حسابه" : "من تحت حسابنا عند المورد", icon: <Scale />, tone: "primary", countWord: "فاتورة",
+    meaning: kind === "sale" ? "اتخصم من فلوس كان العميل سايبها قبل كده — بموافقة الكاشير وقت البيع أو «سدد من تحت حسابه» من ملف العميل." : "اتخصم من فلوس دفعناها للمورد قبل كده — بالاختيار وقت فاتورة الشراء أو من ملف المورد.",
+    formula: "Σ الخصم من تحت الحساب على الفواتير الآجلة" },
+  { key: "creditReturn", label: "من مرتجع", icon: <ArrowDownCircle />, tone: "warning", countWord: "فاتورة",
+    meaning: "قيمة بضاعة رجعت من نفس الفاتورة وقللتها — مش فلوس دخلت الخزنة.", formula: "Σ قيمة المرتجع اللي نزل على الفواتير الآجلة" },
+  { key: "creditOpen", label: "لم يتم الدفع (مفتوح)", icon: <Clock />, tone: "destructive", countWord: "فاتورة",
+    meaning: kind === "sale" ? "اللي لسه على العملاء في الفواتير الآجلة." : "اللي لسه علينا للموردين في الفواتير الآجلة.", formula: "Σ المتبقي على الفواتير الآجلة" },
+];
+
 const BUCKET_DEFS: { key: CollectionBucket; label: string; icon: ReactNode; where: string }[] = [
   { key: "cash", label: "كاش (درج الخزنة)", icon: <Banknote />, where: "درج خزنة الفرع النقدية — رصيد الخزنة بيتحرك فوراً" },
   { key: "instapay", label: "انستاباي", icon: <CreditCard />, where: "الحساب البنكي المربوط بانستاباي المختار في المستند — مش في درج الكاش" },
@@ -60,8 +74,8 @@ const BUCKET_DEFS: { key: CollectionBucket; label: string; icon: ReactNode; wher
 ];
 /** Vouchers always move a real treasury, so they have no prepaid-balance bucket. */
 const BUCKETS_FOR: Record<DocKind, CollectionBucket[]> = {
-  sale: ["cash", "instapay", "wallet", "bank", "other"],
-  purchase: ["cash", "instapay", "wallet", "bank", "other"],
+  sale: [],
+  purchase: [],
   // the top card «اتخصم من حساب العميل/المورد» already shows the non-cash part — no duplicate box under it
   sale_return: ["cash", "instapay", "wallet", "bank"],
   purchase_return: ["cash", "instapay", "wallet", "bank"],
@@ -111,7 +125,8 @@ export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSel
         meaning: "كل الفلوس اللي خرجت من الفرع للموردين في الفترة، سواء على فواتير الفترة أو سداد مديونية قديمة أو مقدم.",
         formula: "Σ (فلوس خارجة − فلوس مستردة) من الدفتر الموحد لحساب الموردين، في الفرع والفترة" }
     : null;
-  const cards = extra ? [...top, extra] : top;
+  const settled = kind === "sale" || kind === "purchase";
+  const cards = extra && !settled ? [...top, extra] : top;
   return (
     <div className={`space-y-3 mb-4 transition-opacity ${loading ? "opacity-60" : ""}`}>
       <div className={`grid grid-cols-2 gap-3 ${cards.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
@@ -127,8 +142,21 @@ export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSel
           );
         })}
       </div>
-      <div className="text-xs font-semibold text-muted-foreground pt-1">{BUCKET_TITLE[kind]}</div>
-      <div className={`grid grid-cols-2 gap-3 ${buckets.length === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+      {settled && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {CREDIT_ROW(kind as "sale" | "purchase").map((c) => (
+            <MetricCardWithHint key={c.key} label={c.label} value={metrics?.values[c.key] ?? 0} icon={c.icon} tone={c.tone} {...sel(c.key)}
+              footer={c.key === "creditMoney"
+                ? <div className="space-y-0.5"><span className="tabular-nums">{(metrics?.counts[c.key] ?? 0).toLocaleString("en-US")} {c.countWord}</span>
+                    <div className="flex justify-between gap-2"><span>وقت البيع</span><span className="tabular-nums font-semibold text-foreground">{(metrics?.values.creditAtSale ?? 0).toLocaleString("en-US")}</span></div>
+                    <div className="flex justify-between gap-2"><span>بعد البيع</span><span className="tabular-nums font-semibold text-foreground">{(metrics?.values.creditLater ?? 0).toLocaleString("en-US")}</span></div></div>
+                : <span className="tabular-nums">{(metrics?.counts[c.key] ?? 0).toLocaleString("en-US")} {c.countWord}</span>}
+              metricHint={{ meaning: c.meaning, source, formula: c.formula }} />
+          ))}
+        </div>
+      )}
+      {buckets.length > 0 && <div className="text-xs font-semibold text-muted-foreground pt-1">{BUCKET_TITLE[kind]}</div>}
+      {buckets.length > 0 && <div className={`grid grid-cols-2 gap-3 ${buckets.length === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
         {BUCKET_DEFS.filter((b) => buckets.includes(b.key)).map((b) => (
           <MetricCardWithHint key={b.key} label={b.key === "other" ? b.label : `${verb} ${b.label}`} value={metrics?.byBucket[b.key] ?? 0} icon={b.icon} tone={b.key === "other" ? "warning" : "success"}
             {...sel(b.key, kind !== "purchase" && kind !== "sale")}
@@ -138,30 +166,30 @@ export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSel
               formula: `Σ مبالغ «${b.label}» للمستندات النشطة`,
             }} />
         ))}
-      </div>
+      </div>}
     </div>
   );
 }
 
-const SPLIT_METHODS: { key: "cash" | "instapay" | "wallet" | "bank" | "other"; label: string }[] = [
+const SPLIT_METHODS: { key: CollectionBucket; label: string; sale?: string; purchase?: string }[] = [
   { key: "cash", label: "كاش" }, { key: "instapay", label: "انستاباي" }, { key: "wallet", label: "محفظة" },
-  { key: "bank", label: "تحويل بنكي" }, { key: "other", label: "رصيد مرتجعات (مش فلوس)" },
+  { key: "bank", label: "تحويل بنكي" }, { key: "account", label: "", sale: "من تحت حسابه", purchase: "من تحت حسابنا" }, { key: "other", label: "من مرتجع" },
 ];
 
 /** Under «نقدي» / «آجل»: how the money of those documents came, and (آجل) what is still open. */
 function SplitLines({ kind, split, side, countLine }: { kind: DocKind; split?: import("@/hooks/useDocumentMetrics").PaySplit; side: "cash" | "credit"; countLine?: ReactNode }) {
   const fmt = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  const rows = SPLIT_METHODS.filter((m) => m.key !== "other" || (split?.byBucket.other ?? 0) > 0.01);
+  const rows = SPLIT_METHODS.filter((m) => (m.key !== "other" && m.key !== "account") || (split?.byBucket[m.key] ?? 0) > 0.01);
   return (
     <div className="space-y-1">
       {countLine}
       <div className="mt-1 border-t border-border/60 pt-1 space-y-0.5">
         {rows.map((m) => (
-          <div key={m.key} className="flex justify-between gap-2"><span>{m.label}</span><span className="tabular-nums font-semibold text-foreground">{fmt(split?.byBucket[m.key] ?? 0)}</span></div>
+          <div key={m.key} className="flex justify-between gap-2"><span>{(kind === "purchase" ? m.purchase : m.sale) ?? m.label}</span><span className="tabular-nums font-semibold text-foreground">{fmt(split?.byBucket[m.key] ?? 0)}</span></div>
         ))}
         {side === "credit" && (
           <div className="flex justify-between gap-2 border-t border-border/60 pt-0.5">
-            <span>{kind === "sale" ? "الباقي على العملاء" : "الباقي للموردين"}</span>
+            <span>{kind === "sale" ? "لم يتم الدفع (على العملاء)" : "لم يتم الدفع (للموردين)"}</span>
             <span className="tabular-nums font-bold text-warning">{fmt(split?.remaining ?? 0)}</span>
           </div>
         )}

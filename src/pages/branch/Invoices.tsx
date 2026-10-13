@@ -40,14 +40,14 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from "@/components/CancelReturnButton";
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
-import { fetchDocumentPaidByMethod, fetchDocumentStatus } from "@/lib/ledger";
-import { fetchPaymentSummaries, useEnrichedSaleRows, methodsForFilter, emptyBuckets, bucketOf, type SalePayState, type InvoicePaymentSummary } from "@/hooks/useSalesInvoices";
+import { fetchDocumentStatus } from "@/lib/ledger";
+import { methodsForFilter, SETTLE_COLS, type SalePayState } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
 import { TransferDetails } from "@/components/documents/TransferDetails";
 import { MetricCardWithHint } from "@/components/MetricCardWithHint";
 import { useDocumentMetrics } from "@/hooks/useDocumentMetrics";
-import { isDocKind, matchesDocCard, type DocCardKey } from "@/lib/documentMetrics";
+import { enrichSettled, isDocKind, matchesDocCard, type DocCardKey } from "@/lib/documentMetrics";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -66,9 +66,9 @@ const TABS: { key: TabKey; label: string; icon: any; color: string }[] = [
 ];
 
 // Which filters apply to each tab
-const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boolean; amount?: boolean; payment?: boolean; category?: boolean; transferBranch?: boolean; party?: "customer" | "supplier" }> = {
-  sale:            { search: true, date: true,                amount: true,  payment: true },
-  purchase:        { search: true, date: true,                amount: true },
+const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boolean; amount?: boolean; payment?: boolean; category?: boolean; transferBranch?: boolean; party?: "customer" | "supplier"; settle?: boolean }> = {
+  sale:            { search: true, date: true,                amount: true,  payment: true, settle: true },
+  purchase:        { search: true, date: true,                amount: true,  payment: true, settle: true },
   sale_return:     { search: true, date: true,                amount: true, party: "customer" },
   purchase_return: { search: true, date: true,                amount: true, party: "supplier" },
   income:          { search: true, date: true,                amount: true, payment: true, category: true },
@@ -78,6 +78,9 @@ const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boole
 };
 
 type Filters = DocumentFilters;
+
+/** Payment filter of the sale / purchase screens → the column of invoice_settlement / shipment_settlement. */
+const SETTLE_PAY_COL: Record<string, string> = { cash: "cash", instapay: "instapay", wallet: "wallet", bank: "bank", account: "from_account", return: "from_return" };
 const EMPTY_FILTERS: Filters = EMPTY_DOCUMENT_FILTERS;
 
 export default function Invoices() {
@@ -120,7 +123,6 @@ export default function Invoices() {
   };
 
   const [rows, setRows] = useState<any[]>([]);
-  const [salePays, setSalePays] = useState<Map<string, InvoicePaymentSummary> | null>(null);
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS);
@@ -182,30 +184,22 @@ export default function Invoices() {
       return qb;
     };
     let qb: any;
-    if (tab === "sale") {
-      const projection = q && !looksLikeDocumentNumber ? `${select}, search_contact:contact_id!inner(id)` : select;
-      qb = supabase.from("invoices").select(projection, opts).eq("branch_id", branchId!);
-      if (q) qb = looksLikeDocumentNumber ? qb.ilike("invoice_number", `%${q}%`) : qb.or(contactSearch, { referencedTable: "search_contact" });
-      qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total"); qb = textCols(qb, "recipient_name", "notes");
+    if (tab === "sale" || tab === "purchase") {
+      // How each document was settled (0083) comes embedded one-to-one; its filters run in the database.
+      const settleOn = Boolean(f.settleClass || f.payState || f.payment);
+      const embed = `settle:${tab === "sale" ? "invoice_settlement" : "shipment_settlement"}${settleOn ? "!inner" : ""}(${SETTLE_COLS})`;
+      const projection = q && !looksLikeDocumentNumber ? `${select}, ${embed}, search_contact:contact_id!inner(id)` : `${select}, ${embed}`;
+      qb = supabase.from(tab === "sale" ? "invoices" : "shipments").select(projection, opts).eq("branch_id", branchId!);
+      if (q) qb = looksLikeDocumentNumber
+        ? (tab === "sale" ? qb.ilike("invoice_number", `%${q}%`) : qb.or(`shipment_number.ilike.%${q}%,received_by.ilike.%${q}%`))
+        : qb.or(contactSearch, { referencedTable: "search_contact" });
+      qb = dateRange(qb, "invoice_date", false);
+      qb = amountRange(qb, tab === "sale" ? "total" : "total_cost");
+      qb = tab === "sale" ? textCols(qb, "recipient_name", "notes") : textCols(qb, "received_by", "notes");
       if (f.status) qb = qb.eq("status", f.status);
-      if (f.payment) {
-        // Database-level filter: inner join to invoice_payments keeps invoices holding at least
-        // one real (non-voided, non-reversal) payment of this method. No client-side ID lists,
-        // so there is no URL-length ceiling regardless of how many payments exist.
-        qb = supabase.from("invoices").select(`${projection}, pay_filter:invoice_payments!inner(id)`, opts).eq("branch_id", branchId!)
-          .in("pay_filter.payment_method", methodsForFilter(f.payment))
-          .gt("pay_filter.amount", 0).is("pay_filter.voided_at", null).is("pay_filter.reverses_payment_id", null);
-        if (q) qb = looksLikeDocumentNumber ? qb.ilike("invoice_number", `%${q}%`) : qb.or(contactSearch, { referencedTable: "search_contact" });
-        qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total"); qb = textCols(qb, "recipient_name", "notes");
-        if (f.status) qb = qb.eq("status", f.status);
-      }
-      qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
-    } else if (tab === "purchase") {
-      const projection = q && !looksLikeDocumentNumber ? `${select}, search_contact:contact_id!inner(id)` : select;
-      qb = supabase.from("shipments").select(projection, opts).eq("branch_id", branchId!);
-      if (q) qb = looksLikeDocumentNumber ? qb.or(`shipment_number.ilike.%${q}%,received_by.ilike.%${q}%`) : qb.or(contactSearch, { referencedTable: "search_contact" });
-      qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_cost"); qb = textCols(qb, "received_by", "notes");
-      if (f.status) qb = qb.eq("status", f.status);
+      if (f.settleClass) qb = qb.eq("settle.class", f.settleClass);
+      if (f.payState) qb = qb.eq("settle.state", f.payState);
+      if (f.payment && SETTLE_PAY_COL[f.payment]) qb = qb.gt(`settle.${SETTLE_PAY_COL[f.payment]}`, 0);
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "sale_return") {
       const projection = q && !looksLikeDocumentNumber ? `${select}, search_invoice:invoice_id!inner(search_contact:contact_id!inner(id))` : select;
@@ -299,13 +293,7 @@ export default function Invoices() {
     if (stale()) return;
     if (r.error && !/abort/i.test(r.error.message ?? "")) toast.error(r.error.message);
     let data: any[] = r.data ?? [];
-    let joinedDupes = false;
-    if (tab === "sale" && queryFilters.payment) {
-      // The payment inner join can repeat an invoice once per matching payment — collapse to one row per invoice.
-      joinedDupes = true;
-      const seen = new Set<string>();
-      data = data.filter((x: any) => (seen.has(x.id) ? false : (seen.add(x.id), true)));
-    }
+    const joinedDupes = false;
     if (tab === "income" || tab === "expense") {
       data = data.map((v: any) => ({
         ...v,
@@ -314,40 +302,12 @@ export default function Invoices() {
         description: v.description ?? v.voucher_number,
       }));
     }
-    if (tab === "sale") {
-      const pays = data.length ? await fetchPaymentSummaries(data.map((x: { id: string }) => x.id), ctrl.signal).catch(() => new Map<string, InvoicePaymentSummary>()) : new Map<string, InvoicePaymentSummary>();
-      // Paid / remaining from the unified ledger (direct payments, FIFO of general money, return credit).
-      const [st, byMethod] = data.length
-        ? await Promise.all([
-            fetchDocumentStatus("invoice", data.map((x: any) => x.id), ctrl.signal, statusAsOf).catch(() => new Map()),
-            // how each invoice was REALLY paid: every ledger allocation (payment at sale, later collection from the
-            // contact file / voucher, plan instalment, deposit used FIFO), by method — not only the payment at sale
-            fetchDocumentPaidByMethod("invoice", data.map((x: any) => x.id), ctrl.signal).catch(() => null),
-          ])
-        : [new Map(), null];
+    if ((tab === "sale" || tab === "purchase") && data.length) {
+      // Paid / remaining from the unified ledger (as of the period's last day for a past period);
+      // «التصنيف» and the payment columns from the document's settlement row (0083).
+      const st = await fetchDocumentStatus(tab === "sale" ? "invoice" : "shipment", data.map((x: any) => x.id), ctrl.signal, statusAsOf).catch(() => new Map());
       if (stale()) return;
-      for (const x of data) {
-        const a = st.get(x.id);
-        if (!a) continue;
-        const s = pays.get(x.id) ?? { paid: 0, byBucket: emptyBuckets(), methods: [] };
-        let byBucket = s.byBucket;
-        if (byMethod) {
-          byBucket = emptyBuckets();
-          for (const [m, v] of Object.entries(byMethod.get(x.id) ?? {})) byBucket[m === "return_credit" ? "other" : bucketOf(m)] += Number(v) || 0;
-        }
-        pays.set(x.id, { ...s, paid: a.paid, byBucket });
-        x.__paid_money = a.paid_money;
-        x.__paid_returns = a.paid_by_returns;
-        x.__ledger_state = a.state;
-      }
-      setSalePays(pays);
-    } else setSalePays(null);
-    if (tab === "purchase" && data.length) {
-      const st = await fetchDocumentStatus("shipment", data.map((x: any) => x.id), ctrl.signal, statusAsOf).catch(() => new Map());
-      if (stale()) return;
-      data = data.map((x: any) => (x.status === "cancelled"
-        ? { ...x, __paid: 0, __remaining: 0 }
-        : { ...x, __paid: st.get(x.id)?.paid ?? 0, __paid_money: st.get(x.id)?.paid_money ?? 0, __remaining: st.get(x.id)?.remaining ?? (Number(x.total_cost) || 0) }));
+      data = data.map((x: any) => enrichSettled(x, tab === "sale" ? x.total : x.total_cost, st.get(x.id)));
     }
     setRows(data);
     if (joinedDupes) {
@@ -428,7 +388,7 @@ export default function Invoices() {
   const branchName = (bid?: string) => branches.find((b) => b.id === bid)?.name ?? bid ?? "—";
 
   // Filtering now happens in the database; the current page is what we show.
-  const enrichedRows = useEnrichedSaleRows(rows, tab === "sale" ? salePays : null);
+  const enrichedRows = rows;
   const [cardFilter, setCardFilter] = useState<DocCardKey | null>(null);
   useEffect(() => { setCardFilter(null); }, [tab, branchId, view]);
   const filteredRows = useMemo(() => docKind && cardFilter ? enrichedRows.filter((r: any) => matchesDocCard(docKind, r, cardFilter)) : enrichedRows, [enrichedRows, cardFilter, docKind]);
@@ -449,6 +409,29 @@ export default function Invoices() {
   const attIds = useMemo(() => attRecordType ? filteredRows.map((r: any) => r.id) : [], [attRecordType, filteredRows]);
   const attCounts = useAttachmentCounts((attRecordType ?? "voucher") as RecordType, attIds);
 
+  /** The shared columns of the sale / purchase tables: «التصنيف», paid / remaining, «حالة السداد», then how it was paid. */
+  const settleColumns = (k: "sale" | "purchase") => [
+    { key: "__class", header: "التصنيف", align: "center", className: "min-w-[90px]", render: (r: any) => r.status === "cancelled" ? <span className="text-muted-foreground">—</span> : <ClassBadge value={r.__class} /> },
+    { key: "__paid_rem", header: "المدفوع / المتبقي", align: "center", className: "min-w-[150px]", render: (r: any) => r.status !== "cancelled" ? (
+      <span className="flex flex-col items-center gap-1 text-xs tabular-nums leading-tight">
+        <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 font-bold text-success">
+          <span className="text-[10px] font-extrabold text-muted-foreground">مدفوع</span>
+          {formatEGP(r.__paid ?? 0)}
+        </span>
+        <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-bold ${Number(r.__remaining) > 0 ? "bg-warning/10 text-warning" : "text-muted-foreground"}`}>
+          <span className="text-[10px] font-extrabold text-muted-foreground">متبقي</span>
+          {formatEGP(r.__remaining ?? 0)}
+        </span>
+      </span>
+    ) : <span className="text-muted-foreground">—</span> },
+    { key: "__pay_state", header: "حالة السداد", align: "center", className: "min-w-[130px]", render: (r: any) => r.status !== "cancelled" ? <SalePayBadge state={r.__payState} remaining={Number(r.__remaining) || 0} /> : <span className="text-muted-foreground">—</span> },
+    { key: "__b_cash", header: "كاش", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.cash) },
+    { key: "__b_instapay", header: "انستاباي", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.instapay) },
+    { key: "__b_wallet", header: "محفظة", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.wallet) },
+    { key: "__b_bank", header: "بنكي", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.bank) },
+    { key: "__b_account", header: k === "sale" ? "من تحت حسابه" : "من تحت حسابنا", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.account) },
+    { key: "__b_other", header: "من مرتجع", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.other) },
+  ];
   const bucketCell = (v: number | undefined) => Number(v) > 0 ? <span className="tabular-nums">{formatEGP(Number(v))}</span> : <span className="text-muted-foreground">—</span>;
   const textCell = (v: any) => v ? <span className="block truncate max-w-[12rem] mx-auto" title={String(v)}>{v}</span> : <span className="text-muted-foreground">—</span>;
   const cfg = useMemo(() => {
@@ -478,26 +461,9 @@ export default function Invoices() {
             const name = r.contacts?.name ?? "نقدي";
             return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
           } },
-          { key: "total", header: "المبلغ", align: "center", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total) },
-          { key: "__paid_rem", header: "المدفوع / المتبقي", align: "center", className: "min-w-[150px]", render: (r: any) => r.status === "active" ? (
-            <span className="flex flex-col items-center gap-1 text-xs tabular-nums leading-tight">
-              <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 font-bold text-success">
-                <span className="text-[10px] font-extrabold text-muted-foreground">مدفوع</span>
-                {formatEGP(r.__paid ?? 0)}
-              </span>
-              <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-bold ${Number(r.__remaining) > 0 ? "bg-warning/10 text-warning" : "text-muted-foreground"}`}>
-                <span className="text-[10px] font-extrabold text-muted-foreground">متبقي</span>
-                {formatEGP(r.__remaining ?? 0)}
-              </span>
-            </span>
-          ) : <span className="text-muted-foreground">—</span> },
-          { key: "__pay_state", header: "حالة السداد", align: "center", className: "min-w-[135px]", render: (r: any) => r.status === "active" ? <SalePayBadge state={r.__payState} remaining={Number(r.__remaining) || 0} /> : <span className="text-muted-foreground">—</span> },
-          { key: "__b_cash", header: "نقدي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.cash) },
-          { key: "__b_instapay", header: "انستاباي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.instapay) },
-          { key: "__b_wallet", header: "محفظة", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.wallet) },
-          { key: "__b_bank", header: "بنكي", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.bank) },
-          { key: "__b_other", header: "رصيد مرتجع (مش فلوس)", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.other) },
-          { key: "status", header: "الحالة", align: "center", className: "min-w-[90px]", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
+          { key: "total", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.total) },
+          ...settleColumns("sale"),
+          { key: "status", header: "الحالة", align: "center", className: "min-w-[80px]", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
           { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
           { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },
           { key: "invoice_date", header: "تاريخ الفاتورة", align: "center", className: "min-w-[150px]", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
@@ -540,13 +506,17 @@ export default function Invoices() {
               <span className="font-mono text-primary font-semibold">{r.shipment_number ?? "—"}</span>
             </span>
           ) },
-          { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
-{ key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.received_by) },
-          { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
-                    { key: "invoice_date", header: "تاريخ الفاتورة", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
-          { key: "arrival_date", header: "تاريخ الوصول", align: "right", width: "10rem", render: (r: any) => formatDate(r.arrival_date) },
-          { key: "total_cost", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_cost) },
-          { key: "status", header: "الحالة", align: "center", width: "7rem", render: (r: any) => r.status === "cancelled" ? <span className="text-destructive font-semibold" title={r.cancel_reason ?? undefined}>ملغاة</span> : "نشطة" },
+          { key: "supplier", header: "المورد", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
+            const name = r.contacts?.name ?? "—";
+            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
+          } },
+          { key: "total_cost", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.total_cost) },
+          ...settleColumns("purchase"),
+          { key: "status", header: "الحالة", align: "center", className: "min-w-[80px]", render: (r: any) => r.status === "cancelled" ? <span className="text-destructive font-semibold" title={r.cancel_reason ?? undefined}>ملغاة</span> : "نشطة" },
+          { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.received_by) },
+          { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },
+          { key: "invoice_date", header: "تاريخ الفاتورة", align: "center", className: "min-w-[150px]", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          { key: "arrival_date", header: "تاريخ الوصول", align: "center", className: "min-w-[110px]", render: (r: any) => formatDate(r.arrival_date) },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -796,10 +766,18 @@ export default function Invoices() {
       setIsExporting(false);
       return;
     }
-    const exportRows = all.map((r) => {
+    const settled = tab === "sale" || tab === "purchase";
+    const BUCKET_KEY: Record<string, string> = { __b_cash: "cash", __b_instapay: "instapay", __b_wallet: "wallet", __b_bank: "bank", __b_account: "account", __b_other: "other" };
+    const exportRows = all.map((raw) => {
+      const r = settled ? enrichSettled(raw, tab === "sale" ? raw.total : raw.total_cost) : raw;
       const out: any = {};
       for (const c of cfg.columns as any[]) {
+        if (c.key === "actions") continue;
         let v: any;
+        if (settled && BUCKET_KEY[c.key]) { out[c.header] = Number(r.__byBucket?.[BUCKET_KEY[c.key]]) || 0; continue; }
+        if (settled && c.key === "__class") { out[c.header] = r.status === "cancelled" ? "" : r.__class === "cash" ? "نقدي" : "آجل"; continue; }
+        if (settled && c.key === "__pay_state") { out[c.header] = r.status === "cancelled" ? "" : r.__payState === "paid" ? "مدفوعة بالكامل" : r.__payState === "partial" ? "سداد جزئي" : "لم يتم الدفع"; continue; }
+        if (settled && c.key === "__paid_rem") { out["المدفوع"] = r.__paid ?? 0; out["المتبقي"] = r.__remaining ?? 0; continue; }
         try { v = c.render ? c.render(r) : r[c.key]; } catch { v = r[c.key]; }
         if (v && typeof v === "object") v = r[c.key] ?? "";
         out[c.header] = v ?? "";
@@ -896,12 +874,15 @@ export default function Invoices() {
     { value: "instapay", label: "انستاباي" },
     { value: "wallet", label: "محفظة" },
     { value: "bank", label: "بنكي" },
-    ...(tab === "sale" ? [{ value: "credit_balance", label: "رصيد مسبق" }] : []),
+    ...(tab === "sale" ? [{ value: "account", label: "من تحت حسابه" }, { value: "return", label: "من مرتجع" }] : []),
+    ...(tab === "purchase" ? [{ value: "account", label: "من تحت حسابنا عند المورد" }, { value: "return", label: "من مرتجع" }] : []),
   ];
+  const classOptions = [{ value: "cash", label: "نقدي (اتدفعت كلها وقت البيع)" }, { value: "credit", label: "آجل" }];
+  const payStateOptions = [{ value: "paid", label: "مدفوعة بالكامل" }, { value: "partial", label: "سداد جزئي" }, { value: "unpaid", label: "لم يتم الدفع" }];
 
   const hasAnyFilter =
     filters.q || filters.from || filters.to || filters.status ||
-    filters.amountMin || filters.amountMax || filters.payment ||
+    filters.amountMin || filters.amountMax || filters.payment || filters.settleClass || filters.payState ||
     filters.categoryId || filters.fromBranch || filters.toBranch || filters.partyId || filters.recipient || filters.notes;
 
   // For return tabs: the text search stays draft until بحث/Enter; the status dropdown applies to the
@@ -1042,6 +1023,8 @@ export default function Invoices() {
         </>}
         statusOptions={active.status ? statusOptions : undefined}
         paymentOptions={active.payment ? paymentOptions : undefined}
+        classOptions={active.settle ? classOptions : undefined}
+        payStateOptions={active.settle ? payStateOptions : undefined}
         customField={active.category ? (
           <UnifiedDocumentFilters.Field label="نوع السند / التصنيف">
             <UnifiedDocumentFilters.Select value={inputF.categoryId} options={categories.map((c) => ({ value: c.id, label: c.name }))} onChange={(v) => setInputF({ ...inputF, categoryId: v })} />
@@ -1184,7 +1167,7 @@ export default function Invoices() {
         onRowClick={cfg.onClick}
         empty="لا توجد سجلات"
         columns={cfg.columns as any}
-        minTableWidth={tab === "sale" ? "1400px" : docKind ? "1100px" : undefined}
+        minTableWidth={tab === "sale" || tab === "purchase" ? "1900px" : docKind ? "1100px" : undefined}
         getRowKey={(row: any) => row.id}
         isRowExpanded={DOC_ITEMS_TABS.includes(tab) || tab === "transfer" ? (row: any) => expandedInvoiceId === row.id : undefined}
         renderExpandedRow={tab === "transfer" ? (row: any) => (
@@ -1272,11 +1255,17 @@ export default function Invoices() {
   );
 }
 
+function ClassBadge({ value }: { value?: string | null }) {
+  return value === "cash"
+    ? <span className="inline-flex rounded-full border border-success/40 bg-success/15 px-2.5 py-0.5 text-[11px] font-bold text-success">نقدي</span>
+    : <span className="inline-flex rounded-full border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-[11px] font-bold text-warning">آجل</span>;
+}
+
 function SalePayBadge({ state, remaining }: { state: SalePayState; remaining: number }) {
   const cls = state === "paid" ? "bg-success/15 text-success border-success/40"
     : state === "partial" ? "bg-warning/15 text-warning border-warning/40"
     : "bg-destructive/15 text-destructive border-destructive/40";
-  const label = state === "paid" ? "مدفوعة بالكامل" : state === "partial" ? "سداد جزئي" : "آجل بالكامل";
+  const label = state === "paid" ? "مدفوعة بالكامل" : state === "partial" ? "سداد جزئي" : "لم يتم الدفع";
   return (
     <span className={`inline-flex flex-col items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${cls}`}>
       {label}

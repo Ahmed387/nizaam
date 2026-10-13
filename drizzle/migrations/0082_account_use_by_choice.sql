@@ -16,7 +16,7 @@
 -- Applies to the past too: the next allocation run per contact replays every contact (closed periods stay frozen).
 --
 --   * payment_allocations.mode gains 'explicit'.
---   * ledger_allocate: direct → restricted FIFO → explicit uses.
+--   * ledger_allocate: direct → explicit uses → restricted FIFO.
 --   * settle_from_account(contact, side, doc, amount): the «سدد من تحت حسابه» write path.
 --   * apply_supplier_credit gets an optional cap; record_shipment_with_credit applies nothing unless asked.
 --   * ledger_document_settlement(doc_type, ids): per document — paid at sale / later / from account / from return,
@@ -71,7 +71,9 @@ BEGIN
         FROM invoices i WHERE i.contact_id = p_contact AND i.status = 'active' AND i.total > 0
          AND public.ledger_day(i.invoice_date) >= v_cut;
       -- explicit uses of what is on account: the cashier's «خصم من تحت حسابه» and «سدد من تحت حسابه»
-      INSERT INTO _la_use SELECT 'invoice', i.id, ip.amount, public.ledger_day(ip.created_at), ip.created_at, ip.id
+      INSERT INTO _la_use SELECT 'invoice', i.id, ip.amount,
+             CASE WHEN ip.payment_method = 'credit_balance' THEN public.ledger_day(i.invoice_date) ELSE public.ledger_day(ip.created_at) END,
+             ip.created_at, ip.id
         FROM invoice_payments ip JOIN invoices i ON i.id = ip.invoice_id
        WHERE i.contact_id = p_contact AND i.status = 'active' AND i.total > 0
          AND public.ledger_day(i.invoice_date) >= v_cut
@@ -139,7 +141,25 @@ BEGIN
   END LOOP;
 
   IF p_contact IS NOT NULL THEN
-    -- 2) FIFO, restricted: money with no document (receipts / payments / deposits) settles only documents that
+    -- 2) explicit uses come first: what the cashier / manager chose to take from «تحت الحساب» for that document,
+    --    paid from the oldest money still on account
+    FOR u IN SELECT * FROM _la_use WHERE amount > 0.005 ORDER BY ud, ts, src LOOP
+      SELECT * INTO d FROM _la_debt WHERE debt_type = u.debt_type AND debt_id = u.debt_id;
+      CONTINUE WHEN NOT FOUND;
+      v_need := LEAST(u.amount, d.rem);
+      CONTINUE WHEN v_need <= 0.005;
+      FOR m IN SELECT * FROM _la_cred WHERE rem > 0.005 ORDER BY md, ts, movement_id LOOP
+        EXIT WHEN v_need <= 0.005;
+        v_take := LEAST(m.rem, v_need);
+        INSERT INTO _la_want VALUES (m.movement_id, m.branch_id, d.debt_type, d.debt_id, d.branch_id, v_take, 'explicit',
+                                     public.ledger_effective_date(p_tenant, GREATEST(m.md, d.dd, u.ud)));
+        UPDATE _la_cred SET rem = rem - v_take WHERE movement_id = m.movement_id;
+        UPDATE _la_debt SET rem = rem - v_take WHERE debt_type = d.debt_type AND debt_id = d.debt_id;
+        v_need := v_need - v_take;
+      END LOOP;
+    END LOOP;
+
+    -- 3) FIFO, restricted: money with no document (receipts / payments / deposits) settles only documents that
     --    already existed on its day; money given back (refund / charge movements) is settled by anything on account.
     FOR m IN SELECT * FROM _la_cred WHERE rem > 0.005 ORDER BY md, ts, movement_id LOOP
       FOR d IN SELECT * FROM _la_debt db
@@ -155,23 +175,6 @@ BEGIN
                                      public.ledger_effective_date(p_tenant, GREATEST(m.md, d.dd)));
         UPDATE _la_cred SET rem = rem - v_take WHERE movement_id = m.movement_id;
         UPDATE _la_debt SET rem = rem - v_take WHERE debt_type = d.debt_type AND debt_id = d.debt_id;
-      END LOOP;
-    END LOOP;
-
-    -- 3) explicit uses: what the cashier / manager chose to take from «تحت الحساب», oldest money first
-    FOR u IN SELECT * FROM _la_use WHERE amount > 0.005 ORDER BY ts, src LOOP
-      SELECT * INTO d FROM _la_debt WHERE debt_type = u.debt_type AND debt_id = u.debt_id;
-      CONTINUE WHEN NOT FOUND;
-      v_need := LEAST(u.amount, d.rem);
-      CONTINUE WHEN v_need <= 0.005;
-      FOR m IN SELECT * FROM _la_cred WHERE rem > 0.005 ORDER BY md, ts, movement_id LOOP
-        EXIT WHEN v_need <= 0.005;
-        v_take := LEAST(m.rem, v_need);
-        INSERT INTO _la_want VALUES (m.movement_id, m.branch_id, d.debt_type, d.debt_id, d.branch_id, v_take, 'explicit',
-                                     public.ledger_effective_date(p_tenant, GREATEST(m.md, d.dd, u.ud)));
-        UPDATE _la_cred SET rem = rem - v_take WHERE movement_id = m.movement_id;
-        UPDATE _la_debt SET rem = rem - v_take WHERE debt_type = d.debt_type AND debt_id = d.debt_id;
-        v_need := v_need - v_take;
       END LOOP;
     END LOOP;
   END IF;
@@ -419,8 +422,8 @@ BEGIN
   old_ship AS (
     SELECT pp.reference_id AS doc_id,
            CASE WHEN pt.payment_method = 'credit_balance' THEN 'account'
-                WHEN abs(extract(epoch FROM pt.created_at - ok.made)) < 5 THEN 'at_sale' ELSE 'later' END,
-           CASE WHEN pt.payment_method = 'credit_balance' THEN NULL ELSE pt.payment_method END,
+                WHEN abs(extract(epoch FROM pt.created_at - ok.made)) < 5 THEN 'at_sale' ELSE 'later' END AS bucket,
+           CASE WHEN pt.payment_method = 'credit_balance' THEN NULL ELSE pt.payment_method END AS method,
            pt.amount
       FROM payment_transactions pt
       JOIN payment_plans pp ON pp.id = pt.payment_plan_id AND pp.reference_type = 'shipment'
