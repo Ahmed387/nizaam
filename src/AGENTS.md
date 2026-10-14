@@ -6,5 +6,6 @@
 - Every statistical card uses `MetricHint` with meaning, source, and exact formula.
 - Wide tables use DataTable `minTableWidth` (wrapper gets `data-wide`); `index.css` compact CSS stays `:not([data-wide])`-guarded.
 - The six document tabs in `Invoices.tsx` use `UnifiedDocumentFilters` + `UnifiedDocumentMetrics`; card values and click-to-filter both come from `docFacts` in `lib/documentMetrics.ts` — why: one formula per card, cards and table never diverge.
-- Every document contact picker uses `ContactLookup` → `search_branch_contacts` RPC (eligibility: not archived, type+both, own branch / no branch / activity in branch; server-side search) — why: one rule everywhere, no 1,000-row cap.
+- Every document contact picker uses `ContactLookup` → `search_branch_contacts` RPC: every customer / supplier of the company (not archived, type + both), own branch first, paged 50 at a time while scrolling, any letter filters on the server (name / phone); other branches' contacts show their branch name — why: owner rule (0085), one picker everywhere, no 1,000-row cap.
+- The sale / purchase cancel dialogs use `CancelMoneyChoice` with `document_cancel_preview`: one question about the money paid ON the document (credit / refund with method / void) — why: owner rule (0085).
 - The Contacts page reads through the `contacts_page` RPC (search, type tab, balance filter, paging, counts and totals in one jsonb result) — why: all contacts searchable, no 1,000-row cap.

@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
@@ -49,23 +48,24 @@ export function ContactSettleDialog({
 }: Props) {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
-  const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   const totalOpen = useMemo(
     () => openInvoices.reduce((s, i) => s + Number(i.remaining ?? 0), 0),
     [openInvoices],
   );
-  const selectedTotal = useMemo(
-    () =>
-      openInvoices
-        .filter((i) => selected.includes(i.id))
-        .reduce((s, i) => s + Number(i.remaining ?? 0), 0),
-    [openInvoices, selected],
-  );
-
-  const toggle = (id: string) =>
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  // Owner rule (0085): money from the contact file always settles the oldest invoice first (invoice date).
+  const plan = useMemo(() => {
+    let left = Math.max(0, Number(amount) || 0);
+    return [...openInvoices]
+      .sort((a, b) => String(a.invoice_date).localeCompare(String(b.invoice_date)))
+      .map((inv) => {
+        const take = Math.min(left, Number(inv.remaining ?? 0));
+        left -= take;
+        return { ...inv, take };
+      });
+  }, [openInvoices, amount]);
+  const surplus = Math.max(0, (Number(amount) || 0) - totalOpen);
 
   const submit = async () => {
     const amt = Number(amount);
@@ -77,10 +77,8 @@ export function ContactSettleDialog({
         p_payment_amount: amt,
         p_payment_method: method,
         p_receiving_branch_id: receivingBranchId,
-        p_selected_invoices: selected.length
-          ? selected.map((id) => ({ invoice_id: id }))
-          : null,
-        p_settlement_type: selected.length ? "selected" : "fifo",
+        p_selected_invoices: null,
+        p_settlement_type: "fifo",
       });
       if (error) throw error;
       const res = (data ?? {}) as any;
@@ -90,7 +88,6 @@ export function ContactSettleDialog({
           (surplus > 0 ? ` • الفائض ${formatEGP(surplus)} أُضيف كرصيد دائن للجهة` : ""),
       );
       setAmount("");
-      setSelected([]);
       onOpenChange(false);
       onDone();
     } catch (e: any) {
@@ -138,22 +135,20 @@ export function ContactSettleDialog({
 
           <div className="rounded-lg border border-border">
             <div className="flex items-center justify-between border-b border-border bg-surface-2 px-3 py-2 text-sm font-bold">
-              <span>اختر فواتير معينة (اختياري)</span>
-              <span className="text-muted-foreground">
-                {selected.length ? `محدد: ${formatEGP(selectedTotal)}` : "بدون اختيار = الأقدم أولاً"}
-              </span>
+              <span>الفواتير المفتوحة — السداد من الأقدم للأحدث</span>
+              {surplus > 0 && <span className="text-xs text-primary">الزيادة {formatEGP(surplus)} تحت حسابه</span>}
             </div>
             <div className="max-h-56 overflow-y-auto p-2">
-              {openInvoices.map((inv) => (
-                <label
-                  key={inv.id}
-                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent"
-                >
-                  <Checkbox checked={selected.includes(inv.id)} onCheckedChange={() => toggle(inv.id)} />
+              {plan.map((inv) => (
+                <div key={inv.id} className="flex items-center gap-2 rounded-md px-2 py-2 text-sm">
                   <span className="flex-1 font-semibold">{inv.invoice_number}</span>
+                  <span className="text-xs text-muted-foreground">{String(inv.invoice_date).slice(0, 10)}</span>
                   <span className="text-xs text-muted-foreground">{inv.branch_name}</span>
-                  <span className="tabular-nums font-bold">{formatEGP(inv.remaining)}</span>
-                </label>
+                  <span className="tabular-nums">{formatEGP(inv.remaining)}</span>
+                  <span className={`w-24 text-left tabular-nums font-bold ${inv.take > 0 ? "text-success" : "text-muted-foreground"}`}>
+                    {inv.take > 0 ? `− ${formatEGP(inv.take)}` : "—"}
+                  </span>
+                </div>
               ))}
               {!openInvoices.length && (
                 <div className="p-3 text-center text-sm text-muted-foreground">لا توجد فواتير مفتوحة</div>

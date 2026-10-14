@@ -492,7 +492,8 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
             <div className="rounded-md border border-warning/30 bg-warning/10 p-3 text-xs leading-relaxed">
               <b>إلغاء السند ≠ حذف السند.</b><br />
               السند هيفضل ظاهر في الجدول بحالة <b>«ملغي»</b> مع سبب الإلغاء واسم اللي ألغاه — للتدقيق والمراجعة.<br />
-              <b>أثره المحاسبي على الخزينة هيترجع تلقائياً.</b>
+              <b>أثره المحاسبي على الخزينة هيترجع تلقائياً</b> على يوم السند نفسه.<br />
+              لو السند ده سند دفعة على فاتورة أو قسط، <b>الدفعة نفسها هتتلغي معاه</b> والفاتورة ترجع مفتوحة بالمبلغ ده. ولو سند رد فلوس فاتورة ملغاة، الفلوس ترجع تحت حساب العميل.
             </div>
             <Label>سبب الإلغاء *</Label>
             <Textarea value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} rows={3} />

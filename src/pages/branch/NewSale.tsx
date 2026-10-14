@@ -97,6 +97,8 @@ export default function NewSale() {
   const [catalogSearch, setCatalogSearch] = useState("");
   const [items, setItems] = useState<Item[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const customersRef = useRef<any[]>([]);
+  customersRef.current = customers;
   const [customerId, setCustomerId] = useState<string>("");
   const [methodOptions, setMethodOptions] = useState<PaymentMethodOption[]>([{ value: "cash", label: "💵 كاش", is_builtin: true, is_enabled: true }]);
 
@@ -248,11 +250,12 @@ export default function NewSale() {
         supabase.from("contacts").select("credit_balance, type").eq("id", customerId).maybeSingle(),
         fetchSideBalance(customerId).catch(() => null),
       ]);
-      const stored = Math.max(0, -Number((data as any)?.credit_balance ?? 0));
       const ledgerAdvance = Math.max(0, Number(sb?.customer_advance ?? 0));
+      // A customer of another branch is not readable here (row security); the ledger advance alone decides then.
+      const stored = data ? Math.max(0, -Number((data as any)?.credit_balance ?? 0)) : ledgerAdvance;
       setCustomerCredit(Math.min(stored, ledgerAdvance));
       setCustomerBalance(Number(sb?.customer_balance ?? 0));
-      setCustomerType(String((data as any)?.type ?? "customer"));
+      setCustomerType(String((data as any)?.type ?? customersRef.current.find((c: any) => c.id === customerId)?.type ?? "customer"));
     };
     load();
     const ch = supabase.channel(`contact-credit-${customerId}`)
