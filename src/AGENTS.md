@@ -10,3 +10,4 @@
 - The sale / purchase cancel dialogs use `CancelMoneyChoice` with `document_cancel_preview`: one question about the money paid ON the document (credit / refund with method / void) — why: owner rule (0085).
 - The Contacts page reads through the `contacts_page` RPC (search, type tab, balance filter, paging, counts and totals in one jsonb result) — why: all contacts searchable, no 1,000-row cap.
 - An automatic voucher carries its document's notes (" — ملاحظات: …" after its own text) and the document's recipient when it has none (migration 0087): filled on insert, on the plan link, and again whenever the document's notes / recipient change (`doc_notes_to_vouchers_trg`); text only — amounts, dates, till and ledger untouched.
+- `cancel_sale_return`'s guard uses the alias `gr` (the alias `r` clashed with its record variable and made every sale-return cancel fail) — migration 0088.
