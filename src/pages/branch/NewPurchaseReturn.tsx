@@ -31,6 +31,8 @@ import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 
 interface Line extends VariantAttrs {
   shipment_item_id?: string;
@@ -83,6 +85,7 @@ export default function NewPurchaseReturn() {
   const [refundMode, setRefundMode] = useState<RefundMode>("cash");
   const [transferMethod, setTransferMethod] = useState<string>("vodafone");
   const [refundRef, setRefundRef] = useState("");
+  const [refundProofs, setRefundProofs] = useState<File[]>([]);
   const [refundAccount, setRefundAccount] = useState("");
   const [cashPart, setCashPart] = useState(0);
   const [transferPart, setTransferPart] = useState(0);
@@ -265,6 +268,7 @@ export default function NewPurchaseReturn() {
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
       // Header + lines in one transaction on the server (create_purchase_return, SEC-004): quantities are
       // checked against the purchase invoice, unit cost and total come from it, backdating is admin-only.
+      const proofSince = proofClock();
       const { data: pr, error } = await (supabase.rpc as any)("create_purchase_return", {
         p_header: {
           shipment_id: shipment.id,
@@ -282,6 +286,7 @@ export default function NewPurchaseReturn() {
         p_items: activeLines.map((l) => ({ shipment_item_id: l.shipment_item_id, quantity: l.quantity })),
       });
       if (error || !pr) throw error ?? new Error("فشل الحفظ");
+      if (transferPart > 0) await attachPaymentProofs([{ files: refundProofs, method: transferMethod, amount: transferPart, alt: Number((pr as any).refund_transfer_amount ?? 0), branchId }], proofSince);
       const number = (pr as any).return_number as string;
       // The DB rewrites the settlement split (supplier debt first, surplus back as cash).
       const appliedToDebt = Number((pr as any).refund_balance_amount ?? 0);
@@ -557,6 +562,9 @@ export default function NewPurchaseReturn() {
                   <div>
                     <Label className="text-xs">رقم العملية *</Label>
                     <Input value={refundRef} onChange={(e) => setRefundRef(e.target.value)} className="mt-1.5" placeholder="رقم التحويل" />
+                  </div>
+                  <div className="col-span-full">
+                    <PaymentProofInput compact files={refundProofs} onChange={setRefundProofs} />
                   </div>
                   <div>
                     <Label className="text-xs">{methodAccountLabel(transferMethod)}</Label>

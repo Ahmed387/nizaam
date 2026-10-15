@@ -27,12 +27,15 @@ import { ContactCreditBalancesDrawer } from "@/components/ContactCreditBalancesD
 import { GlReconciliationPanel } from "@/components/GlReconciliationPanel";
 import { fetchLedgerPosition, fetchOpeningSummary, type LedgerPosition, type OpeningSummary } from "@/lib/ledger";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 
 type BranchRow = { id: string; name: string; code: string };
 type TxRow = {
   id: string; branch_id: string; type: "income" | "expense"; category: string;
   amount: number; description: string | null; payment_method: string; created_at: string; transaction_date?: string | null;
   reference_number?: string | null;
+  voucher_id?: string | null; voucher_status?: string | null;
   reference_id?: string | null;
   voucher_number?: string | null;
   invoice_number?: string | null;
@@ -71,6 +74,7 @@ export default function MainTreasury() {
   const [dq, setDq] = useState({ search: "", notes: "", minAmt: "", maxAmt: "" });
   const [page, setPage] = useState(1);
   const [pageRows, setPageRows] = useState<TxRow[]>([]);
+  const movementAttCounts = useAttachmentCounts("voucher", useMemo(() => pageRows.map((r) => r.voucher_id).filter((x): x is string => !!x), [pageRows]));
   const [totalCount, setTotalCount] = useState(0);
   const [tableLoading, setTableLoading] = useState(true);
   const [viewMovement, setViewMovement] = useState<TreasuryMovement | null>(null);
@@ -162,16 +166,19 @@ export default function MainTreasury() {
     const referenceIds = movements.map((row) => row.reference_id).filter((id): id is string => Boolean(id));
     const [{ data: vouchers }, { data: invoices }] = await Promise.all([
       movementIds.length
-        ? supabase.from("vouchers").select("treasury_id,voucher_number").in("treasury_id", movementIds)
-        : Promise.resolve({ data: [] as { treasury_id: string | null; voucher_number: string }[] }),
+        ? supabase.from("vouchers").select("id,treasury_id,voucher_number,status").in("treasury_id", movementIds)
+        : Promise.resolve({ data: [] as { id: string; treasury_id: string | null; voucher_number: string; status: string }[] }),
       referenceIds.length
         ? supabase.from("invoices").select("id,invoice_number").in("id", referenceIds)
         : Promise.resolve({ data: [] as { id: string; invoice_number: string }[] }),
     ]);
     const voucherByMovement = new Map((vouchers ?? []).map((voucher) => [voucher.treasury_id, voucher.voucher_number]));
+    const voucherRowByMovement = new Map((vouchers ?? []).map((voucher: any) => [voucher.treasury_id, voucher]));
     const invoiceByReference = new Map((invoices ?? []).map((invoice) => [invoice.id, invoice.invoice_number]));
     setPageRows(movements.map((row) => ({
       ...row,
+      voucher_id: (voucherRowByMovement.get(row.id) as any)?.id ?? null,
+      voucher_status: (voucherRowByMovement.get(row.id) as any)?.status ?? null,
       voucher_number: voucherByMovement.get(row.id) ?? null,
       invoice_number: row.reference_id ? invoiceByReference.get(row.reference_id) ?? null : null,
     })));
@@ -467,6 +474,10 @@ export default function MainTreasury() {
                 {r.type === "income" ? "+" : "−"} {formatEGP(Number(r.amount))}
               </b>
             )},
+            { key: "attachments", header: "📎", align: "center", width: "4rem", render: (r: TxRow) => r.voucher_id ? (
+              <AttachmentsDialogButton recordType="voucher" recordId={r.voucher_id} count={movementAttCounts[r.voucher_id] ?? 0}
+                                       canEdit={r.voucher_status === "active"} />
+            ) : <span className="text-muted-foreground">—</span> },
           ]}
         />
         </TooltipProvider>

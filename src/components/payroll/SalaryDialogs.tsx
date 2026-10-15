@@ -11,6 +11,7 @@ import { formatEGP } from "@/lib/format";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { rpcErrorText } from "@/lib/rpcError";
 import { toast } from "sonner";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
 /** What `employee_salary_preview` returns (migration 0074) — the server is the only place the absence deduction is computed. */
 export interface SalaryPreview {
@@ -85,6 +86,7 @@ export function PaySalaryDialog({ employee, month: initialMonth, monthEditable =
     const pErr = net > 0 ? validateTransferPayment(pm) : null;
     if (pErr) return toast.error(pErr);
     setSaving(true);
+    const since = proofClock();
     const { data: salaryId, error } = await supabase.rpc("pay_employee_salary" as any, {
       p_employee_id: employee.id, p_month: month, p_bonuses: n(bonus), p_deductions: n(extraDed), p_advance_deduct: adv,
       p_payment_method: pm.method, p_reference_number: pm.reference_number ?? null,
@@ -93,6 +95,7 @@ export function PaySalaryDialog({ employee, month: initialMonth, monthEditable =
     } as any);
     setSaving(false);
     if (error) return toast.error(error.message);
+    if (net > 0) await attachPaymentProofs([{ files: pm.proof_files, method: pm.method, amount: net }], since);
     try {
       const { logAudit } = await import("@/lib/roles");
       await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: employee.branch_id ?? null, action: "CREATE", entity: "salary",

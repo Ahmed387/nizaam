@@ -295,10 +295,11 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
         try { await saveDocAnnotations("voucher", voucherId, recipient, form.description); }
         catch (e: any) { toast.error("تعذر حفظ المستلم: " + (e?.message ?? "")); }
       }
-      if (voucherId && attachFiles.length > 0) {
+      const allFiles = [...attachFiles, ...(pm.method !== "cash" ? pm.proof_files ?? [] : [])];
+      if (voucherId && allFiles.length > 0) {
         const { compressImage } = await import("@/lib/compressImage");
         let okCount = 0;
-        for (const file of attachFiles) {
+        for (const file of allFiles) {
           try {
             const originalSize = file.size;
             const working = file.type.startsWith("image/") ? await compressImage(file) : file;

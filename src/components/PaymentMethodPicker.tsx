@@ -14,6 +14,7 @@ import {
   methodRequiresReference,
 } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 
 export interface PaymentMethodValue {
   method: PaymentMethod;
@@ -24,6 +25,8 @@ export interface PaymentMethodValue {
   fee_amount: number;
   fee_type?: "percentage" | "fixed";
   total_with_fee: number;
+  /** «إيصال التحويل» files, uploaded to the payment's voucher after the save (attachPaymentProofs) */
+  proof_files?: File[];
 }
 
 interface Props {
@@ -138,6 +141,9 @@ export function PaymentMethodPicker({
               />
             </div>
           </div>
+
+          <PaymentProofInput disabled={disabled} files={value.proof_files}
+                             onChange={(f) => onChange({ ...value, proof_files: f })} />
 
           {value.fee_amount > 0 && (
             <div className="bg-warning/10 border border-warning/30 rounded-md p-2.5 text-sm space-y-1">

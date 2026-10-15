@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Pencil } from "lucide-react";
 import { PaymentMethodPicker, PaymentMethodValue } from "./PaymentMethodPicker";
 import { PAYMENT_METHOD_OPTIONS } from "@/lib/paymentMethods";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
 interface Props {
   open: boolean;
@@ -66,6 +67,7 @@ export function EditPaymentDialog({ open, onOpenChange, target, maxAllowed, invo
       return;
     }
     setSaving(true);
+    const since = proofClock();
     try {
       if (target.kind === "invpay") {
         const { error } = await supabase.rpc("edit_invoice_payment" as any, {
@@ -95,6 +97,7 @@ export function EditPaymentDialog({ open, onOpenChange, target, maxAllowed, invo
         });
         if (error) throw error;
       }
+      await attachPaymentProofs([{ files: method.proof_files, method: method.method, amount: amt, alt: amt + Number(method.fee_amount || 0) }], since);
       const before = target.row;
       const label = (m: string) => PAYMENT_METHOD_OPTIONS.find((o) => o.value === m)?.label ?? m;
       const changes: string[] = [];

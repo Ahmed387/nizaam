@@ -12,6 +12,8 @@ import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { ColorChip } from "@/components/ColorPicker";
 import { VariantLine } from "@/components/VariantChips";
 import { CancelReturnButton, CancelledReturnBanner } from "@/components/CancelReturnButton";
+import { DocumentMoneyMovements } from "@/components/payments/DocumentMoneyMovements";
+import { RecordAttachments } from "@/components/RecordAttachments";
 
 
 export default function PurchaseReturnView() {
@@ -161,6 +163,14 @@ export default function PurchaseReturnView() {
             </div>
           );
         })()}
+      </div>
+
+      <div className="card-elevated p-4 print:hidden">
+        <DocumentMoneyMovements docId={(ret as any).id} docRecordType="purchase_return" canEdit={(ret as any).status !== "cancelled"} />
+      </div>
+
+      <div className="card-elevated p-4 print:hidden">
+        <RecordAttachments recordType="purchase_return" recordId={(ret as any).id} canEdit={(ret as any).status !== "cancelled"} />
       </div>
 
       <ThermalReceiptPrint

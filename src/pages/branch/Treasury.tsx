@@ -150,17 +150,20 @@ export default function Treasury() {
     const referenceIds = movements.map((row) => row.reference_id).filter((id): id is string => Boolean(id));
     const [{ data: vouchers }, { data: invoices }] = await Promise.all([
       movementIds.length
-        ? supabase.from("vouchers").select("treasury_id,voucher_number").in("treasury_id", movementIds)
-        : Promise.resolve({ data: [] as { treasury_id: string | null; voucher_number: string }[] }),
+        ? supabase.from("vouchers").select("id,treasury_id,voucher_number,status").in("treasury_id", movementIds)
+        : Promise.resolve({ data: [] as { id: string; treasury_id: string | null; voucher_number: string; status: string }[] }),
       referenceIds.length
         ? supabase.from("invoices").select("id,invoice_number").in("id", referenceIds)
         : Promise.resolve({ data: [] as { id: string; invoice_number: string }[] }),
     ]);
     const voucherByMovement = new Map((vouchers ?? []).map((voucher) => [voucher.treasury_id, voucher.voucher_number]));
+    const voucherRowByMovement = new Map((vouchers ?? []).map((voucher: any) => [voucher.treasury_id, voucher]));
     const invoiceByReference = new Map((invoices ?? []).map((invoice) => [invoice.id, invoice.invoice_number]));
     setRows(movements.map((row) => ({
       ...row,
       voucher_number: voucherByMovement.get(row.id) ?? null,
+      voucher_id: (voucherRowByMovement.get(row.id) as any)?.id ?? null,
+      voucher_status: (voucherRowByMovement.get(row.id) as any)?.status ?? null,
       invoice_number: row.reference_id ? invoiceByReference.get(row.reference_id) ?? null : null,
     })));
     setTotalCount(tr.count ?? 0);
@@ -229,6 +232,20 @@ export default function Treasury() {
     } as any);
     if (error) return toast.error(error.message);
 
+    // «إيصال التحويل» goes on the transfer itself (its 📎 in «تحويلات بين الفروع»)
+    if ((tPayment.proof_files?.length ?? 0) > 0 && tPayment.method !== "cash") {
+      const { data: tr } = await supabase.from("treasury_transfers").select("id")
+        .eq("from_branch_id", branchId!).eq("to_branch_id", tForm.to).eq("amount", amt)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (tr?.id) {
+        const { uploadRecordAttachment } = await import("@/lib/attachmentUpload");
+        for (const f of tPayment.proof_files!) {
+          try { await uploadRecordAttachment("treasury_transfer", tr.id, f, user?.id); }
+          catch (e: any) { toast.error(`إيصال ${f.name}: ${e?.message ?? "فشل الرفع"}`); }
+        }
+      } else toast.warning("الإيصال ما اترفعش — ارفعه من 📎 على التحويل");
+    }
+
     const toBr = branches.find((b) => b.id === tForm.to);
     const recipients = await getBranchManagers(tForm.to);
     await notifyMany(recipients, {
@@ -268,6 +285,8 @@ export default function Treasury() {
   const otherBranches = branches.filter((b) => b.id !== branchId);
   const canAck = isAdmin || hasRole("branch_manager");
   const transferAttCounts = useAttachmentCounts("treasury_transfer", useMemo(() => transfers.map((t: any) => t.id), [transfers]));
+  // «إيصال التحويل» of each till movement lives on its voucher
+  const movementAttCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r: any) => r.voucher_id).filter(Boolean), [rows]));
 
   const wallets = [
     { key: "cash_balance" as const, label: "كاش في الدرج", icon: Wallet, color: "text-success", method: "cash" as const },
@@ -523,6 +542,10 @@ export default function Treasury() {
                   {r.type === "income" ? "+" : "−"} {formatEGP(r.amount)}
                 </span>
               )},
+              { key: "attachments", header: "📎", align: "center", width: "4rem", render: (r: any) => r.voucher_id ? (
+                <AttachmentsDialogButton recordType="voucher" recordId={r.voucher_id} count={movementAttCounts[r.voucher_id] ?? 0}
+                                         canEdit={r.voucher_status === "active"} label={`مرفقات السند ${r.voucher_number ?? ""}`} />
+              ) : <span className="text-muted-foreground">—</span> },
             ]} />
           </TooltipProvider>
           {pageCount > 1 && (

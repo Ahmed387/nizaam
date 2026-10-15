@@ -25,6 +25,8 @@ import { useFormDraft } from "@/hooks/useFormDraft";
 import { DraftRestoreBar } from "@/components/DraftRestoreBar";
 import { docSuccess, docError } from "@/lib/docToast";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck, ShoppingCart, User as UserIcon, Minus, Wallet, Package, ChevronDown, ChevronUp, CreditCard, FileText } from "lucide-react";
 import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { computeInvoiceTotals } from "@/lib/invoiceCalc";
@@ -73,6 +75,8 @@ interface PaymentSplit {
   transfer_from_account: string;
   fee_amount: number;
   fee_on_customer: boolean;
+  /** «إيصال التحويل» — uploaded to this payment's receipt voucher after the save (never sent to the server) */
+  proof_files?: File[];
 }
 
 export default function NewSale() {
@@ -1028,7 +1032,7 @@ export default function NewSale() {
         p_total: total,
         p_payment_method: primaryMethod,
         p_items: items as any,
-        p_payments: payments, // دائمًا قائمة (قد تكون فارغة) — لا افتراض كاش
+        p_payments: payments.map(({ proof_files: _pf, ...p }) => p), // دائمًا قائمة (قد تكون فارغة) — لا افتراض كاش
         p_vat_rate: vatEnabled ? Number(vatRate) || 0 : 0,
         p_vat_amount: vatAmount,
         p_invoice_date: invoiceDate || null,
@@ -1043,6 +1047,7 @@ export default function NewSale() {
       }
 
       // حفظ ذري: الفاتورة + الخزينة + الملاحظات + المستلم + الرصيد السابق في معاملة واحدة
+      const proofSince = proofClock();
       const { data: invId, error: rpcErr } = await supabase.rpc("process_sale_once" as any, {
         ...payload,
         p_recipient: recipientName.trim() || null,
@@ -1075,6 +1080,8 @@ export default function NewSale() {
       }
 
       // المستلم والملاحظات والرصيد المسبق اتحفظوا جوه process_sale_once → process_sale_full
+      await attachPaymentProofs(payments.map((p) => ({ files: p.proof_files, method: p.payment_method, amount: Number(p.amount),
+        alt: Number(p.amount) + (p.fee_on_customer ? Number(p.fee_amount || 0) : 0), branchId })), proofSince);
 
       await logAudit({
         userId: user!.id, userName: profile!.name, branchId, action: "CREATE",
@@ -1851,6 +1858,7 @@ export default function NewSale() {
                             onChange={(e) => updatePayment(idx, { transfer_to_account: e.target.value })}
                           />
                         </div>
+                        <PaymentProofInput compact files={p.proof_files} onChange={(f) => updatePayment(idx, { proof_files: f })} />
                         {p.fee_amount > 0 && (
                           <div className="bg-warning/10 border border-warning/30 rounded p-2 text-xs space-y-1.5">
                             <div className="flex justify-between">

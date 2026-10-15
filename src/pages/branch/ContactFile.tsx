@@ -31,6 +31,9 @@ import {
 } from "@/lib/ledger";
 import { toast } from "sonner";
 import { ArrowRight, Activity, Building2, DollarSign, Download, FileText, HandCoins, Pencil, Phone, MapPin, Receipt, Archive, User, AlertTriangle } from "lucide-react";
+import { vouchersForMovements } from "@/lib/movementVouchers";
+import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
+import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 
 /**
  * Contact file (360°) — Step 6C. Everything comes from the unified ledger:
@@ -65,6 +68,15 @@ export default function ContactFile() {
   const [side, setSide] = useState<Side>("customer");
   const [docs, setDocs] = useState<ContactDocument[]>([]);
   const [money, setMoney] = useState<ContactMoneyRow[]>([]);
+  // voucher of each money row → its attachments (transfer receipts)
+  const [moneyVouchers, setMoneyVouchers] = useState<Record<string, { id: string; status: string }>>({});
+  useEffect(() => {
+    let alive = true;
+    if (!money.length) { setMoneyVouchers({}); return; }
+    vouchersForMovements(money).then((m) => { if (alive) setMoneyVouchers(m); }).catch(() => {});
+    return () => { alive = false; };
+  }, [money]);
+  const moneyAttCounts = useAttachmentCounts("voucher", useMemo(() => Object.values(moneyVouchers).map((v) => v.id), [moneyVouchers]));
   const [returnsRows, setReturnsRows] = useState<any[]>([]);
   const [docFilter, setDocFilter] = useState<DocFilter>("all");
   const [loading, setLoading] = useState(true);
@@ -434,6 +446,10 @@ export default function ContactFile() {
                         { key: "al", header: "اتخصم من فواتير", render: (m: ContactMoneyRow) => formatEGP(m.allocated) },
                         { key: "u", header: "متبقي مقدم", render: (m: ContactMoneyRow) => (m.effect === "settle" && m.unallocated > 0.005 ? <b className="text-primary">{formatEGP(m.unallocated)}</b> : "—") },
                         { key: "x", header: "في فرع تاني", render: (m: ContactMoneyRow) => (m.used_in_other_branches > 0.005 ? formatEGP(m.used_in_other_branches) : "—") },
+                        { key: "att", header: "📎", render: (m: ContactMoneyRow) => {
+                          const v = moneyVouchers[m.movement_id];
+                          return v ? <AttachmentsDialogButton recordType="voucher" recordId={v.id} count={moneyAttCounts[v.id] ?? 0} canEdit={v.status === "active"} /> : "—";
+                        } },
                         { key: "st", header: "الحالة", render: (m: ContactMoneyRow) => (m.status === "active" ? <span className="text-success text-xs">سارية</span> : <span className="text-destructive text-xs" title={m.cancel_reason ?? ""}>ملغاة</span>) },
                         { key: "act", header: "", render: (m: ContactMoneyRow) => (m.status === "active" && m.source_table === "payment_transactions" ? (
                           <Button size="sm" variant="ghost" className="text-destructive h-7" onClick={(e) => { e.stopPropagation(); setVoidReason(""); setVoidRow(m); }}>إلغاء</Button>

@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { LEDGER_START } from "@/lib/ledger";
 import { rpcErrorText } from "@/lib/rpcError";
 import { CancelMoneyChoice, type CancelPreview, type MoneyChoice } from "@/components/documents/CancelMoneyChoice";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
 /**
  * Cancel a purchase invoice (no hard delete — owner rule).
@@ -34,10 +35,11 @@ export function CancelPurchaseDialog({ open, onOpenChange, shipment, onDone }: P
   const [preview, setPreview] = useState<CancelPreview | null>(null);
   const [choice, setChoice] = useState<MoneyChoice | null>(null);
   const [method, setMethod] = useState("cash");
+  const [proofs, setProofs] = useState<File[]>([]);
 
   useEffect(() => {
     if (!open || !shipment?.id) return;
-    setReason(""); setChoice(null); setMethod("cash"); setPreview(null);
+    setReason(""); setChoice(null); setMethod("cash"); setPreview(null); setProofs([]);
     supabase.rpc("document_cancel_preview" as any, { p_doc_type: "shipment", p_doc_id: shipment.id }).then(({ data, error }) => {
       if (error) toast.error(rpcErrorText(error, "إلغاء فاتورة الشراء باختيار الفلوس"));
       else setPreview(data as any);
@@ -57,11 +59,14 @@ export function CancelPurchaseDialog({ open, onOpenChange, shipment, onDone }: P
     if (needsChoice && !choice) return toast.error("اختار هيحصل إيه في الفلوس المدفوعة");
     setBusy(true);
     if (isAdmin) {
+      const proofSince = proofClock();
       const { error } = await (supabase.rpc as any)("cancel_purchase_invoice", {
         p_shipment_id: shipment.id, p_reason: reason.trim(), p_money_action: action, p_refund_method: method,
       });
       setBusy(false);
       if (error) return toast.error(rpcErrorText(error, "إلغاء فاتورة الشراء باختيار الفلوس"));
+      if (action === "refund" && method !== "cash")
+        await attachPaymentProofs([{ files: proofs, method, amount: direct, branchId: shipment.branch_id ?? null, anyAmount: true }], proofSince);
       toast.success(`تم إلغاء ${label}`);
     } else if (isManager) {
       const ok = await createApprovalRequest({
@@ -118,6 +123,8 @@ export function CancelPurchaseDialog({ open, onOpenChange, shipment, onDone }: P
               method={method}
               onChange={setChoice}
               onMethod={setMethod}
+              proofs={isAdmin ? proofs : undefined}
+              onProofs={isAdmin ? setProofs : undefined}
             />
           ) : toAccount > 0.005 ? (
             <div className="rounded-md bg-muted p-3 text-center text-xs text-muted-foreground">

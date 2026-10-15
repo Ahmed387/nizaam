@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 /** An open sale invoice of the contact (remaining from the unified ledger). */
 export interface ContactOpenInvoice {
   id: string;
@@ -49,6 +51,7 @@ export function ContactSettleDialog({
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("cash");
   const [busy, setBusy] = useState(false);
+  const [proofs, setProofs] = useState<File[]>([]);
 
   const totalOpen = useMemo(
     () => openInvoices.reduce((s, i) => s + Number(i.remaining ?? 0), 0),
@@ -71,6 +74,7 @@ export function ContactSettleDialog({
     const amt = Number(amount);
     if (!amt || amt <= 0) return toast.error("اكتب مبلغ صحيح");
     setBusy(true);
+    const proofSince = proofClock();
     try {
       const { data, error } = await (supabase as any).rpc("settle_contact_invoices_sovereign", {
         p_contact_id: contactId,
@@ -82,6 +86,8 @@ export function ContactSettleDialog({
       });
       if (error) throw error;
       const res = (data ?? {}) as any;
+      await attachPaymentProofs([{ files: proofs, method, amount: amt, branchId: receivingBranchId, anyAmount: true }], proofSince);
+      setProofs([]);
       const surplus = Number(res.surplus ?? 0);
       toast.success(
         `تم سداد ${res.allocated_count ?? 0} فاتورة بمبلغ ${formatEGP(Number(res.allocated_total ?? 0))}` +
@@ -131,6 +137,11 @@ export function ContactSettleDialog({
                 </SelectContent>
               </Select>
             </div>
+            {method !== "cash" && (
+              <div className="sm:col-span-2">
+                <PaymentProofInput compact files={proofs} onChange={setProofs} />
+              </div>
+            )}
           </div>
 
           <div className="rounded-lg border border-border">

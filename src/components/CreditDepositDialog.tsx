@@ -11,6 +11,8 @@ import { cairoTodayDay } from "@/lib/cairoDate";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
 import { PiggyBank } from "lucide-react";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 
 type ContactOpt = { id: string; name: string; phone: string | null };
 
@@ -31,6 +33,7 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"cash" | "bank">("cash");
   const [ref, setRef] = useState("");
+  const [proofs, setProofs] = useState<File[]>([]);
   const [fromAcc, setFromAcc] = useState("");
   const [toAcc, setToAcc] = useState("");
   const [date, setDate] = useState(cairoTodayDay());
@@ -60,6 +63,7 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
     if (method === "bank" && (!ref.trim() || !fromAcc.trim() || !toAcc.trim()))
       return toast.error("رقم العملية والحساب المحوَّل منه وإليه مطلوبين للبنك");
     setBusy(true);
+    const proofSince = proofClock();
     const { error } = await supabase.rpc("create_contact_credit_deposit" as any, {
       p_contact_id: contactId, p_amount: amt, p_method: method,
       p_description: desc.trim() || null, p_voucher_date: date,
@@ -69,6 +73,8 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
     });
     setBusy(false);
     if (error) return toast.error(error.message);
+    if (method !== "cash") await attachPaymentProofs([{ files: proofs, method, amount: amt }], proofSince);
+    setProofs([]);
     toast.success(`تم إيداع ${formatEGP(amt)} تحت الحساب`);
     setOpen(false); setAmount(""); setDesc(""); setRef(""); setFromAcc(""); setToAcc(""); setQ("");
     onDone?.();
@@ -123,6 +129,7 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
                 <div><Label>رقم العملية</Label><Input value={ref} onChange={(e) => setRef(e.target.value)} /></div>
                 <div><Label>من حساب</Label><Input value={fromAcc} onChange={(e) => setFromAcc(e.target.value)} /></div>
                 <div><Label>إلى حساب</Label><Input value={toAcc} onChange={(e) => setToAcc(e.target.value)} /></div>
+                <div className="col-span-3"><PaymentProofInput compact files={proofs} onChange={setProofs} /></div>
               </div>
             )}
             <div>

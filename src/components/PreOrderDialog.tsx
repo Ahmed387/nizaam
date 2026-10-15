@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
 import { Loader2, BookmarkPlus, ChevronDown } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 
 interface CatalogItem {
   id?: string | null;
@@ -40,6 +42,7 @@ export function PreOrderDialog({
   const [deposit, setDeposit] = useState(0);
   const [payment, setPayment] = useState("cash");
   const [refNum, setRefNum] = useState("");
+  const [proofs, setProofs] = useState<File[]>([]);
   const [transferAccount, setTransferAccount] = useState("");
   const [receivedBy, setReceivedBy] = useState("");
   const [notes, setNotes] = useState("");
@@ -49,7 +52,7 @@ export function PreOrderDialog({
     if (!open) return;
     setCustomerId(""); setName(""); setPhone("");
     setQty(1); setDeposit(0); setNotes(""); setPayment("cash");
-    setRefNum(""); setTransferAccount(""); setReceivedBy("");
+    setRefNum(""); setTransferAccount(""); setReceivedBy(""); setProofs([]);
     setPrice(Number(catalogItem?.display_price ?? 0));
   }, [open, catalogItem, branchId]);
 
@@ -71,6 +74,7 @@ export function PreOrderDialog({
 
     setBusy(true);
     try {
+      const proofSince = proofClock();
       const { data, error } = await supabase.rpc("create_pre_order", {
         p_branch_id: branchId,
         p_customer_id: customerId || null,
@@ -89,6 +93,7 @@ export function PreOrderDialog({
         p_received_by_name: receivedBy.trim() || null,
       });
       if (error) throw error;
+      if (deposit > 0 && payment !== "cash") await attachPaymentProofs([{ files: proofs, method: payment, amount: deposit, branchId }], proofSince);
       toast.success("تم الحجز بنجاح");
       onCreated?.(data as string);
       printReceipt({
@@ -241,6 +246,9 @@ export function PreOrderDialog({
                   <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs font-medium text-muted-foreground">المستلم في الفرع</Label>
                     <Input value={receivedBy} onChange={(e) => setReceivedBy(e.target.value)} className={softInputCls} placeholder="اسم المستلم" />
+                  </div>
+                  <div className="col-span-2">
+                    <PaymentProofInput compact files={proofs} onChange={setProofs} />
                   </div>
                 </>
               )}

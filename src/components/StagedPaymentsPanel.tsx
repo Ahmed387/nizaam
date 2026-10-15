@@ -811,6 +811,7 @@ function PaymentFormDialog({
         fee_amount: Number(method.fee_amount || 0),
         fee_on_customer: feeOnCustomer,
         received_by_name: receivedBy || null,
+        proof_files: method.method !== "cash" ? method.proof_files : undefined,
       },
       reason
     );

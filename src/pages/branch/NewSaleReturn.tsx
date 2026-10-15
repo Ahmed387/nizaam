@@ -34,6 +34,8 @@ import { evaluateReturnPolicy } from "@/lib/returnPolicy";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 
 interface Line extends VariantAttrs {
   invoice_item_id: string;
@@ -84,6 +86,7 @@ export default function NewSaleReturn() {
   const [refundMode, setRefundMode] = useState<RefundMode>("cash");
   const [transferMethod, setTransferMethod] = useState<string>("vodafone");
   const [refundRef, setRefundRef] = useState("");
+  const [refundProofs, setRefundProofs] = useState<File[]>([]);
   const [refundAccount, setRefundAccount] = useState("");
   const [cashPart, setCashPart] = useState(0);
   const [transferPart, setTransferPart] = useState(0);
@@ -287,6 +290,7 @@ export default function NewSaleReturn() {
     setBusy(true);
     try {
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
+      const proofSince = proofClock();
       const { data: rr, error } = await supabase.rpc("register_sale_return_full" as any, {
         _invoice_id: invoice.id,
         _reason: finalReason,
@@ -305,6 +309,7 @@ export default function NewSaleReturn() {
         })) as any,
       });
       if (error || !rr) throw error ?? new Error("فشل الحفظ");
+      if (transferPart > 0) await attachPaymentProofs([{ files: refundProofs, method: transferMethod, amount: transferPart, branchId }], proofSince);
       const number = (rr as any).return_number as string;
       if (recipientName.trim() && (rr as any).id) {
         try { await saveDocAnnotations("sale_return", (rr as any).id, recipientName, notes); } catch (e) { console.warn(e); }
@@ -631,6 +636,9 @@ export default function NewSaleReturn() {
                   <div>
                     <Label className="text-xs">رقم العملية *</Label>
                     <Input value={refundRef} onChange={(e) => setRefundRef(e.target.value)} className="mt-1.5" placeholder="رقم التحويل" />
+                  </div>
+                  <div className="col-span-full">
+                    <PaymentProofInput compact files={refundProofs} onChange={setRefundProofs} />
                   </div>
                   <div>
                     <Label className="text-xs">{methodAccountLabel(transferMethod)}</Label>

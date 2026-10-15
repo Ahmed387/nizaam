@@ -27,6 +27,7 @@ import { EmployeeAttendanceTab } from "@/components/attendance/EmployeeAttendanc
 import { fetchAllRows } from "@/lib/fetchAll";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { ImageField } from "@/components/ImageField";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
 export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
@@ -237,6 +238,7 @@ export default function EmployeeProfile() {
     const { validateTransferPayment } = await import("@/lib/paymentMethods");
     const aErr = validateTransferPayment(advPm);
     if (aErr) return toast.error(aErr);
+    const since = proofClock();
     const { data: res, error } = await supabase.rpc("disburse_employee_advance", {
       p_employee_id: emp.id, p_amount: amt, p_monthly_deduct: md, p_reason: advForm.reason || null,
       p_payment_method: advPm.method, p_reference_number: advPm.reference_number ?? null,
@@ -244,6 +246,7 @@ export default function EmployeeProfile() {
       p_fee_amount: advPm.fee_amount || 0,
     } as any);
     if (error) return toast.error(error.message);
+    await attachPaymentProofs([{ files: advPm.proof_files, method: advPm.method, amount: amt }], since);
     const adv = { id: (res as any)?.advance_id as string };
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId: emp.branch_id, action: "CREATE", entity: "advance", entityId: adv.id, details: { employee: emp.name, amount: amt, method: advPm.method } });
     toast.success("تم صرف السلفة");

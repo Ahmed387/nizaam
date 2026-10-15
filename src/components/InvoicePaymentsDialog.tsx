@@ -11,6 +11,7 @@ import { MultiMethodPaymentDialog } from "./MultiMethodPaymentDialog";
 import { EditPaymentDialog } from "./EditPaymentDialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PaymentMethodPicker, PaymentMethodValue } from "./PaymentMethodPicker";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
 
 interface Props {
@@ -483,6 +484,7 @@ function AddInvoicePaymentDialog({
       return;
     }
     setSaving(true);
+    const since = proofClock();
     try {
       const { error } = await supabase.rpc("add_invoice_payment" as any, {
         p_invoice_id: invoiceId,
@@ -496,6 +498,7 @@ function AddInvoicePaymentDialog({
         p_received_by_name: null,
       });
       if (error) throw error;
+      await attachPaymentProofs([{ files: method.proof_files, method: method.method, amount: amt }], since);
       toast.success("تم إضافة الدفعة");
       onOpenChange(false);
       onSuccess();

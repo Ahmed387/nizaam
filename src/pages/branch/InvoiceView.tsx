@@ -20,6 +20,7 @@ import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { ColorChip } from "@/components/ColorPicker";
 import { computePayState, PaymentStatusBadge } from "@/components/PaymentStatusBadge";
 import { VariantLine } from "@/components/VariantChips";
+import { DocumentMoneyMovements } from "@/components/payments/DocumentMoneyMovements";
 
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
@@ -474,6 +475,10 @@ export default function InvoiceView() {
         </div>
 
         <div className="text-center mt-6 text-sm text-muted-foreground">شكراً لتعاملكم معنا 🙏</div>
+      </div>
+
+      <div className="card-elevated p-4 print:hidden">
+        <DocumentMoneyMovements docId={inv.id} docRecordType="invoice" canEdit={inv.status !== "cancelled"} />
       </div>
 
       <div className="card-elevated p-4 print:hidden">

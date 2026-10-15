@@ -21,6 +21,8 @@ import {
   validateTransferPayment,
 } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 
 export interface PaymentLine {
   id: string;
@@ -32,6 +34,7 @@ export interface PaymentLine {
   fee_amount: number;
   fee_type?: "percentage" | "fixed";
   fee_on_customer: boolean; // per-line
+  proof_files?: File[];
 }
 
 type Mode =
@@ -168,6 +171,7 @@ export function MultiMethodPaymentDialog({
     }
 
     setBusy(true);
+    const since = proofClock();
     try {
       for (const l of lines) {
         if (mode.kind === "plan") {
@@ -205,6 +209,9 @@ export function MultiMethodPaymentDialog({
           if (error) throw error;
         }
       }
+      await attachPaymentProofs(lines.map((l) => ({ files: l.proof_files, method: l.method, amount: Number(l.amount),
+        alt: Number(l.amount) + (l.fee_on_customer ? Number(l.fee_amount || 0) : 0),
+        branchId: mode.kind === "contact" ? mode.branchId : null })), since);
       toast.success(`تم تسجيل ${lines.length} ${lines.length > 1 ? "سطور" : "سطر"} دفع`);
       onOpenChange(false);
       onSuccess?.();
@@ -345,6 +352,7 @@ export function MultiMethodPaymentDialog({
                         />
                       </div>
                     </div>
+                    <PaymentProofInput compact files={l.proof_files} onChange={(f) => updateLine(l.id, { proof_files: f })} />
                   </div>
                 )}
 

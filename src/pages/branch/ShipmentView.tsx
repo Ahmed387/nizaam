@@ -17,6 +17,7 @@ import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { VariantLine } from "@/components/VariantChips";
 import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
 import { fetchContactStatement, fetchDocumentStatus, sideBalanceLabel } from "@/lib/ledger";
+import { DocumentMoneyMovements } from "@/components/payments/DocumentMoneyMovements";
 
 const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
@@ -373,6 +374,10 @@ export default function ShipmentView() {
 
           </div>
         )}
+      </div>
+
+      <div className="card-elevated p-4 print:hidden">
+        <DocumentMoneyMovements docId={ship.id} docRecordType="shipment" canEdit={canEdit} />
       </div>
 
       <div className="card-elevated p-4 print:hidden">

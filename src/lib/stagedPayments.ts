@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
 export type StagedPayment = {
   method: string;
@@ -9,6 +10,8 @@ export type StagedPayment = {
   fee_amount?: number;
   fee_on_customer?: boolean;
   received_by_name?: string | null;
+  /** «إيصال التحويل» files, uploaded to the payment's voucher after the save */
+  proof_files?: File[];
 };
 
 export type StagedOp =
@@ -27,6 +30,7 @@ export async function applyStagedPayments(
   ops: StagedOp[],
   invoiceId: string
 ): Promise<{ ok: true } | { ok: false; failedAt: number; message: string }> {
+  const since = proofClock();
   for (let i = 0; i < ops.length; i++) {
     const op = ops[i];
     try {
@@ -103,6 +107,10 @@ export async function applyStagedPayments(
       return { ok: false, failedAt: i, message: e.message ?? "فشل تنفيذ عملية دفع" };
     }
   }
+  await attachPaymentProofs(ops.flatMap((op) => ("payload" in op)
+    ? [{ files: op.payload.proof_files, method: op.payload.method, amount: Number(op.payload.amount),
+         alt: Number(op.payload.amount) + (op.payload.fee_on_customer ? Number(op.payload.fee_amount || 0) : 0) }]
+    : []), since);
   return { ok: true };
 }
 

@@ -13,9 +13,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { tenantStoragePath } from "@/lib/attachmentPath";
 import { Eye, Trash2, Paperclip, Loader2, FileText, Image as ImageIcon, Upload } from "lucide-react";
-import { compressImage } from "@/lib/compressImage";
+import { uploadRecordAttachment } from "@/lib/attachmentUpload";
 import type { RecordType } from "@/hooks/useAttachmentCounts";
 
 interface Attachment {
@@ -32,7 +31,6 @@ interface Attachment {
 }
 
 const BUCKET = "record-attachments";
-const MAX_SIZE = 5 * 1024 * 1024; // 5MB hard cap AFTER compression
 const ACCEPT =
   "image/jpeg,image/png,image/webp,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,.xls,.xlsx,.csv";
 
@@ -89,40 +87,11 @@ export function RecordAttachments({ recordType, recordId, canEdit = true }: Prop
   }, [recordType, recordId]);
 
   const upload = async (file: File) => {
-    if (!file.type.startsWith("image/") && file.type !== "application/pdf") {
-      return toast.error("نوع الملف غير مدعوم — اختر صورة أو PDF");
-    }
-    const originalSize = file.size;
-    let working = file;
     try {
-      if (file.type.startsWith("image/")) {
-        setPhase("compress");
-        toast.message("جاري ضغط الصورة...");
-        working = await compressImage(file, { maxDim: 1920, quality: 0.8 });
-      }
-      if (working.size > MAX_SIZE) {
-        toast.error("حجم الملف كبير جداً حتى بعد الضغط — جرب صورة أصغر");
-        return;
-      }
-      setPhase("upload");
-      const safe = working.name.replace(/[^\w.\-]/g, "_");
-      const path = await tenantStoragePath(`${recordType}/${recordId}/${Date.now()}_${safe}`);
-      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, working, { contentType: working.type });
-      if (upErr) throw upErr;
-      const { error: insErr } = await supabase.from("attachments" as any).insert({
-        record_type: recordType,
-        record_id: recordId,
-        file_path: path,
-        file_name: file.name,
-        file_type: working.type,
-        file_size: working.size,
-        original_size: originalSize,
-        uploaded_by: user?.id,
+      await uploadRecordAttachment(recordType, recordId, file, user?.id, (p) => {
+        setPhase(p);
+        if (p === "compress") toast.message("جاري ضغط الصورة...");
       });
-      if (insErr) {
-        await supabase.storage.from(BUCKET).remove([path]);
-        throw insErr;
-      }
       toast.success("تم رفع المرفق");
     } catch (e: any) {
       toast.error(e.message ?? "فشل الرفع");

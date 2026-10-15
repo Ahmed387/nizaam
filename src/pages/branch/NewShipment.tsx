@@ -40,6 +40,7 @@ import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
 import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { saveContact } from "@/lib/contactWrites";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
 interface Line {
   id?: string | null;
@@ -565,6 +566,7 @@ export default function NewShipment() {
         capacity: l.capacity?.trim() || undefined,
         size: l.size?.trim() || undefined,
       }));
+      const proofSince = proofClock();
       const { data: rpcRes, error: rpcErr } = await supabase.rpc("record_shipment_with_credit" as any, {
         p_header: {
           branch_id: branchId!,
@@ -623,6 +625,7 @@ export default function NewShipment() {
           existingPlanId: atomicPlanId,
           paymentDate: invoiceDate || null,
         });
+        await attachPaymentProofs((plan.splits ?? []).map((sp) => ({ files: sp.proof_files, method: sp.method, amount: Number(sp.amount), branchId })), proofSince);
       } catch (planErr: any) {
         console.error("payment plan failed:", planErr);
         docWarning({

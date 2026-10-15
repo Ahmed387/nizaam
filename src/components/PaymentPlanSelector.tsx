@@ -17,6 +17,7 @@ import {
   methodReceiverLabel,
   methodSenderLabel,
 } from "@/lib/paymentMethods";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 
 export type PayMode = "full" | "partial" | "credit";
 export type ScheduleType = "scheduled" | "open";
@@ -31,6 +32,8 @@ export interface PaymentSplit {
   received_by_name?: string;
   fee_amount: number;
   fee_type?: "percentage" | "fixed";
+  /** «إيصال التحويل» — uploaded to this payment's voucher after the save */
+  proof_files?: File[];
 }
 
 export interface PaymentPlanState {
@@ -251,6 +254,7 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
                             />
                           </div>
                         </div>
+                        <PaymentProofInput compact files={sp.proof_files} onChange={(f) => updateSplit(sp.id, { proof_files: f })} />
                       </div>
                     )}
 

@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatEGP } from "@/lib/format";
 import { AlertCircle, Ban, Banknote, Wallet } from "lucide-react";
+import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 
 /** Server preview of the money on a document before it is cancelled (`document_cancel_preview`, migration 0085). */
 export interface CancelPreview {
@@ -42,10 +43,13 @@ interface Props {
   method: string;
   onChange: (v: MoneyChoice) => void;
   onMethod: (m: string) => void;
+  /** «إيصال التحويل» of a transfer refund (uploaded to the refund voucher after the cancel) */
+  proofs?: File[];
+  onProofs?: (f: File[]) => void;
 }
 
 /** The one question asked when a sale / purchase invoice is cancelled: what happens to the money paid on it. */
-export function CancelMoneyChoice({ side, direct, toAccount, preview, canCredit, onlyCredit, cashOnly, value, method, onChange, onMethod }: Props) {
+export function CancelMoneyChoice({ side, direct, toAccount, preview, canCredit, onlyCredit, cashOnly, value, method, onChange, onMethod, proofs, onProofs }: Props) {
   const who = side === "customer" ? "العميل" : "المورد";
   const voidList = preview?.void_payments ?? [];
   const voidDisabled = onlyCredit || !preview || !preview.can_void;
@@ -110,6 +114,9 @@ export function CancelMoneyChoice({ side, direct, toAccount, preview, canCredit,
             </SelectContent>
           </Select>
         </div>
+      )}
+      {value === "refund" && method !== "cash" && onProofs && (
+        <PaymentProofInput compact files={proofs} onChange={onProofs} />
       )}
       {value === "void" && voidList.length > 0 && (
         <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs space-y-1">

@@ -10,6 +10,7 @@ import { Archive } from "lucide-react";
 import { LEDGER_START } from "@/lib/ledger";
 import { rpcErrorText } from "@/lib/rpcError";
 import { CancelMoneyChoice, type CancelPreview, type MoneyChoice } from "@/components/documents/CancelMoneyChoice";
+import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
 interface Props {
   open: boolean;
@@ -31,13 +32,14 @@ export function CancelInvoiceDialog({ open, onOpenChange, invoice, onDone }: Pro
   const [preview, setPreview] = useState<CancelPreview | null>(null);
   const [choice, setChoice] = useState<MoneyChoice | null>(null);
   const [method, setMethod] = useState("cash");
+  const [proofs, setProofs] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [customerName, setCustomerName] = useState<string>("");
   const [docDate, setDocDate] = useState<string>("");
 
   useEffect(() => {
     if (!open || !invoice?.id) return;
-    setReason(""); setChoice(null); setMethod("cash"); setPreview(null);
+    setReason(""); setChoice(null); setMethod("cash"); setPreview(null); setProofs([]);
     (async () => {
       const { data: pp } = await supabase
         .from("payment_plans").select("id")
@@ -83,6 +85,7 @@ export function CancelInvoiceDialog({ open, onOpenChange, invoice, onDone }: Pro
 
   const confirm = async () => {
     setBusy(true);
+    const proofSince = proofClock();
     const refund = !needsChoice ? "none" : choice === "refund" ? "cash" : choice === "void" ? "void" : "credit";
     const { data, error } = await supabase.rpc("cancel_invoice_with_refund" as any, {
       _invoice_id: invoice.id,
@@ -93,6 +96,8 @@ export function CancelInvoiceDialog({ open, onOpenChange, invoice, onDone }: Pro
     setBusy(false);
     if (error) return toast.error(rpcErrorText(error, "إلغاء الفاتورة باختيار الفلوس"));
     const r = data as any;
+    if (r?.refund_method === "cash" && method !== "cash" && Number(r.refunded) > 0)
+      await attachPaymentProofs([{ files: proofs, method, amount: Number(r.refunded), branchId: invoice.branch_id ?? null }], proofSince);
     if (r?.refund_method === "credit") toast.success(`تم الإلغاء — ${formatEGP(r.total_paid)} بقوا تحت حسابه`);
     else if (r?.refund_method === "cash") toast.success(`تم الإلغاء — اترد له ${formatEGP(r.refunded)}${Number(r.to_account) > 0 ? ` و${formatEGP(r.to_account)} رجعوا تحت حسابه` : ""}`);
     else if (r?.refund_method === "void") toast.success(`تم الإلغاء — اتلغت ${r.voided_payments} دفعة على يومها`);
@@ -148,6 +153,8 @@ export function CancelInvoiceDialog({ open, onOpenChange, invoice, onDone }: Pro
               method={method}
               onChange={setChoice}
               onMethod={setMethod}
+              proofs={proofs}
+              onProofs={setProofs}
             />
           )}
         </div>
