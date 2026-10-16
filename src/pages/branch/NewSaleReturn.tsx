@@ -249,7 +249,9 @@ export default function NewSaleReturn() {
   const mixedValid = refundMode !== "mixed" || Math.abs(mixedSum - total) < 0.01;
   const finalReason = reasonPick === "أخرى" ? reasonOther.trim() : reasonPick;
 
-  const submit = async (asDraft = false) => {
+  // `approved` is passed by the owner-override dialog: the state update of overrideApproved is not visible yet
+  // inside the same call (stale closure), so it used to re-open the dialog and never save.
+  const submit = async (asDraft = false, approved: { reason: string; daysSince: number; windowDays: number } | null = null) => {
     if (busy) return;
     if (!invoice) return toast.error("اختر فاتورة أولاً");
     if (!finalReason) return toast.error("اكتب السبب");
@@ -267,7 +269,7 @@ export default function NewSaleReturn() {
       if (refundMode === "mixed" && balancePart > 0 && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
 
       // Return-window policy (skipped when this call is already an approved owner override)
-      if (!overrideApproved) {
+      if (!(approved ?? overrideApproved)) {
         const policy = await evaluateReturnPolicy({
           invoiceId: invoice.id,
           invoiceDate: (invoice as any).invoice_date ?? invoice.created_at,
@@ -385,7 +387,7 @@ export default function NewSaleReturn() {
     } catch (error) {
       console.error("تعذر تسجيل موافقة تجاوز مدة المرتجع", error);
     }
-    await submit(pendingDraft);
+    await submit(pendingDraft, meta);
     setOverrideApproved(null);
   };
 
