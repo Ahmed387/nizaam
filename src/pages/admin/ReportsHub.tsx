@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AdminReports from "./Reports";
 import ScheduledReports from "./ScheduledReports";
 import AuditLog from "./AuditLog";
+import DocumentLog from "./DocumentLog";
 import ProfitabilityReport from "./ProfitabilityReport";
 import ReturnOverrides from "./ReturnOverrides";
 import HistoricalAnalytics from "./HistoricalAnalytics";
@@ -20,6 +21,7 @@ export default function ReportsHub() {
     profitability: isOwner || can("admin_reports_profitability.view"),
     historical: can("admin_historical_analytics.view"),
     scheduled: can("admin_reports_scheduled.view"),
+    "doc-log": can("admin_reports_audit.view"),
     audit: can("admin_reports_audit.view"),
     "return-overrides": can("admin_reports_return_overrides.view"),
   };
@@ -40,6 +42,7 @@ export default function ReportsHub() {
           {show.profitability && <TabsTrigger value="profitability">📊 الربحية</TabsTrigger>}
           {show.historical && <TabsTrigger value="historical">🕰️ الأرشيف والتحليل التاريخي</TabsTrigger>}
           {show.scheduled && <TabsTrigger value="scheduled">⏰ المجدولة</TabsTrigger>}
+          {show["doc-log"] && <TabsTrigger value="doc-log">🧾 سجل المستندات</TabsTrigger>}
           {show.audit && <TabsTrigger value="audit">سجل العمليات</TabsTrigger>}
           {show["return-overrides"] && <TabsTrigger value="return-overrides">↩️ تجاوزات المرتجعات</TabsTrigger>}
         </TabsList>
@@ -48,6 +51,7 @@ export default function ReportsHub() {
         {show.profitability && <TabsContent value="profitability" className="mt-4"><ProfitabilityReport embedded /></TabsContent>}
         {show.historical && <TabsContent value="historical" className="mt-4"><HistoricalAnalytics embedded /></TabsContent>}
         {show.scheduled && <TabsContent value="scheduled" className="mt-4"><ScheduledReports embedded /></TabsContent>}
+        {show["doc-log"] && <TabsContent value="doc-log" className="mt-4"><DocumentLog embedded /></TabsContent>}
         {show.audit && <TabsContent value="audit" className="mt-4"><AuditLog embedded /></TabsContent>}
         {show["return-overrides"] && <TabsContent value="return-overrides" className="mt-4"><ReturnOverrides embedded /></TabsContent>}
       </Tabs>
