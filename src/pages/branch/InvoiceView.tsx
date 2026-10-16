@@ -478,7 +478,7 @@ export default function InvoiceView() {
       </div>
 
       <div className="card-elevated p-4 print:hidden">
-        <DocumentMoneyMovements docId={inv.id} docRecordType="invoice" canEdit={inv.status !== "cancelled"} />
+        <DocumentMoneyMovements docId={inv.id} docRecordType="invoice" canEdit={inv.status !== "cancelled"} onChanged={() => window.location.reload()} />
       </div>
 
       <div className="card-elevated p-4 print:hidden">

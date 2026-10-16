@@ -377,7 +377,7 @@ export default function ShipmentView() {
       </div>
 
       <div className="card-elevated p-4 print:hidden">
-        <DocumentMoneyMovements docId={ship.id} docRecordType="shipment" canEdit={canEdit} />
+        <DocumentMoneyMovements docId={ship.id} docRecordType="shipment" canEdit={canEdit} onChanged={() => window.location.reload()} />
       </div>
 
       <div className="card-elevated p-4 print:hidden">

@@ -48,6 +48,7 @@ import { TransferDetails } from "@/components/documents/TransferDetails";
 import { MetricCardWithHint } from "@/components/MetricCardWithHint";
 import { useDocumentMetrics } from "@/hooks/useDocumentMetrics";
 import { enrichSettled, isDocKind, matchesDocCard, type DocCardKey } from "@/lib/documentMetrics";
+import { ConvertClassDialog, type ClassTarget } from "@/components/documents/ConvertClassDialog";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -85,7 +86,7 @@ const EMPTY_FILTERS: Filters = EMPTY_DOCUMENT_FILTERS;
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { branches, isAdmin, hasRole, tenantId, user, profile } = useAuth();
+  const { branches, isAdmin, hasRole, tenantId, user, profile, can } = useAuth();
   const isManager = hasRole("branch_manager");
   // No hard delete (owner rule): sale and purchase invoices are cancelled, never deleted.
   const [cancelSale, setCancelSale] = useState<any>(null);
@@ -393,6 +394,12 @@ export default function Invoices() {
   const enrichedRows = rows;
   const [cardFilter, setCardFilter] = useState<DocCardKey | null>(null);
   useEffect(() => { setCardFilter(null); }, [tab, branchId, view]);
+  // «تحويل لنقدي / لآجل» (0093): one invoice from its badge, or a selection of the page
+  const canConvert = (tab === "sale" || tab === "purchase") && can("doc_class.update");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [convert, setConvert] = useState<{ ids: string[]; target: ClassTarget } | null>(null);
+  useEffect(() => { setSelected(new Set()); }, [tab, branchId, view, page, queryFilters]);
+  const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const filteredRows = useMemo(() => docKind && cardFilter ? enrichedRows.filter((r: any) => matchesDocCard(docKind, r, cardFilter)) : enrichedRows, [enrichedRows, cardFilter, docKind]);
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -413,7 +420,13 @@ export default function Invoices() {
 
   /** The shared columns of the sale / purchase tables: «التصنيف», paid / remaining, «حالة السداد», then how it was paid. */
   const settleColumns = (k: "sale" | "purchase") => [
-    { key: "__class", header: "التصنيف", align: "center", className: "min-w-[90px]", render: (r: any) => r.status === "cancelled" ? <span className="text-muted-foreground">—</span> : <ClassBadge value={r.__class} /> },
+    { key: "__class", header: "التصنيف", align: "center", className: "min-w-[90px]", render: (r: any) => r.status === "cancelled" ? <span className="text-muted-foreground">—</span>
+        : canConvert ? (
+          <button type="button" title={r.__class === "cash" ? "تحويل لآجل" : "تحويل لنقدي"} className="rounded-full hover:ring-2 hover:ring-primary/40"
+                  onClick={(e) => { e.stopPropagation(); setConvert({ ids: [r.id], target: r.__class === "cash" ? "credit" : "cash" }); }}>
+            <ClassBadge value={r.__class} />
+          </button>
+        ) : <ClassBadge value={r.__class} /> },
     { key: "__paid_rem", header: "المدفوع / المتبقي", align: "center", className: "min-w-[150px]", render: (r: any) => r.status !== "cancelled" ? (
       <span className="flex flex-col items-center gap-1 text-xs tabular-nums leading-tight">
         <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 font-bold text-success">
@@ -1178,13 +1191,39 @@ export default function Invoices() {
       )}
 
       <div ref={tableTopRef} className="scroll-mt-4" />
+      {canConvert && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+          <Button size="sm" variant="ghost" className="h-7" onClick={() => setSelected(new Set(filteredRows.filter((r: any) => r.status !== "cancelled").map((r: any) => r.id)))}>
+            تحديد كل الصفحة
+          </Button>
+          {selected.size > 0 && (
+            <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-1.5 shadow-sm">
+              <span className="font-bold">محدد {selected.size} فاتورة</span>
+              <Button size="sm" className="h-7" onClick={() => setConvert({ ids: Array.from(selected), target: "cash" })}>تحويل لنقدي</Button>
+              <Button size="sm" variant="outline" className="h-7" onClick={() => setConvert({ ids: Array.from(selected), target: "credit" })}>تحويل لآجل</Button>
+              <Button size="sm" variant="ghost" className="h-7" onClick={() => setSelected(new Set())}>إلغاء التحديد</Button>
+            </div>
+          )}
+        </div>
+      )}
+      {convert && (tab === "sale" || tab === "purchase") && (
+        <ConvertClassDialog open={!!convert} onOpenChange={(o) => { if (!o) setConvert(null); }}
+                            docType={tab === "sale" ? "invoice" : "shipment"} ids={convert.ids} target={convert.target}
+                            onDone={() => { setSelected(new Set()); load(); setMetricsTick((t) => t + 1); }} />
+      )}
       <DataTable
         loading={loading}
         rows={filteredRows}
         indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
         onRowClick={cfg.onClick}
         empty="لا توجد سجلات"
-        columns={cfg.columns as any}
+        columns={(canConvert ? [{
+          key: "__sel", header: "✓", align: "center", className: "w-[40px]",
+          render: (r: any) => r.status === "cancelled" ? null : (
+            <input type="checkbox" className="h-4 w-4 accent-primary cursor-pointer" checked={selected.has(r.id)}
+                   onClick={(e) => e.stopPropagation()} onChange={() => toggleSel(r.id)} aria-label="تحديد" />
+          ),
+        }, ...cfg.columns] : cfg.columns) as any}
         minTableWidth={tab === "sale" || tab === "purchase" ? "1900px" : docKind ? "1100px" : undefined}
         getRowKey={(row: any) => row.id}
         isRowExpanded={DOC_ITEMS_TABS.includes(tab) || tab === "transfer" ? (row: any) => expandedInvoiceId === row.id : undefined}

@@ -53,6 +53,8 @@ export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   { key: "attendance", label: "الحضور والانصراف", actions: ["view", "create", "update"] },
   { key: "reports", label: "التقارير", actions: ["view"] },
   { key: "attachments", label: "المرفقات (ملفات الفواتير والمستندات)", actions: ["view", "create", "update", "delete"] },
+  // 0093: «تحويل لنقدي / لآجل» on sale and purchase invoices (moves the money on the right days)
+  { key: "doc_class", label: "تحويل الفاتورة نقدي / آجل (بيع وشراء)", actions: ["update"] },
 ];
 
 /** Admin sidebar pages — the owner can grant any of these to any role. */

@@ -5,7 +5,10 @@ import { useAttachmentCounts, type RecordType } from "@/hooks/useAttachmentCount
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
-import { Paperclip, Receipt } from "lucide-react";
+import { ArrowLeftRight, Paperclip, Receipt } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { ConvertClassDialog } from "@/components/documents/ConvertClassDialog";
 
 interface VoucherRow {
   id: string;
@@ -23,13 +26,31 @@ interface VoucherRow {
  * payments), with each voucher's attachments (transfer receipts) and a header summary:
  * how many movements the document has and how many attachments in total (document + payment receipts).
  */
-export function DocumentMoneyMovements({ docId, docRecordType, canEdit = true }: {
+export function DocumentMoneyMovements({ docId, docRecordType, canEdit = true, onChanged }: {
   docId: string;
   docRecordType: RecordType;
   canEdit?: boolean;
+  /** the document's page reloads its paid / remaining after a «تحويل لنقدي / لآجل» */
+  onChanged?: () => void;
 }) {
   const [rows, setRows] = useState<VoucherRow[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // «التصنيف» + «تحويل لنقدي / لآجل» (0093) on sale / purchase invoices
+  const classDoc: "invoice" | "shipment" | null = docRecordType === "invoice" ? "invoice" : docRecordType === "shipment" ? "shipment" : null;
+  const [cls, setCls] = useState<{ cls: string | null; active: boolean } | null>(null);
+  const [convOpen, setConvOpen] = useState(false);
+  const { can } = useAuth();
+  const canConvert = !!classDoc && can("doc_class.update");
+  const loadClass = useCallback(async () => {
+    if (!classDoc) return;
+    const q = classDoc === "invoice"
+      ? supabase.from("invoices").select("status, settle:invoice_settlement(class)").eq("id", docId).maybeSingle()
+      : supabase.from("shipments").select("status, settle:shipment_settlement(class)").eq("id", docId).maybeSingle();
+    const { data } = await q;
+    const st: any = Array.isArray((data as any)?.settle) ? (data as any).settle[0] : (data as any)?.settle;
+    setCls({ cls: st?.class ?? "credit", active: (data as any)?.status !== "cancelled" });
+  }, [classDoc, docId]);
+  useEffect(() => { loadClass(); }, [loadClass]);
 
   const load = useCallback(async () => {
     const [{ data: tr }, { data: plans }] = await Promise.all([
@@ -52,6 +73,7 @@ export function DocumentMoneyMovements({ docId, docRecordType, canEdit = true }:
 
   useEffect(() => { load(); }, [load]);
   useRealtimeRefresh(["vouchers", "treasury", "payment_transactions"], load);
+  useRealtimeRefresh(["vouchers", "payment_transactions", "invoice_payments"], loadClass);
 
   const voucherIds = useMemo(() => rows.map((r) => r.id), [rows]);
   const vCounts = useAttachmentCounts("voucher", voucherIds);
@@ -74,7 +96,24 @@ export function DocumentMoneyMovements({ docId, docRecordType, canEdit = true }:
         {rows.length > active.length && (
           <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive">{rows.length - active.length} ملغاة</span>
         )}
+        {classDoc && cls?.active && (
+          <span className="ms-auto flex items-center gap-2 text-xs font-normal">
+            التصنيف:
+            <span className={`rounded-full border px-2.5 py-0.5 font-bold ${cls.cls === "cash" ? "border-success/40 bg-success/15 text-success" : "border-warning/40 bg-warning/15 text-warning"}`}>
+              {cls.cls === "cash" ? "نقدي" : "آجل"}
+            </span>
+            {canConvert && canEdit && (
+              <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => setConvOpen(true)}>
+                <ArrowLeftRight className="w-3.5 h-3.5" /> {cls.cls === "cash" ? "تحويل لآجل" : "تحويل لنقدي"}
+              </Button>
+            )}
+          </span>
+        )}
       </div>
+      {classDoc && convOpen && (
+        <ConvertClassDialog open={convOpen} onOpenChange={setConvOpen} docType={classDoc} ids={[docId]}
+                            target={cls?.cls === "cash" ? "credit" : "cash"} onDone={() => { load(); loadClass(); onChanged?.(); }} />
+      )}
       {!loaded ? (
         <div className="text-xs text-muted-foreground text-center py-2">جاري التحميل...</div>
       ) : rows.length === 0 ? (
