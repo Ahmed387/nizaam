@@ -103,7 +103,7 @@ export default function FiscalClosing() {
     setSavingSetting(true);
     const { error } = await supabase.from("settings" as any).upsert({
       key: settingKey, value: { mmdd: closeMMDD } as any, tenant_id: tenantId,
-    } as any, { onConflict: "key" });
+    } as any, { onConflict: "scope,key" });
     setSavingSetting(false);
     if (error) { toast.error(error.message); return; }
     toast.success("تم حفظ تاريخ الإقفال الافتراضي");

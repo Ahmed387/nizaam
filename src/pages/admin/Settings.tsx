@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { saveCompanySetting } from "@/lib/companySettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
@@ -116,13 +117,13 @@ export default function Settings() {
     setSavingDiscount(true);
     try {
       if (discMode === "global") {
-        await supabase.from("settings").upsert({ key: "discount_policy_global", value: { mode: "global", percent: Number(discGlobalPct) || 0, min_price_floor: minPriceFloor } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
-        await supabase.from("settings").upsert({ key: "discount_policy_branches", value: { mode: "global" } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
+        await saveCompanySetting("discount_policy_global", { mode: "global", percent: Number(discGlobalPct) || 0, min_price_floor: minPriceFloor }, user!.id);
+        await saveCompanySetting("discount_policy_branches", { mode: "global" }, user!.id);
       } else {
         const cleaned: Record<string, number> = {};
         for (const b of branches) cleaned[b.id] = Number(discBranchPct[b.id] ?? 0) || 0;
-        await supabase.from("settings").upsert({ key: "discount_policy_branches", value: { mode: "per_branch", branches: cleaned } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
-        await supabase.from("settings").upsert({ key: "discount_policy_global", value: { mode: "per_branch", percent: Number(discGlobalPct) || 0, min_price_floor: minPriceFloor } as any, updated_by: user!.id, updated_at: new Date().toISOString() });
+        await saveCompanySetting("discount_policy_branches", { mode: "per_branch", branches: cleaned }, user!.id);
+        await saveCompanySetting("discount_policy_global", { mode: "per_branch", percent: Number(discGlobalPct) || 0, min_price_floor: minPriceFloor }, user!.id);
       }
       await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "discount_policy", details: { mode: discMode, global: discGlobalPct, branches: discBranchPct } });
       toast.success("تم حفظ إعدادات الخصم");
@@ -135,12 +136,7 @@ export default function Settings() {
     const n = Math.min(365, Math.max(1, Math.floor(Number(returnWindowDays) || 20)));
     setSavingReturnPolicy(true);
     try {
-      await supabase.from("settings").upsert({
-        key: "return_policy",
-        value: { days: n } as any,
-        updated_by: user!.id,
-        updated_at: new Date().toISOString(),
-      });
+      await saveCompanySetting("return_policy", { days: n }, user!.id);
       await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "return_policy", details: { days: n } });
       setReturnWindowDays(n);
       toast.success("تم حفظ سياسة الإرجاع");
@@ -188,7 +184,7 @@ export default function Settings() {
 
   const saveKey = async (key: string, value: any) => {
     setSaving(true);
-    const { error } = await supabase.from("settings").upsert({ key, value, updated_by: user!.id, updated_at: new Date().toISOString() });
+    const error = await saveCompanySetting(key, value, user!.id).then(() => null, (e) => e as { message: string });
     if (error) toast.error(error.message);
     else {
       await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "settings", entityId: key, details: value });

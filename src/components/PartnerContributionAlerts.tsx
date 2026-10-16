@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { saveCompanySetting } from "@/lib/companySettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { BellRing, CalendarClock, CheckCircle2, Loader2, PieChart } from "lucide-react";
@@ -83,11 +84,7 @@ export function PartnerContributionAlerts({ mode = "live" }: { mode?: "live" | "
 
   const markReviewed = async () => {
     setSaving(true);
-    const { error } = await supabase.from("settings").upsert({
-      key: SETTING_KEY,
-      value: { at: new Date().toISOString() } as any,
-      updated_at: new Date().toISOString(),
-    });
+    const error = await saveCompanySetting(SETTING_KEY, { at: new Date().toISOString() }).then(() => null, (e) => e as { message: string });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("تم تسجيل مراجعة نسب رأس المال");
