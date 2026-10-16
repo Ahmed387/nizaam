@@ -40,7 +40,7 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from "@/components/CancelReturnButton";
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
-import { fetchDocumentStatus } from "@/lib/ledger";
+import { fetchDocumentPayView } from "@/lib/ledger";
 import { methodsForFilter, SETTLE_COLS, type SalePayState } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
@@ -305,9 +305,11 @@ export default function Invoices() {
     if ((tab === "sale" || tab === "purchase") && data.length) {
       // Paid / remaining from the unified ledger (as of the period's last day for a past period);
       // «التصنيف» and the payment columns from the document's settlement row (0083).
-      const st = await fetchDocumentStatus(tab === "sale" ? "invoice" : "shipment", data.map((x: any) => x.id), ctrl.signal, statusAsOf).catch(() => new Map());
+      // a past period: status AND the method columns as of its last day (0091); later money is a note on the row
+      const pv = await fetchDocumentPayView(tab === "sale" ? "invoice" : "shipment", data.map((x: any) => x.id), statusAsOf, ctrl.signal)
+        .catch(() => ({ status: new Map(), asOf: new Map() }));
       if (stale()) return;
-      data = data.map((x: any) => enrichSettled(x, tab === "sale" ? x.total : x.total_cost, st.get(x.id)));
+      data = data.map((x: any) => enrichSettled(x, tab === "sale" ? x.total : x.total_cost, pv.status.get(x.id), pv.asOf.get(x.id)));
     }
     setRows(data);
     if (joinedDupes) {
@@ -422,6 +424,11 @@ export default function Invoices() {
           <span className="text-[10px] font-extrabold text-muted-foreground">متبقي</span>
           {formatEGP(r.__remaining ?? 0)}
         </span>
+        {Number(r.__after) > 0.01 && (
+          <span className="text-[10px] text-info font-semibold whitespace-nowrap" title="اتدفع بعد آخر يوم في الفترة — مش محسوب في المدفوع ولا في أعمدة طريقة الدفع">
+            اتدفع بعد الفترة {formatEGP(r.__after)}{r.__afterFrom ? ` من ${formatDate(r.__afterFrom)}` : ""}
+          </span>
+        )}
       </span>
     ) : <span className="text-muted-foreground">—</span> },
     { key: "__pay_state", header: "حالة السداد", align: "center", className: "min-w-[130px]", render: (r: any) => r.status !== "cancelled" ? <SalePayBadge state={r.__payState} remaining={Number(r.__remaining) || 0} /> : <span className="text-muted-foreground">—</span> },
@@ -767,9 +774,16 @@ export default function Invoices() {
       return;
     }
     const settled = tab === "sale" || tab === "purchase";
+    // same reading as the table: a past period as of its last day (0091)
+    let pv: { status: Map<string, any>; asOf: Map<string, any> } = { status: new Map(), asOf: new Map() };
+    if (settled) {
+      try {
+        pv = await fetchDocumentPayView(tab === "sale" ? "invoice" : "shipment", all.filter((x) => x.status !== "cancelled").map((x) => x.id), statusAsOf);
+      } catch { /* the settlement row stays the fallback */ }
+    }
     const BUCKET_KEY: Record<string, string> = { __b_cash: "cash", __b_instapay: "instapay", __b_wallet: "wallet", __b_bank: "bank", __b_account: "account", __b_other: "other" };
     const exportRows = all.map((raw) => {
-      const r = settled ? enrichSettled(raw, tab === "sale" ? raw.total : raw.total_cost) : raw;
+      const r = settled ? enrichSettled(raw, tab === "sale" ? raw.total : raw.total_cost, pv.status.get(raw.id), pv.asOf.get(raw.id)) : raw;
       const out: any = {};
       for (const c of cfg.columns as any[]) {
         if (c.key === "actions") continue;
@@ -777,7 +791,11 @@ export default function Invoices() {
         if (settled && BUCKET_KEY[c.key]) { out[c.header] = Number(r.__byBucket?.[BUCKET_KEY[c.key]]) || 0; continue; }
         if (settled && c.key === "__class") { out[c.header] = r.status === "cancelled" ? "" : r.__class === "cash" ? "نقدي" : "آجل"; continue; }
         if (settled && c.key === "__pay_state") { out[c.header] = r.status === "cancelled" ? "" : r.__payState === "paid" ? "مدفوعة بالكامل" : r.__payState === "partial" ? "سداد جزئي" : "لم يتم الدفع"; continue; }
-        if (settled && c.key === "__paid_rem") { out["المدفوع"] = r.__paid ?? 0; out["المتبقي"] = r.__remaining ?? 0; continue; }
+        if (settled && c.key === "__paid_rem") {
+          out["المدفوع"] = r.__paid ?? 0; out["المتبقي"] = r.__remaining ?? 0;
+          if (statusAsOf) { out["اتدفع بعد الفترة"] = r.__after ?? 0; out["من يوم"] = r.__afterFrom ?? ""; }
+          continue;
+        }
         try { v = c.render ? c.render(r) : r[c.key]; } catch { v = r[c.key]; }
         if (v && typeof v === "object") v = r[c.key] ?? "";
         out[c.header] = v ?? "";
@@ -1156,7 +1174,7 @@ export default function Invoices() {
 
       {docKind && <UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} view={view} />}
       {statusAsOf && (docKind === "sale" || docKind === "purchase") && (
-        <div className="text-xs text-muted-foreground -mt-2 mb-3">المدفوع والمتبقي وحالة كل فاتورة محسوبين لحد {formatDate(statusAsOf)} (آخر يوم في الفترة)، مش لحد النهارده.</div>
+        <div className="text-xs text-muted-foreground -mt-2 mb-3">المدفوع والمتبقي وحالة السداد وأعمدة طريقة الدفع والكروت محسوبين لحد {formatDate(statusAsOf)} (آخر يوم في الفترة)، مش لحد النهارده. اللي اتدفع بعد كده ظاهر لوحده «اتدفع بعد الفترة».</div>
       )}
 
       <div ref={tableTopRef} className="scroll-mt-4" />

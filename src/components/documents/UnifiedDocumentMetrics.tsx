@@ -193,6 +193,12 @@ function SplitLines({ kind, split, side, countLine }: { kind: DocKind; split?: i
             <span className="tabular-nums font-bold text-warning">{fmt(split?.remaining ?? 0)}</span>
           </div>
         )}
+        {(split?.after ?? 0) > 0.01 && (
+          <div className="flex justify-between gap-2 text-[11px]" title="اتدفع على الفواتير دي بعد آخر يوم في الفترة — مش داخل في الأرقام اللي فوق">
+            <span>اتدفع بعد الفترة</span>
+            <span className="tabular-nums font-semibold text-info">{fmt(split?.after ?? 0)}</span>
+          </div>
+        )}
       </div>
     </div>
   );

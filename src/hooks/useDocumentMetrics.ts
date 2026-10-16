@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
 import { aggregateFacts, docFacts, enrichSettled, METRIC_SELECT, type DocKind, type DocMetricsResult } from "@/lib/documentMetrics";
-import { fetchDocumentStatus } from "@/lib/ledger";
+import { fetchDocumentPayView } from "@/lib/ledger";
 import { emptyBuckets, r2, type CollectionBucket } from "@/hooks/useSalesInvoices";
 
 /** Query factory shared with the table: same filters, only the projection differs. */
@@ -17,6 +17,8 @@ export interface PaySplit {
   byBucket: Record<CollectionBucket, number>;
   /** still open on them (credit side only) */
   remaining: number;
+  /** a past period: paid on them after its last day (not in byBucket) */
+  after: number;
 }
 
 export interface DocMetrics extends DocMetricsResult {
@@ -65,14 +67,15 @@ export function useDocumentMetrics(
           // paid / open from the unified ledger (as of the period's last day for a past period),
           // «التصنيف» and how each document was settled from its settlement row (0083, embedded by the query)
           const live = unique.filter((r) => r.status !== "cancelled");
-          const st = await fetchDocumentStatus(kind === "sale" ? "invoice" : "shipment", live.map((r) => r.id), ctrl.signal, asOf);
-          unique = unique.map((r) => enrichSettled(r, kind === "sale" ? r.total : r.total_cost, st.get(r.id)));
+          // a past period is read entirely as of its last day (0091): status AND how it was paid by then
+          const pv = await fetchDocumentPayView(kind === "sale" ? "invoice" : "shipment", live.map((r) => r.id), asOf, ctrl.signal);
+          unique = unique.map((r) => enrichSettled(r, kind === "sale" ? r.total : r.total_cost, pv.status.get(r.id), pv.asOf.get(r.id)));
         }
         const result: DocMetrics = aggregateFacts(unique.map((r) => docFacts(kind, r)));
 
         if (kind === "sale" || kind === "purchase") {
           // «نقدي» / «آجل» by the document's class; under each card: how its money came (and, آجل, what is still open)
-          const mk = (): PaySplit => ({ count: 0, total: 0, byBucket: emptyBuckets(), remaining: 0 });
+          const mk = (): PaySplit => ({ count: 0, total: 0, byBucket: emptyBuckets(), remaining: 0, after: 0 });
           const split = { cash: mk(), credit: mk() };
           for (const r of unique) {
             if (r.status === "cancelled") continue;
@@ -80,10 +83,11 @@ export function useDocumentMetrics(
             side.count += 1;
             side.total += Number(kind === "sale" ? r.total : r.total_cost) || 0;
             side.remaining += Number(r.__remaining) || 0;
+            side.after += Number(r.__after) || 0;
             (Object.keys(side.byBucket) as CollectionBucket[]).forEach((k) => { side.byBucket[k] += Number(r.__byBucket?.[k]) || 0; });
           }
           for (const s of [split.cash, split.credit]) {
-            s.total = r2(s.total); s.remaining = r2(s.remaining);
+            s.total = r2(s.total); s.remaining = r2(s.remaining); s.after = r2(s.after);
             (Object.keys(s.byBucket) as CollectionBucket[]).forEach((k) => { s.byBucket[k] = r2(s.byBucket[k]); });
           }
           result.split = split;

@@ -44,11 +44,16 @@ export function docFacts(kind: DocKind, r: Row): DocFacts {
       const remaining = n(r.__remaining);
       const credit = (r.__class ?? s?.class ?? "credit") !== "cash";
       const c = (v: number) => (credit ? v : 0);
+      // a past period (0091): what was paid by its last day, from the as-of buckets; else the settlement row
+      const b = r.__asOf ? byBucket : null;
+      const money = b ? b.cash + b.instapay + b.wallet + b.bank : n(s?.at_sale) + n(s?.later_money);
+      const atSale = b ? Math.min(n(s?.at_sale), money) : n(s?.at_sale);
       const parts: Record<string, number> = {
         active: amount, remaining,
         cashDocs: credit ? 0 : amount, creditDocs: credit ? amount : 0,
-        creditMoney: c(n(s?.at_sale) + n(s?.later_money)), creditAtSale: c(n(s?.at_sale)), creditLater: c(n(s?.later_money)),
-        creditAccount: c(n(s?.from_account)), creditReturn: c(n(s?.from_return)), creditOpen: c(remaining),
+        creditMoney: c(money), creditAtSale: c(atSale), creditLater: c(money - atSale),
+        creditAccount: c(b ? b.account : n(s?.from_account)), creditReturn: c(b ? b.other : n(s?.from_return)), creditOpen: c(remaining),
+        paidAfter: n(r.__after),
       };
       if (kind === "sale") parts.collected = n(r.__paid_money ?? r.__paid);
       else Object.assign(parts, { supplierPaid: n(r.__paid_money ?? r.__paid), supplierDue: remaining, fullyPaid: remaining <= 0.01 ? amount : 0 });
@@ -141,13 +146,21 @@ export function isInternalOrRefundPayment(sysKey?: string | null, name?: string 
 }
 
 /** Row enrichment for the sale / purchase tables: paid / remaining from the ledger status, the rest from the settlement row. */
-export function enrichSettled(x: any, totalRaw: unknown, a?: { paid: number; paid_money: number; paid_by_returns?: number; remaining: number }) {
+/**
+ * Row enrichment for the sale / purchase tables: paid / remaining from the ledger status. A past period passes
+ * `asOf` (0091): the method columns are then what was paid by the period's last day, and what came after is kept
+ * apart (`__after` from `__afterFrom`) — the row never shows «لم يتم الدفع» next to money. Otherwise the
+ * columns are the settlement row's.
+ */
+export function enrichSettled(x: any, totalRaw: unknown, a?: { paid: number; paid_money: number; paid_by_returns?: number; remaining: number },
+                              asOf?: { byBucket: Record<CollectionBucket, number>; after: number; afterFrom: string | null }) {
   const s = x.settle ?? null;
   const total = Number(totalRaw) || 0;
   if (x.status === "cancelled") return { ...x, __paid: 0, __paid_money: 0, __remaining: 0, __byBucket: settleBuckets(s), __class: s?.class ?? null };
   const paid = a ? a.paid : Number(s?.paid) || 0;
   const remaining = a ? a.remaining : Math.max(0, Math.round((total - paid) * 100) / 100);
   return { ...x, __paid: paid, __paid_money: a ? a.paid_money : paid - (Number(s?.from_return) || 0), __paid_returns: a?.paid_by_returns ?? (Number(s?.from_return) || 0),
-           __remaining: remaining, __payState: salePayState(total, paid), __byBucket: settleBuckets(s), __class: s?.class ?? "credit" };
+           __remaining: remaining, __payState: salePayState(total, paid), __byBucket: asOf ? { ...asOf.byBucket } : settleBuckets(s),
+           __asOf: !!asOf, __after: asOf?.after ?? 0, __afterFrom: asOf?.afterFrom ?? null, __class: s?.class ?? "credit" };
 }
 

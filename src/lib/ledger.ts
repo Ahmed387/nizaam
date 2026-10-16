@@ -249,6 +249,49 @@ export async function fetchDocumentStatus(docType: "invoice" | "shipment", ids: 
   return out;
 }
 
+/** A past period, read on ONE date (0091): the as-of status, how what was paid by then was paid, and what came after. */
+export interface DocumentAsOf {
+  status: DocumentStatus;
+  /** paid up to the period's last day, by bucket (same keys as the settlement buckets) */
+  byBucket: { cash: number; instapay: number; wallet: number; bank: number; account: number; other: number };
+  /** paid on the document after the period, and from which day */
+  after: number;
+  afterFrom: string | null;
+}
+export async function fetchDocumentAsOf(docType: "invoice" | "shipment", ids: (string | null | undefined)[], asOf: string, signal?: AbortSignal): Promise<Map<string, DocumentAsOf>> {
+  const clean = Array.from(new Set(ids.filter(Boolean) as string[]));
+  const out = new Map<string, DocumentAsOf>();
+  for (let i = 0; i < clean.length; i += 1000) {
+    let q = rpc("ledger_document_split_as_of", { p_doc_type: docType, p_ids: clean.slice(i, i + 1000), p_as_of: asOf });
+    if (signal) q = q.abortSignal(signal);
+    const { data, error } = await q;
+    if (error) throw error;
+    for (const r of (data ?? []) as any[]) {
+      out.set(r.doc_id, {
+        status: {
+          doc_id: r.doc_id, total: n(r.total), paid: n(r.paid), paid_money: n(r.paid_money), paid_by_returns: n(r.paid_by_returns),
+          paid_from_other_branches: n(r.paid_from_other_branches), remaining: n(r.remaining), state: r.state,
+        },
+        byBucket: { cash: n(r.cash), instapay: n(r.instapay), wallet: n(r.wallet), bank: n(r.bank), account: n(r.account), other: n(r.from_return) },
+        after: n(r.after_amount), afterFrom: r.after_from ?? null,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Paid / remaining and how each document was paid, for the sale / purchase screens. A past period (asOf set) is
+ * read entirely as of its last day (0091); otherwise today's status, and the buckets stay the settlement row's.
+ */
+export async function fetchDocumentPayView(docType: "invoice" | "shipment", ids: (string | null | undefined)[], asOf: string | null, signal?: AbortSignal) {
+  if (asOf) {
+    const m = await fetchDocumentAsOf(docType, ids, asOf, signal);
+    return { status: new Map(Array.from(m, ([k, v]) => [k, v.status])), asOf: m };
+  }
+  return { status: await fetchDocumentStatus(docType, ids, signal, null), asOf: new Map<string, DocumentAsOf>() };
+}
+
 /** Money the ledger allocated to each document, by payment method ('return_credit' = return credit, not money). */
 export async function fetchDocumentPaidByMethod(docType: "invoice" | "shipment", ids: (string | null | undefined)[], signal?: AbortSignal): Promise<Map<string, Record<string, number>>> {
   const clean = Array.from(new Set(ids.filter(Boolean) as string[]));
