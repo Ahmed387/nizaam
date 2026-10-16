@@ -411,15 +411,16 @@ export default function ContactFile() {
                       empty="لا توجد مستندات"
                       onRowClick={(r: ContactDocument) => nav(docPath(r))}
                       columns={[
+                        // same order as the sale table: number · amount · paid / remaining · how it was paid · status · branch · date · actions
                         { key: "n", header: "الرقم", render: (r: ContactDocument) => <span className="font-mono font-semibold">{r.doc_number ?? "—"}</span> },
-                        { key: "d", header: "التاريخ", render: (r: ContactDocument) => formatDate(r.doc_date) },
-                        { key: "b", header: "الفرع", render: (r: ContactDocument) => r.branch_name ?? "—" },
-                        { key: "s", header: "الحالة", render: (r: ContactDocument) => <span className={`px-2 py-0.5 rounded text-xs font-bold ${STATE_LABEL[r.state]?.c ?? ""}`}>{STATE_LABEL[r.state]?.t ?? r.state}</span> },
-                        { key: "t", header: "الإجمالي", render: (r: ContactDocument) => <b>{formatEGP(r.total)}</b> },
+                        { key: "t", header: "المبلغ", render: (r: ContactDocument) => <b>{formatEGP(r.total)}</b> },
                         { key: "pm", header: "مدفوع فلوس", render: (r: ContactDocument) => (r.paid_money == null ? "—" : formatEGP(r.paid_money)) },
-                        { key: "pr", header: "خصم مرتجعات", render: (r: ContactDocument) => (r.paid_by_returns ? formatEGP(r.paid_by_returns) : "—") },
-                        { key: "px", header: "من فرع تاني", render: (r: ContactDocument) => (r.paid_from_other_branches ? formatEGP(r.paid_from_other_branches) : "—") },
                         { key: "rm", header: "المتبقي", render: (r: ContactDocument) => (r.remaining == null ? "—" : <b className={r.remaining > 0.005 ? "text-warning" : "text-success"}>{formatEGP(r.remaining)}</b>) },
+                        { key: "pr", header: "من مرتجع", render: (r: ContactDocument) => (r.paid_by_returns ? formatEGP(r.paid_by_returns) : "—") },
+                        { key: "px", header: "من فرع تاني", render: (r: ContactDocument) => (r.paid_from_other_branches ? formatEGP(r.paid_from_other_branches) : "—") },
+                        { key: "s", header: "الحالة", render: (r: ContactDocument) => <span className={`px-2 py-0.5 rounded text-xs font-bold ${STATE_LABEL[r.state]?.c ?? ""}`}>{STATE_LABEL[r.state]?.t ?? r.state}</span> },
+                        { key: "b", header: "الفرع", render: (r: ContactDocument) => r.branch_name ?? "—" },
+                        { key: "d", header: "التاريخ", render: (r: ContactDocument) => formatDate(r.doc_date) },
                         { key: "acc", header: "", render: (r: ContactDocument) => canUseAccount && accountAvail > 0.005 && r.state === "open" && (Number(r.remaining) || 0) > 0.005 && (r.doc_type === "invoice" || r.doc_type === "shipment")
                             ? <Button size="sm" variant="outline" className="h-7 text-xs" onClick={(e) => { e.stopPropagation(); openUseAccount(r); }}>{side === "customer" ? "سدد من تحت حسابه" : "سدد من تحت حسابنا"}</Button>
                             : null },
@@ -437,20 +438,21 @@ export default function ContactFile() {
                       rows={money}
                       empty="لا توجد حركات فلوس"
                       columns={[
-                        { key: "d", header: "التاريخ", render: (m: ContactMoneyRow) => formatDate(m.movement_date) },
+                        // same order as the voucher tables: number · type · amount · on invoices / on account · method · status · branch · date · actions
+                        { key: "r", header: "الرقم", render: (m: ContactMoneyRow) => <span className="text-xs font-mono">{m.reference ?? "—"}{m.target_doc_number ? ` ← ${m.target_doc_number}` : ""}</span> },
                         { key: "k", header: "النوع", render: (m: ContactMoneyRow) => m.kind_label },
-                        { key: "b", header: "الفرع", render: (m: ContactMoneyRow) => m.branch_name ?? "—" },
-                        { key: "m", header: "الطريقة", render: (m: ContactMoneyRow) => methodLabel(m.method) },
-                        { key: "r", header: "المرجع", render: (m: ContactMoneyRow) => <span className="text-xs">{m.reference ?? "—"}{m.target_doc_number ? ` ← ${m.target_doc_number}` : ""}</span> },
                         { key: "a", header: "المبلغ", render: (m: ContactMoneyRow) => <b className={m.status === "active" ? "" : "line-through text-muted-foreground"}>{formatEGP(m.amount)}</b> },
                         { key: "al", header: "اتخصم من فواتير", render: (m: ContactMoneyRow) => formatEGP(m.allocated) },
                         { key: "u", header: "متبقي مقدم", render: (m: ContactMoneyRow) => (m.effect === "settle" && m.unallocated > 0.005 ? <b className="text-primary">{formatEGP(m.unallocated)}</b> : "—") },
                         { key: "x", header: "في فرع تاني", render: (m: ContactMoneyRow) => (m.used_in_other_branches > 0.005 ? formatEGP(m.used_in_other_branches) : "—") },
+                        { key: "m", header: "الطريقة", render: (m: ContactMoneyRow) => methodLabel(m.method) },
+                        { key: "st", header: "الحالة", render: (m: ContactMoneyRow) => (m.status === "active" ? <span className="text-success text-xs">سارية</span> : <span className="text-destructive text-xs" title={m.cancel_reason ?? ""}>ملغاة</span>) },
+                        { key: "b", header: "الفرع", render: (m: ContactMoneyRow) => m.branch_name ?? "—" },
+                        { key: "d", header: "التاريخ", render: (m: ContactMoneyRow) => formatDate(m.movement_date) },
                         { key: "att", header: "📎", render: (m: ContactMoneyRow) => {
                           const v = moneyVouchers[m.movement_id];
                           return v ? <AttachmentsDialogButton recordType="voucher" recordId={v.id} count={moneyAttCounts[v.id] ?? 0} canEdit={v.status === "active"} /> : "—";
                         } },
-                        { key: "st", header: "الحالة", render: (m: ContactMoneyRow) => (m.status === "active" ? <span className="text-success text-xs">سارية</span> : <span className="text-destructive text-xs" title={m.cancel_reason ?? ""}>ملغاة</span>) },
                         { key: "act", header: "", render: (m: ContactMoneyRow) => (m.status === "active" && m.source_table === "payment_transactions" ? (
                           <Button size="sm" variant="ghost" className="text-destructive h-7" onClick={(e) => { e.stopPropagation(); setVoidReason(""); setVoidRow(m); }}>إلغاء</Button>
                         ) : null) },
@@ -464,14 +466,15 @@ export default function ContactFile() {
                       empty="لا توجد مرتجعات"
                       onRowClick={(r: any) => nav(sd === "customer" ? `/branch/${r.branch_id}/sale-returns/${r.id}` : `/branch/${r.branch_id}/purchase-returns/${r.id}`)}
                       columns={[
+                        // same order as the return tables: number · invoice · amount · given back / on account · status · branch · date
                         { key: "n", header: "رقم المرتجع", render: (r: any) => <span className="font-mono">{r.number}</span> },
-                        { key: "d", header: "التاريخ", render: (r: any) => formatDate(r.date) },
-                        { key: "b", header: "الفرع", render: (r: any) => r.branch },
-                        { key: "doc", header: sd === "customer" ? "فاتورة البيع" : "فاتورة الشراء", render: (r: any) => r.doc ?? "—" },
-                        { key: "t", header: "الإجمالي", render: (r: any) => <b>{formatEGP(r.total)}</b> },
-                        { key: "c", header: sd === "customer" ? "اترد نقدي/تحويل" : "استردينا نقدي/تحويل", render: (r: any) => formatEGP(r.cash) },
-                        { key: "cr", header: "على الحساب", render: (r: any) => formatEGP(r.credit) },
+                        { key: "doc", header: "رقم الفاتورة", render: (r: any) => <span className="font-mono">{r.doc ?? "—"}</span> },
+                        { key: "t", header: "المبلغ", render: (r: any) => <b>{formatEGP(r.total)}</b> },
+                        { key: "c", header: sd === "customer" ? "اترد له" : "رجعلنا", render: (r: any) => formatEGP(r.cash) },
+                        { key: "cr", header: sd === "customer" ? "على حسابه" : "على حسابنا عنده", render: (r: any) => formatEGP(r.credit) },
                         { key: "s", header: "الحالة", render: (r: any) => (r.status === "cancelled" ? <span className="text-destructive text-xs">ملغي</span> : r.status === "draft" ? <span className="text-xs">مسودة</span> : <span className="text-success text-xs">ساري</span>) },
+                        { key: "b", header: "الفرع", render: (r: any) => r.branch },
+                        { key: "d", header: "التاريخ", render: (r: any) => formatDate(r.date) },
                       ]}
                     />
                   </TabsContent>

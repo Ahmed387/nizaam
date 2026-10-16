@@ -49,6 +49,8 @@ import { MetricCardWithHint } from "@/components/MetricCardWithHint";
 import { useDocumentMetrics } from "@/hooks/useDocumentMetrics";
 import { enrichSettled, isDocKind, matchesDocCard, type DocCardKey } from "@/lib/documentMetrics";
 import { ConvertClassDialog, type ClassTarget } from "@/components/documents/ConvertClassDialog";
+import { BulkActionsBar } from "@/components/documents/BulkActionsBar";
+import type { BulkKind } from "@/lib/bulkDocs";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -263,7 +265,7 @@ export default function Invoices() {
     sale: "*, contacts:contact_id(name)",
     purchase: "*, contacts:contact_id(name)",
     sale_return: "*, invoices(invoice_number, invoice_date, contact_id, contacts:contact_id(name, phone))",
-    purchase_return: "*, contacts:contact_id(name, phone)",
+    purchase_return: "*, contacts:contact_id(name, phone), shipments(shipment_number)",
     income: "*, voucher_categories(name, system_key)",
     expense: "*, voucher_categories(name, system_key)",
     transfer: "*",
@@ -296,12 +298,23 @@ export default function Invoices() {
     let data: any[] = r.data ?? [];
     const joinedDupes = false;
     if (tab === "income" || tab === "expense") {
-      data = data.map((v: any) => ({
-        ...v,
-        created_at: v.voucher_date ?? v.created_at,
-        category: v.voucher_categories?.name ?? "—",
-        description: v.description ?? v.voucher_number,
-      }));
+      // what each voucher paid (0097): invoices it settled and what is still on account
+      const split = new Map<string, any>();
+      if (data.length) {
+        const { data: sp } = await supabase.rpc("voucher_money_split" as any, { p_ids: data.map((v: any) => v.id) } as any).abortSignal(ctrl.signal);
+        for (const x of (sp ?? []) as any[]) split.set(x.voucher_id, x);
+        if (stale()) return;
+      }
+      data = data.map((v: any) => {
+        const x = split.get(v.id);
+        return {
+          ...v,
+          created_at: v.voucher_date ?? v.created_at,
+          category: v.voucher_categories?.name ?? "—",
+          description: v.description ?? v.voucher_number,
+          __inLedger: !!x?.in_ledger, __alloc: Number(x?.allocated) || 0, __onAcc: Number(x?.on_account) || 0, __docs: x?.docs ?? null,
+        };
+      });
     }
     if ((tab === "sale" || tab === "purchase") && data.length) {
       // Paid / remaining from the unified ledger (as of the period's last day for a past period);
@@ -396,10 +409,13 @@ export default function Invoices() {
   useEffect(() => { setCardFilter(null); }, [tab, branchId, view]);
   // «تحويل لنقدي / لآجل» (0093): one invoice from its badge, or a selection of the page
   const canConvert = (tab === "sale" || tab === "purchase") && can("doc_class.update");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Selection + bulk actions on every document tab (open as tabs, print, export, edit, cancel, convert).
+  // It survives paging («تحديد كل النتائج» spans pages) and clears when the tab / filters change.
+  const bulkKind: BulkKind | null = (["sale", "purchase", "sale_return", "purchase_return", "income", "expense"] as const).includes(tab as any) ? tab as BulkKind : null;
+  const [selected, setSelected] = useState<Map<string, any>>(new Map());
   const [convert, setConvert] = useState<{ ids: string[]; target: ClassTarget } | null>(null);
-  useEffect(() => { setSelected(new Set()); }, [tab, branchId, view, page, queryFilters]);
-  const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  useEffect(() => { setSelected(new Map()); }, [tab, branchId, view, queryFilters]);
+  const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, r); return n; });
   const filteredRows = useMemo(() => docKind && cardFilter ? enrichedRows.filter((r: any) => matchesDocCard(docKind, r, cardFilter)) : enrichedRows, [enrichedRows, cardFilter, docKind]);
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
@@ -454,6 +470,56 @@ export default function Invoices() {
   ];
   const bucketCell = (v: number | undefined) => Number(v) > 0 ? <span className="tabular-nums">{formatEGP(Number(v))}</span> : <span className="text-muted-foreground">—</span>;
   const textCell = (v: any) => v ? <span className="block truncate max-w-[12rem] mx-auto" title={String(v)}>{v}</span> : <span className="text-muted-foreground">—</span>;
+  const statusCell = (r: any) => r.status === "cancelled"
+    ? <span className="font-semibold text-destructive" title={r.cancel_reason ?? undefined}>ملغي</span>
+    : <span>نشط</span>;
+  /** Which method column a payment method belongs to (same four columns as the sale table). */
+  const methodBucket = (m?: string | null): "cash" | "instapay" | "wallet" | "bank" => {
+    const v = String(m ?? "cash").toLowerCase();
+    if (v.includes("insta")) return "instapay";
+    if (v.includes("vodafone") || v.includes("wallet") || v.includes("etisalat") || v.includes("orange")) return "wallet";
+    if (v.includes("bank") || v.includes("transfer") || v.includes("visa")) return "bank";
+    return "cash";
+  };
+  const methodCols = (pick: (r: any) => Record<string, number>) => ([
+    { key: "__m_cash", header: "كاش", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(pick(r).cash) },
+    { key: "__m_instapay", header: "انستاباي", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(pick(r).instapay) },
+    { key: "__m_wallet", header: "محفظة", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(pick(r).wallet) },
+    { key: "__m_bank", header: "بنكي", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(pick(r).bank) },
+  ]);
+  /** A return's refund: money given back (cash / transfer by method) and what went to his account. */
+  const returnSplit = (r: any) => {
+    const cash = Number(r.refund_cash_amount) || 0, transfer = Number(r.refund_transfer_amount) || 0;
+    const b: Record<string, number> = { cash: 0, instapay: 0, wallet: 0, bank: 0 };
+    b.cash += cash;
+    if (transfer > 0) { const k = methodBucket(r.refund_method); b[k === "cash" ? "bank" : k] += transfer; }
+    return { out: cash + transfer, account: Number(r.refund_balance_amount) || 0, buckets: b };
+  };
+  const returnColumns = (k: "sale_return" | "purchase_return") => [
+    { key: "__class", header: "التصنيف", align: "center", className: "min-w-[90px]", render: (r: any) => {
+      if (r.status === "cancelled") return <span className="text-muted-foreground">—</span>;
+      const x = returnSplit(r);
+      const [t, c] = x.out > 0.005 && x.account <= 0.005 ? ["نقدي", "bg-success/10 text-success"]
+        : x.out <= 0.005 ? ["على الحساب", "bg-warning/10 text-warning"] : ["نقدي + حساب", "bg-info/10 text-info"];
+      return <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${c}`}>{t}</span>;
+    } },
+    { key: "__refund_split", header: k === "sale_return" ? "اترد له / على حسابه" : "رجعلنا / على حسابنا", align: "center", className: "min-w-[150px]", render: (r: any) => {
+      if (r.status === "cancelled") return <span className="text-muted-foreground">—</span>;
+      const x = returnSplit(r);
+      return (
+        <span className="flex flex-col items-center gap-1 text-xs tabular-nums leading-tight">
+          <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 font-bold text-success">
+            <span className="text-[10px] font-extrabold text-muted-foreground">{k === "sale_return" ? "اترد" : "رجع"}</span>{formatEGP(x.out)}
+          </span>
+          <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-bold ${x.account > 0 ? "bg-warning/10 text-warning" : "text-muted-foreground"}`}>
+            <span className="text-[10px] font-extrabold text-muted-foreground">حساب</span>{formatEGP(x.account)}
+          </span>
+        </span>
+      );
+    } },
+    ...methodCols((r: any) => r.status === "cancelled" ? {} : returnSplit(r).buckets),
+    { key: "__r_account", header: k === "sale_return" ? "على حسابه" : "على حسابنا عنده", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.status === "cancelled" ? 0 : returnSplit(r).account) },
+  ];
   const cfg = useMemo(() => {
     const base = `/branch/${branchId}`;
     switch (tab) {
@@ -509,7 +575,7 @@ export default function Invoices() {
       case "purchase": return {
         newLink: `${base}/shipments/new`, newLabel: "فاتورة شراء جديدة", newPerm: "shipments.create",
         columns: [
-          { key: "shipment_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => (
+          { key: "shipment_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => (
             <span className="inline-flex items-center justify-end gap-1.5">
               <button
                 type="button"
@@ -559,7 +625,7 @@ export default function Invoices() {
       case "sale_return": return {
         newLink: `${base}/sale-returns/new`, newLabel: "مرتجع بيع جديد", newPerm: "sales.create",
         columns: [
-          { key: "return_number", header: "رقم المرتجع", align: "right", width: "8rem", render: (r: any) => (
+          { key: "return_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => (
             <span className="inline-flex items-center justify-end gap-1.5">
               <button
                 type="button"
@@ -576,26 +642,18 @@ export default function Invoices() {
               <span className="font-mono text-primary font-semibold">{r.return_number ?? "—"}</span>
             </span>
           ) },
-          { key: "inv", header: "رقم الفاتورة", align: "right", width: "8rem", render: (r: any) => r.invoices?.invoice_number ?? "—" },
-          { key: "customer", header: "العميل", align: "right", render: (r: any) => r.invoices?.contacts?.name ?? "نقدي" },
-          { key: "reason", header: "السبب", align: "right" },
-          { key: "status", header: "الحالة", align: "center", width: "7rem", render: (r: any) => {
-            const cancelled = r.status === "cancelled";
-            return (
-              <Badge
-                variant="outline"
-                className={cancelled
-                  ? "border-destructive/40 bg-destructive/10 text-destructive"
-                  : "border-success/40 bg-success/10 text-success"}
-              >
-                {cancelled ? "ملغي" : "نشط"}
-              </Badge>
-            );
+          { key: "customer", header: "العميل", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
+            const name = r.invoices?.contacts?.name ?? "نقدي";
+            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
           } },
-          { key: "total_refund", header: "المرتجع", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_refund) },
-{ key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
-          { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
-          { key: "invoice_date", header: "تاريخ المرتجع", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          { key: "inv", header: "رقم الفاتورة", align: "center", className: "min-w-[100px]", render: (r: any) => <span className="font-mono">{r.invoices?.invoice_number ?? "—"}</span> },
+          { key: "reason", header: "السبب", align: "center", className: "min-w-[130px]", render: (r: any) => textCell(r.reason) },
+          { key: "total_refund", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.total_refund) },
+          ...returnColumns("sale_return"),
+          { key: "status", header: "الحالة", align: "center", className: "min-w-[80px]", render: statusCell },
+          { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
+          { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },
+          { key: "invoice_date", header: "تاريخ المرتجع", align: "center", className: "min-w-[150px]", render: (r: any) => <EditableInvoiceDate table="returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -616,7 +674,7 @@ export default function Invoices() {
       case "purchase_return": return {
         newLink: `${base}/purchase-returns/new`, newLabel: "مرتجع شراء جديد", newPerm: "shipments.create",
         columns: [
-          { key: "return_number", header: "رقم", align: "right", width: "8rem", render: (r: any) => (
+          { key: "return_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => (
             <span className="inline-flex items-center justify-end gap-1.5">
               <button
                 type="button"
@@ -633,12 +691,18 @@ export default function Invoices() {
               <span className="font-mono text-primary font-semibold">{r.return_number}</span>
             </span>
           ) },
-          { key: "supplier", header: "المورد", align: "right", render: (r: any) => r.contacts?.name ?? "—" },
-          { key: "reason", header: "السبب", align: "right" },
-          { key: "total_amount", header: "الإجمالي", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.total_amount) },
-{ key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name) },
-          { key: "__notes", header: "الملاحظات", align: "center", width: "11rem", render: (r: any) => textCell(r.notes) },
-          { key: "invoice_date", header: "تاريخ المرتجع", align: "right", width: "10rem", render: (r: any) => <EditableInvoiceDate table="purchase_returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
+          { key: "supplier", header: "المورد", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
+            const name = r.contacts?.name ?? "—";
+            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
+          } },
+          { key: "ship", header: "رقم الفاتورة", align: "center", className: "min-w-[100px]", render: (r: any) => <span className="font-mono">{r.shipments?.shipment_number ?? "—"}</span> },
+          { key: "reason", header: "السبب", align: "center", className: "min-w-[130px]", render: (r: any) => textCell(r.reason) },
+          { key: "total_amount", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.total_amount) },
+          ...returnColumns("purchase_return"),
+          { key: "status", header: "الحالة", align: "center", className: "min-w-[80px]", render: statusCell },
+          { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
+          { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },
+          { key: "invoice_date", header: "تاريخ المرتجع", align: "center", className: "min-w-[150px]", render: (r: any) => <EditableInvoiceDate table="purchase_returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
             key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
@@ -660,16 +724,34 @@ export default function Invoices() {
       case "expense": return {
         newLink: `${base}/treasury`, newLabel: tab === "income" ? "سند قبض جديد" : "سند صرف جديد", newPerm: tab === "income" ? "receipt_vouchers.create" : "payment_vouchers.create",
         columns: [
-          { key: "description", header: "البيان", align: "right", className: "min-w-[220px]", render: (r: any) => (
-            <span className="inline-flex items-center gap-2">
-              {r.status === "cancelled" && <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-bold text-destructive">ملغي</span>}
-              <span className={r.status === "cancelled" ? "line-through text-muted-foreground" : ""}>{r.description}</span>
-            </span>
-          ) },
-          { key: "amount", header: "المبلغ", align: "right", width: "9rem", numeric: true, render: (r: any) => formatEGP(r.amount) },
-          { key: "category", header: "التصنيف", align: "right", width: "10rem" },
-          { key: "__recipient", header: "المستلم", align: "center", width: "9rem", render: (r: any) => textCell(r.recipient_name ?? r.party_name) },
-          { key: "created_at", header: "التاريخ", align: "right", width: "10rem", render: (r: any) => r.voucher_date ? <InlineVoucherDate voucher={r} onSaved={() => load()} /> : formatDateTime(r.created_at) },
+          { key: "voucher_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => <span className={`font-mono font-semibold ${r.status === "cancelled" ? "line-through text-muted-foreground" : "text-primary"}`}>{r.voucher_number ?? "—"}</span> },
+          { key: "party", header: tab === "income" ? "استلمنا من" : "صرفنا إلى", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
+            const name = r.party_name ?? "—";
+            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
+          } },
+          { key: "amount", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.amount) },
+          { key: "category", header: "التصنيف", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.category) },
+          { key: "__alloc", header: tab === "income" ? "اتخصم من فواتير / مقدم" : "اتدفع على فواتير / مقدم", align: "center", className: "min-w-[170px]", render: (r: any) => {
+            if (r.status === "cancelled" || !r.__inLedger) return <span className="text-muted-foreground" title="سند مش على حساب عميل أو مورد">—</span>;
+            return (
+              <span className="flex flex-col items-center gap-1 text-xs tabular-nums leading-tight">
+                <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 font-bold text-success" title={r.__docs ?? undefined}>
+                  <span className="text-[10px] font-extrabold text-muted-foreground">فواتير</span>{formatEGP(r.__alloc ?? 0)}
+                </span>
+                {r.__docs && <span className="max-w-[160px] truncate text-[10px] text-muted-foreground" title={r.__docs}>{r.__docs}</span>}
+                {Number(r.__onAcc) > 0.005 && (
+                  <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 font-bold text-primary">
+                    <span className="text-[10px] font-extrabold text-muted-foreground">مقدم</span>{formatEGP(r.__onAcc)}
+                  </span>
+                )}
+              </span>
+            );
+          } },
+          ...methodCols((r: any) => r.status === "cancelled" ? {} : { [methodBucket(r.payment_method)]: Number(r.amount) || 0 }),
+          { key: "status", header: "الحالة", align: "center", className: "min-w-[80px]", render: statusCell },
+          { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
+          { key: "description", header: "الملاحظات / البيان", align: "center", className: "min-w-[200px]", render: (r: any) => textCell(r.description) },
+          { key: "created_at", header: "التاريخ", align: "center", className: "min-w-[120px]", render: (r: any) => r.voucher_date ? <InlineVoucherDate voucher={r} onSaved={() => load()} /> : formatDateTime(r.created_at) },
           {
             key: "actions", header: "إجراءات", align: "center", width: "12rem", render: (r: any) => {
               const canCancel = r.status === "active" && (isAdmin || (isManager && r.source === "manual"));
@@ -1191,25 +1273,40 @@ export default function Invoices() {
       )}
 
       <div ref={tableTopRef} className="scroll-mt-4" />
-      {canConvert && (
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-          <Button size="sm" variant="ghost" className="h-7" onClick={() => setSelected(new Set(filteredRows.filter((r: any) => r.status !== "cancelled").map((r: any) => r.id)))}>
-            تحديد كل الصفحة
-          </Button>
-          {selected.size > 0 && (
-            <div className="sticky top-2 z-10 flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-1.5 shadow-sm">
-              <span className="font-bold">محدد {selected.size} فاتورة</span>
-              <Button size="sm" className="h-7" onClick={() => setConvert({ ids: Array.from(selected), target: "cash" })}>تحويل لنقدي</Button>
-              <Button size="sm" variant="outline" className="h-7" onClick={() => setConvert({ ids: Array.from(selected), target: "credit" })}>تحويل لآجل</Button>
-              <Button size="sm" variant="ghost" className="h-7" onClick={() => setSelected(new Set())}>إلغاء التحديد</Button>
-            </div>
-          )}
-        </div>
+      {bulkKind && branchId && (
+        <BulkActionsBar
+          kind={bulkKind}
+          branchId={branchId}
+          rows={Array.from(selected.values())}
+          totalCount={totalCount}
+          onSelectPage={() => setSelected((prev) => { const n = new Map(prev); filteredRows.forEach((r: any) => n.set(r.id, r)); return n; })}
+          onSelectAll={async () => {
+            if (totalCount > 2000) throw new Error(`النتائج ${totalCount.toLocaleString("en-US")} — ضيّق الفلتر لـ 2,000 أو أقل عشان تحددهم كلهم`);
+            const all: any[] = [];
+            for (let from = 0; from < totalCount; from += 1000) {
+              const { qb } = await buildQuery(SELECTS[tab], false);
+              const { data, error } = await qb.order("id").range(from, from + 999);
+              if (error) throw error;
+              all.push(...(data ?? []));
+              if ((data ?? []).length < 1000) break;
+            }
+            setSelected(new Map(all.map((r: any) => [r.id, r])));
+          }}
+          onClear={() => setSelected(new Map())}
+          onDone={() => { setSelected(new Map()); load(); setMetricsTick((t) => t + 1); }}
+          extra={canConvert ? (() => {
+            const ids = Array.from(selected.values()).filter((r: any) => r.status !== "cancelled").map((r: any) => r.id);
+            return ids.length ? (<>
+              <Button size="sm" className="h-7" onClick={() => setConvert({ ids, target: "cash" })}>تحويل لنقدي</Button>
+              <Button size="sm" variant="outline" className="h-7" onClick={() => setConvert({ ids, target: "credit" })}>تحويل لآجل</Button>
+            </>) : null;
+          })() : undefined}
+        />
       )}
       {convert && (tab === "sale" || tab === "purchase") && (
         <ConvertClassDialog open={!!convert} onOpenChange={(o) => { if (!o) setConvert(null); }}
                             docType={tab === "sale" ? "invoice" : "shipment"} ids={convert.ids} target={convert.target}
-                            onDone={() => { setSelected(new Set()); load(); setMetricsTick((t) => t + 1); }} />
+                            onDone={() => { setSelected(new Map()); load(); setMetricsTick((t) => t + 1); }} />
       )}
       <DataTable
         loading={loading}
@@ -1217,14 +1314,14 @@ export default function Invoices() {
         indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
         onRowClick={cfg.onClick}
         empty="لا توجد سجلات"
-        columns={(canConvert ? [{
+        columns={(bulkKind ? [{
           key: "__sel", header: "✓", align: "center", className: "w-[40px]",
-          render: (r: any) => r.status === "cancelled" ? null : (
+          render: (r: any) => (
             <input type="checkbox" className="h-4 w-4 accent-primary cursor-pointer" checked={selected.has(r.id)}
-                   onClick={(e) => e.stopPropagation()} onChange={() => toggleSel(r.id)} aria-label="تحديد" />
+                   onClick={(e) => e.stopPropagation()} onChange={() => toggleSel(r)} aria-label="تحديد" />
           ),
         }, ...cfg.columns] : cfg.columns) as any}
-        minTableWidth={tab === "sale" || tab === "purchase" ? "1900px" : docKind ? "1100px" : undefined}
+        minTableWidth={tab === "sale" || tab === "purchase" ? "1900px" : bulkKind ? "1800px" : docKind ? "1100px" : undefined}
         getRowKey={(row: any) => row.id}
         isRowExpanded={DOC_ITEMS_TABS.includes(tab) || tab === "transfer" ? (row: any) => expandedInvoiceId === row.id : undefined}
         renderExpandedRow={tab === "transfer" ? (row: any) => (
