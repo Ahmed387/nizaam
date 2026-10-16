@@ -14,7 +14,7 @@ const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
   { label: "الشهر ده", range: () => { const d = cairoTodayDay(); return [monthStartDay(d), d]; } },
   { label: "الشهر اللي فات", range: () => { const d = cairoTodayDay(); return [monthStartDay(d, -1), addDaysDay(monthStartDay(d), -1)]; } },
 ];
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, type ReactNode } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -42,12 +42,20 @@ import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "@/co
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { ArrowLeftRight, FileSpreadsheet, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle } from "lucide-react";
+import { ArrowLeftRight, FileSpreadsheet, CheckCircle2, XCircle, Wallet, Smartphone, CreditCard, Landmark, AlertTriangle, ChevronDown } from "lucide-react";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { TreasuryMetricsGrid, type PeriodTransaction, type TreasuryChannel } from "@/components/treasury/TreasuryMetricsGrid";
+import { fetchTreasuryLinks, payMethodLabel, type TreasuryLink } from "@/lib/treasuryLinks";
+import { AccountCell, SourceCell, PrintDocButton } from "@/components/documents/MoneyCells";
+import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
+import { openDocs, OPEN_DOCS_MAX } from "@/lib/openDocs";
+import { printDocuments } from "@/lib/bulkPrint";
+import { exportToExcel } from "@/lib/export";
+import { Eye, Layers, Printer } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface WalletBalances {
   cash_balance: number;
@@ -86,6 +94,9 @@ export default function Treasury() {
   const [tFeeCharged, setTFeeCharged] = useState(true);
   const [viewTransfer, setViewTransfer] = useState<any | null>(null);
   const [viewMovement, setViewMovement] = useState<TreasuryMovement | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Map<string, any>>(new Map());
+  const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, r); return n; });
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [searchText, setSearchText] = useState("");
@@ -100,7 +111,7 @@ export default function Treasury() {
   const [periodLoading, setPeriodLoading] = useState(true);
   useEffect(() => { const t = setTimeout(() => setSearch(searchText.trim()), 300); return () => clearTimeout(t); }, [searchText]);
   useEffect(() => { const t = setTimeout(() => setNotesSearch(notesText.trim()), 300); return () => clearTimeout(t); }, [notesText]);
-  useEffect(() => { setPage(1); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, reversalView]);
+  useEffect(() => { setPage(1); setSelected(new Map()); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, reversalView]);
   const resetFilters = () => {
     setFromDate(""); setToDate(""); setSearchText(""); setNotesText("");
     setMinAmount(""); setMaxAmount(""); setTab("all"); setMethodFilter("all");
@@ -140,7 +151,7 @@ export default function Treasury() {
     const tq = applyFilters(supabase.from("treasury").select("*", { count: "exact" }), true);
     const offset = (page - 1) * PAGE_SIZE;
     const [tr, tt, wb, br] = await Promise.all([
-      tq.order("transaction_date", { ascending: false }).order("id", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
+      tq.order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
       fetchAllRows<any>(() => supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }).order("id")).then((data) => ({ data, error: null })),
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
       supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
@@ -150,7 +161,7 @@ export default function Treasury() {
     const referenceIds = movements.map((row) => row.reference_id).filter((id): id is string => Boolean(id));
     const [{ data: vouchers }, { data: invoices }] = await Promise.all([
       movementIds.length
-        ? supabase.from("vouchers").select("id,treasury_id,voucher_number,status,party_name,recipient_name").in("treasury_id", movementIds)
+        ? supabase.from("vouchers").select("id,treasury_id,voucher_number,status,party_name,recipient_name,description").in("treasury_id", movementIds)
         : Promise.resolve({ data: [] as { id: string; treasury_id: string | null; voucher_number: string; status: string }[] }),
       referenceIds.length
         ? supabase.from("invoices").select("id,invoice_number").in("id", referenceIds)
@@ -161,17 +172,23 @@ export default function Treasury() {
     const invoiceByReference = new Map((invoices ?? []).map((invoice) => [invoice.id, invoice.invoice_number]));
     // the till after each row (0097), in the table's own order
     const { data: bal } = movementIds.length
-      ? await supabase.rpc("treasury_balance_after" as any, { p_branch: branchId, p_ids: movementIds } as any)
+      ? await supabase.rpc("treasury_balance_after" as any, { p_branch: branchId, p_ids: movementIds, p_method: methodFilter === "all" ? null : methodFilter } as any)
       : { data: [] as any[] };
     const balanceAfter = new Map(((bal ?? []) as any[]).map((b) => [b.id, Number(b.balance_after)]));
+    // «اسم الحساب» / «المصدر» of every row (0099)
+    const links = await fetchTreasuryLinks(movementIds).catch(() => new Map<string, TreasuryLink>());
     setRows(movements.map((row) => ({
       ...row,
       party_name: (voucherRowByMovement.get(row.id) as any)?.party_name ?? null,
+      __link: links.get(row.id) ?? null,
+      __account: links.get(row.id)?.account_name ?? (voucherRowByMovement.get(row.id) as any)?.party_name ?? null,
+      voucher_source: links.get(row.id)?.voucher_source ?? null,
       recipient_name: (voucherRowByMovement.get(row.id) as any)?.recipient_name ?? null,
       balance_after: balanceAfter.get(row.id) ?? null,
       voucher_number: voucherByMovement.get(row.id) ?? null,
       voucher_id: (voucherRowByMovement.get(row.id) as any)?.id ?? null,
       voucher_status: (voucherRowByMovement.get(row.id) as any)?.status ?? null,
+      voucher_description: (voucherRowByMovement.get(row.id) as any)?.description ?? null,
       invoice_number: row.reference_id ? invoiceByReference.get(row.reference_id) ?? null : null,
     })));
     setTotalCount(tr.count ?? 0);
@@ -517,55 +534,71 @@ export default function Treasury() {
           </div>
 
           <TooltipProvider delayDuration={200}>
-          <DataTable loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} minTableWidth="1900px"
+          <TreasurySelectionBar rows={Array.from(selected.values())} branchId={branchId!} onSelectPage={() => setSelected(new Map(filtered.map((r: any) => [r.id, r])))}
+                                onClear={() => setSelected(new Map())} />
+          <DataTable loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} minTableWidth="1500px"
+            getRowKey={(r: any) => r.id}
+            isRowExpanded={(r: any) => expandedId === r.id}
+            renderExpandedRow={(r: any) => <MovementDetailsRow r={r} branchId={branchId!} />}
+            footer={filtered.length ? (
+              <div className="flex flex-wrap items-center justify-end gap-4 px-3 py-2 text-sm">
+                <span>داخل في الصفحة: <b className="text-success tabular-nums">{formatEGP(filtered.filter((r: any) => r.type === "income").reduce((x: number, r: any) => x + Number(r.amount || 0), 0))}</b></span>
+                <span>خارج في الصفحة: <b className="text-destructive tabular-nums">{formatEGP(filtered.filter((r: any) => r.type !== "income").reduce((x: number, r: any) => x + Number(r.amount || 0), 0))}</b></span>
+              </div>
+            ) : undefined}
             columns={[
-              // same order as the sale table: number · party · amount · category · method columns · status · recipient · notes · date · actions
-              { key: "reference_number", header: "رقم", align: "center", width: "9rem", render: (r: any) => (
-                <Badge variant="secondary" dir="ltr" className="unicode-isolate max-w-full rounded-md font-mono text-xs font-bold">
-                  {resolveTreasuryOperationNumber(r.voucher_number, r.invoice_number, r.reference_number)}
-                </Badge>
+              // owner order 2026-10-16: ✓ · رقم السند · اسم الحساب · المبلغ · التصنيف · طريقة الدفع · التاريخ · الحالة · المصدر · … · إجراءات
+              { key: "__sel", header: "✓", align: "center", className: "w-[40px]", render: (r: any) => (
+                <input type="checkbox" className="h-4 w-4 accent-primary cursor-pointer" checked={selected.has(r.id)}
+                       onClick={(e) => e.stopPropagation()} onChange={() => toggleSel(r)} aria-label="تحديد الحركة" />
+              ) },
+              { key: "reference_number", header: "رقم السند", align: "center", width: "10rem", render: (r: any) => (
+                <span className="inline-flex items-center gap-1">
+                  <button type="button" aria-label={expandedId === r.id ? "إخفاء تفاصيل الحركة" : "عرض تفاصيل الحركة"} aria-expanded={expandedId === r.id}
+                          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                          onClick={(e) => { e.stopPropagation(); setExpandedId((c) => c === r.id ? null : r.id); }}>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${expandedId === r.id ? "rotate-180" : ""}`} />
+                  </button>
+                  <Badge variant="secondary" dir="ltr" className="unicode-isolate rounded-md font-mono text-xs font-bold">
+                    {resolveTreasuryOperationNumber(r.voucher_number, r.invoice_number, r.reference_number)}
+                  </Badge>
+                </span>
               )},
-              { key: "party", header: "الطرف", align: "right", className: "min-w-[160px] text-right", render: (r: any) => r.party_name
-                ? <span className="block max-w-[180px] truncate font-semibold" title={r.party_name}>{r.party_name}</span>
-                : <span className="text-muted-foreground">—</span> },
+              { key: "account", header: "اسم الحساب", align: "right", className: "min-w-[170px] text-right", render: (r: any) => <AccountCell name={r.__account} /> },
               { key: "amount", header: "المبلغ", align: "center", width: "9rem", numeric: true, render: (r: any) => (
                 <span dir="ltr" className={`unicode-isolate inline-block font-bold ${r.type === "income" ? "text-success" : "text-destructive"}`}>
                   {r.type === "income" ? "+" : "−"} {formatEGP(r.amount)}
                 </span>
               )},
-              { key: "category", header: "التصنيف", align: "center", width: "9rem", render: (r: any) => (
+              { key: "category", header: "التصنيف", align: "center", width: "10rem", render: (r: any) => (
                 <span>{treasuryCategoryLabel(r.category)}{r.is_fee ? <span className="ml-1 text-warning text-xs">(عمولة)</span> : null}</span>
               )},
-              { key: "type", header: "داخل / خارج", align: "center", width: "7rem", render: (r: any) => (
-                <span className={`px-2 py-1 rounded text-xs font-bold ${r.type === "income" ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"}`}>
-                  {r.type === "income" ? "داخل" : "خارج"}
-                </span>
-              )},
-              ...(["cash", "instapay", "wallet", "bank"] as const).map((k) => ({
-                key: `__m_${k}`, header: { cash: "كاش", instapay: "انستاباي", wallet: "محفظة", bank: "بنكي" }[k], align: "center" as const, width: "7rem", numeric: true,
-                render: (r: any) => {
-                  const m = String(r.payment_method ?? "cash");
-                  const b = m.includes("insta") ? "instapay" : (m.includes("vodafone") || m.includes("wallet")) ? "wallet" : (m.includes("bank") || m.includes("transfer")) ? "bank" : "cash";
-                  return b === k ? <span dir="ltr" className="tabular-nums">{formatEGP(r.amount)}</span> : <span className="text-muted-foreground">—</span>;
-                },
-              })),
-              { key: "balance_after", header: "الرصيد بعد الحركة", align: "center", width: "9rem", numeric: true, render: (r: any) => r.balance_after == null ? "—" : (
-                <span dir="ltr" className={`tabular-nums font-semibold ${r.balance_after < 0 ? "text-destructive" : ""}`}>{formatEGP(r.balance_after)}</span>
-              )},
+              { key: "payment_method", header: "طريقة الدفع", align: "center", width: "7rem", render: (r: any) => payMethodLabel(r.payment_method) },
+              { key: "transaction_date", header: "التاريخ", align: "center", width: "8rem", render: (r: any) => formatDate(r.transaction_date) },
               { key: "status", header: "الحالة", align: "center", width: "6rem", render: (r: any) => r.voucher_status === "cancelled"
                 ? <span className="font-semibold text-destructive">سند ملغي</span> : <span>نشط</span> },
+              { key: "source", header: "المصدر", align: "center", width: "10rem", render: (r: any) => (
+                <SourceCell link={r.__link} branchId={branchId!} source={r.voucher_source}
+                            fallback={!r.voucher_id && !r.__link?.src_type ? treasuryCategoryLabel(r.category) : null} />
+              )},
+              { key: "balance_after", header: methodFilter === "all" ? "الرصيد بعد الحركة" : "رصيد الوعاء بعد الحركة", align: "center", width: "9rem", numeric: true, render: (r: any) => r.balance_after == null ? "—" : (
+                <span dir="ltr" className={`tabular-nums font-semibold ${r.balance_after < 0 ? "text-destructive" : ""}`}>{formatEGP(r.balance_after)}</span>
+              )},
               { key: "recipient", header: "المستلم", align: "center", width: "8rem", render: (r: any) => r.recipient_name
                 ? <span className="block truncate max-w-[9rem] mx-auto" title={r.recipient_name}>{r.recipient_name}</span> : <span className="text-muted-foreground">—</span> },
-              { key: "description", header: "الملاحظات / البيان", align: "right", width: "18rem", className: "whitespace-normal break-words leading-6", render: (r: any) => {
+              { key: "description", header: "البيان", align: "right", width: "16rem", className: "whitespace-normal break-words leading-6", render: (r: any) => {
                 const text = sanitizeOperationalDescription(r.description);
-                return text ? (
-                  <span dir="rtl" className="unicode-isolate block w-full whitespace-normal break-words text-right">{text}</span>
-                ) : "—";
+                return text ? <span dir="rtl" className="unicode-isolate block w-full whitespace-normal break-words text-right line-clamp-2" title={text}>{text}</span> : "—";
               }},
-              { key: "transaction_date", header: "التاريخ", align: "center", width: "8rem", render: (r: any) => formatDate(r.transaction_date) },
-              { key: "actions", header: "إجراءات", align: "center", width: "7rem", render: (r: any) => (
-                <div className="flex items-center justify-center gap-0.5">
-                  <DetailsChevron label="عرض تفاصيل الحركة" onClick={() => setViewMovement(r as TreasuryMovement)} />
+              { key: "actions", header: "إجراءات", align: "center", width: "12rem", render: (r: any) => (
+                <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض الحركة" onClick={() => setViewMovement(r as TreasuryMovement)}>
+                    <Eye className="w-4 h-4" />
+                  </Button>
+                  {r.voucher_id && <PrintDocButton kind={r.type === "income" ? "income" : "expense"} id={r.voucher_id} title="طباعة السند" />}
+                  {r.voucher_id && r.voucher_status === "active" && (
+                    <DocAnnotationsButton kind="voucher" id={r.voucher_id} recipient={r.recipient_name} notes={r.voucher_description ?? r.description} onSaved={() => load()} />
+                  )}
                   {r.voucher_id ? (
                     <AttachmentsDialogButton recordType="voucher" recordId={r.voucher_id} count={movementAttCounts[r.voucher_id] ?? 0}
                                              canEdit={r.voucher_status === "active"} label={`مرفقات السند ${r.voucher_number ?? ""}`} />
@@ -751,5 +784,77 @@ export default function Treasury() {
 
 
     </BranchLayout>
+  );
+}
+
+/** The arrow under a till row: the voucher, the document it came from, who entered it and when, its receipt. */
+function MovementDetailsRow({ r, branchId }: { r: any; branchId: string }) {
+  const l: TreasuryLink | null = r.__link;
+  const Item = ({ k, children }: { k: string; children: ReactNode }) => (
+    <div className="flex gap-2"><span className="text-muted-foreground whitespace-nowrap">{k}:</span><span className="font-semibold">{children}</span></div>
+  );
+  return (
+    <div className="space-y-2 bg-muted/30 p-3 text-xs" dir="rtl">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <Item k="اسم الحساب">{r.__account ?? "—"}</Item>
+        <Item k="المصدر"><SourceCell link={l} branchId={branchId} source={r.voucher_source} fallback={!r.voucher_id && !l?.src_type ? treasuryCategoryLabel(r.category) : null} /></Item>
+        <Item k="السند">{r.voucher_number ?? "—"}{r.voucher_status === "cancelled" ? " (ملغي)" : ""}</Item>
+        <Item k="داخل / خارج">{r.type === "income" ? "داخل" : "خارج"} • {payMethodLabel(r.payment_method)}{r.reference_number ? ` • رقم العملية ${r.reference_number}` : ""}</Item>
+        <Item k="تاريخ الحركة">{formatDate(r.transaction_date)}</Item>
+        <Item k="اتسجلت فعلياً">{formatDateTime(r.created_at)}</Item>
+        {l?.cancelled_voucher_number && <Item k="بتلغي">السند {l.cancelled_voucher_number}</Item>}
+      </div>
+      {r.voucher_id && <RecordAttachments recordType="voucher" recordId={r.voucher_id} />}
+    </div>
+  );
+}
+
+/** Selection bar of the till table: totals in / out, open the vouchers as tabs, print them, export the rows. */
+function TreasurySelectionBar({ rows, branchId, onSelectPage, onClear }: { rows: any[]; branchId: string; onSelectPage: () => void; onClear: () => void }) {
+  const nav = useNavigate();
+  const inSum = rows.filter((r) => r.type === "income").reduce((x, r) => x + Number(r.amount || 0), 0);
+  const outSum = rows.filter((r) => r.type !== "income").reduce((x, r) => x + Number(r.amount || 0), 0);
+  const withVoucher = rows.filter((r) => r.voucher_id);
+  const openAll = () => {
+    const list = withVoucher.slice(0, OPEN_DOCS_MAX).map((r) => ({ path: `/branch/${branchId}/vouchers/${r.voucher_id}`, label: r.voucher_number ?? "سند" }));
+    if (!list.length) return toast.info("الحركات المحددة مالهاش سندات تتفتح");
+    openDocs(list);
+    if (withVoucher.length > OPEN_DOCS_MAX) toast.info(`اتفتح أول ${OPEN_DOCS_MAX} بس — أقصى عدد تابات`);
+    nav(list[0].path);
+  };
+  const printAll = async (format: "a4" | "thermal") => {
+    try {
+      const rec = withVoucher.filter((r) => r.type === "income").map((r) => r.voucher_id);
+      const pay = withVoucher.filter((r) => r.type !== "income").map((r) => r.voucher_id);
+      if (!rec.length && !pay.length) return toast.info("الحركات المحددة مالهاش سندات تتطبع");
+      if (rec.length) await printDocuments("income", rec, format);
+      if (pay.length) await printDocuments("expense", pay, format);
+    } catch (e: any) { toast.error(e?.message ?? "تعذر الطباعة"); }
+  };
+  const exportSel = () => exportToExcel("حركات-خزنة-محددة", [{
+    name: "الحركات",
+    rows: rows.map((r, i) => ({
+      "#": i + 1, "رقم السند": resolveTreasuryOperationNumber(r.voucher_number, r.invoice_number, r.reference_number), "اسم الحساب": r.__account ?? "",
+      "داخل": r.type === "income" ? Number(r.amount) : 0, "خارج": r.type !== "income" ? Number(r.amount) : 0, "التصنيف": treasuryCategoryLabel(r.category),
+      "طريقة الدفع": payMethodLabel(r.payment_method), "التاريخ": formatDate(r.transaction_date), "الحالة": r.voucher_status === "cancelled" ? "سند ملغي" : "نشط",
+      "الرصيد بعد الحركة": r.balance_after ?? "", "البيان": sanitizeOperationalDescription(r.description) ?? "",
+    })),
+  }]);
+  return (
+    <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+      <Button size="sm" variant="ghost" className="h-7" onClick={onSelectPage}>تحديد كل الصفحة</Button>
+      {rows.length > 0 && (
+        <div className="sticky top-2 z-10 flex flex-wrap items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 shadow-sm">
+          <span className="font-bold">محدد {rows.length} حركة</span>
+          <span>داخل <b className="text-success tabular-nums">{formatEGP(inSum)}</b></span>
+          <span>خارج <b className="text-destructive tabular-nums">{formatEGP(outSum)}</b></span>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={openAll}><Layers className="h-3.5 w-3.5" />فتح السندات</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => printAll("a4")}><Printer className="h-3.5 w-3.5" />طباعة A4</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => printAll("thermal")}><Printer className="h-3.5 w-3.5" />طباعة حراري</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={exportSel}><FileSpreadsheet className="h-3.5 w-3.5" />تصدير المحدد</Button>
+          <Button size="sm" variant="ghost" className="h-7" onClick={onClear}>إلغاء التحديد</Button>
+        </div>
+      )}
+    </div>
   );
 }

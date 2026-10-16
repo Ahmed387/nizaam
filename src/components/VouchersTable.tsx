@@ -27,6 +27,9 @@ import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { generateVouchersReport } from "@/utils/generatePDFReport";
 import { useBranchScope } from "@/lib/branchScope";
 import { fetchAllRows } from "@/lib/fetchAll";
+import { fetchTreasuryLinks, payMethodLabel, type TreasuryLink } from "@/lib/treasuryLinks";
+import { AccountCell, SourceCell } from "@/components/documents/MoneyCells";
+import { BulkActionsBar } from "@/components/documents/BulkActionsBar";
 
 interface Props {
   branchId?: string;
@@ -72,6 +75,13 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   const [searchText, setSearchText] = useState("");
   useEffect(() => { const t = setTimeout(() => setSearchText(searchInput.trim()), 300); return () => clearTimeout(t); }, [searchInput]);
   const [agg, setAgg] = useState({ totalIn: 0, totalOut: 0, countIn: 0, countOut: 0 });
+  const [links, setLinks] = useState<Map<string, TreasuryLink>>(new Map());
+  const linkOf = (r: any) => (r.treasury_id ? links.get(r.treasury_id) : undefined) ?? null;
+  const accountOf = (r: any) => linkOf(r)?.account_name ?? r.party_name ?? null;
+  // selection (owner request 2026-10-16) — one voucher type per table
+  const [selected, setSelected] = useState<Map<string, any>>(new Map());
+  useEffect(() => { setSelected(new Map()); }, [branchId, type, filters, searchText, showCancelled]);
+  const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, { ...r, __account: accountOf(r) }); return n; });
 
   /** Same filter set for the table rows and the full-scope totals. */
   const applyFilters = (q: any, deductibleIds: string[] | null) => {
@@ -113,7 +123,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     );
     const [{ data, error }, totals] = await Promise.all([rowsQ, totalsP.catch((e) => { toast.error(e.message); return []; })]);
     if (error) toast.error(error.message);
-    setRows((data ?? []) as unknown as Voucher[]);
+    const list = (data ?? []) as unknown as Voucher[];
+    // «اسم الحساب» / «المصدر»: an automatic voucher takes the customer / supplier of its document (0099)
+    const lk = await fetchTreasuryLinks(list.map((v: any) => v.treasury_id)).catch(() => new Map<string, TreasuryLink>());
+    setLinks(lk);
+    setRows(list);
     const a = { totalIn: 0, totalOut: 0, countIn: 0, countOut: 0 };
     for (const t of totals) {
       const amt = Math.abs(Number(t.amount) || 0);
@@ -140,6 +154,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
 
   const summary = useMemo(() => ({ ...agg, net: agg.totalIn - agg.totalOut }), [agg]);
   const viewType: VoucherType | "" = type ?? (onlyDeductedFromProfit ? "payment" : filters.type);
+  const bulkKind = viewType === "receipt" ? "income" as const : viewType === "payment" ? "expense" as const : null;
 
   const confirmCancel = async () => {
     if (!cancelTarget) return;
@@ -163,7 +178,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     w.document.write(`<html dir="rtl"><head><title>سند ${esc(r.voucher_number)}</title><style>body{font-family:Tahoma,sans-serif;padding:24px}h2{text-align:center}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:8px;text-align:right}th{width:30%;background:#f2f2f2}</style></head><body>
       <h2>${esc(VOUCHER_TYPE_LABEL[r.type])} رقم ${esc(r.voucher_number)}</h2><table>
       ${row("التاريخ", formatDate(r.voucher_date))}${row("المبلغ", formatEGP(Number(r.amount)))}
-      ${row("التصنيف", catMap[r.category_id] ?? "")}${row("الجهة", r.party_name ?? "")}
+      ${row("التصنيف", catMap[r.category_id] ?? "")}${row("اسم الحساب", accountOf(r) ?? "")}
       ${row("طريقة الدفع", PAYMENT_METHOD_LABELS[r.payment_method] ?? "")}${row("الحالة", r.status === "active" ? "نشط" : "ملغي")}
       ${row("الوصف", r.description ?? "")}</table><script>window.onload=()=>window.print()</script></body></html>`);
     w.document.close();
@@ -188,7 +203,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     "التصنيف": catMap[r.category_id] ?? "",
     "المبلغ": Number(r.amount),
     "طريقة الدفع": PAYMENT_METHOD_LABELS[r.payment_method],
-    "الجهة": r.party_name ?? "",
+    "اسم الحساب": accountOf(r) ?? "",
     "المصدر": r.source === "manual" ? "يدوي" : "تلقائي",
     "الحالة": r.status === "active" ? "نشط" : "ملغي",
     "الوصف": r.description ?? "",
@@ -393,44 +408,56 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       </div>
 
 
+      {bulkKind && (branchId || rows[0]?.branch_id) && (
+        <BulkActionsBar
+          kind={bulkKind}
+          branchId={(branchId ?? rows[0]?.branch_id)!}
+          rows={Array.from(selected.values())}
+          totalCount={rows.length}
+          onSelectPage={() => setSelected(new Map(rows.map((r: any) => [r.id, { ...r, __account: accountOf(r) }])))}
+          onClear={() => setSelected(new Map())}
+          onDone={() => { setSelected(new Map()); load(); }}
+        />
+      )}
       <DataTable
         loading={loading}
         rows={rows}
         indexColumn
         onRowClick={(r: Voucher) => setViewTarget(r)}
         columns={[
-          { key: "details", header: "تفاصيل", render: (r: Voucher) => (
-            <DetailsChevron label="عرض تفاصيل السند" onClick={() => setViewTarget(r)} />
-          ) },
-          { key: "voucher_number", header: "رقم السند", render: (r: Voucher) => (
-            <span className="font-mono">{r.voucher_number}</span>
-          ) },
-          { key: "voucher_date", header: "التاريخ", render: (r: Voucher) => <InlineVoucherDate voucher={r} onSaved={load} /> },
-          ...(!type ? [{ key: "type", header: "النوع", render: (r: Voucher) => (
-            <Badge variant={r.type === "receipt" ? "default" : "destructive"}>{VOUCHER_TYPE_LABEL[r.type]}</Badge>
+          // owner order 2026-10-16: ✓ · رقم السند · اسم الحساب · المبلغ · التصنيف · طريقة الدفع · التاريخ · الحالة · المصدر · … · الإجراءات
+          ...(bulkKind ? [{ key: "__sel", header: "✓", align: "center" as const, className: "w-[40px]", render: (r: Voucher) => (
+            <input type="checkbox" className="h-4 w-4 accent-primary cursor-pointer" checked={selected.has(r.id)}
+                   onClick={(e) => e.stopPropagation()} onChange={() => toggleSel(r)} aria-label={`تحديد ${r.voucher_number}`} />
           ) }] : []),
-          { key: "category", header: "التصنيف", render: (r: Voucher) => catMap[r.category_id] ?? "—" },
+          { key: "voucher_number", header: "رقم السند", render: (r: Voucher) => (
+            <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <DetailsChevron label="عرض تفاصيل السند" onClick={() => setViewTarget(r)} />
+              <span className="font-mono font-semibold">{r.voucher_number}</span>
+            </span>
+          ) },
+          { key: "account", header: "اسم الحساب", render: (r: Voucher) => <AccountCell name={accountOf(r)} /> },
           { key: "amount", header: "المبلغ", render: (r: Voucher) => (
             <span className={`font-bold ${r.type === "receipt" ? "text-success" : "text-destructive"}`}>
               {formatEGP(Number(r.amount))}
             </span>
           ) },
-          { key: "payment_method", header: "طريقة الدفع", render: (r: Voucher) => PAYMENT_METHOD_LABELS[r.payment_method] },
-          { key: "party", header: "الجهة", render: (r: Voucher) => r.party_name ?? "—" },
-          { key: "description", header: "البيان / الوصف", render: (r: Voucher) => (
-            <span className="block max-w-[18rem] text-xs whitespace-pre-wrap break-words line-clamp-3" title={r.description ?? ""}>{r.description || "—"}</span>
-          ) },
-          ...(adminAllBranches ? [{ key: "branch", header: "الفرع", render: (r: Voucher) => branchMap[r.branch_id] ?? "—" }] : []),
-          { key: "source", header: "المصدر", render: (r: Voucher) => (
-            <Badge variant={r.source === "manual" ? "secondary" : "outline"}>
-              {r.source === "manual" ? "يدوي" : "تلقائي"}
-            </Badge>
-          ) },
+          ...(!type ? [{ key: "type", header: "النوع", render: (r: Voucher) => (
+            <Badge variant={r.type === "receipt" ? "default" : "destructive"}>{VOUCHER_TYPE_LABEL[r.type]}</Badge>
+          ) }] : []),
+          { key: "category", header: "التصنيف", render: (r: Voucher) => catMap[r.category_id] ?? "—" },
+          { key: "payment_method", header: "طريقة الدفع", render: (r: Voucher) => payMethodLabel(r.payment_method) },
+          { key: "voucher_date", header: "التاريخ", render: (r: Voucher) => <InlineVoucherDate voucher={r} onSaved={load} /> },
           { key: "status", header: "الحالة", render: (r: Voucher) => (
             r.status === "active"
               ? <Badge variant="default">نشط</Badge>
               : <Badge variant="destructive">ملغي</Badge>
           ) },
+          { key: "source", header: "المصدر", render: (r: Voucher) => <SourceCell link={linkOf(r)} branchId={r.branch_id} source={r.source} /> },
+          { key: "description", header: "البيان / الوصف", render: (r: Voucher) => (
+            <span className="block max-w-[18rem] text-xs whitespace-pre-wrap break-words line-clamp-3" title={r.description ?? ""}>{r.description || "—"}</span>
+          ) },
+          ...(adminAllBranches ? [{ key: "branch", header: "الفرع", render: (r: Voucher) => branchMap[r.branch_id] ?? "—" }] : []),
           { key: "actions", header: "الإجراءات", render: (r: Voucher) => {
             const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
             return (

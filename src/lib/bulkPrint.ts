@@ -1,3 +1,4 @@
+import { fetchTreasuryLinks } from "@/lib/treasuryLinks";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
@@ -24,8 +25,8 @@ const SELECT: Record<BulkKind, string> = {
   purchase: "id, shipment_number, invoice_date, created_at, total_cost, discount_amount, vat_amount, total_extra_costs, notes, received_by, status, branches:branch_id(name), contacts:contact_id(name, phone), shipment_items(product_name, quantity, cost_price, total)",
   sale_return: "id, return_number, invoice_date, created_at, total_refund, reason, notes, recipient_name, status, refund_cash_amount, refund_transfer_amount, refund_balance_amount, branches:branch_id(name), invoices(invoice_number, contacts:contact_id(name, phone)), return_items(quantity, refund, products(name))",
   purchase_return: "id, return_number, invoice_date, created_at, total_amount, reason, notes, recipient_name, status, refund_cash_amount, refund_transfer_amount, refund_balance_amount, branches:branch_id(name), contacts:contact_id(name, phone), shipments(shipment_number), purchase_return_items(product_name, quantity, unit_cost, total)",
-  income: "id, voucher_number, type, voucher_date, created_at, amount, payment_method, fee_amount, reference_number, party_name, description, recipient_name, status, branches:branch_id(name), voucher_categories(name)",
-  expense: "id, voucher_number, type, voucher_date, created_at, amount, payment_method, fee_amount, reference_number, party_name, description, recipient_name, status, branches:branch_id(name), voucher_categories(name)",
+  income: "id, voucher_number, type, voucher_date, created_at, amount, payment_method, fee_amount, reference_number, party_name, treasury_id, description, recipient_name, status, branches:branch_id(name), voucher_categories(name)",
+  expense: "id, voucher_number, type, voucher_date, created_at, amount, payment_method, fee_amount, reference_number, party_name, treasury_id, description, recipient_name, status, branches:branch_id(name), voucher_categories(name)",
 };
 const TABLE: Record<BulkKind, string> = {
   sale: "invoices", purchase: "shipments", sale_return: "returns", purchase_return: "purchase_returns", income: "vouchers", expense: "vouchers",
@@ -77,7 +78,7 @@ function toDoc(k: BulkKind, r: any): Doc {
       total: Number(r.total_amount) || 0,
     };
     default: return {
-      number: r.voucher_number, date: r.voucher_date ?? r.created_at, party: r.party_name ?? "—", partyLabel: r.type === "receipt" ? "استلمنا من" : "صرفنا إلى",
+      number: r.voucher_number, date: r.voucher_date ?? r.created_at, party: r.__account ?? r.party_name ?? "—", partyLabel: "اسم الحساب",
       recipient: r.recipient_name, notes: r.description, status, branch, lines: [],
       rows: [
         ["التصنيف", esc(r.voucher_categories?.name ?? "—")],
@@ -163,6 +164,11 @@ export async function printDocuments(k: BulkKind, ids: string[], format: PrintFo
       const { data, error } = await supabase.from(TABLE[k] as any).select(SELECT[k]).in("id", ids.slice(i, i + 100));
       if (error) throw error;
       rows.push(...(data ?? []));
+    }
+    if (k === "income" || k === "expense") {
+      // «اسم الحساب» of an automatic voucher = the customer / supplier of its document (0099)
+      const links = await fetchTreasuryLinks(rows.map((r: any) => r.treasury_id)).catch(() => new Map());
+      for (const r of rows) r.__account = (links.get(r.treasury_id) as any)?.account_name ?? r.party_name ?? null;
     }
     const byId = new Map(rows.map((r: any) => [r.id, r]));
     const { data: settings } = await supabase.from("settings").select("key, value").eq("key", "company");

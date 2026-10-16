@@ -1,7 +1,7 @@
 import { ContactLookup } from "@/components/ContactLookup";
 import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
 import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { NumberedPagination } from "@/components/NumberedPagination";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
@@ -50,6 +50,8 @@ import { useDocumentMetrics } from "@/hooks/useDocumentMetrics";
 import { enrichSettled, isDocKind, matchesDocCard, type DocCardKey } from "@/lib/documentMetrics";
 import { ConvertClassDialog, type ClassTarget } from "@/components/documents/ConvertClassDialog";
 import { BulkActionsBar } from "@/components/documents/BulkActionsBar";
+import { AccountCell, SourceCell, PrintDocButton } from "@/components/documents/MoneyCells";
+import { fetchTreasuryLinks, payMethodLabel, SRC_LABEL, srcPath } from "@/lib/treasuryLinks";
 import type { BulkKind } from "@/lib/bulkDocs";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
@@ -309,11 +311,19 @@ export default function Invoices() {
         const x = split.get(v.id);
         return {
           ...v,
+          __enteredAt: v.created_at,
           created_at: v.voucher_date ?? v.created_at,
           category: v.voucher_categories?.name ?? "—",
           description: v.description ?? v.voucher_number,
           __inLedger: !!x?.in_ledger, __alloc: Number(x?.allocated) || 0, __onAcc: Number(x?.on_account) || 0, __docs: x?.docs ?? null,
         };
+      });
+      // «اسم الحساب» / «المصدر»: an automatic voucher takes the customer / supplier of its document (0099)
+      const links = await fetchTreasuryLinks(data.map((v: any) => v.treasury_id), ctrl.signal).catch(() => new Map());
+      if (stale()) return;
+      data = data.map((v: any) => {
+        const l: any = v.treasury_id ? links.get(v.treasury_id) : null;
+        return { ...v, __link: l ?? null, __account: l?.account_name ?? v.party_name ?? null };
       });
     }
     if ((tab === "sale" || tab === "purchase") && data.length) {
@@ -554,13 +564,19 @@ export default function Invoices() {
           { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },
           { key: "invoice_date", header: "تاريخ الفاتورة", align: "center", className: "min-w-[150px]", render: (r: any) => <EditableInvoiceDate table="invoices" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
+            key: "actions", header: "إجراءات", align: "center", width: "15rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / إدارة" onClick={() => nav(`${base}/sales/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
+                <PrintDocButton kind="sale" id={r.id} title="طباعة الفاتورة" />
+                {can("sales.create") && r.status === "active" && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل الفاتورة" onClick={() => nav(`${base}/sales/${r.id}/edit`)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                )}
                 <DocAnnotationsButton kind="invoice" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
-<AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canCancelDoc && r.status === "active" && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="إلغاء الفاتورة (مع رد المدفوع)" onClick={() => setCancelSale(r)}>
                     <XCircle className="w-4 h-4" />
@@ -604,13 +620,19 @@ export default function Invoices() {
           { key: "invoice_date", header: "تاريخ الفاتورة", align: "center", className: "min-w-[150px]", render: (r: any) => <EditableInvoiceDate table="shipments" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           { key: "arrival_date", header: "تاريخ الوصول", align: "center", className: "min-w-[110px]", render: (r: any) => formatDate(r.arrival_date) },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
+            key: "actions", header: "إجراءات", align: "center", width: "15rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض / تعديل" onClick={() => nav(`${base}/shipments/${r.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
+                <PrintDocButton kind="purchase" id={r.id} title="طباعة الفاتورة" />
+                {can("shipments.create") && (r.status ?? "active") === "active" && (
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل الفاتورة" onClick={() => nav(`${base}/shipments/${r.id}/edit`)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                )}
                 <DocAnnotationsButton kind="shipment" id={r.id} recipient={r.received_by} notes={r.notes} onSaved={() => load()} />
-<AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 {canCancelDoc && (r.status ?? "active") === "active" && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "إلغاء فاتورة الشراء" : "طلب إلغاء"} onClick={() => setCancelPurchase(r)}>
                     <XCircle className="w-4 h-4" />
@@ -655,7 +677,7 @@ export default function Invoices() {
           { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },
           { key: "invoice_date", header: "تاريخ المرتجع", align: "center", className: "min-w-[150px]", render: (r: any) => <EditableInvoiceDate table="returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
+            key: "actions", header: "إجراءات", align: "center", width: "15rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/sale-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
@@ -663,7 +685,9 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل التاريخ والمستلم والملاحظات" onClick={() => setReturnEdit({ kind: "sale_return", rec: r })}>
                   <Pencil className="w-4 h-4" />
                 </Button>
-<AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <PrintDocButton kind="sale_return" id={r.id} title="طباعة المرتجع" />
+                <DocAnnotationsButton kind="sale_return" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
+                <AttachmentsDialogButton recordType="sale_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 <CancelReturnButton iconOnly kind="sale" returnId={r.id} returnNumber={r.return_number ?? ""} total={Number(r.total_refund ?? 0)} status={r.status ?? "active"} onRequest={setSelectedReturnForCancel} />
               </div>
             ),
@@ -704,7 +728,7 @@ export default function Invoices() {
           { key: "__notes", header: "الملاحظات", align: "center", className: "min-w-[150px]", render: (r: any) => textCell(r.notes) },
           { key: "invoice_date", header: "تاريخ المرتجع", align: "center", className: "min-w-[150px]", render: (r: any) => <EditableInvoiceDate table="purchase_returns" recordId={r.id} value={r.invoice_date} fallback={r.created_at} onSaved={() => load()} /> },
           {
-            key: "actions", header: "إجراءات", align: "center", width: "10rem", render: (r: any) => (
+            key: "actions", header: "إجراءات", align: "center", width: "15rem", render: (r: any) => (
               <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض" onClick={() => nav(`${base}/purchase-returns/${r.id}`)}>
                   <Eye className="w-4 h-4" />
@@ -712,7 +736,9 @@ export default function Invoices() {
                 <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل التاريخ والمستلم والملاحظات" onClick={() => setReturnEdit({ kind: "purchase_return", rec: r })}>
                   <Pencil className="w-4 h-4" />
                 </Button>
-<AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
+                <PrintDocButton kind="purchase_return" id={r.id} title="طباعة المرتجع" />
+                <DocAnnotationsButton kind="purchase_return" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
+                <AttachmentsDialogButton recordType="purchase_return" recordId={r.id} count={attCounts[r.id] ?? 0} />
                 <CancelReturnButton iconOnly kind="purchase" returnId={r.id} returnNumber={r.return_number ?? ""} total={Number(r.total_amount ?? 0)} status={r.status ?? "active"} onRequest={setSelectedReturnForCancel} />
               </div>
             ),
@@ -724,34 +750,32 @@ export default function Invoices() {
       case "expense": return {
         newLink: `${base}/treasury`, newLabel: tab === "income" ? "سند قبض جديد" : "سند صرف جديد", newPerm: tab === "income" ? "receipt_vouchers.create" : "payment_vouchers.create",
         columns: [
-          { key: "voucher_number", header: "رقم", align: "center", width: "8rem", render: (r: any) => <span className={`font-mono font-semibold ${r.status === "cancelled" ? "line-through text-muted-foreground" : "text-primary"}`}>{r.voucher_number ?? "—"}</span> },
-          { key: "party", header: tab === "income" ? "استلمنا من" : "صرفنا إلى", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
-            const name = r.party_name ?? "—";
-            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
-          } },
-          { key: "amount", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.amount) },
-          { key: "category", header: "التصنيف", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.category) },
-          { key: "__alloc", header: tab === "income" ? "اتخصم من فواتير / مقدم" : "اتدفع على فواتير / مقدم", align: "center", className: "min-w-[170px]", render: (r: any) => {
-            if (r.status === "cancelled" || !r.__inLedger) return <span className="text-muted-foreground" title="سند مش على حساب عميل أو مورد">—</span>;
-            return (
-              <span className="flex flex-col items-center gap-1 text-xs tabular-nums leading-tight">
-                <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 font-bold text-success" title={r.__docs ?? undefined}>
-                  <span className="text-[10px] font-extrabold text-muted-foreground">فواتير</span>{formatEGP(r.__alloc ?? 0)}
-                </span>
-                {r.__docs && <span className="max-w-[160px] truncate text-[10px] text-muted-foreground" title={r.__docs}>{r.__docs}</span>}
-                {Number(r.__onAcc) > 0.005 && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 font-bold text-primary">
-                    <span className="text-[10px] font-extrabold text-muted-foreground">مقدم</span>{formatEGP(r.__onAcc)}
-                  </span>
-                )}
-              </span>
-            );
-          } },
-          ...methodCols((r: any) => r.status === "cancelled" ? {} : { [methodBucket(r.payment_method)]: Number(r.amount) || 0 }),
-          { key: "status", header: "الحالة", align: "center", className: "min-w-[80px]", render: statusCell },
-          { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
-          { key: "description", header: "الملاحظات / البيان", align: "center", className: "min-w-[200px]", render: (r: any) => textCell(r.description) },
+          // owner order 2026-10-16: رقم السند · اسم الحساب · المبلغ · التصنيف · طريقة الدفع · التاريخ · الحالة · المصدر · … · إجراءات
+          { key: "voucher_number", header: "رقم السند", align: "center", width: "9rem", render: (r: any) => (
+            <span className="inline-flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                aria-label={expandedInvoiceId === r.id ? "إخفاء تفاصيل السند" : "عرض تفاصيل السند"}
+                aria-expanded={expandedInvoiceId === r.id}
+                className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                onClick={(event) => { event.stopPropagation(); setExpandedInvoiceId((current) => current === r.id ? null : r.id); }}
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform ${expandedInvoiceId === r.id ? "rotate-180" : ""}`} />
+              </button>
+              <span className={`font-mono font-semibold ${r.status === "cancelled" ? "line-through text-muted-foreground" : "text-primary"}`}>{r.voucher_number ?? "—"}</span>
+            </span>
+          ) },
+          { key: "__account", header: "اسم الحساب", align: "right", className: "min-w-[180px] text-right", render: (r: any) => <AccountCell name={r.__account} /> },
+          { key: "amount", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => (
+            <span className={`font-bold tabular-nums ${tab === "income" ? "text-success" : "text-destructive"}`}>{formatEGP(r.amount)}</span>
+          ) },
+          { key: "category", header: "التصنيف", align: "center", className: "min-w-[130px]", render: (r: any) => textCell(r.category) },
+          { key: "payment_method", header: "طريقة الدفع", align: "center", className: "min-w-[100px]", render: (r: any) => payMethodLabel(r.payment_method) },
           { key: "created_at", header: "التاريخ", align: "center", className: "min-w-[120px]", render: (r: any) => r.voucher_date ? <InlineVoucherDate voucher={r} onSaved={() => load()} /> : formatDateTime(r.created_at) },
+          { key: "status", header: "الحالة", align: "center", className: "min-w-[80px]", render: statusCell },
+          { key: "__source", header: "المصدر", align: "center", className: "min-w-[150px]", render: (r: any) => <SourceCell link={r.__link} branchId={branchId!} source={r.source} /> },
+          { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
+          { key: "description", header: "البيان", align: "center", className: "min-w-[200px]", render: (r: any) => textCell(r.description) },
           {
             key: "actions", header: "إجراءات", align: "center", width: "12rem", render: (r: any) => {
               const canCancel = r.status === "active" && (isAdmin || (isManager && r.source === "manual"));
@@ -765,6 +789,7 @@ export default function Invoices() {
                       <Pencil className="w-4 h-4" />
                     </Button>
                   )}
+                  <PrintDocButton kind={tab === "income" ? "income" : "expense"} id={r.id} title="طباعة السند" />
                   <DocAnnotationsButton kind="voucher" id={r.id} recipient={r.recipient_name} notes={r.description} onSaved={() => load()} />
 <AttachmentsDialogButton recordType="voucher" recordId={r.id} count={attCounts[r.id] ?? 0} />
                   {canCancel && (
@@ -1323,10 +1348,10 @@ export default function Invoices() {
         }, ...cfg.columns] : cfg.columns) as any}
         minTableWidth={tab === "sale" || tab === "purchase" ? "1900px" : bulkKind ? "1800px" : docKind ? "1100px" : undefined}
         getRowKey={(row: any) => row.id}
-        isRowExpanded={DOC_ITEMS_TABS.includes(tab) || tab === "transfer" ? (row: any) => expandedInvoiceId === row.id : undefined}
+        isRowExpanded={DOC_ITEMS_TABS.includes(tab) || tab === "transfer" || tab === "income" || tab === "expense" ? (row: any) => expandedInvoiceId === row.id : undefined}
         renderExpandedRow={tab === "transfer" ? (row: any) => (
           <TransferDetails transfer={row} value={transferValues[row.id]} fromName={branchName(row.from_branch_id)} toName={branchName(row.to_branch_id)} />
-        ) : DOC_ITEMS_TABS.includes(tab) && tenantId && branchId ? (row: any) => (
+        ) : tab === "income" || tab === "expense" ? (row: any) => <VoucherDetailsRow v={row} income={tab === "income"} branchId={branchId!} /> : DOC_ITEMS_TABS.includes(tab) && tenantId && branchId ? (row: any) => (
           tab === "sale" ? (
             <InvoiceItemsAccordion
               tenantId={tenantId}
@@ -1426,5 +1451,35 @@ function SalePayBadge({ state, remaining }: { state: SalePayState; remaining: nu
       {label}
       {state === "partial" && <span className="font-semibold tabular-nums opacity-90">متبقي {formatEGP(remaining)}</span>}
     </span>
+  );
+}
+
+/** The arrow under a voucher: whose account, which document, what it paid and what stayed on account. */
+function VoucherDetailsRow({ v, income, branchId }: { v: any; income: boolean; branchId: string }) {
+  const nav = useNavigate();
+  const l = v.__link;
+  const path = l ? srcPath(branchId, l) : null;
+  const Item = ({ k, children }: { k: string; children: ReactNode }) => (
+    <div className="flex gap-2"><span className="text-muted-foreground whitespace-nowrap">{k}:</span><span className="font-semibold">{children}</span></div>
+  );
+  return (
+    <div className="grid gap-2 bg-muted/30 p-3 text-xs sm:grid-cols-2 lg:grid-cols-3" dir="rtl">
+      <Item k="اسم الحساب">{v.__account ?? "—"}</Item>
+      <Item k="المصدر">
+        {path && l?.src_type
+          ? <button type="button" className="text-primary hover:underline" onClick={() => nav(path)}>{SRC_LABEL[l.src_type]} {l.src_number}</button>
+          : v.source === "manual" ? "سند يدوي" : "سند تلقائي"}
+      </Item>
+      <Item k="طريقة الدفع">{payMethodLabel(v.payment_method)}{v.reference_number ? ` • رقم العملية ${v.reference_number}` : ""}</Item>
+      {v.__inLedger && v.status !== "cancelled" && (
+        <>
+          <Item k={income ? "اتخصم من فواتير" : "اتدفع على فواتير"}>{formatEGP(v.__alloc ?? 0)}{v.__docs ? ` (${v.__docs})` : ""}</Item>
+          <Item k={income ? "فضل مقدم تحت حسابه" : "فضل مقدم لينا عنده"}>{formatEGP(v.__onAcc ?? 0)}</Item>
+        </>
+      )}
+      {Number(v.fee_amount) > 0 && <Item k="العمولة">{formatEGP(v.fee_amount)}</Item>}
+      <Item k="سجّله">{v.created_by_name ?? "—"} • {formatDateTime(v.__enteredAt ?? v.created_at)}</Item>
+      {v.status === "cancelled" && <Item k="اتلغى">{v.cancelled_at ? formatDateTime(v.cancelled_at) : "—"}{v.cancel_reason ? ` — ${v.cancel_reason}` : ""}</Item>}
+    </div>
   );
 }

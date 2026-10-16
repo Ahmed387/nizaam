@@ -31,7 +31,7 @@ export function docParty(k: BulkKind, r: any): string {
     case "sale_return": return r.invoices?.contacts?.name ?? "نقدي";
     case "purchase":
     case "purchase_return": return r.contacts?.name ?? "—";
-    default: return r.party_name ?? "—";
+    default: return r.__account ?? r.party_name ?? "—";
   }
 }
 
