@@ -30,6 +30,9 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { saveContact, deleteContact } from "@/lib/contactWrites";
 import { fetchContactsPage, type BalanceFilter, type ContactPageTotals } from "@/lib/ledger";
+import { Search, Layers } from "lucide-react";
+import { openDocs, OPEN_DOCS_MAX } from "@/lib/openDocs";
+import { printStatements } from "@/lib/bulkPrint";
 
 type ContactType = "customer" | "supplier" | "both";
 
@@ -116,6 +119,32 @@ export default function Contacts() {
   useRealtimeRefresh(["contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers", "payment_transactions", "customer_credit_log"], load);
 
   const filtered = rows;
+
+  // Selection (owner request 2026-10-16): open as tabs, print statements, export — kept across pages
+  const [selected, setSelected] = useState<Map<string, any>>(new Map());
+  useEffect(() => { setSelected(new Map()); }, [debouncedSearch, filter, balanceFilters, branchId]);
+  const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, r); return n; });
+  /** What we are owed and what we owe, from the two separate accounts (never netted against each other). */
+  const owes = (r: any) => {
+    const c = Number(r.customer_balance ?? 0), su = Number(r.supplier_balance ?? 0);
+    return {
+      us: { fromCustomer: Math.max(c, 0), supplierAdvance: Math.max(-su, 0) },
+      them: { toSupplier: Math.max(su, 0), customerAdvance: Math.max(-c, 0) },
+    };
+  };
+  const selRows = Array.from(selected.values());
+  const exportSelected = () => exportToExcel("جهات-محددة", [{
+    name: "الجهات",
+    rows: selRows.map((r, i) => {
+      const o = owes(r);
+      return {
+        "#": i + 1, "الاسم": r.name, "النوع": TYPE_LABELS[r.type as ContactType] ?? r.type, "التليفون": r.phone ?? "", "العنوان": r.address ?? "",
+        "لينا عنده": o.us.fromCustomer + o.us.supplierAdvance, "علينا له": o.them.toSupplier + o.them.customerAdvance,
+        "حساب العميل": sideText("c", Number(r.customer_balance ?? 0)) + " " + Math.abs(Number(r.customer_balance ?? 0)),
+        "حساب المورد": sideText("s", Number(r.supplier_balance ?? 0)) + " " + Math.abs(Number(r.supplier_balance ?? 0)),
+      };
+    }),
+  }]);
 
 
   // Excel / PDF export of the current filtered view
@@ -438,15 +467,38 @@ export default function Contacts() {
               )}
             </PopoverContent>
           </Popover>
-          <Input
-            placeholder="بحث بالاسم أو التليفون..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-xs"
-          />
+          <div className="relative w-full sm:w-80">
+            <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="الاسم، التليفون، المسؤول، العنوان، الملاحظات..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-10 pr-9 bg-background"
+            />
+          </div>
         </div>
       </div>
 
+      <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+        <Button size="sm" variant="ghost" className="h-7" onClick={() => setSelected((prev) => { const n = new Map(prev); filtered.forEach((r: any) => n.set(r.id, r)); return n; })}>تحديد كل الصفحة</Button>
+        {selRows.length > 0 && (
+          <div className="sticky top-2 z-10 flex flex-wrap items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 shadow-sm">
+            <span className="font-bold">محدد {selRows.length} جهة</span>
+            <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => {
+              const list = selRows.slice(0, OPEN_DOCS_MAX).map((r) => ({ path: `/branch/${branchId}/contacts/${r.id}`, label: r.name }));
+              openDocs(list);
+              if (selRows.length > OPEN_DOCS_MAX) toast.info(`اتفتح أول ${OPEN_DOCS_MAX} بس — أقصى عدد تابات`);
+              if (list[0]) nav(list[0].path);
+            }}><Layers className="h-3.5 w-3.5" />فتح الكل</Button>
+            <Button size="sm" variant="outline" className="h-7 gap-1" onClick={async () => {
+              try { await printStatements(selRows.map((r) => ({ id: r.id, name: r.name, type: r.type })), branchId ?? null, null); }
+              catch (e: any) { toast.error(e?.message ?? "تعذر الطباعة"); }
+            }}><Printer className="h-3.5 w-3.5" />طباعة كشوف الحساب</Button>
+            <Button size="sm" variant="outline" className="h-7 gap-1" onClick={exportSelected}><FileSpreadsheet className="h-3.5 w-3.5" />تصدير المحدد</Button>
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setSelected(new Map())}>إلغاء التحديد</Button>
+          </div>
+        )}
+      </div>
       <DataTable
         loading={loading}
         rows={filtered}
@@ -455,6 +507,13 @@ export default function Contacts() {
         onRowClick={(r: any) => setExpandedId(r.id)}
         getRowKey={(r: any) => r.id}
         columns={[
+          {
+            key: "__sel", header: "✓", align: "center", className: "w-[40px]",
+            render: (r: any) => (
+              <input type="checkbox" className="h-4 w-4 accent-primary cursor-pointer" checked={selected.has(r.id)}
+                     onClick={(e) => e.stopPropagation()} onChange={() => toggleSel(r)} aria-label={`تحديد ${r.name}`} />
+            ),
+          },
           {
             key: "name",
             header: "الاسم",
@@ -525,6 +584,40 @@ export default function Contacts() {
                 : b > 0 ? <span className="text-destructive font-bold">{formatEGP(b)} <span className="text-xs">(علينا له)</span></span>
                 : <span className="text-primary font-bold">{formatEGP(-b)} <span className="text-xs">(مقدم لينا)</span></span>;
               return <div>{main}{Math.abs(all - b) > 0.005 && <div className="text-[11px] text-muted-foreground">كل الفروع: {formatEGP(Math.abs(all))} {all > 0 ? "علينا" : all < 0 ? "مقدم" : ""}</div>}</div>;
+            },
+          },
+          {
+            key: "__owed_us",
+            header: "لينا عنده",
+            render: (r: any) => {
+              const o = owes(r).us; const t = o.fromCustomer + o.supplierAdvance;
+              if (t <= 0.005) return <span className="text-muted-foreground">—</span>;
+              return (
+                <div className="tabular-nums">
+                  <span className="font-bold text-success">{formatEGP(t)}</span>
+                  {o.fromCustomer > 0.005 && o.supplierAdvance > 0.005 && (
+                    <div className="text-[11px] text-muted-foreground">عليه كعميل {formatEGP(o.fromCustomer)} • مقدم عنده كمورد {formatEGP(o.supplierAdvance)}</div>
+                  )}
+                  {o.fromCustomer <= 0.005 && <div className="text-[11px] text-muted-foreground">مقدم دفعناه له</div>}
+                </div>
+              );
+            },
+          },
+          {
+            key: "__we_owe",
+            header: "علينا له",
+            render: (r: any) => {
+              const o = owes(r).them; const t = o.toSupplier + o.customerAdvance;
+              if (t <= 0.005) return <span className="text-muted-foreground">—</span>;
+              return (
+                <div className="tabular-nums">
+                  <span className="font-bold text-destructive">{formatEGP(t)}</span>
+                  {o.toSupplier > 0.005 && o.customerAdvance > 0.005 && (
+                    <div className="text-[11px] text-muted-foreground">له كمورد {formatEGP(o.toSupplier)} • مقدم منه كعميل {formatEGP(o.customerAdvance)}</div>
+                  )}
+                  {o.toSupplier <= 0.005 && <div className="text-[11px] text-muted-foreground">مقدم دفعه لنا</div>}
+                </div>
+              );
             },
           },
           {

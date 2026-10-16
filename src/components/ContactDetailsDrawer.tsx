@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { SideSummary } from "@/components/contact/SideSummary";
+import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
 import { ContactSettleDialog, type ContactOpenInvoice } from "@/components/ContactSettleDialog";
 import { CreditDepositButton } from "@/components/CreditDepositDialog";
 import { fetchContactDocuments, fetchContactOverview, type ContactOverview } from "@/lib/ledger";
@@ -133,6 +134,8 @@ export function ContactDetailsDrawer({ contact, branchId, canSettle, onClose, on
             {!loading && !ov && <div className="p-4 text-sm text-destructive">تعذر تحميل حساب الجهة — جرّب تاني.</div>}
             {!loading && ov && (
               <div className="space-y-4 mt-3">
+                <ContactBalanceHeader customer={showC ? ov.customer : null} supplier={showS ? ov.supplier : null}
+                  scopeLabel={scope === "branch" ? "الفرع ده" : "كل الفروع"} />
                 {showC && (
                   <section className="space-y-2">
                     <h4 className="font-bold text-sm">حساب العميل</h4>

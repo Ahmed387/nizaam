@@ -179,3 +179,47 @@ export async function printDocuments(k: BulkKind, ids: string[], format: PrintFo
     throw e;
   }
 }
+
+/** Statements of several customers / suppliers in one print job (A4), each side on its own page — no netting. */
+export async function printStatements(contacts: { id: string; name: string; type: string }[], branchId: string | null, branchName?: string | null) {
+  const { fetchContactStatement } = await import("@/lib/ledger");
+  const w = window.open("", "_blank", "width=1000,height=800");
+  if (!w) throw new Error("المتصفح منع فتح نافذة الطباعة — اسمح بالنوافذ المنبثقة للموقع");
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>طباعة</title></head><body style="font-family:sans-serif;padding:24px">جاري تجهيز كشوف ${contacts.length} حساب...</body></html>`);
+  try {
+    const { data: settings } = await supabase.from("settings").select("key, value").eq("key", "company");
+    const company: any = (settings ?? []).map((s: any) => s.value).find(Boolean) ?? {};
+    const parts: string[] = [];
+    for (const c of contacts) {
+      const sides: ("customer" | "supplier")[] = c.type === "both" ? ["customer", "supplier"] : c.type === "supplier" ? ["supplier"] : ["customer"];
+      for (const side of sides) {
+        const lines = await fetchContactStatement(c.id, side, branchId, null, null);
+        const last = lines.length ? lines[lines.length - 1].balance : 0;
+        const label = side === "customer"
+          ? (last > 0.005 ? "لينا عنده" : last < -0.005 ? "له عندنا (مقدم)" : "مسدد")
+          : (last > 0.005 ? "علينا له" : last < -0.005 ? "لينا عنده (مقدم)" : "مسدد");
+        parts.push(`<section class="doc">
+          <header>
+            ${company?.name ? `<div class="company">${esc(company.name)}</div>` : ""}
+            <div class="title">كشف حساب ${side === "customer" ? "عميل" : "مورد"} — ${esc(c.name)}</div>
+            <div class="muted">${branchName ? `فرع ${esc(branchName)}` : "كل الفروع"} • حتى ${day(new Date().toISOString())}</div>
+          </header>
+          <table class="items"><thead><tr><th>التاريخ</th><th>البيان</th><th>المرجع</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead><tbody>
+            ${lines.map((l) => `<tr><td>${day(l.line_date)}</td><td class="name">${esc(l.description ?? l.line_type)}</td><td>${esc(l.reference ?? "")}</td>
+              <td>${l.debit ? money(l.debit) : ""}</td><td>${l.credit ? money(l.credit) : ""}</td><td>${money(l.balance)}</td></tr>`).join("")}
+          </tbody></table>
+          <div class="totals"><div class="grand"><span>${label}</span><b>${money(Math.abs(last))}</b></div></div>
+        </section>`);
+      }
+    }
+    w.document.open();
+    w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>كشوف حساب — ${contacts.length}</title>
+      <style>${CSS_COMMON}${CSS.a4} .totals { width: 45%; }</style></head><body>${parts.join("")}
+      <div class="print-bar"><button onclick="window.print()">🖨️ طباعة / حفظ PDF</button><button onclick="window.close()" style="background:#6b7280">إغلاق</button></div>
+      <script>setTimeout(function(){ window.focus(); window.print(); }, 300);</script></body></html>`);
+    w.document.close();
+  } catch (e) {
+    w.close();
+    throw e;
+  }
+}
