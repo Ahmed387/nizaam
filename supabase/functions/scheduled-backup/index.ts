@@ -227,16 +227,18 @@ Deno.serve(async (req) => {
       }
       if (!jobId) return jsonResponse({ error: "job_id مطلوب" }, 400);
       const stageDir = `${tenantId}/_staging/${jobId}`;
-      if (mode === "part" && partTable && /^[a-z0-9_]+#[0-9a-f]$/.test(partTable)) {
-        // One piece of a big table: ids starting with <hex>, keyset paging on id (no deep OFFSET).
-        const [tableName, hex] = partTable.split("#");
+      const pieceMatch = partTable ? /^([a-z0-9_]+)#([0-9a-f]{2})-([0-9a-f]{2})?$/.exec(partTable) : null;
+      if (mode === "part" && partTable && pieceMatch) {
+        // One piece of a big table: ids from <lo> up to <hi> (first two hex digits), keyset paging on id
+        // (no deep OFFSET) — migrations 0104 / 0105.
+        const tableName = pieceMatch[1], lo = pieceMatch[2], hi = pieceMatch[3] ?? "";
         if (!tables.some((x) => x.table_name === tableName)) return jsonResponse({ error: "جدول غير معروف" }, 400);
         const enc = new TextEncoder();
         const parts: Uint8Array[] = [];
         let total = 0, after: string | null = null, first = true;
         while (true) {
           const raw = await fetchPageRaw(url, serviceKey, "backup_fetch_range", {
-            _table: tableName, _tenant: tenantId, _hex: hex, _after: after, _limit: PAGE,
+            _table: tableName, _tenant: tenantId, _lo: lo, _hi: hi, _after: after, _limit: PAGE,
           }, partTable);
           const rows = JSON.parse(raw) as any[];
           const n = rows.length;
@@ -254,7 +256,7 @@ Deno.serve(async (req) => {
         parts.length = 0;
         const packed = await gzipBytes(content);
         const { error: upErr } = await admin.storage.from("system-backups")
-          .upload(`${stageDir}/${tableName}.${hex}.json.gz`, packed, { contentType: "application/gzip", upsert: true });
+          .upload(`${stageDir}/${tableName}.${lo}.json.gz`, packed, { contentType: "application/gzip", upsert: true });
         if (upErr) return jsonResponse({ error: `رفع ${partTable}: ${upErr.message}` }, 500);
         return jsonResponse({ ok: true, table: partTable, rows: total, bytes: content.byteLength, packed: packed.byteLength });
       }
@@ -325,17 +327,17 @@ Deno.serve(async (req) => {
         // ---------- 1) one JSON file per table (streamed one table at a time, raw text) ----------
         for (const t of tables) {
           if (stagedJobDir) {
-            // A big table staged in pieces (<table>#<hex>) → tables/<table>.<hex>.json.gz, joined back on restore.
+            // A big table staged in pieces (<table>#<lo>-<hi>) → tables/<table>.<lo>.json.gz, joined back on restore.
             const pieceKeys = Object.keys(stagedCounts).filter((k) => k.startsWith(`${t.table_name}#`)).sort();
             if (pieceKeys.length) {
               let sum = 0;
               for (const key of pieceKeys) {
-                const hex = key.slice(t.table_name.length + 1);
-                const piece = await admin.storage.from("system-backups").download(`${stagedJobDir}/${t.table_name}.${hex}.json.gz`);
+                const lo = key.slice(t.table_name.length + 1).split("-")[0];
+                const piece = await admin.storage.from("system-backups").download(`${stagedJobDir}/${t.table_name}.${lo}.json.gz`);
                 if (piece.error || !piece.data) throw new Error(`جزء ${key} غير موجود في المرحلة`);
                 const packed = new Uint8Array(await piece.data.arrayBuffer());
                 sum += Number(stagedCounts[key] ?? 0);
-                yield tarHeader(`tables/${t.table_name}.${hex}.json.gz`, packed.byteLength);
+                yield tarHeader(`tables/${t.table_name}.${lo}.json.gz`, packed.byteLength);
                 yield packed;
                 yield tarPadding(packed.byteLength);
               }
