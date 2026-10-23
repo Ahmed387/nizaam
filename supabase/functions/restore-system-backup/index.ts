@@ -90,6 +90,15 @@ Deno.serve(async (req) => {
     } else {
       for (const entry of entries) {
         if (!entry.name.startsWith("tables/")) continue;
+        const piece = /^tables\/([a-z0-9_]+)\.([0-9a-f])\.json\.gz$/.exec(entry.name);
+        if (piece) {
+          // a big table backed up in 16 pieces (migration 0104): join the rows back
+          const plain = await gunzip(new Response(entry.bytes).body as ReadableStream<Uint8Array>);
+          const rows = JSON.parse(new TextDecoder().decode(plain)) as any[];
+          const into = (data[piece[1]] ??= []);
+          for (const row of rows) into.push(row);
+          continue;
+        }
         if (entry.name.endsWith(".json.gz")) {
           // staged backups keep each table gzip-compressed inside the tar
           const tableName = entry.name.slice("tables/".length, -".json.gz".length);

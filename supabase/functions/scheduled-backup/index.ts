@@ -218,10 +218,46 @@ Deno.serve(async (req) => {
       if (tenantIds.length !== 1) return jsonResponse({ error: "حدد شركة واحدة للنسخ المرحلي" }, 400);
       const tenantId = tenantIds[0];
       if (mode === "plan") {
-        return jsonResponse({ ok: true, job_id: crypto.randomUUID(), tables: tables.map((t) => t.table_name) });
+        // Big tables come as 16 pieces «<table>#<hex>» (backup_part_list, migration 0104).
+        const { data: partRows, error: plErr } = await admin.rpc("backup_part_list");
+        const names = !plErr && Array.isArray(partRows) && partRows.length
+          ? (partRows as { table_name: string }[]).map((p) => p.table_name)
+          : tables.map((t) => t.table_name);
+        return jsonResponse({ ok: true, job_id: crypto.randomUUID(), tables: names });
       }
       if (!jobId) return jsonResponse({ error: "job_id مطلوب" }, 400);
       const stageDir = `${tenantId}/_staging/${jobId}`;
+      if (mode === "part" && partTable && /^[a-z0-9_]+#[0-9a-f]$/.test(partTable)) {
+        // One piece of a big table: ids starting with <hex>, keyset paging on id (no deep OFFSET).
+        const [tableName, hex] = partTable.split("#");
+        if (!tables.some((x) => x.table_name === tableName)) return jsonResponse({ error: "جدول غير معروف" }, 400);
+        const enc = new TextEncoder();
+        const parts: Uint8Array[] = [];
+        let total = 0, after: string | null = null, first = true;
+        while (true) {
+          const raw = await fetchPageRaw(url, serviceKey, "backup_fetch_range", {
+            _table: tableName, _tenant: tenantId, _hex: hex, _after: after, _limit: PAGE,
+          }, partTable);
+          const rows = JSON.parse(raw) as any[];
+          const n = rows.length;
+          if (n > 0) {
+            const page = enc.encode(raw);
+            if (first) parts.push(page);
+            else { parts.push(enc.encode(",")); parts.push(page.subarray(1, page.byteLength - 1)); }
+            first = false;
+            after = String(rows[n - 1].id);
+          }
+          total += n;
+          if (n < PAGE) break;
+        }
+        const content = first ? enc.encode("[]") : concatArrays(parts);
+        parts.length = 0;
+        const packed = await gzipBytes(content);
+        const { error: upErr } = await admin.storage.from("system-backups")
+          .upload(`${stageDir}/${tableName}.${hex}.json.gz`, packed, { contentType: "application/gzip", upsert: true });
+        if (upErr) return jsonResponse({ error: `رفع ${partTable}: ${upErr.message}` }, 500);
+        return jsonResponse({ ok: true, table: partTable, rows: total, bytes: content.byteLength, packed: packed.byteLength });
+      }
       if (mode === "part") {
         const t = tables.find((x) => x.table_name === partTable);
         if (!t) return jsonResponse({ error: "جدول غير معروف" }, 400);
@@ -289,6 +325,23 @@ Deno.serve(async (req) => {
         // ---------- 1) one JSON file per table (streamed one table at a time, raw text) ----------
         for (const t of tables) {
           if (stagedJobDir) {
+            // A big table staged in pieces (<table>#<hex>) → tables/<table>.<hex>.json.gz, joined back on restore.
+            const pieceKeys = Object.keys(stagedCounts).filter((k) => k.startsWith(`${t.table_name}#`)).sort();
+            if (pieceKeys.length) {
+              let sum = 0;
+              for (const key of pieceKeys) {
+                const hex = key.slice(t.table_name.length + 1);
+                const piece = await admin.storage.from("system-backups").download(`${stagedJobDir}/${t.table_name}.${hex}.json.gz`);
+                if (piece.error || !piece.data) throw new Error(`جزء ${key} غير موجود في المرحلة`);
+                const packed = new Uint8Array(await piece.data.arrayBuffer());
+                sum += Number(stagedCounts[key] ?? 0);
+                yield tarHeader(`tables/${t.table_name}.${hex}.json.gz`, packed.byteLength);
+                yield packed;
+                yield tarPadding(packed.byteLength);
+              }
+              counts[t.table_name] = sum;
+              continue;
+            }
             // Staged parts are already gzip-compressed: they go into the tar as tables/<name>.json.gz untouched
             // (no re-compression — the edge worker's CPU budget is too small to gzip the whole archive).
             const gz = await admin.storage.from("system-backups").download(`${stagedJobDir}/${t.table_name}.json.gz`);
