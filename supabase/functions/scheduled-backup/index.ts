@@ -107,6 +107,19 @@ async function gunzipBytes(bytes: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
+// The final archive downloads hundreds of staged files one after another; a single storage hiccup
+// must not fail the whole backup (2026-10-23: one piece of 316 failed to download, the file was there).
+async function downloadWithRetry(admin: any, path: string): Promise<{ data: Blob | null; error: any }> {
+  let last: any = null;
+  for (let attempt = 1; attempt <= 4; attempt++) {
+    const res = await admin.storage.from("system-backups").download(path);
+    if (!res.error && res.data) return res;
+    last = res;
+    if (attempt < 4) await sleep(1000 * attempt);
+  }
+  return last ?? { data: null, error: new Error("download failed") };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -333,7 +346,7 @@ Deno.serve(async (req) => {
               let sum = 0;
               for (const key of pieceKeys) {
                 const lo = key.slice(t.table_name.length + 1).split("-")[0];
-                const piece = await admin.storage.from("system-backups").download(`${stagedJobDir}/${t.table_name}.${lo}.json.gz`);
+                const piece = await downloadWithRetry(admin, `${stagedJobDir}/${t.table_name}.${lo}.json.gz`);
                 if (piece.error || !piece.data) throw new Error(`جزء ${key} غير موجود في المرحلة`);
                 const packed = new Uint8Array(await piece.data.arrayBuffer());
                 sum += Number(stagedCounts[key] ?? 0);
@@ -346,7 +359,7 @@ Deno.serve(async (req) => {
             }
             // Staged parts are already gzip-compressed: they go into the tar as tables/<name>.json.gz untouched
             // (no re-compression — the edge worker's CPU budget is too small to gzip the whole archive).
-            const gz = await admin.storage.from("system-backups").download(`${stagedJobDir}/${t.table_name}.json.gz`);
+            const gz = await downloadWithRetry(admin, `${stagedJobDir}/${t.table_name}.json.gz`);
             if (!gz.error && gz.data) {
               const packed = new Uint8Array(await gz.data.arrayBuffer());
               counts[t.table_name] = Number(stagedCounts[t.table_name] ?? 0);
