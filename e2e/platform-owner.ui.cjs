@@ -211,7 +211,12 @@ async function settle(page) { await page.waitForLoadState("networkidle").catch((
   ({ ctx, page } = await open(browser, s, "owner"));
   await page.goto(`${BASE}/admin/branches`); await settle(page);
   check("صاحب الشركة شايف «2 من 2»", await page.getByText(/2 من 2/).first().isVisible().catch(() => false));
-  check("رسالة «تواصل مع صاحب المنصة» ظاهرة عند الحد", await page.getByText(/تواصل مع صاحب المنصة/).first().isVisible().catch(() => false));
+  check("الصندوق الأصفر مستخبي لحد ما يدوس «إضافة فرع»", !(await page.getByText(/تواصل مع صاحب المنصة/).first().isVisible().catch(() => false)));
+  await page.getByRole("button", { name: /إضافة فرع/ }).first().click(); await page.waitForTimeout(400);
+  check("«إضافة فرع» عند الحد بيفتح الصندوق الأصفر مش فورم الفرع", await page.getByText(/تواصل مع صاحب المنصة/).first().isVisible().catch(() => false) && !(await page.getByRole("dialog").isVisible().catch(() => false)));
+  await page.getByRole("button", { name: "إخفاء رسالة الحد" }).click(); await page.waitForTimeout(300);
+  check("زرار «إخفاء» بيقفل الصندوق", !(await page.getByText(/تواصل مع صاحب المنصة/).first().isVisible().catch(() => false)));
+  await page.getByRole("button", { name: /إضافة فرع/ }).first().click(); await page.waitForTimeout(400);
   await shot(page, "11-owner-limit");
   const nameBox = page.getByLabel(/اسم الفرع/).last();
   if (await nameBox.count()) {

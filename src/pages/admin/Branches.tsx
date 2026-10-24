@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, AlertTriangle, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Clock, X } from "lucide-react";
 import { rpcErrorText } from "@/lib/rpcError";
 
 export default function Branches({ embedded }: { embedded?: boolean } = {}) {
@@ -32,6 +32,8 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
   const [limit, setLimit] = useState<{ limit: number; used: number; at_limit: boolean; pending: { branch_name: string } | null } | null>(null);
   const [req, setReq] = useState({ branch_name: "", note: "" });
   const [sending, setSending] = useState(false);
+  // The limit box stays hidden until «إضافة فرع» is pressed at the limit; it has its own close button.
+  const [showLimit, setShowLimit] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -52,6 +54,9 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
     setReq({ branch_name: "", note: "" });
     load();
   };
+
+  // At the limit «إضافة فرع» opens the request box instead of the new-branch form.
+  const onAdd = () => (limit?.at_limit ? setShowLimit(true) : openNew());
   useEffect(() => { load(); }, []);
   useRealtimeRefresh(["branches"], load);
 
@@ -87,13 +92,18 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
       <PageHeader
         title="إدارة الفروع"
         subtitle={limit ? `${limit.used} من ${limit.limit} فروع مسموح` : `${rows.length} فرع`}
-        actions={<Button className="btn-gradient" onClick={openNew} disabled={!!limit?.at_limit}><Plus className="w-4 h-4 ml-1" /> إضافة فرع</Button>}
+        actions={<Button className="btn-gradient" onClick={onAdd}><Plus className="w-4 h-4 ml-1" /> إضافة فرع</Button>}
       />
-      {limit?.at_limit && (
+      {limit?.at_limit && showLimit && (
         <section aria-labelledby="limit-title" className="mb-4 rounded-xl border border-warning/40 bg-warning/10 p-5 grid gap-3">
-          <h2 id="limit-title" className="flex items-center gap-2 text-lg font-extrabold">
-            <AlertTriangle className="w-5 h-5 text-warning" /> وصلت للحد المسموح من الفروع ({limit.used} من {limit.limit})
-          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2 id="limit-title" className="flex items-center gap-2 text-lg font-extrabold">
+              <AlertTriangle className="w-5 h-5 text-warning" /> وصلت للحد المسموح من الفروع ({limit.used} من {limit.limit})
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => setShowLimit(false)} aria-label="إخفاء رسالة الحد">
+              <X className="w-4 h-4 ml-1" /> إخفاء
+            </Button>
+          </div>
           {limit.pending ? (
             <p className="flex items-center gap-2 text-sm"><Clock className="w-4 h-4" /> طلبك لفرع «{limit.pending.branch_name}» وصل لصاحب المنصة ومستني ردّه.</p>
           ) : (
