@@ -1,4 +1,5 @@
 import { fetchContactBalance } from "@/lib/contactBalances";
+import { PermTable } from "@/components/PermTable";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -246,7 +247,7 @@ export default function InvoiceView() {
         </div>
 
         {/* Items */}
-        <table className="w-full text-sm mb-6 border border-border">
+        <PermTable className="w-full text-sm mb-6 border border-border">
           <colgroup>
             <col className="w-10" />
             <col />
@@ -289,7 +290,7 @@ export default function InvoiceView() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </PermTable>
 
         {/* Totals */}
         <div className="space-y-2 text-sm border-t-2 border-border pt-3">
@@ -414,7 +415,7 @@ export default function InvoiceView() {
                       return `${months} شهر`;
                     })()}
                   </div>
-                  <table className="w-full text-xs border border-border">
+                  <PermTable className="w-full text-xs border border-border">
                     <thead>
                       <tr className="bg-surface-2">
                         <th className="p-2 text-right">#</th>
@@ -441,7 +442,7 @@ export default function InvoiceView() {
                         );
                       })}
                     </tbody>
-                  </table>
+                  </PermTable>
                 </div>
               )}
               {installments.length === 0 && remaining > 0 && (

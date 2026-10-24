@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -104,7 +105,7 @@ export default function StockTransferView() {
           </div>
         </div>
 
-        <table className="w-full text-sm mb-6 border border-border">
+        <PermTable className="w-full text-sm mb-6 border border-border">
           <thead>
             <tr className="bg-surface-2 border-b-2 border-border">
               <th className="text-right p-2">#</th>
@@ -144,7 +145,7 @@ export default function StockTransferView() {
               <td></td>
             </tr>
           </tfoot>
-        </table>
+        </PermTable>
 
         {head.reason && (
           <div className="bg-surface-2 rounded-lg p-3 border border-border text-sm">

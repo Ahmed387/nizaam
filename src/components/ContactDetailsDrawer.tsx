@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,7 +79,7 @@ export function ContactDetailsDrawer({ contact, branchId, canSettle, onClose, on
       {rows.length === 0 ? (
         <div className="p-3 text-sm text-muted-foreground text-center">مفيش مستندات مفتوحة</div>
       ) : (
-        <table className="w-full text-sm">
+        <PermTable className="w-full text-sm">
           <thead className="bg-muted/20"><tr><th className="p-2 text-right">رقم</th><th className="p-2 text-right">التاريخ</th><th className="p-2 text-right">الفرع</th><th className="p-2 text-right">الإجمالي</th><th className="p-2 text-right">المتبقي</th></tr></thead>
           <tbody>
             {rows.map((r) => (
@@ -91,7 +92,7 @@ export function ContactDetailsDrawer({ contact, branchId, canSettle, onClose, on
               </tr>
             ))}
           </tbody>
-        </table>
+        </PermTable>
       )}
     </div>
   );

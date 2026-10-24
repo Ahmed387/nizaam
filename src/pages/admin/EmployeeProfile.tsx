@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -415,20 +416,20 @@ export default function EmployeeProfile() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div className="card-elevated p-4">
+        <PermCard label="الراتب الأساسي"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground">الراتب الأساسي</div>
           <div className="text-xl font-extrabold mt-1">{formatEGP(emp.base_salary)}</div>
-        </div>
-        <div className="card-elevated p-4">
+        </div></PermCard>
+        <PermCard label="رواتب مدفوعة"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground">رواتب مدفوعة</div>
           <div className="text-xl font-extrabold mt-1 text-success">{formatEGP(totalSalariesPaid)}</div>
           <div className="text-xs text-muted-foreground">{salaries.length} شهر</div>
-        </div>
-        <div className="card-elevated p-4">
+        </div></PermCard>
+        <PermCard label="إجمالي السلف"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground">إجمالي السلف</div>
           <div className="text-xl font-extrabold mt-1">{formatEGP(totalAdvancesGiven)}</div>
           <div className="text-xs text-muted-foreground">سُدد {formatEGP(totalAdvancesPaidBack)}</div>
-        </div>
+        </div></PermCard>
         <div className="card-elevated p-4 border-warning/30 bg-warning/5">
           <div className="text-xs text-warning">سلف متبقية</div>
           <div className="text-xl font-extrabold mt-1 text-warning">{formatEGP(totalAdvancesRemaining)}</div>

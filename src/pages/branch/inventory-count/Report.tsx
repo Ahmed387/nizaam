@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -127,7 +128,7 @@ export default function Report() {
         </div>
 
         {/* Table */}
-        <table className="w-full text-sm border-collapse mb-6">
+        <PermTable className="w-full text-sm border-collapse mb-6">
           <thead>
             <tr className="bg-gray-100">
               <th className="border border-gray-300 px-2 py-1 text-right">#</th>
@@ -161,7 +162,7 @@ export default function Report() {
               );
             })}
           </tbody>
-        </table>
+        </PermTable>
 
         {/* Summary */}
         <div className="border-t-2 border-gray-300 pt-4">

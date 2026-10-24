@@ -152,6 +152,13 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
   await page.getByRole("button", { name: /إخفاء عمود الأسعار عن mohayassr07/ }).click(); await page.waitForTimeout(300);
   check("المخزون: العمود بقى «إظهار»", await vis(page.getByRole("button", { name: /إظهار عمود الأسعار عن mohayassr07/ })));
   await shot(page, "p5b-inventory");
+  // 2d) treasury: every card of the balances box has its own switch
+  await page.goto(`${BASE}/branch/${B1}/treasury?perm_for=${MGR}`); await settle(page); await page.waitForTimeout(800);
+  check("الخزنة: كارت «رصيد الخزنة دلوقتي» لوحده", await vis(page.getByRole("button", { name: /إخفاء كارت «رصيد الخزنة دلوقتي \(كل الأوعية\)» عن مدير الفرع/ })));
+  check("الخزنة: كل كارت من كروت الفترة لوحده", await vis(page.getByRole("button", { name: /إخفاء كارت «إجمالي اللي دخل الخزنة في الفترة \(\+\)» عن/ })) && await vis(page.getByRole("button", { name: /إخفاء كارت «صافي حركة الخزنة/ })));
+  await shot(page, "p5c-treasury");
+  await page.goto(`${BASE}/branch/${B1}/inventory?perm_for=${CASH}&perm_scope=branch`); await settle(page); await page.waitForTimeout(600);
+  await page.getByRole("button", { name: /إخفاء عمود الأسعار عن mohayassr07/ }).click(); await page.waitForTimeout(300);
   await page.getByRole("button", { name: "حفظ وخروج" }).click(); await page.waitForTimeout(1200);
   const e1 = db.calls.filter((c) => c.pageerror); if (e1.length) check("مفيش أخطاء في الصفحة", false, e1.map((x) => x.pageerror).join(" | "));
   await ctx.close();

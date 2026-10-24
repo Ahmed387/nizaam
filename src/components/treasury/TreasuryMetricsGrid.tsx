@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { ArrowDownCircle, ArrowUpCircle, Scale } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { MetricHint } from "@/components/ui/MetricHint";
@@ -54,7 +55,7 @@ export function TreasuryMetricsGrid({ cumulativeBalance, periodRows, channels, l
   return (
     <div className="space-y-4 mb-6" dir="rtl">
       {/* 1. Global cumulative balance — independent of filters */}
-      <div className="card-elevated p-6 text-center">
+      <PermCard label="رصيد الخزنة دلوقتي (كل الأوعية)"><div className="card-elevated p-6 text-center">
         <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-1 flex-wrap">
           رصيد الخزنة دلوقتي (كل الأوعية)
           <MetricHint
@@ -67,7 +68,7 @@ export function TreasuryMetricsGrid({ cumulativeBalance, periodRows, channels, l
         </div>
         <FinancialAmount value={cumulativeBalance} size="hero" className="gradient-text font-extrabold" />
         {lowThresholdAlert}
-      </div>
+      </div></PermCard>
 
       {/* 2. Period summary — follows all filters */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -94,7 +95,7 @@ export function TreasuryMetricsGrid({ cumulativeBalance, periodRows, channels, l
           const t = byChannel.get(c.method) ?? emptyTotals();
           const Icon = c.icon;
           return (
-            <div key={c.method} className="card-elevated p-4">
+            <PermCard key={c.method} label={`وعاء ${c.label}`}><div className="card-elevated p-4">
               <div className="flex items-center justify-center gap-1.5 mb-3 text-sm font-semibold">
                 <Icon className={`w-5 h-5 ${c.color}`} />
                 {c.label}
@@ -112,7 +113,7 @@ export function TreasuryMetricsGrid({ cumulativeBalance, periodRows, channels, l
                   <Row label="الصافي (دخل − خرج)" value={t.net} tone={t.net < 0 ? "text-destructive" : "text-foreground"} bold />
                 </div>
               </div>
-            </div>
+            </div></PermCard>
           );
         })}
       </div>
@@ -125,13 +126,13 @@ function PeriodCard({ title, tone, icon, value, hint, loading }: {
   hint: { meaning: string; source: string; formula: string };
 }) {
   return (
-    <div className="card-elevated p-5 text-center">
+    <PermCard label={title}><div className="card-elevated p-5 text-center">
       <div className="text-sm font-semibold flex items-center justify-center gap-1.5 mb-2">
         <span className={tone}>{icon}</span>{title}
         <MetricHint {...hint} label={`شرح ${title}`} />
       </div>
       {loading ? <div className="h-8 bg-muted rounded animate-pulse" /> : <FinancialAmount value={value} size="md" className={`font-extrabold ${tone}`} />}
-    </div>
+    </div></PermCard>
   );
 }
 

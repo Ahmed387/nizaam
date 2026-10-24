@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -108,7 +109,7 @@ export default function SaleReturnView() {
           </div>
         </div>
 
-        <table className="w-full text-sm mb-6 border border-border">
+        <PermTable className="w-full text-sm mb-6 border border-border">
           <thead>
             <tr className="bg-surface-2 border-b-2 border-border">
               <th className="text-right p-2">#</th>
@@ -131,7 +132,7 @@ export default function SaleReturnView() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </PermTable>
 
         <div className="space-y-2 text-sm border-t-2 border-border pt-3">
           {ret.reason && <div className="flex justify-between"><span>السبب:</span><span className="font-bold">{ret.reason}</span></div>}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -330,20 +331,20 @@ export default function StockMovements() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div className="card-elevated p-4">
+        <PermCard label="إجمالي الوارد"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground mb-1">إجمالي الوارد</div>
           <div className="text-2xl font-extrabold text-success">+{totalIn}</div>
-        </div>
-        <div className="card-elevated p-4">
+        </div></PermCard>
+        <PermCard label="إجمالي الصادر"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground mb-1">إجمالي الصادر</div>
           <div className="text-2xl font-extrabold text-destructive">-{totalOut}</div>
-        </div>
-        <div className="card-elevated p-4">
+        </div></PermCard>
+        <PermCard label="صافي الحركة"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground mb-1">صافي الحركة</div>
           <div className={`text-2xl font-extrabold ${totalIn - totalOut >= 0 ? "text-success" : "text-destructive"}`}>
             {totalIn - totalOut >= 0 ? "+" : ""}{totalIn - totalOut}
           </div>
-        </div>
+        </div></PermCard>
       </div>
 
       {unexplained !== 0 && !loading && (

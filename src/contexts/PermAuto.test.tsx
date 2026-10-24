@@ -17,7 +17,7 @@ function q(table: string) {
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (t: string) => q(t), rpc: vi.fn() } }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() } }));
 
-import { PermCustomizeProvider, autoPartId } from "./PermCustomize";
+import { PermCustomizeProvider, PermCard, PermPart, autoPartId } from "./PermCustomize";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,6 +39,10 @@ const Page = () => (
       <tbody><tr><td>غسالة</td><td>شراء 100</td></tr></tbody>
     </PermTable>
     <Card><CardHeader><CardTitle>أعلى العملاء</CardTitle></CardHeader><CardContent>محتوى الكارت</CardContent></Card>
+    <PermPart page="dashboard" part="collections" group>
+      <PermCard label="وعاء كاش"><div>كارت الكاش</div></PermCard>
+      <PermCard label="وعاء بنك"><div>كارت البنك</div></PermCard>
+    </PermPart>
   </>
 );
 const show = (url: string) => render(<MemoryRouter initialEntries={[url]}><PermCustomizeProvider><Page /></PermCustomizeProvider></MemoryRouter>);
@@ -75,6 +79,13 @@ describe("every card, tab and column tags itself on a catalogue page", () => {
     expect(screen.getByText("غسالة")).toBeInTheDocument();
   });
 
+  it("hides one card of a box without hiding the box", () => {
+    hidden.add(`part.dashboard.${autoPartId("card", "وعاء بنك")}.view`);
+    show("/branch/b1/dashboard");
+    expect(screen.getByText("كارت الكاش")).toBeInTheDocument();
+    expect(screen.queryByText("كارت البنك")).toBeNull();
+  });
+
   it("off a catalogue page nothing changes", () => {
     hidden.add("part.reports.col_phone.view");
     show("/somewhere/else");
@@ -89,7 +100,10 @@ describe("every card, tab and column tags itself on a catalogue page", () => {
     expect(screen.getByRole("button", { name: /إخفاء تاب «تاب ب» عن mohayassr07/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /إخفاء عمود التليفون عن mohayassr07/ }));
     expect(screen.getByRole("button", { name: /إظهار عمود التليفون عن mohayassr07/ })).toBeInTheDocument();
-    expect(screen.getByText(/1 مخفي من 9/)).toBeInTheDocument();
+    expect(screen.getByText(/1 مخفي من 12/)).toBeInTheDocument();
+    // a box of several cards: the box has a switch and every card inside has its own
+    expect(screen.getByRole("button", { name: /إخفاء كارت «وعاء كاش» عن mohayassr07/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /إخفاء كارت «وعاء بنك» عن mohayassr07/ })).toBeInTheDocument();
     // a plain <table> and a titled Card get their switches too
     expect(await screen.findByRole("button", { name: /إخفاء عمود الأسعار عن mohayassr07/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /إخفاء كارت «أعلى العملاء» عن mohayassr07/ })).toBeInTheDocument();

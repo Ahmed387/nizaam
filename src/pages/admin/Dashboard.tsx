@@ -1,4 +1,5 @@
 import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
+import { PermCard } from "@/contexts/PermCustomize";
 import { PermPart } from "@/contexts/PermCustomize";
 import { fetchOpeningSummary, type OpeningSummary } from "@/lib/ledger";
 import { useCallback, useEffect, useState } from "react";
@@ -94,7 +95,7 @@ export default function AdminDashboard() {
 
 
       {/* 1) The answer first: are we winning, and what is the stock worth (this month) */}
-      <PermPart page="admin_home" part="business_snapshot"><div className="mb-6"><BusinessSnapshot compact /></div></PermPart>
+      <PermPart page="admin_home" part="business_snapshot" group><div className="mb-6"><BusinessSnapshot compact /></div></PermPart>
 
       {/* 2) Today — four plain numbers */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -118,13 +119,13 @@ export default function AdminDashboard() {
         </PermPart>
       </div>
 
-      <PermPart page="admin_home" part="branches">
+      <PermPart page="admin_home" part="branches" group>
       {/* 3) Branches — one small card each: today's sales and the four daily actions */}
       <div className="mb-6">
         <h3 className="font-bold text-lg mb-3">الفروع</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {branchSummary.map((b: any) => (
-            <div key={b.id} className="card-elevated p-4 space-y-3">
+            <PermCard key={b.id} label={`كارت فرع ${b.name}`}><div className="card-elevated p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <Building2 className="w-5 h-5 text-primary shrink-0" />
@@ -149,7 +150,7 @@ export default function AdminDashboard() {
                   </Link>
                 ))}
               </div>
-            </div>
+            </div></PermCard>
           ))}
         </div>
       </div>

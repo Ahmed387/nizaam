@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { Link } from "react-router-dom";
 import { Loader2, ArrowUpLeft } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -58,7 +59,7 @@ export function InvoiceQuickDialog({ invoiceId, branchId, onClose }: Props) {
               <div className="col-span-2"><span className="text-muted-foreground">العميل: </span>{inv.contacts?.name ?? "—"}</div>
             </div>
             <div className="max-h-72 overflow-auto border rounded-md">
-              <table className="w-full">
+              <PermTable className="w-full">
                 <thead className="bg-muted"><tr><th className="p-2 w-10">#</th><th className="p-2 text-right">الصنف</th><th className="p-2">الكمية</th><th className="p-2">السعر</th><th className="p-2">الإجمالي</th></tr></thead>
                 <tbody>
                   {items.map((r, i) => (
@@ -72,7 +73,7 @@ export function InvoiceQuickDialog({ invoiceId, branchId, onClose }: Props) {
                   ))}
                   {!items.length && <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">لا توجد أصناف</td></tr>}
                 </tbody>
-              </table>
+              </PermTable>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="rounded-md bg-muted p-2"><div className="text-muted-foreground text-xs">الخصم</div><div className="font-bold tabular-nums">{formatEGP(Number(inv.discount_amount || 0))}</div></div>

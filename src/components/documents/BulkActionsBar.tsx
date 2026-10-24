@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { CheckCircle2, FileSpreadsheet, Layers, Loader2, Pencil, Printer, XCircle } from "lucide-react";
@@ -222,7 +223,7 @@ function BulkEditDialog({ kind, rows, canDate, onClose, onFinished }: {
               {notesOn && <> والملاحظات {notesMode === "replace" ? "هتتغير" : "هيتضاف لها"}: «{notes.trim() || "—"}».</>}
             </div>
             <div className="max-h-[45vh] overflow-auto rounded-lg border">
-              <table className="w-full text-xs">
+              <PermTable className="w-full text-xs">
                 <thead className="sticky top-0 bg-muted"><tr>
                   <th className="p-2">الرقم</th><th className="p-2 text-right">الطرف</th><th className="p-2">المبلغ</th>
                   <th className="p-2">التاريخ الحالي</th><th className="p-2">الجديد</th><th className="p-2">فلوس هتتنقل معاه</th>
@@ -242,7 +243,7 @@ function BulkEditDialog({ kind, rows, canDate, onClose, onFinished }: {
                     );
                   })}
                 </tbody>
-              </table>
+              </PermTable>
             </div>
             <p className="text-xs text-muted-foreground">لو مستند في فترة مقفولة أو مش مسموح لك، هيترفض لوحده والباقي يكمل، والنتيجة هتوضح كل واحد.</p>
           </div>

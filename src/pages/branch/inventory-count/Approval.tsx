@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
+import { PermTable } from "@/components/PermTable";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -78,10 +80,10 @@ export default function Approval() {
       subtitle="مراجعة الفروقات قبل التطبيق النهائي على المخزون"
     >
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">إجمالي المنتجات</div><div className="text-2xl font-bold">{stats.total}</div></div>
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">مطابق</div><div className="text-2xl font-bold">{stats.match}</div></div>
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">عجز</div><div className="text-2xl font-bold text-red-500">{stats.shortage} <span className="text-sm font-normal">({stats.shortQty})</span></div></div>
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">زيادة</div><div className="text-2xl font-bold text-emerald-500">{stats.surplus} <span className="text-sm font-normal">({stats.surQty})</span></div></div>
+        <PermCard label="إجمالي المنتجات"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">إجمالي المنتجات</div><div className="text-2xl font-bold">{stats.total}</div></div></PermCard>
+        <PermCard label="مطابق"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">مطابق</div><div className="text-2xl font-bold">{stats.match}</div></div></PermCard>
+        <PermCard label="عجز"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">عجز</div><div className="text-2xl font-bold text-red-500">{stats.shortage} <span className="text-sm font-normal">({stats.shortQty})</span></div></div></PermCard>
+        <PermCard label="زيادة"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">زيادة</div><div className="text-2xl font-bold text-emerald-500">{stats.surplus} <span className="text-sm font-normal">({stats.surQty})</span></div></div></PermCard>
       </div>
 
       {loading ? (
@@ -89,7 +91,7 @@ export default function Approval() {
       ) : (
         <>
           <div className="card-elevated mb-4">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-surface-2">
                 <tr>
                   <th className="px-3 py-2 text-right">الكود</th>
@@ -118,7 +120,7 @@ export default function Approval() {
                   <tr><td colSpan={6} className="text-center text-muted-foreground p-6">لا توجد فروقات — كل الأصناف مطابقة</td></tr>
                 )}
               </tbody>
-            </table>
+            </PermTable>
           </div>
 
           <div className="flex gap-2 justify-end">

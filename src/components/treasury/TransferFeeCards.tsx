@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { Percent, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
@@ -62,12 +63,12 @@ export function TransferFeeCards({ branchId, from, to }: { branchId?: string | n
         {keys.map((k) => {
           const v = by.get(k) ?? { total: 0, count: 0 };
           return (
-            <div key={k} className="rounded-xl border border-border p-3 bg-surface-2/50">
+            <PermCard key={k} label={`عمولة ${label(k)}`}><div className="rounded-xl border border-border p-3 bg-surface-2/50">
               <div className="font-bold">{label(k)}</div>
               <div className="text-[11px] text-muted-foreground">{rate(k)}</div>
               <div className="mt-2 text-xl font-extrabold tabular-nums text-destructive">{rows === null ? "…" : formatEGP(v.total)}</div>
               <div className="text-[11px] text-muted-foreground">{v.count} عملية عليها عمولة</div>
-            </div>
+            </div></PermCard>
           );
         })}
       </div>

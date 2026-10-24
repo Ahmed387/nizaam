@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -230,27 +231,27 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       )}
       {viewType ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="card-elevated p-4">
+          <PermCard label={String(viewType === "receipt" ? "إجمالي القبض" : "إجمالي الصرف")}><div className="card-elevated p-4">
             <div className="text-xs text-muted-foreground">{viewType === "receipt" ? "إجمالي القبض" : "إجمالي الصرف"}</div>
             <div className={`text-xl font-bold ${viewType === "receipt" ? "text-success" : "text-destructive"}`}>
               {formatEGP(viewType === "receipt" ? summary.totalIn : summary.totalOut)}
             </div>
-          </div>
-          <div className="card-elevated p-4">
+          </div></PermCard>
+          <PermCard label="عدد السندات"><div className="card-elevated p-4">
             <div className="text-xs text-muted-foreground">عدد السندات</div>
             <div className="text-xl font-bold tabular-nums">{viewType === "receipt" ? summary.countIn : summary.countOut}</div>
-          </div>
+          </div></PermCard>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="card-elevated p-4">
+          <PermCard label="إجمالي القبض"><div className="card-elevated p-4">
             <div className="text-xs text-muted-foreground">إجمالي القبض</div>
             <div className="text-xl font-bold text-success">{formatEGP(summary.totalIn)}</div>
-          </div>
-          <div className="card-elevated p-4">
+          </div></PermCard>
+          <PermCard label="إجمالي الصرف"><div className="card-elevated p-4">
             <div className="text-xs text-muted-foreground">إجمالي الصرف</div>
             <div className="text-xl font-bold text-destructive">{formatEGP(summary.totalOut)}</div>
-          </div>
+          </div></PermCard>
           <div className="card-elevated p-4">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>الصافي (القبض − الصرف)</span>

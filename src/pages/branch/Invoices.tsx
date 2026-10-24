@@ -1236,7 +1236,7 @@ export default function Invoices() {
       /></PermPart>
 
       {tab === "transfer" && (
-        <PermPart page="invoices" part="metrics"><div className={`mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 transition-opacity ${transferMetricsLoading ? "opacity-60" : ""}`} aria-label="ملخص تحويلات المخازن">
+        <div className={`mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 transition-opacity ${transferMetricsLoading ? "opacity-60" : ""}`} aria-label="ملخص تحويلات المخازن">
           <MetricCardWithHint
             label="إجمالي قيمة التحويلات"
             value={transferMetrics.totalValue}
@@ -1294,10 +1294,10 @@ export default function Invoices() {
               formula: "العدد = المرفوضة + المعلقة؛ الكمية = Σ كمياتها",
             }}
           />
-        </div></PermPart>
+        </div>
       )}
 
-      {docKind && <PermPart page="invoices" part="metrics"><UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} view={view} /></PermPart>}
+      {docKind && <UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} view={view} />}
       {statusAsOf && (docKind === "sale" || docKind === "purchase") && (
         <div className="text-xs text-muted-foreground -mt-2 mb-3">المدفوع والمتبقي وحالة السداد وأعمدة طريقة الدفع والكروت محسوبين لحد {formatDate(statusAsOf)} (آخر يوم في الفترة)، مش لحد النهارده. اللي اتدفع بعد كده ظاهر لوحده «اتدفع بعد الفترة».</div>
       )}

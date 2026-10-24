@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useParams, Link } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -191,7 +192,7 @@ export default function PartnerProfile() {
         <Card>
           <CardHeader><CardTitle>سجل الحركات ({txs.length})</CardTitle></CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr className="text-right">
                   <th className="p-2">التاريخ</th><th className="p-2">النوع</th><th className="p-2">المبلغ</th>
@@ -221,7 +222,7 @@ export default function PartnerProfile() {
                   );
                 })}
               </tbody>
-            </table>
+            </PermTable>
           </CardContent>
         </Card>
       </div>

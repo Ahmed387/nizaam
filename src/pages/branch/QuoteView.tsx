@@ -1,4 +1,5 @@
 import { fetchContactBalance } from "@/lib/contactBalances";
+import { PermTable } from "@/components/PermTable";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -168,7 +169,7 @@ export default function QuoteView() {
         </div>
 
         {/* Items */}
-        <table className="w-full text-sm mb-6 border border-border">
+        <PermTable className="w-full text-sm mb-6 border border-border">
           <thead>
             <tr className="bg-surface-2 border-b-2 border-border">
               <th className="text-right p-2">#</th>
@@ -189,7 +190,7 @@ export default function QuoteView() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </PermTable>
 
         {/* Totals */}
         <div className="space-y-2 text-sm border-t-2 border-border pt-3">

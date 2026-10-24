@@ -104,7 +104,6 @@ export const PAGE_PARTS: Record<string, PagePart[]> = {
   treasury: [
     { id: "export_button", label: "زرار تصدير كشف الخزينة Excel", kind: "زرار", sensitive: true },
     { id: "transfer_button", label: "زرار «تحويل لفرع»", kind: "زرار" },
-    { id: "balances", label: "كروت أرصدة الخزنة والأوعية", kind: "بوكس", sensitive: true },
     { id: "transfer_fees", label: "كروت عمولات التحويل", kind: "بوكس", sensitive: true },
     { id: "pending_incoming", label: "تنبيه تحويلات وارد مستنية تأكيد", kind: "تنبيه" },
     { id: "tab_movements", label: "تاب حركات الخزنة", kind: "تاب" },
@@ -128,7 +127,6 @@ export const PAGE_PARTS: Record<string, PagePart[]> = {
     { id: "tab_quote", label: "عروض الأسعار", kind: "تاب" },
     { id: "cancelled_view", label: "زرار «النشطة / الملغاة»", kind: "زرار" },
     { id: "filters", label: "الفلاتر", kind: "بوكس" },
-    { id: "metrics", label: "كروت الإجماليات فوق الجدول", kind: "بوكس", sensitive: true },
     { id: "bulk_bar", label: "شريط التحديد الجماعي (طباعة / تحويل نقدي وآجل)", kind: "بوكس" },
   ],
   sales: [
@@ -250,12 +248,16 @@ export function allCatalogKeys(): string[] {
 
 /** The catalogue page whose route matches a pathname (for the customize bar). */
 export function pageForPath(pathname: string): CatalogPage | null {
+  // exact route first; then the longest route the path starts with («/branch/x/invoices/123» → invoices)
+  let best: CatalogPage | null = null;
+  let bestLen = -1;
   for (const s of PERMISSION_CATALOG) for (const p of s.pages) {
     if (!p.route) continue;
-    const re = new RegExp("^" + p.route.replace(":branch", "[^/]+") + "/?$");
-    if (re.test(pathname)) return p;
+    const base = p.route.replace(":branch", "[^/]+");
+    if (new RegExp("^" + base + "/?$").test(pathname)) return p;
+    if (new RegExp("^" + base + "/").test(pathname) && p.route.length > bestLen) { best = p; bestLen = p.route.length; }
   }
-  return null;
+  return best;
 }
 
 /** Plain search over pages, tabs and parts (labels and help). */

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { PermTable } from "@/components/PermTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -196,7 +197,7 @@ export function InvoicePaymentsDialog({
                   </Button>
                 </div>
                 <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-xs">
+                  <PermTable className="w-full text-xs">
                     <thead className="bg-surface-2">
                       <tr className="font-bold">
                         <th className="p-2 text-right">التاريخ</th>
@@ -249,7 +250,7 @@ export function InvoicePaymentsDialog({
                         );
                       })}
                     </tbody>
-                  </table>
+                  </PermTable>
                 </div>
               </div>
             )}
@@ -270,7 +271,7 @@ export function InvoicePaymentsDialog({
                   </div>
                 ) : (
                   <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-xs">
+                    <PermTable className="w-full text-xs">
                       <thead className="bg-surface-2">
                         <tr className="font-bold">
                           <th className="p-2 text-right">التاريخ</th>
@@ -325,7 +326,7 @@ export function InvoicePaymentsDialog({
                           );
                         })}
                       </tbody>
-                    </table>
+                    </PermTable>
                   </div>
                 )}
               </div>

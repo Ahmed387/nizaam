@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -134,7 +135,7 @@ export default function ShipmentView() {
       </div>
 
       <h2>المنتجات (${items.length})</h2>
-      <table>
+      <PermTable>
         <thead>
           <tr>
             <th>#</th><th>المنتج</th><th>الكود</th><th>الكمية</th>
@@ -142,7 +143,7 @@ export default function ShipmentView() {
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
-      </table>
+      </PermTable>
     `;
     printHtml(`فاتورة شراء ${ship.shipment_number ?? ship.id.slice(0,8)}`, body, { landscape: true });
   };
@@ -278,7 +279,7 @@ export default function ShipmentView() {
           المنتجات ({items.length})
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[980px] border-collapse">
+          <PermTable className="w-full text-sm min-w-[980px] border-collapse">
             <thead>
               <tr className="bg-surface-2 border-b-2 border-border">
                 <th className="px-4 py-3 text-right font-bold text-xs text-muted-foreground uppercase tracking-wide w-[26%]">المنتج</th>
@@ -337,7 +338,7 @@ export default function ShipmentView() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </PermTable>
         </div>
 
         {items.length === 1 && (

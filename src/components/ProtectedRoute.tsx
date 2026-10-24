@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { PermRoutePage } from "@/contexts/PermCustomize";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppRole } from "@/lib/roles";
 import { Loader2 } from "lucide-react";
@@ -99,7 +100,9 @@ export function ProtectedRoute({
   }
 
 
-  return <>{children}</>;
+  // every page under a route knows its catalogue page (its «<page>.<action>» key) — so cards / tabs / columns of a
+  // document or a sub-page (e.g. /branch/x/sales/123) are switchable too (permissions 0114)
+  return <PermRoutePage perm={perm}>{children}</PermRoutePage>;
 }
 
 /** Inline permission gate for buttons / sections inside pages. Hides children when permission is missing. */

@@ -1,4 +1,5 @@
 import { fetchSideBalances } from "@/lib/ledger";
+import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useState, useMemo } from "react";
@@ -788,7 +789,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
             <div className="grid lg:grid-cols-2 gap-4">
               {perBranch.map((b) => (
-                <div key={b.id} className="card-elevated p-5 hover:border-primary/50 transition cursor-pointer" onClick={() => setScope(b.id)}>
+                <PermCard key={b.id} label={`كارت فرع ${b.name}`}><div className="card-elevated p-5 hover:border-primary/50 transition cursor-pointer" onClick={() => setScope(b.id)}>
                   <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center">
@@ -826,7 +827,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                   <div className="flex items-center justify-end gap-1 text-xs text-primary mt-3 pt-3 border-t border-border">
                     عرض تقرير الفرع التفصيلي <ChevronLeft className="w-3 h-3" />
                   </div>
-                </div>
+                </div></PermCard>
               ))}
             </div>
           </TabsContent>
@@ -898,14 +899,14 @@ function MiniKpi({ label, value, icon, hint, accent }: { label: string; value: s
   } as const;
   const s = accent ? styles[accent] : styles.neutral;
   return (
-    <div className={`rounded-xl p-4 border ${s.border} ${s.bg} flex flex-col items-center justify-center text-center`}>
+    <PermCard label={label}><div className={`rounded-xl p-4 border ${s.border} ${s.bg} flex flex-col items-center justify-center text-center`}>
       <div className="flex items-center justify-center gap-1.5 mb-2">
         <span className={`text-xs font-semibold ${s.label}`}>{label}</span>
         <span className={`w-5 h-5 rounded-full flex items-center justify-center ${s.chip} [&_svg]:w-3 [&_svg]:h-3`}>{icon}</span>
       </div>
       <div className={`font-extrabold text-2xl md:text-3xl tabular-nums leading-none ${s.value}`}>{value}</div>
       {hint && <div className="text-[11px] text-muted-foreground mt-1.5 font-medium">{hint}</div>}
-    </div>
+    </div></PermCard>
   );
 }
 

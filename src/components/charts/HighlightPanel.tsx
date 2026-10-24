@@ -1,4 +1,5 @@
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { cn } from "@/lib/utils";
 
 type Tone = "primary" | "accent" | "success" | "destructive" | "info";
@@ -38,8 +39,7 @@ export function HighlightTiles({ tiles, className }: { tiles: HighlightTile[]; c
   return (
     <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4", className)}>
       {tiles.map((t, i) => (
-        <div
-          key={`${t.label}-${i}`}
+        <PermCard key={`${t.label}-${i}`} label={String(t.label)}><div
           className={cn("rounded-2xl p-5 min-h-[140px] flex flex-col gap-3 overflow-hidden", TILE[t.tone])}
         >
           {/* الأيقونة في دايرة لوحدها فوق — مش فوق الأرقام */}
@@ -54,7 +54,7 @@ export function HighlightTiles({ tiles, className }: { tiles: HighlightTile[]; c
           <div className="mt-auto text-3xl md:text-4xl font-extrabold tabular-nums leading-tight" dir="rtl">
             {t.value}
           </div>
-        </div>
+        </div></PermCard>
       ))}
     </div>
   );

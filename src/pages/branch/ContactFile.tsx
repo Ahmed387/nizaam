@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
@@ -271,7 +272,7 @@ export default function ContactFile() {
         <div><span class="muted">مقدم</span><b>${formatEGP(sideData.advance)}</b></div>
         <div><span class="muted">${side === "customer" ? "المبيعات" : "المشتريات"}</span><b>${sideData.documents ? formatEGP(sideData.documents.total) : "—"}</b></div>
       </div>
-      <table><thead><tr><th>الرقم</th><th>التاريخ</th><th>الفرع</th><th>الحالة</th><th>الإجمالي</th><th>المتبقي</th></tr></thead><tbody>${rows}</tbody></table>
+      <PermTable><thead><tr><th>الرقم</th><th>التاريخ</th><th>الفرع</th><th>الحالة</th><th>الإجمالي</th><th>المتبقي</th></tr></thead><tbody>${rows}</tbody></PermTable>
       <p class="muted">حساب العميل وحساب المورد منفصلين.</p>`);
   };
 

@@ -177,11 +177,12 @@ export function PermCustomizeProvider({ children }: { children: ReactNode }) {
 /** true inside a PermPart, so a card / table that tags itself automatically doesn't get a second switch. */
 const InPart = createContext(false);
 
-export function PermPart({ page, part, label, auto, children, className }: { page: string; part: string; label?: string; auto?: boolean; children: ReactNode; className?: string }) {
+export function PermPart({ page, part, label, auto, group, children, className }: { page: string; part: string; label?: string; auto?: boolean; group?: boolean; children: ReactNode; className?: string }) {
   const { can } = useAuth();
   // a hand-tagged box covers the cards inside it; an automatic one (a Card by its title) lets them keep their own switch
   const parentInside = useContext(InPart);
-  const inside = auto ? parentInside : true;
+  // `group`: a box of several cards — the box has a switch AND every card inside keeps its own
+  const inside = auto || group ? parentInside : true;
   const c = usePermCustomize();
   const key = partKey(page, part);
   const info = partInfo(page, part);
@@ -224,11 +225,20 @@ export function autoPartId(prefix: string, label: string): string {
 }
 
 /** The catalogue page of the current route (null outside a router or on a page that isn't in the catalogue). */
+const RoutePage = createContext<string | null>(null);
+const PAGE_KEYS = new Set(PERMISSION_CATALOG.flatMap((s) => s.pages.map((p) => p.key)));
+/** Set by ProtectedRoute from its `perm` («sales.view» → «sales») when that page is in the catalogue. */
+export function PermRoutePage({ perm, children }: { perm?: string; children: ReactNode }) {
+  const page = perm ? perm.replace(/\.[^.]+$/, "") : null;
+  return <RoutePage.Provider value={page && PAGE_KEYS.has(page) ? page : null}>{children}</RoutePage.Provider>;
+}
+
 export function useCurrentPermPage(): string | null {
+  const fromRoute = useContext(RoutePage);
   const inRouter = useInRouterContext();
   // eslint-disable-next-line react-hooks/rules-of-hooks -- inRouter never changes for a mounted tree
   const path = inRouter ? useLocation().pathname : null;
-  return path ? pageForPath(path)?.key ?? null : null;
+  return (path ? pageForPath(path)?.key ?? null : null) ?? fromRoute;
 }
 
 /**
@@ -236,11 +246,20 @@ export function useCurrentPermPage(): string | null {
  * «card_<hash of its label>» — so «افتح الصفحة وظبطها» can hide any card on any page without hand-tagging it.
  */
 export function AutoPart({ prefix, label, children }: { prefix: string; label: unknown; children: ReactNode }) {
+  return <AutoPartInner prefix={prefix} label={label} kind="كارت">{children}</AutoPartInner>;
+}
+
+/** Any custom card markup: `<PermCard label="رصيد الخزنة دلوقتي">…</PermCard>` — its own switch on any catalogue page. */
+export function PermCard({ label, children }: { label: string; children: ReactNode }) {
+  return <AutoPartInner prefix="card" label={label} kind="كارت">{children}</AutoPartInner>;
+}
+
+function AutoPartInner({ prefix, label, kind, children }: { prefix: string; label: unknown; kind: string; children: ReactNode }) {
   const inside = useContext(InPart);
   const page = useCurrentPermPage();
   const text = typeof label === "string" || typeof label === "number" ? String(label) : null;
   if (inside || !page || !text) return <>{children}</>;
-  return <PermPart page={page} part={autoPartId(prefix, text)} label={`كارت «${text}»`} auto>{children}</PermPart>;
+  return <PermPart page={page} part={autoPartId(prefix, text)} label={`${kind} «${text}»`} auto>{children}</PermPart>;
 }
 
 const tabPartId = (value: string) => `tab_${value.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase().replace(/[^a-z0-9_]/g, "_")}`;

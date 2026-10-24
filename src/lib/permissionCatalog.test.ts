@@ -52,7 +52,8 @@ describe("permission catalogue (grouped like the sidebar)", () => {
     expect(pageForPath("/branch/abc-123/dashboard")?.key).toBe("dashboard");
     expect(pageForPath("/admin/dashboard")?.key).toBe("admin_home");
     expect(pageForPath("/branch/abc/invoices")?.key).toBe("invoices");
-    expect(pageForPath("/branch/abc/invoices/123")).toBeNull(); // a single document is not a catalogue page
+    expect(pageForPath("/branch/abc/invoices/123")?.key).toBe("invoices"); // a document opens under its list page
+    expect(pageForPath("/branch/abc/inventory-count/1")?.key).not.toBe("inventory");
     expect(pageForPath("/somewhere")).toBeNull();
   });
 
@@ -92,5 +93,14 @@ describe("every hand-tagged box is in the catalogue", () => {
   it("part ids follow the database rule", () => {
     Object.entries(PARTS_ALL).forEach(([page, parts]) => parts.forEach((p) =>
       expect(`part.${page}.${p.id}.view`).toMatch(/^part\.[a-z0-9_]+\.[a-z0-9_]+\.view$/)));
+  });
+});
+
+describe("every table column can be switched (owner request 2026-10-24)", () => {
+  // print templates, data-entry forms, platform / partner portals and the owner-excluded archive & personal expenses
+  const EXEMPT = /(Print|ArchivePrintTemplate|HistoricalArchiveDialogs|HistoricalAnalytics|PersonalExpenses|PersonalExpensesAccessTab|DataTable|PermTable|ui\/table|NewSale|NewSaleReturn|NewPurchaseReturn|EditSaleInvoice|EditInvoiceDialog|CountingSheet|StagedPaymentsPanel|ExcelImportDialog|BulkLoginsDialog|\/super\/|\/partner\/)/;
+  it("no plain <table> left outside the exempt files — use <PermTable> (or DataTable)", () => {
+    const raw = sources("src").filter((f) => !EXEMPT.test(f) && /<table\b/.test(readFileSync(f, "utf8")));
+    expect(raw).toEqual([]);
   });
 });

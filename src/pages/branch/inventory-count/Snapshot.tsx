@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -121,7 +122,7 @@ export default function Snapshot() {
           <div><div className="text-gray-500">إجمالي الكميات</div><div className="font-bold">{totalQty}</div></div>
         </div>
 
-        <table className="w-full text-sm border-collapse">
+        <PermTable className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-gray-100">
               <th className="border border-gray-300 px-2 py-1 text-right">#</th>
@@ -142,7 +143,7 @@ export default function Snapshot() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </PermTable>
 
         <div className="mt-6 text-xs text-gray-500 border-t pt-3">
           🔒 هذه اللقطة ثابتة ولا تتأثر بأي حركات بيع/شراء/تحويل تمت بعد {formatDateTime(sess.created_at)}.

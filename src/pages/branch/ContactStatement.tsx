@@ -1,4 +1,6 @@
 import { addDaysDay, cairoTodayDay, monthStartDay } from "@/lib/cairoDate";
+import { PermCard } from "@/contexts/PermCustomize";
+import { PermTable } from "@/components/PermTable";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
@@ -171,7 +173,7 @@ export default function ContactStatement() {
         <div><span class="muted">${creditHdr}</span><b>${formatEGP(totals.credit)}</b></div>
         <div><span class="muted">الرصيد</span><b>${formatEGP(Math.abs(finalBalance))} ${balLabel(finalBalance)}</b></div>
       </div>
-      <table><thead><tr><th>التاريخ</th><th>النوع</th><th>المرجع</th><th>الفرع</th><th>${debitHdr}</th><th>${creditHdr}</th><th>الرصيد</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+      <PermTable><thead><tr><th>التاريخ</th><th>النوع</th><th>المرجع</th><th>الفرع</th><th>${debitHdr}</th><th>${creditHdr}</th><th>الرصيد</th></tr></thead><tbody>${rowsHtml}</tbody></PermTable>
       <p class="muted">${isC ? "الرصيد الموجب = على العميل لنا، السالب = مقدم من العميل عندنا." : "الرصيد الموجب = علينا للمورد، السالب = مقدم لينا عند المورد."} حساب العميل وحساب المورد منفصلين.</p>`, { landscape: true });
   };
 
@@ -211,14 +213,14 @@ export default function ContactStatement() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">{debitHdr}</div><div className="text-xl font-bold mt-1">{formatEGP(totals.debit)}</div></div>
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">{creditHdr}</div><div className="text-xl font-bold mt-1">{formatEGP(totals.credit)}</div></div>
-        <div className="card-elevated p-4"><div className="text-xs text-muted-foreground">عدد الحركات</div><div className="text-xl font-bold mt-1">{filtered.length}</div></div>
-        <div className="card-elevated p-4">
+        <PermCard label={String(debitHdr)}><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">{debitHdr}</div><div className="text-xl font-bold mt-1">{formatEGP(totals.debit)}</div></div></PermCard>
+        <PermCard label={String(creditHdr)}><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">{creditHdr}</div><div className="text-xl font-bold mt-1">{formatEGP(totals.credit)}</div></div></PermCard>
+        <PermCard label="عدد الحركات"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">عدد الحركات</div><div className="text-xl font-bold mt-1">{filtered.length}</div></div></PermCard>
+        <PermCard label="الرصيد"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground">الرصيد {toDate ? `في ${formatDate(toDate)}` : "الحالي"}</div>
           <div className={`text-xl font-bold mt-1 ${Math.abs(finalBalance) <= 0.005 ? "" : finalBalance > 0 ? "text-destructive" : "text-success"}`}>{formatEGP(Math.abs(finalBalance))}</div>
           <div className="text-[11px] text-muted-foreground mt-1">{balLabel(finalBalance)}</div>
-        </div>
+        </div></PermCard>
       </div>
 
       <div className="card-elevated p-4 mb-4 space-y-4">

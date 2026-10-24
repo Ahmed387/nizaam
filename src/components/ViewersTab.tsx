@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,7 +142,7 @@ export function ViewersTab() {
           <p className="text-sm text-muted-foreground p-4 text-center border rounded">لا يوجد حسابات مراقبة بعد.</p>
         ) : (
           <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr>
                   <th className="text-right p-3">الاسم</th>
@@ -169,7 +170,7 @@ export function ViewersTab() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </PermTable>
           </div>
         )}
       </div>

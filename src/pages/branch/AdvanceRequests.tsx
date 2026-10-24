@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { useParams } from "react-router-dom";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 
@@ -300,22 +301,22 @@ export default function AdvanceRequests({ embedded = false }: { embedded?: boole
 
       <div className="grid md:grid-cols-3 gap-3 mb-6">
         {!isAdmin && (
-          <div className="card-elevated p-4">
+          <PermCard label="طلباتي"><div className="card-elevated p-4">
             <div className="text-xs text-muted-foreground">طلباتي</div>
             <div className="text-2xl font-extrabold mt-1">{myRequests.length}</div>
-          </div>
+          </div></PermCard>
         )}
-        <div className="card-elevated p-4">
+        <PermCard label="بانتظار قراري"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground">بانتظار قراري</div>
           <div className="text-2xl font-extrabold mt-1 text-warning flex items-center gap-2">
             {pendingForMe.length}
             {pendingForMe.length > 0 && <AlertCircle className="w-5 h-5" />}
           </div>
-        </div>
-        <div className="card-elevated p-4">
+        </div></PermCard>
+        <PermCard label="إجمالي الطلبات"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground">إجمالي الطلبات</div>
           <div className="text-2xl font-extrabold mt-1">{allRequests.length}</div>
-        </div>
+        </div></PermCard>
       </div>
 
       <Tabs defaultValue={canApprove && pendingForMe.length > 0 ? "pending" : (isAdmin ? "all" : "mine")}>

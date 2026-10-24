@@ -423,7 +423,7 @@ export default function Treasury() {
       />
 
       {canSeeBalances ? (
-        <PermPart page="treasury" part="balances"><TreasuryMetricsGrid
+        <TreasuryMetricsGrid
           cumulativeBalance={Number(walletBalances.total_balance)}
           periodRows={periodRows}
           channels={channels}
@@ -434,14 +434,14 @@ export default function Treasury() {
               <span className="font-semibold">تنبيه: الرصيد أقل من الحد المسموح ({formatEGP(lowThreshold)})</span>
             </div>
           ) : null}
-        /></PermPart>
+        />
       ) : (
         <div className="card-elevated p-6 mb-6 text-center text-muted-foreground">
           أرصدة الخزينة غير متاحة لدورك. يمكنك تسجيل الحركات فقط.
         </div>
       )}
 
-      {canSeeBalances && <PermPart page="treasury" part="transfer_fees"><TransferFeeCards branchId={branchId} from={fromDate || undefined} to={toDate || undefined} /></PermPart>}
+      {canSeeBalances && <PermPart page="treasury" part="transfer_fees" group><TransferFeeCards branchId={branchId} from={fromDate || undefined} to={toDate || undefined} /></PermPart>}
 
       {pendingIncoming.length > 0 && (
         <PermPart page="treasury" part="pending_incoming"><div className="card-elevated p-4 mb-6 border border-warning/40 bg-warning/5">

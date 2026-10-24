@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { TrendingUp, TrendingDown, Boxes, Receipt, Wallet, Scale, HandCoins, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -122,10 +123,10 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
 function Kpi({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value?: number; hint?: string }) {
   const neg = (value ?? 0) < 0;
   return (
-    <div className="card-elevated p-4">
+    <PermCard label={label}><div className="card-elevated p-4">
       <div className="flex items-center gap-2 text-muted-foreground text-xs [&_svg]:w-4 [&_svg]:h-4">{icon}{label}</div>
       <div className={`text-xl font-extrabold mt-1 tabular-nums ${neg ? "text-destructive" : ""}`}>{formatEGP(value ?? 0)}</div>
       {hint && <div className="text-[11px] text-muted-foreground mt-0.5">{hint}</div>}
-    </div>
+    </div></PermCard>
   );
 }
