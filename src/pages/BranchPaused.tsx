@@ -13,16 +13,11 @@ export default function BranchPaused() {
 
   useEffect(() => {
     if (!user) return;
+    // The paused branch row is hidden from employees (0109/0113), so its name comes from this RPC.
     supabase
-      .from("branch_users")
-      .select("branches(name, platform_paused)")
-      .eq("user_id", user.id)
+      .rpc("my_paused_branches" as any)
       .then(({ data }) => {
-        const names = (data ?? [])
-          .map((r: any) => r.branches)
-          .filter((b: any) => b?.platform_paused)
-          .map((b: any) => b.name as string);
-        setPaused(names);
+        setPaused(((data ?? []) as any[]).map((b) => b.name as string));
       });
   }, [user]);
 
