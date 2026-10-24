@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, branchUsage, suggestPassword } from "./businessTypes";
+import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, branchLabel, branchUsage, suggestPassword } from "./businessTypes";
 
 describe("businessTypes", () => {
   it("default company type is the first in the list (A & N's type)", () => {
@@ -27,5 +27,12 @@ describe("businessTypes", () => {
   it("suggestPassword gives a different password each time", () => {
     const set = new Set(Array.from({ length: 50 }, () => suggestPassword()));
     expect(set.size).toBe(50);
+  });
+
+  it("branchLabel never doubles the word «فرع»", () => {
+    expect(branchLabel("فرع المعادي")).toBe("فرع المعادي");
+    expect(branchLabel("المعادي")).toBe("فرع المعادي");
+    expect(branchLabel("  فرع الدقي ")).toBe("فرع الدقي");
+    expect(branchLabel("فرعون")).toBe("فرع فرعون");
   });
 });

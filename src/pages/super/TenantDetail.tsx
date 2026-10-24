@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { rpcErrorText } from "@/lib/rpcError";
 import { edgeErrorMessage } from "@/lib/edgeError";
-import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, suggestPassword } from "@/lib/businessTypes";
+import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, branchLabel, suggestPassword } from "@/lib/businessTypes";
 
 interface TenantRow {
   id: string; name: string; slug: string; business_type: string | null; max_branches: number | null;
@@ -94,7 +94,7 @@ export default function TenantDetail() {
     const { error } = await supabase.rpc("super_set_branch_paused" as any, { p_branch: b.id, p_paused: paused, p_reason: reason ?? null } as any);
     setBusy(null);
     if (error) return toast.error(rpcErrorText(error, "إيقاف الفرع"));
-    toast.success(paused ? `اتوقف فرع ${b.name} — موظفينه مش هيقدروا يدخلوه` : `فرع ${b.name} اشتغل تاني`);
+    toast.success(paused ? `اتوقف ${branchLabel(b.name)} — موظفينه مش هيقدروا يدخلوه` : `${branchLabel(b.name)} اشتغل تاني`);
     setPauseTarget(null); setPauseReason("");
     load();
   };
@@ -104,7 +104,7 @@ export default function TenantDetail() {
     const { error } = await supabase.rpc("super_delete_branch" as any, { p_branch: b.id } as any);
     setBusy(null);
     if (error) return toast.error(rpcErrorText(error, "حذف الفرع"));
-    toast.success(`اتحذف فرع ${b.name}`);
+    toast.success(`اتحذف ${branchLabel(b.name)}`);
     load();
   };
 

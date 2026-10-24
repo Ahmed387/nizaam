@@ -16,7 +16,7 @@ describe("BranchPaused screen", () => {
   it("names the paused branch from my_paused_branches", async () => {
     rpc.mockResolvedValue({ data: [{ id: "b1", name: "فرع المعادي" }], error: null });
     show();
-    expect(await screen.findByRole("heading", { name: "فرع فرع المعادي موقوف مؤقتاً" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "فرع المعادي موقوف مؤقتاً" })).toBeInTheDocument();
     expect(rpc).toHaveBeenCalledWith("my_paused_branches");
     expect(screen.getByText(/بيانات الفرع كلها محفوظة/)).toBeInTheDocument();
   });
@@ -24,7 +24,7 @@ describe("BranchPaused screen", () => {
   it("joins two paused branches", async () => {
     rpc.mockResolvedValue({ data: [{ id: "b1", name: "أ" }, { id: "b2", name: "ب" }], error: null });
     show();
-    expect(await screen.findByRole("heading", { name: "فرع أ و ب موقوف مؤقتاً" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "فرع أ و فرع ب موقوف مؤقتاً" })).toBeInTheDocument();
   });
 
   it("without a paused branch says the account has no working branch", async () => {

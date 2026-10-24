@@ -15,3 +15,9 @@ export function suggestPassword(): string {
   const body = Array.from({ length: 9 }, () => pick(letters + digits)).join("");
   return `Nz-${pick(digits)}${body.slice(0, 4)}-${body.slice(4)}`;
 }
+
+/** "فرع المعادي" — adds the word «فرع» only when the branch name does not already start with it. */
+export function branchLabel(name: string): string {
+  const n = (name ?? "").trim();
+  return /^فرع(\s|$)/.test(n) ? n : `فرع ${n}`;
+}

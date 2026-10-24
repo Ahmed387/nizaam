@@ -254,8 +254,8 @@ export default function Tenants() {
             <DialogDescription>بتعمل الشركة وحساب صاحبها. صاحب الشركة هو اللي بيضيف الفروع والموظفين، في حدود عدد الفروع اللي هتحدده.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
-            <div className="grid gap-1"><Label>اسم الشركة</Label><Input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></div>
-            <div className="grid gap-1"><Label>المعرف (slug)</Label><Input dir="ltr" placeholder="nile-trading" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} /></div>
+            <div className="grid gap-1"><Label htmlFor="new-name">اسم الشركة</Label><Input id="new-name" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></div>
+            <div className="grid gap-1"><Label htmlFor="new-slug">المعرف (slug)</Label><Input id="new-slug" dir="ltr" placeholder="nile-trading" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1">
                 <Label htmlFor="new-type">نوع الشركة</Label>
@@ -269,13 +269,13 @@ export default function Tenants() {
                 <span className="text-xs text-muted-foreground">تقدر تغيّره بعدين.</span>
               </div>
             </div>
-            <div className="grid gap-1"><Label>اسم الفرع الأول (اختياري)</Label><Input value={form.branch_name} placeholder="سيبه فاضي لو صاحب الشركة هيضيف الفروع بنفسه" onChange={(e) => setForm({ ...form, branch_name: e.target.value })} /></div>
-            <div className="grid gap-1"><Label>اسم المالك</Label><Input value={form.admin_name} onChange={(e) => setForm({ ...form, admin_name: e.target.value })} /></div>
-            <div className="grid gap-1"><Label>إيميل المالك</Label><Input dir="ltr" type="email" value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} /></div>
+            <div className="grid gap-1"><Label htmlFor="new-branch">اسم الفرع الأول (اختياري)</Label><Input id="new-branch" value={form.branch_name} placeholder="سيبه فاضي لو صاحب الشركة هيضيف الفروع بنفسه" onChange={(e) => setForm({ ...form, branch_name: e.target.value })} /></div>
+            <div className="grid gap-1"><Label htmlFor="new-owner">اسم المالك</Label><Input id="new-owner" value={form.admin_name} onChange={(e) => setForm({ ...form, admin_name: e.target.value })} /></div>
+            <div className="grid gap-1"><Label htmlFor="new-email">إيميل المالك</Label><Input id="new-email" dir="ltr" type="email" value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} /></div>
             <div className="grid gap-1">
-              <Label>كلمة مرور المالك</Label>
+              <Label htmlFor="new-password">كلمة مرور المالك</Label>
               <div className="flex gap-2">
-                <Input dir="ltr" type="text" autoComplete="new-password" value={form.admin_password} onChange={(e) => setForm({ ...form, admin_password: e.target.value })} />
+                <Input id="new-password" dir="ltr" type="text" autoComplete="new-password" value={form.admin_password} onChange={(e) => setForm({ ...form, admin_password: e.target.value })} />
                 <Button type="button" variant="outline" onClick={() => setForm({ ...form, admin_password: suggestPassword() })}>اقتراح باسورد</Button>
               </div>
               <span className="text-xs text-muted-foreground">8 حروف على الأقل. هتظهرلك مرة واحدة بعد الحفظ عشان تبعتها له.</span>

@@ -4,6 +4,7 @@ import { PauseCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { branchLabel } from "@/lib/businessTypes";
 
 /** Shown to an employee whose branches are all paused by the platform owner (migration 0109). */
 export default function BranchPaused() {
@@ -31,7 +32,7 @@ export default function BranchPaused() {
       <div className="card-elevated max-w-lg w-full p-8 flex flex-col items-start gap-4">
         <PauseCircle className="w-10 h-10 text-destructive" aria-hidden="true" />
         <h1 className="text-2xl font-extrabold">
-          {paused.length ? `فرع ${paused.join(" و ")} موقوف مؤقتاً` : "مفيش فرع شغال على حسابك"}
+          {paused.length ? `${paused.map(branchLabel).join(" و ")} موقوف مؤقتاً` : "مفيش فرع شغال على حسابك"}
         </h1>
         <p className="text-muted-foreground leading-relaxed">
           {paused.length
