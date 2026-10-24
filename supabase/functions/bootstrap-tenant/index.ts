@@ -20,6 +20,9 @@ interface Body {
   admin_password: string;
   branches: BranchInput[];
   partners: PartnerInput[];
+  business_type?: string;
+  max_branches?: number;
+  is_test?: boolean;
 }
 
 function json(data: unknown, status = 200) {
@@ -68,6 +71,10 @@ Deno.serve(async (req) => {
       company_name, slug, admin_name, admin_email, admin_password,
       branches = [], partners = [],
     } = body;
+    // Platform owner settings (migration 0109): company type, branch limit, hidden test company.
+    const businessType = String(body.business_type ?? "").trim() || "أجهزة كهربائية — بيع وشراء";
+    const maxBranches = Number(body.max_branches ?? 3);
+    const isTest = body.is_test === true;
 
     // ---- validation ----
     if (!company_name?.trim() || !slug?.trim() || !admin_email?.trim() || !admin_password || !admin_name?.trim()) {
@@ -77,7 +84,9 @@ Deno.serve(async (req) => {
     if (!/^[a-z0-9-]{3,40}$/.test(slug)) {
       return json({ error: "المعرف (slug) يجب أن يكون أحرف إنجليزية صغيرة وأرقام و-" }, 400);
     }
-    if (!branches.length) return json({ error: "أضف فرعاً واحداً على الأقل" }, 400);
+    if (!Number.isInteger(maxBranches) || maxBranches < 1) return json({ error: "عدد الفروع المسموح لازم يكون 1 أو أكتر" }, 400);
+    // The first branch is optional: the company owner adds the branches, within the limit.
+    if (branches.length > maxBranches) return json({ error: `عدد الفروع أكبر من المسموح (${maxBranches})` }, 400);
     if (branches.some(b => !b.name?.trim())) return json({ error: "كل الفروع لازم تكون بأسماء" }, 400);
 
     if (partners.length) {
@@ -101,7 +110,10 @@ Deno.serve(async (req) => {
     // ---- 2. create tenant (this triggers trg_seed_coa_on_tenant → seeds 60+ CoA) ----
     const { data: tenant, error: tErr } = await supabase
       .from("tenants")
-      .insert({ name: company_name.trim(), slug, plan: "free", is_active: true, setup_completed: true })
+      .insert({
+        name: company_name.trim(), slug, plan: "free", is_active: true, setup_completed: true,
+        business_type: businessType, max_branches: maxBranches, is_test: isTest,
+      })
       .select()
       .single();
     if (tErr || !tenant) return json({ error: "فشل إنشاء الشركة: " + (tErr?.message ?? "") }, 500);

@@ -15,7 +15,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertTriangle, Clock } from "lucide-react";
+import { rpcErrorText } from "@/lib/rpcError";
 
 export default function Branches({ embedded }: { embedded?: boolean } = {}) {
   const { profile } = useAuth();
@@ -27,12 +28,29 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({ name: "", address: "", phone: "" });
+  // Branch limit set by the platform owner (migration 0109): {limit, used, at_limit, pending}
+  const [limit, setLimit] = useState<{ limit: number; used: number; at_limit: boolean; pending: { branch_name: string } | null } | null>(null);
+  const [req, setReq] = useState({ branch_name: "", note: "" });
+  const [sending, setSending] = useState(false);
 
   const load = async () => {
     setLoading(true);
     const { data } = await supabase.from("branches").select("*").order("created_at", { ascending: false });
     setRows((data ?? []).filter((b: any) => !b.is_system && b.code !== "PARTNER-CASH"));
+    const { data: st } = await supabase.rpc("branch_limit_status" as any);
+    setLimit((st as any) ?? null);
     setLoading(false);
+  };
+
+  const sendRequest = async () => {
+    if (!req.branch_name.trim()) return toast.error("اكتب اسم الفرع اللي عاوز تضيفه");
+    setSending(true);
+    const { error } = await supabase.rpc("request_branch_increase" as any, { p_branch_name: req.branch_name, p_note: req.note || null } as any);
+    setSending(false);
+    if (error) return toast.error(rpcErrorText(error, "طلب فرع زيادة"));
+    toast.success("الطلب اتبعت لصاحب المنصة — هيوصلك تنبيه لما يرد");
+    setReq({ branch_name: "", note: "" });
+    load();
   };
   useEffect(() => { load(); }, []);
   useRealtimeRefresh(["branches"], load);
@@ -68,9 +86,28 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
     <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader
         title="إدارة الفروع"
-        subtitle={`${rows.length} فرع`}
-        actions={<Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> إضافة فرع</Button>}
+        subtitle={limit ? `${limit.used} من ${limit.limit} فروع مسموح` : `${rows.length} فرع`}
+        actions={<Button className="btn-gradient" onClick={openNew} disabled={!!limit?.at_limit}><Plus className="w-4 h-4 ml-1" /> إضافة فرع</Button>}
       />
+      {limit?.at_limit && (
+        <section aria-labelledby="limit-title" className="mb-4 rounded-xl border border-warning/40 bg-warning/10 p-5 grid gap-3">
+          <h2 id="limit-title" className="flex items-center gap-2 text-lg font-extrabold">
+            <AlertTriangle className="w-5 h-5 text-warning" /> وصلت للحد المسموح من الفروع ({limit.used} من {limit.limit})
+          </h2>
+          {limit.pending ? (
+            <p className="flex items-center gap-2 text-sm"><Clock className="w-4 h-4" /> طلبك لفرع «{limit.pending.branch_name}» وصل لصاحب المنصة ومستني ردّه.</p>
+          ) : (
+            <>
+              <p className="text-sm">تواصل مع صاحب المنصة لمناقشة طلبك. ابعت الطلب من هنا، وهيوصله على طول.</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-1"><Label htmlFor="rq-name">اسم الفرع اللي عاوز تضيفه</Label><Input id="rq-name" value={req.branch_name} onChange={(e) => setReq({ ...req, branch_name: e.target.value })} placeholder="مثلاً: فرع المنصورة" /></div>
+                <div className="grid gap-1"><Label htmlFor="rq-note">رسالة لصاحب المنصة (اختياري)</Label><Input id="rq-note" value={req.note} onChange={(e) => setReq({ ...req, note: e.target.value })} /></div>
+              </div>
+              <div><Button className="btn-gradient" disabled={sending} onClick={sendRequest}>ابعت الطلب</Button></div>
+            </>
+          )}
+        </section>
+      )}
       <DataTable
 
         loading={loading} rows={rows}
@@ -81,10 +118,14 @@ export default function Branches({ embedded }: { embedded?: boolean } = {}) {
           { key: "address", header: "العنوان", render: (r: any) => <span className="text-muted-foreground">{r.address || "—"}</span> },
           { key: "phone", header: "التليفون", width: "140px", render: (r: any) => <span className="font-mono tabular-nums" dir="ltr">{r.phone || "—"}</span> },
           { key: "is_active", header: "الحالة", align: "center", width: "120px", render: (r: any) => (
+            r.platform_paused ? (
+              <span className="text-destructive text-xs font-bold" title={r.platform_paused_reason ?? undefined}>موقوف من إدارة المنصة</span>
+            ) : (
             <div className="flex items-center justify-center gap-2" onClick={(e) => e.stopPropagation()}>
               <Switch checked={r.is_active} onCheckedChange={() => toggle(r)} />
               <span className={r.is_active ? "text-success text-xs font-medium" : "text-muted-foreground text-xs"}>{r.is_active ? "نشط" : "موقوف"}</span>
             </div>
+            )
           )},
           { key: "created_at", header: "تاريخ الإنشاء", width: "140px", render: (r: any) => <span className="text-muted-foreground text-xs">{formatDate(r.created_at)}</span> },
           { key: "actions", header: "", align: "left", width: "100px", render: (r: any) => (

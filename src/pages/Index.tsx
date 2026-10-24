@@ -37,7 +37,8 @@ const Index = () => {
     ].find(([permission]) => can(permission));
     if (grantedAdminEntry) { nav(grantedAdminEntry[1], { replace: true }); return; }
     if (branches[0]) { nav(`/branch/${branches[0].id}/dashboard`, { replace: true }); return; }
-    nav("/welcome", { replace: true });
+    // Signed in but no open branch (e.g. the platform owner paused it): say so instead of the landing page.
+    nav("/branch-paused", { replace: true });
   }, [user, isAdmin, isSuperAdmin, hasRole, branches, tenant, loading, ctxReady, can, nav]);
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">

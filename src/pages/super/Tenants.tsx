@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SuperAdminLayout } from "@/components/layout/SuperAdminLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -7,11 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Search, Power, Building2, AlertOctagon, CheckCircle2, Plus } from "lucide-react";
+import { Loader2, Search, Power, Building2, AlertOctagon, CheckCircle2, Plus, Copy, ChevronLeft } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
+import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, branchUsage, suggestPassword } from "@/lib/businessTypes";
 
 interface Tenant {
   id: string;
@@ -22,12 +24,16 @@ interface Tenant {
   suspended_at: string | null;
   suspension_reason: string | null;
   created_at: string;
+  business_type: string | null;
+  max_branches: number | null;
+  is_test: boolean | null;
 }
 
 interface Counts { branches: number; users: number; products: number; }
 
 export default function Tenants() {
   const { user, profile } = useAuth();
+  const nav = useNavigate();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [counts, setCounts] = useState<Record<string, Counts>>({});
   const [loading, setLoading] = useState(true);
@@ -35,16 +41,21 @@ export default function Tenants() {
   const [filter, setFilter] = useState<"all" | "active" | "suspended">("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const emptyForm = { company_name: "", slug: "", admin_name: "", admin_email: "", admin_password: "", branch_name: "" };
+  const emptyForm = {
+    company_name: "", slug: "", admin_name: "", admin_email: "", admin_password: "", branch_name: "",
+    business_type: DEFAULT_BUSINESS_TYPE as string, max_branches: "3", is_test: false,
+  };
   const [form, setForm] = useState(emptyForm);
   const [suspendTarget, setSuspendTarget] = useState<Tenant | null>(null);
   const [reason, setReason] = useState("");
+  // The owner's login is shown ONCE after creating the company (passwords are never stored readable).
+  const [createdCreds, setCreatedCreds] = useState<{ company: string; email: string; password: string; limit: number } | null>(null);
 
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("tenants")
-      .select("id, name, slug, is_active, is_suspended, suspended_at, suspension_reason, created_at")
+      .select("id, name, slug, is_active, is_suspended, suspended_at, suspension_reason, created_at, business_type, max_branches, is_test")
       .order("created_at", { ascending: false });
     if (error) { toast.error("فشل تحميل الشركات"); setLoading(false); return; }
     setTenants((data ?? []) as Tenant[]);
@@ -90,9 +101,11 @@ export default function Tenants() {
   // owner account are created here only, through the bootstrap-tenant function (super admin only).
   const createTenant = async () => {
     const f = { ...form, slug: form.slug.trim().toLowerCase() };
-    if (!f.company_name.trim() || !f.slug || !f.admin_name.trim() || !f.admin_email.trim() || !f.admin_password || !f.branch_name.trim()) {
-      return toast.error("كل الحقول مطلوبة");
+    if (!f.company_name.trim() || !f.slug || !f.admin_name.trim() || !f.admin_email.trim() || !f.admin_password || !f.business_type.trim()) {
+      return toast.error("كل الحقول مطلوبة ما عدا الفرع الأول");
     }
+    const limit = Number(f.max_branches);
+    if (!Number.isInteger(limit) || limit < 1) return toast.error("عدد الفروع المسموح لازم يكون رقم 1 أو أكتر");
     if (!/^[a-z0-9-]{3,40}$/.test(f.slug)) return toast.error("المعرف: حروف إنجليزية صغيرة وأرقام و- (3 إلى 40)");
     if (f.admin_password.length < 8) return toast.error("كلمة مرور المالك 8 أحرف على الأقل");
     setCreating(true);
@@ -100,7 +113,8 @@ export default function Tenants() {
       body: {
         company_name: f.company_name.trim(), slug: f.slug,
         admin_name: f.admin_name.trim(), admin_email: f.admin_email.trim(), admin_password: f.admin_password,
-        branches: [{ name: f.branch_name.trim() }],
+        branches: f.branch_name.trim() ? [{ name: f.branch_name.trim() }] : [],
+        business_type: f.business_type.trim(), max_branches: limit, is_test: f.is_test,
       },
     });
     setCreating(false);
@@ -114,6 +128,7 @@ export default function Tenants() {
       });
     }
     toast.success(`تم إنشاء شركة "${f.company_name.trim()}" وحساب المالك`);
+    setCreatedCreds({ company: f.company_name.trim(), email: f.admin_email.trim(), password: f.admin_password, limit });
     setCreateOpen(false); setForm(emptyForm);
     load();
   };
@@ -169,6 +184,7 @@ export default function Tenants() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <div className="font-bold">{t.name}</div>
                     <Badge variant="outline" dir="ltr" className="text-xs">{t.slug}</Badge>
+                    {t.is_test && <Badge variant="outline" className="text-xs border-warning text-warning">تجريبية</Badge>}
                     {t.is_suspended ? (
                       <Badge className="bg-destructive text-destructive-foreground">موقوف</Badge>
                     ) : (
@@ -176,16 +192,19 @@ export default function Tenants() {
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {new Date(t.created_at).toLocaleDateString("ar-EG")}
+                    {t.business_type ?? DEFAULT_BUSINESS_TYPE} • {new Date(t.created_at).toLocaleDateString("ar-EG")}
                     {t.is_suspended && t.suspension_reason && <span className="mr-2">• <b>السبب:</b> {t.suspension_reason}</span>}
                   </div>
                 </div>
                 <div className="flex gap-4 text-sm">
                   <div className="text-center"><div className="font-bold text-primary">{c.users}</div><div className="text-xs text-muted-foreground">مستخدم</div></div>
-                  <div className="text-center"><div className="font-bold text-primary">{c.branches}</div><div className="text-xs text-muted-foreground">فرع</div></div>
+                  <div className="text-center"><div className="font-bold text-primary tabular-nums">{branchUsage(c.branches, t.max_branches)}</div><div className="text-xs text-muted-foreground">فرع مسموح</div></div>
                   <div className="text-center"><div className="font-bold text-primary">{c.products}</div><div className="text-xs text-muted-foreground">منتج</div></div>
                 </div>
                 <div className="flex gap-2">
+                  <Button size="sm" onClick={() => nav(`/super/tenants/${t.id}`)}>
+                    فتح الشركة <ChevronLeft className="w-4 h-4 mr-1" />
+                  </Button>
                   {t.is_suspended ? (
                     <Button size="sm" className="bg-success text-success-foreground hover:bg-success/90" onClick={() => toggleSuspend(t, false)}>
                       <CheckCircle2 className="w-4 h-4 ml-1" /> تفعيل
@@ -231,21 +250,69 @@ export default function Tenants() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>إنشاء شركة جديدة</DialogTitle>
-            <DialogDescription>بيتعمل الشركة وفرعها الأول وحساب المالك مرة واحدة. المالك يقدر يضيف باقي الفروع والموظفين بعد الدخول.</DialogDescription>
+            <DialogDescription>بتعمل الشركة وحساب صاحبها. صاحب الشركة هو اللي بيضيف الفروع والموظفين، في حدود عدد الفروع اللي هتحدده.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1"><Label>اسم الشركة</Label><Input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} /></div>
             <div className="grid gap-1"><Label>المعرف (slug)</Label><Input dir="ltr" placeholder="nile-trading" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} /></div>
-            <div className="grid gap-1"><Label>اسم الفرع الأول</Label><Input value={form.branch_name} onChange={(e) => setForm({ ...form, branch_name: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1">
+                <Label htmlFor="new-type">نوع الشركة</Label>
+                <Input id="new-type" list="business-types" value={form.business_type} onChange={(e) => setForm({ ...form, business_type: e.target.value })} />
+                <datalist id="business-types">{BUSINESS_TYPES.map((b) => <option key={b} value={b} />)}</datalist>
+                <span className="text-xs text-muted-foreground">اختار من القائمة أو اكتب نوع جديد.</span>
+              </div>
+              <div className="grid gap-1">
+                <Label htmlFor="new-limit">عدد الفروع المسموح</Label>
+                <Input id="new-limit" type="number" min={1} dir="ltr" value={form.max_branches} onChange={(e) => setForm({ ...form, max_branches: e.target.value })} />
+                <span className="text-xs text-muted-foreground">تقدر تغيّره بعدين.</span>
+              </div>
+            </div>
+            <div className="grid gap-1"><Label>اسم الفرع الأول (اختياري)</Label><Input value={form.branch_name} placeholder="سيبه فاضي لو صاحب الشركة هيضيف الفروع بنفسه" onChange={(e) => setForm({ ...form, branch_name: e.target.value })} /></div>
             <div className="grid gap-1"><Label>اسم المالك</Label><Input value={form.admin_name} onChange={(e) => setForm({ ...form, admin_name: e.target.value })} /></div>
             <div className="grid gap-1"><Label>إيميل المالك</Label><Input dir="ltr" type="email" value={form.admin_email} onChange={(e) => setForm({ ...form, admin_email: e.target.value })} /></div>
-            <div className="grid gap-1"><Label>كلمة مرور المالك</Label><Input dir="ltr" type="password" value={form.admin_password} onChange={(e) => setForm({ ...form, admin_password: e.target.value })} /></div>
+            <div className="grid gap-1">
+              <Label>كلمة مرور المالك</Label>
+              <div className="flex gap-2">
+                <Input dir="ltr" type="text" autoComplete="new-password" value={form.admin_password} onChange={(e) => setForm({ ...form, admin_password: e.target.value })} />
+                <Button type="button" variant="outline" onClick={() => setForm({ ...form, admin_password: suggestPassword() })}>اقتراح باسورد</Button>
+              </div>
+              <span className="text-xs text-muted-foreground">8 حروف على الأقل. هتظهرلك مرة واحدة بعد الحفظ عشان تبعتها له.</span>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.is_test} onChange={(e) => setForm({ ...form, is_test: e.target.checked })} />
+              شركة تجريبية (للاختبار بس)
+            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" disabled={creating} onClick={() => setCreateOpen(false)}>إلغاء</Button>
             <Button className="btn-gradient" disabled={creating} onClick={createTenant}>
               {creating ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Plus className="w-4 h-4 ml-1" />} إنشاء
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* The owner's login, shown once */}
+      <Dialog open={!!createdCreds} onOpenChange={(o) => !o && setCreatedCreds(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-success" /> اتعملت شركة «{createdCreds?.company}»</DialogTitle>
+            <DialogDescription>ابعت البيانات دي لصاحب الشركة. هيقدر يضيف لحد {createdCreds?.limit} فروع.</DialogDescription>
+          </DialogHeader>
+          <dl className="grid gap-2 rounded-xl border bg-muted/40 p-4">
+            <div className="flex gap-3"><dt className="w-20 text-muted-foreground">الإيميل</dt><dd dir="ltr" className="font-bold">{createdCreds?.email}</dd></div>
+            <div className="flex gap-3"><dt className="w-20 text-muted-foreground">الباسورد</dt><dd dir="ltr" className="font-extrabold tracking-wide">{createdCreds?.password}</dd></div>
+          </dl>
+          <p className="text-sm text-warning">الباسورد ده مش هيظهر تاني. لو اتنسى، افتح الشركة واضغط «تغيير باسورد صاحبها».</p>
+          <DialogFooter>
+            <Button onClick={async () => {
+              if (!createdCreds) return;
+              try {
+                await navigator.clipboard.writeText(`الإيميل: ${createdCreds.email}\nالباسورد: ${createdCreds.password}`);
+                toast.success("اتنسخ");
+              } catch { toast.error("مقدرتش أنسخ — انسخهم بإيدك"); }
+            }}><Copy className="w-4 h-4 ml-1" /> نسخ الإيميل والباسورد</Button>
+            <Button variant="outline" onClick={() => setCreatedCreds(null)}>تمام</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

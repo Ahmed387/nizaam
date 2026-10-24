@@ -93,6 +93,7 @@ const Landing = lazy(() => import("./pages/Landing"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Guide = lazy(() => import("./pages/Guide"));
 const Suspended = lazy(() => import("./pages/Suspended"));
+const BranchPaused = lazy(() => import("./pages/BranchPaused"));
 
 
 const AdminDashboard = lazy(() => import("./pages/admin/Dashboard"));
@@ -182,6 +183,8 @@ const InvCountSnapshot = lazy(() => import("./pages/branch/inventory-count/Snaps
 const SuperDashboard = lazy(() => import("./pages/super/Dashboard"));
 const SuperTenants = lazy(() => import("./pages/super/Tenants"));
 const SuperUsers = lazy(() => import("./pages/super/AllUsers"));
+const SuperTenantDetail = lazy(() => import("./pages/super/TenantDetail"));
+const SuperBranchRequests = lazy(() => import("./pages/super/BranchRequests"));
 const AttachmentsHub = lazy(() => import("./pages/AttachmentsHub"));
 const FinancialPosition = lazy(() => import("./pages/admin/FinancialPosition"));
 const AdminPartnerProfile = lazy(() => import("./pages/admin/PartnerProfile"));
@@ -245,6 +248,7 @@ const App = () => (
             <Route path="/admin/setup-wizard" element={<SetupWizard />} />
             <Route path="/setup-wizard" element={<SetupWizard />} />
             <Route path="/suspended" element={<Suspended />} />
+            <Route path="/branch-paused" element={<ProtectedRoute><BranchPaused /></ProtectedRoute>} />
             
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/guide" element={<ProtectedRoute><Guide /></ProtectedRoute>} />
@@ -254,6 +258,8 @@ const App = () => (
             <Route path="/super/dashboard" element={<ProtectedRoute superAdminOnly><SuperDashboard /></ProtectedRoute>} />
             <Route path="/super/tenants" element={<ProtectedRoute superAdminOnly><SuperTenants /></ProtectedRoute>} />
             <Route path="/super/users" element={<ProtectedRoute superAdminOnly><SuperUsers /></ProtectedRoute>} />
+            <Route path="/super/tenants/:id" element={<ProtectedRoute superAdminOnly><SuperTenantDetail /></ProtectedRoute>} />
+            <Route path="/super/branch-requests" element={<ProtectedRoute superAdminOnly><SuperBranchRequests /></ProtectedRoute>} />
 
             {/* Admin */}
             <Route path="/admin/dashboard" element={<ProtectedRoute perm="admin_home.view" adminOnly><AdminDashboard /></ProtectedRoute>} />

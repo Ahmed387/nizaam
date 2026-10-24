@@ -337,6 +337,9 @@ export async function fetchUserContext(userId: string) {
   let branches: any[] = seesAll
     ? ((bRes as any)?.data ?? [])
     : (branchUsers ?? []).map((b: any) => b.branches).filter(Boolean);
+  // A branch paused by the platform owner (migration 0109) is closed to its employees; owners / admins
+  // still see it (read only — the database refuses any work in it).
+  if (!isAdminOrSuper) branches = branches.filter((b: any) => !b?.platform_paused);
 
   // Owner / admin / super admin keep permanent "manage" on every branch (owner immunity).
   branches = branches.map((b: any) => ({
