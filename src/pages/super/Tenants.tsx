@@ -58,7 +58,8 @@ export default function Tenants() {
       .select("id, name, slug, is_active, is_suspended, suspended_at, suspension_reason, created_at, business_type, max_branches, is_test")
       .order("created_at", { ascending: false });
     if (error) { toast.error("فشل تحميل الشركات"); setLoading(false); return; }
-    setTenants((data ?? []) as Tenant[]);
+    // business_type / max_branches / is_test (0109) are not in the generated types yet.
+    setTenants((data ?? []) as unknown as Tenant[]);
 
     const ids = (data ?? []).map((t: any) => t.id);
     if (ids.length) {
