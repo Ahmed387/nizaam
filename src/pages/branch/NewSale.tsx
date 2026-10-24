@@ -1,5 +1,6 @@
 import { CustomerSelect } from "@/components/CustomerSelect";
 import { getContactsByIds } from "@/lib/contactLookup";
+import { PermPart } from "@/contexts/PermCustomize";
 import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
@@ -1971,7 +1972,7 @@ export default function NewSale() {
 
           {/* Live discount bar */}
           {items.length > 0 && (
-            <div className={`card-elevated p-4 border-2 ${overLimit ? "border-destructive bg-destructive/5" : "border-success/40 bg-success/5"}`}>
+            <PermPart page="sales" part="discount_bar"><div className={`card-elevated p-4 border-2 ${overLimit ? "border-destructive bg-destructive/5" : "border-success/40 bg-success/5"}`}>
               <div className="space-y-1.5 text-sm">
                 <div className="flex justify-between"><span className="text-muted-foreground">إجمالي قبل الخصم</span><span className="font-bold">{formatEGP(totalBeforeDiscount)}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">إجمالي الخصم</span><span className="font-bold">{formatEGP(totalDiscountAmount)}</span></div>
@@ -1986,7 +1987,7 @@ export default function NewSale() {
                   </span>
                 </div>
               </div>
-            </div>
+            </div></PermPart>
           )}
 
           {overLimit && isCashierOnly && !bannerDismissed && !resumeDraft && (

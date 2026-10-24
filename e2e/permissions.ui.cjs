@@ -27,6 +27,7 @@ function makeDb() {
     ],
     branch_users: [
       { user_id: CASH, branch_id: B1, access_level: "manage", tenant_id: T },
+      { user_id: CASH, branch_id: B2, access_level: "manage", tenant_id: T },
       { user_id: MGR, branch_id: B1, access_level: "manage", tenant_id: T },
     ],
     branches: [
@@ -66,7 +67,7 @@ async function open(browser, db, me) {
       db.calls.push({ rpc: name, body });
       if (name === "save_user_permissions") {
         db.user_permissions = db.user_permissions.filter((r) => r.user_id !== body.p_user)
-          .concat(body.p_rows.map((r) => ({ user_id: body.p_user, tenant_id: T, permission_key: r.key, allowed: r.allowed })));
+          .concat(body.p_rows.map((r) => ({ user_id: body.p_user, tenant_id: T, permission_key: r.key, allowed: r.allowed, branch_id: r.branch ?? null })));
         return json(body.p_rows.length);
       }
       if (name === "branch_limit_status") return json({ limit: 3, used: 2, at_limit: false, pending: null });
@@ -97,52 +98,66 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
 
 (async () => {
   const browser = await chromium.launch();
-  // 1) owner — the new employees screen
+  // 1) owner — the new employees screen, per branch
   let db = makeDb();
   let { ctx, page } = await open(browser, db, OWNER);
   await page.goto(`${BASE}/admin/settings?tab=user-permissions`); await settle(page);
   check("تاب «الموظفين» هو أول تاب في المستخدمين والصلاحيات", await vis(page.getByRole("button", { name: "الموظفين" })));
   check("تاب «القوالب (الأدوار)» موجود", await vis(page.getByRole("button", { name: "القوالب (الأدوار)" })));
-  check("قايمة الموظفين فيها الكاشير ومدير الفرع ومن غير المالك", await vis(page.getByRole("button", { name: /mohayassr07/ })) && await vis(page.getByRole("button", { name: /مدير الفرع/ })));
+  check("قايمة الموظفين فيها الكاشير ومدير الفرع ومن غير المالك", await vis(page.getByRole("button", { name: /mohayassr07/ })) && await vis(page.getByRole("button", { name: /مدير الفرع/ })) && !(await vis(page.getByRole("button", { name: /^احمد ناصر/ }))));
   await page.getByRole("button", { name: /mohayassr07/ }).click(); await page.waitForTimeout(800);
-  check("فتح الموظف: القالب والفروع والمعاينة", await vis(page.getByText("حساب الدخول: mohayassr07")) && await vis(page.getByText("معاينة: القايمة الجانبية عنده")));
-  check("الاستثناء المحفوظ ظاهر «ممنوع استثناءً 1»", await vis(page.getByText(/ممنوع استثناءً 1/)));
+  check("فتح الموظف: حساب الدخول + الاستثناء المحفوظ «ممنوع استثناءً 1»", await vis(page.getByText("حساب الدخول: mohayassr07")) && await vis(page.getByText(/ممنوع استثناءً 1/)));
+  check("مفيش معاينة تانية (اتشالت بطلبك)", !(await vis(page.getByText(/معاينة/))));
+  check("فوق: «الفرع: كل الفروع / سكة تلة / عبدالمنعم الغربى»", await vis(page.getByRole("tab", { name: /كل الفروع/ })) && await vis(page.getByRole("tab", { name: /عبدالمنعم/ })));
   await shot(page, "p1-employee");
-  await page.getByRole("button", { name: /14 أجزاء/ }).first().click(); await page.waitForTimeout(300);
-  await page.getByRole("button", { name: "إخفاء رصيد الخزنة" }).click();
-  check("إخفاء كارت «رصيد الخزنة» من الليستة", await vis(page.getByRole("button", { name: "إظهار رصيد الخزنة" })));
-  await shot(page, "p2-parts");
-  await page.getByRole("tab", { name: /العمليات/ }).click(); await page.waitForTimeout(300);
-  await page.getByRole("switch", { name: "إخفاء فواتير الشراء" }).click().catch(() => {});
-  await shot(page, "p3-ops");
+  await page.getByRole("tab", { name: /عبدالمنعم/ }).click(); await page.waitForTimeout(300);
+  check("بيقول إنك بتظبط فرع عبدالمنعم الغربى بس", await vis(page.getByText(/بتظبط فرع «معرض عبدالمنعم الغربى» بس/)));
+  await page.getByRole("switch", { name: "إخفاء الرئيسية" }).click(); await page.waitForTimeout(300);
+  check("عداد التغييرات على الفرع «· 1 متعدّل»", await vis(page.getByRole("tab", { name: /عبدالمنعم الغربى · 1 متعدّل/ })));
+  await shot(page, "p2-branch");
   await page.getByRole("button", { name: "حفظ", exact: true }).click(); await page.waitForTimeout(800);
   const save = db.calls.find((c) => c.rpc === "save_user_permissions");
-  check("الحفظ بيبعت كل الاختلافات في طلب واحد", !!save && save.body.p_rows.some((r) => r.key === "part.dashboard.till_balance.view" && r.allowed === false), save ? JSON.stringify(save.body.p_rows) : "مفيش");
+  check("الحفظ: الرئيسية مقفولة في عبدالمنعم الغربى بس", !!save && save.body.p_rows.some((r) => r.key === "dashboard.view" && r.allowed === false && r.branch === B2), save ? JSON.stringify(save.body.p_rows) : "مفيش");
 
-  // 2) owner — customize on the page itself
-  await page.goto(`${BASE}/branch/${B1}/dashboard?perm_for=${CASH}`); await settle(page); await page.waitForTimeout(800);
-  check("وضع «ظبطها على الصفحة نفسها» اشتغل على رئيسية الفرع", await vis(page.getByText(/بتظبط اللي يظهر لـ mohayassr07/)));
-  check("الكارت المخفي عليه «مخفي عن mohayassr07»", await vis(page.getByText("مخفي عن mohayassr07")));
-  await shot(page, "p4-customize");
+  // 2) owner — «افتح الصفحة وظبطها» in سكة تلة
+  await page.getByRole("tab", { name: /سكة تلة/ }).click(); await page.waitForTimeout(300);
+  await page.getByRole("link", { name: /افتح الصفحة وظبطها/ }).first().click(); await settle(page); await page.waitForTimeout(800);
+  check("فتح رئيسية سكة تلة نفسها بأزرار الإظهار والإخفاء", page.url().includes(`/branch/${B1}/dashboard`) && await vis(page.getByText(/بتظبط اللي يظهر لـ mohayassr07/)), page.url().replace(BASE, ""));
+  check("الاختيار «الفرع ده بس» متعلم", (await page.getByRole("radio", { name: "الفرع ده بس" }).getAttribute("aria-checked").catch(() => null)) === "true");
+  check("الكارت المخفي من قبل عليه «مخفي عن mohayassr07»", await vis(page.getByText("مخفي عن mohayassr07")));
   await page.getByRole("button", { name: /إخفاء مبيعات الشهر عن mohayassr07/ }).click(); await page.waitForTimeout(300);
+  await shot(page, "p3-customize");
   await page.getByRole("button", { name: "شوفها بعينه" }).click(); await page.waitForTimeout(400);
-  await shot(page, "p5-preview");
   check("«شوفها بعينه» بتشيل الأزرار", !(await vis(page.getByRole("button", { name: /إخفاء مبيعات اليوم عن/ }))));
+  await shot(page, "p4-as-him");
   await page.getByRole("button", { name: "رجّع الأزرار" }).click();
   await page.getByRole("button", { name: "حفظ وخروج" }).click(); await page.waitForTimeout(1200);
   const save2 = db.calls.filter((c) => c.rpc === "save_user_permissions").pop();
-  check("حفظ وخروج من الصفحة نفسها", !!save2 && save2.body.p_rows.some((r) => r.key === "part.dashboard.sales_month.view" && r.allowed === false));
+  check("حفظ وخروج: «مبيعات الشهر» مخفية في سكة تلة بس، والرئيسية لسه مقفولة في عبدالمنعم", !!save2
+    && save2.body.p_rows.some((r) => r.key === "part.dashboard.sales_month.view" && r.allowed === false && r.branch === B1)
+    && save2.body.p_rows.some((r) => r.key === "dashboard.view" && r.branch === B2), save2 ? JSON.stringify(save2.body.p_rows) : "");
   check("رجع لصفحة صلاحيات نفس الموظف", page.url().includes(`user=${CASH}`), page.url().replace(BASE, ""));
+
+  // 2b) any page: cards, tabs and table columns tag themselves (reports of the branch manager)
+  await page.goto(`${BASE}/branch/${B1}/reports?perm_for=${MGR}`); await settle(page); await page.waitForTimeout(800);
+  check("التقارير: زرار على كارت «صافي الربح»", await vis(page.getByRole("button", { name: /إخفاء صافي الربح عن مدير الفرع/ })));
+  check("التقارير: زرار على كل تاب", await vis(page.getByRole("button", { name: /إخفاء تاب أكثر مبيعاً عن مدير الفرع/ })));
+  await page.getByRole("tab", { name: /أكثر مبيعاً/ }).click(); await page.waitForTimeout(400);
+  check("التقارير: عين على كل عمود في الجدول", await vis(page.getByRole("button", { name: /إخفاء عمود الإيراد عن مدير الفرع/ })));
+  await shot(page, "p5-reports");
   const e1 = db.calls.filter((c) => c.pageerror); if (e1.length) check("مفيش أخطاء في الصفحة", false, e1.map((x) => x.pageerror).join(" | "));
   await ctx.close();
 
-  // 3) the cashier himself — what he sees
+  // 3) the cashier himself — what he sees in each branch
   ({ ctx, page } = await open(browser, db, CASH));
   await page.goto(`${BASE}/branch/${B1}/dashboard`); await settle(page); await page.waitForTimeout(800);
-  check("الكاشير مش شايف «رصيد الخزنة» ولا «مبيعات الشهر»", !(await vis(page.getByText("رصيد الخزنة"))) && !(await vis(page.getByText("مبيعات الشهر"))));
-  check("الكاشير لسه شايف «مبيعات اليوم»", await vis(page.getByText("مبيعات اليوم")));
+  check("سكة تلة: الكاشير مش شايف «مبيعات الشهر» ولا «مجمل ربح اليوم»", !(await vis(page.getByText("مبيعات الشهر"))) && !(await vis(page.getByText("مجمل ربح اليوم"))));
+  check("سكة تلة: لسه شايف «مبيعات اليوم»", await vis(page.getByText("مبيعات اليوم")));
   check("قايمته الجانبية بالأقسام (عام / العمليات)", await vis(page.getByText("عــام")) && await vis(page.getByText("العمليـات")));
-  await shot(page, "p6-cashier");
+  await shot(page, "p6-cashier-b1");
+  await page.goto(`${BASE}/branch/${B2}/dashboard`); await settle(page); await page.waitForTimeout(800);
+  check("عبدالمنعم الغربى: الرئيسية مقفولة عليه (بيرجع لرئيسية فرع مسموحله)", !page.url().includes(`/branch/${B2}/dashboard`), page.url().replace(BASE, ""));
+  await shot(page, "p7-cashier-b2");
   const e2 = db.calls.filter((c) => c.pageerror); if (e2.length) check("مفيش أخطاء عند الكاشير", false, e2.map((x) => x.pageerror).join(" | "));
   await ctx.close();
 
@@ -152,7 +167,7 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
   await page.goto(`${BASE}/admin/settings?tab=permissions`); await settle(page);
   check("شاشة القوالب فيها الأدوار التمانية", await vis(page.getByRole("button", { name: /مدير فرع/ })) && await vis(page.getByRole("button", { name: /سواق/ })));
   check("زرار «قالب جديد»", await vis(page.getByRole("button", { name: /قالب جديد/ })));
-  await shot(page, "p7-templates");
+  await shot(page, "p8-templates");
   await ctx.close();
 
   await browser.close();

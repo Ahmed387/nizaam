@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+import { PermPart } from "@/contexts/PermCustomize";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -596,23 +597,23 @@ export default function Inventory() {
       <PageHeader title="المخزون" subtitle={`${activeRows.length} منتج${archivedCount ? ` · ${archivedCount} مؤرشف` : ""}`}
         actions={
           <div className="flex gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
+            <PermPart page="inventory" part="import_button"><Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button></PermPart>
             {canManageInventory && (
-              <>
+              <PermPart page="inventory" part="barcode_buttons"><div className="flex gap-2">
                 <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes`)}>
                   <Barcode className="w-4 h-4 ml-1" /> طباعة باركود
                 </Button>
                 <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes?all=1`)}>
                   <Barcode className="w-4 h-4 ml-1" /> طباعة باركود الكل
                 </Button>
-              </>
+              </div></PermPart>
             )}
-            <Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button>
+            <PermPart page="inventory" part="new_product_button"><Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button></PermPart>
           </div>
         }
       />
 
-      <CycleCountAlert branchId={branchId} onStartCount={() => setSearchParams({ tab: "count" })} />
+      <PermPart page="inventory" part="cycle_count_alert"><CycleCountAlert branchId={branchId} onStartCount={() => setSearchParams({ tab: "count" })} /></PermPart>
 
       <Tabs value={initialTab} onValueChange={(v) => setSearchParams(v === "products" ? {} : { tab: v })}>
         <TabsList className="flex flex-wrap gap-1 h-auto p-1.5">

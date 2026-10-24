@@ -1,5 +1,6 @@
 import { ContactLookup } from "@/components/ContactLookup";
 import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
+import { PermPart, usePartVisible } from "@/contexts/PermCustomize";
 import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { NumberedPagination } from "@/components/NumberedPagination";
@@ -109,7 +110,10 @@ export default function Invoices() {
 
   const [params, setParams] = useSearchParams();
   const nav = useNavigate();
-  const tab = (params.get("tab") as TabKey) || "sale";
+  const tabOn = usePartVisible("invoices");
+  const askedTab = (params.get("tab") as TabKey) || "sale";
+  // a document type hidden for this person (permissions 0114) falls back to the first one he can see
+  const tab: TabKey = tabOn(`tab_${askedTab}`) ? askedTab : (TABS.find((t) => tabOn(`tab_${t.key}`))?.key ?? askedTab);
   // Cancelled documents never appear in the main table: they live in their own «الملغاة» view.
   const view: "active" | "cancelled" = params.get("view") === "cancelled" ? "cancelled" : "active";
   const hasCancelledView = isDocKind(tab) || tab === "transfer";
@@ -1062,12 +1066,12 @@ export default function Invoices() {
         subtitle="كل فواتير ومستندات الفرع في مكان واحد"
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!filteredRows.length || isExporting} className="gap-2">
+            <PermPart page="invoices" part="excel_button"><Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!filteredRows.length || isExporting} className="gap-2">
               <FileSpreadsheet className="w-4 h-4" /> Excel
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filteredRows.length || isExporting} className="gap-2">
+            </Button></PermPart>
+            <PermPart page="invoices" part="pdf_button"><Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!filteredRows.length || isExporting} className="gap-2">
               <Printer className="w-4 h-4" /> {pdfBtnLabel}
-            </Button>
+            </Button></PermPart>
             <PermGate perm="preorders.view">
               <Button asChild variant="outline" size="sm" className="gap-2">
                 <Link to={`/branch/${branchId}/pre-orders`}><FileText className="w-4 h-4" /> طلبات الحجز</Link>
@@ -1089,18 +1093,18 @@ export default function Invoices() {
       {/* Quick action grid */}
       <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 mb-5">
         {TABS.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all ${
+          <PermPart key={t.key} page="invoices" part={`tab_${t.key}`}><button onClick={() => setTab(t.key)}
+            className={`w-full h-full flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all ${
               tab === t.key ? "border-primary bg-primary/5 shadow-md" : "border-border hover:border-primary/50"
             }`}>
             <t.icon className={`w-5 h-5 ${t.color}`} />
             <span className="text-[11px] font-semibold text-center leading-tight">{t.label}</span>
-          </button>
+          </button></PermPart>
         ))}
       </div>
 
       {hasCancelledView && (
-        <div className="flex items-center gap-2 mb-3" role="tablist" aria-label="عرض المستندات">
+        <PermPart page="invoices" part="cancelled_view"><div className="flex items-center gap-2 mb-3" role="tablist" aria-label="عرض المستندات">
           {(["active", "cancelled"] as const).map((v) => (
             <button key={v} role="tab" aria-selected={view === v} onClick={() => setView(v)}
               className={`px-4 py-1.5 rounded-full text-sm font-bold border transition-colors ${view === v
@@ -1110,10 +1114,10 @@ export default function Invoices() {
             </button>
           ))}
           {view === "cancelled" && <span className="text-xs text-muted-foreground">مستندات اتلغت وأثرها اتعكس بالكامل — للمراجعة بس، ومش داخلة في أي رقم.</span>}
-        </div>
+        </div></PermPart>
       )}
 
-      <UnifiedDocumentFilters
+      <PermPart page="invoices" part="filters"><UnifiedDocumentFilters
         title={currentTabLabel}
         shown={{ from: totalCount ? (page - 1) * PAGE_SIZE + 1 : 0, to: Math.min(page * PAGE_SIZE, totalCount), total: totalCount }}
         value={inputF}
@@ -1228,10 +1232,10 @@ export default function Invoices() {
             <Button type="button" size="sm" onClick={applySearch} className="gap-1"><Search className="w-4 h-4" /> بحث</Button>
           </div>
         ) : undefined}
-      />
+      /></PermPart>
 
       {tab === "transfer" && (
-        <div className={`mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 transition-opacity ${transferMetricsLoading ? "opacity-60" : ""}`} aria-label="ملخص تحويلات المخازن">
+        <PermPart page="invoices" part="metrics"><div className={`mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 transition-opacity ${transferMetricsLoading ? "opacity-60" : ""}`} aria-label="ملخص تحويلات المخازن">
           <MetricCardWithHint
             label="إجمالي قيمة التحويلات"
             value={transferMetrics.totalValue}
@@ -1289,17 +1293,17 @@ export default function Invoices() {
               formula: "العدد = المرفوضة + المعلقة؛ الكمية = Σ كمياتها",
             }}
           />
-        </div>
+        </div></PermPart>
       )}
 
-      {docKind && <UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} view={view} />}
+      {docKind && <PermPart page="invoices" part="metrics"><UnifiedDocumentMetrics kind={docKind} metrics={docMetrics} loading={docMetricsLoading} selected={cardFilter} onSelect={setCardFilter} view={view} /></PermPart>}
       {statusAsOf && (docKind === "sale" || docKind === "purchase") && (
         <div className="text-xs text-muted-foreground -mt-2 mb-3">المدفوع والمتبقي وحالة السداد وأعمدة طريقة الدفع والكروت محسوبين لحد {formatDate(statusAsOf)} (آخر يوم في الفترة)، مش لحد النهارده. اللي اتدفع بعد كده ظاهر لوحده «اتدفع بعد الفترة».</div>
       )}
 
       <div ref={tableTopRef} className="scroll-mt-4" />
       {bulkKind && branchId && (
-        <BulkActionsBar
+        <PermPart page="invoices" part="bulk_bar"><BulkActionsBar
           kind={bulkKind}
           branchId={branchId}
           rows={Array.from(selected.values())}
@@ -1326,7 +1330,7 @@ export default function Invoices() {
               <Button size="sm" variant="outline" className="h-7" onClick={() => setConvert({ ids, target: "credit" })}>تحويل لآجل</Button>
             </>) : null;
           })() : undefined}
-        />
+        /></PermPart>
       )}
       {convert && (tab === "sale" || tab === "purchase") && (
         <ConvertClassDialog open={!!convert} onOpenChange={(o) => { if (!o) setConvert(null); }}
@@ -1334,6 +1338,8 @@ export default function Invoices() {
                             onDone={() => { setSelected(new Map()); load(); setMetricsTick((t) => t + 1); }} />
       )}
       <DataTable
+        permPage="invoices"
+        permTable={tab}
         loading={loading}
         rows={filteredRows}
         indexColumn={{ offset: (page - 1) * PAGE_SIZE }}

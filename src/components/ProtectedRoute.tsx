@@ -92,6 +92,11 @@ export function ProtectedRoute({
   if (roles) gates.push(isAdmin || viewerRead || roles.some((r) => hasRole(r)));
   if (perm) gates.push(can(perm) || viewerRead);
   if (gates.length > 0 && !gates.some(Boolean)) return <Navigate to="/" replace />;
+  // A page the owner closed for a manager / viewer / partner (migration 0114) stays closed even though their
+  // role would normally open it. Only «.view» keys: write keys keep the old read-only rules for viewers.
+  if (perm && perm.endsWith(".view") && !isOwner && !isSuperAdmin && (isAdmin || viewerOnly) && !can(perm)) {
+    return <Navigate to="/" replace />;
+  }
 
 
   return <>{children}</>;

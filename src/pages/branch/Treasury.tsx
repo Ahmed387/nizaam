@@ -1,5 +1,6 @@
 import { cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PermPart, usePartVisible } from "@/contexts/PermCustomize";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { NumberedPagination } from "@/components/NumberedPagination";
 
@@ -70,8 +71,12 @@ const REVERSAL_IN = `(${REVERSAL_CATEGORIES.map((c) => `"${c}"`).join(",")})`;
 
 export default function Treasury() {
   const { id: branchId } = useParams<{ id: string }>();
+  const tabOn = usePartVisible("treasury");
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialTab = (searchParams.get("tab") as "movements" | "reversals" | "receipts" | "payments" | "transfers" | null) ?? "movements";
+  const TABS = ["movements", "reversals", "receipts", "payments", "transfers"] as const;
+  const askedTab = (searchParams.get("tab") as (typeof TABS)[number] | null) ?? "movements";
+  // a tab hidden for this person (permissions 0114) falls back to the first one he can see
+  const initialTab = tabOn(`tab_${askedTab}`) ? askedTab : (TABS.find((t) => tabOn(`tab_${t}`)) ?? askedTab);
   const reversalView = initialTab === "reversals";
   const { user, profile, branches, isAdmin, hasRole } = useAuth();
   const canTransfer = isAdmin || hasRole("branch_manager");
@@ -404,21 +409,21 @@ export default function Treasury() {
         actions={
           <div className="flex gap-2">
             {canSeeBalances && (
-              <Button variant="outline" onClick={exportLedger} disabled={exporting}>
+              <PermPart page="treasury" part="export_button"><Button variant="outline" onClick={exportLedger} disabled={exporting}>
                 <FileSpreadsheet className="w-4 h-4 ml-1" /> {exporting ? "جارٍ التصدير..." : "تصدير كشف الخزينة Excel"}
-              </Button>
+              </Button></PermPart>
             )}
             {canTransfer && otherBranches.length > 0 && (
-              <Button className="btn-gradient" onClick={() => setOpenTransfer(true)}>
+              <PermPart page="treasury" part="transfer_button"><Button className="btn-gradient" onClick={() => setOpenTransfer(true)}>
                 <ArrowLeftRight className="w-4 h-4 ml-1" /> تحويل لفرع
-              </Button>
+              </Button></PermPart>
             )}
           </div>
         }
       />
 
       {canSeeBalances ? (
-        <TreasuryMetricsGrid
+        <PermPart page="treasury" part="balances"><TreasuryMetricsGrid
           cumulativeBalance={Number(walletBalances.total_balance)}
           periodRows={periodRows}
           channels={channels}
@@ -429,17 +434,17 @@ export default function Treasury() {
               <span className="font-semibold">تنبيه: الرصيد أقل من الحد المسموح ({formatEGP(lowThreshold)})</span>
             </div>
           ) : null}
-        />
+        /></PermPart>
       ) : (
         <div className="card-elevated p-6 mb-6 text-center text-muted-foreground">
           أرصدة الخزينة غير متاحة لدورك. يمكنك تسجيل الحركات فقط.
         </div>
       )}
 
-      {canSeeBalances && <TransferFeeCards branchId={branchId} from={fromDate || undefined} to={toDate || undefined} />}
+      {canSeeBalances && <PermPart page="treasury" part="transfer_fees"><TransferFeeCards branchId={branchId} from={fromDate || undefined} to={toDate || undefined} /></PermPart>}
 
       {pendingIncoming.length > 0 && (
-        <div className="card-elevated p-4 mb-6 border border-warning/40 bg-warning/5">
+        <PermPart page="treasury" part="pending_incoming"><div className="card-elevated p-4 mb-6 border border-warning/40 bg-warning/5">
           <div className="flex items-center gap-2 text-warning font-bold mb-1">
             <AlertTriangle className="w-5 h-5" />
             فيه {pendingIncoming.length} تحويل وارد لسه محتاج تأكيد استلام
@@ -448,7 +453,7 @@ export default function Treasury() {
             إجمالي <span className="font-bold text-foreground">{formatEGP(pendingIncomingTotal)}</span> —
             الفلوس دي <span className="font-bold">لسه مش مضافة لرصيد الخزنة</span>، هتتضاف أول ما تأكد الاستلام من تبويب «تحويلات بين الفروع».
           </div>
-        </div>
+        </div></PermPart>
       )}
 
 
@@ -478,7 +483,7 @@ export default function Treasury() {
               هي داخلة في رصيد الخزنة وفي الكروت فوق عادي — اتشالت من جدول «حركات الخزنة» عشان يفضل نضيف.
             </div>
           )}
-          <div className="card-elevated p-4 mb-4 space-y-3">
+          <PermPart page="treasury" part="filters"><div className="card-elevated p-4 mb-4 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-bold text-sm">
                 فلاتر حركات الخزينة{" "}
@@ -531,12 +536,12 @@ export default function Treasury() {
               <div><Label className="text-xs">المبلغ إلى</Label>
                 <Input type="number" min={0} value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} className="mt-1 h-9" /></div>
             </div>
-          </div>
+          </div></PermPart>
 
           <TooltipProvider delayDuration={200}>
-          <TreasurySelectionBar rows={Array.from(selected.values())} branchId={branchId!} onSelectPage={() => setSelected(new Map(filtered.map((r: any) => [r.id, r])))}
-                                onClear={() => setSelected(new Map())} />
-          <DataTable loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} minTableWidth="1500px"
+          <PermPart page="treasury" part="selection_bar"><TreasurySelectionBar rows={Array.from(selected.values())} branchId={branchId!} onSelectPage={() => setSelected(new Map(filtered.map((r: any) => [r.id, r])))}
+                                onClear={() => setSelected(new Map())} /></PermPart>
+          <DataTable permPage="treasury" permTable="moves" loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} minTableWidth="1500px"
             getRowKey={(r: any) => r.id}
             isRowExpanded={(r: any) => expandedId === r.id}
             renderExpandedRow={(r: any) => <MovementDetailsRow r={r} branchId={branchId!} />}
@@ -617,7 +622,7 @@ export default function Treasury() {
         </TabsContent>
 
         <TabsContent value="transfers" className="mt-4">
-          <DataTable loading={loading} rows={transfers} indexColumn
+          <DataTable permPage="treasury" permTable="transfers" loading={loading} rows={transfers} indexColumn
             onRowClick={(r: any) => setViewTransfer(r)}
             columns={[
               { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: any) => (

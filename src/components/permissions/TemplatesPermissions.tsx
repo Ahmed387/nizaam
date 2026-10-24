@@ -97,11 +97,11 @@ export function TemplatesPermissions() {
     const put = (perms: Overrides) => setTplDraft((d) => ({ ...d, [id]: { ...d[id], perms } }));
     return {
       resetWord: "الدور",
-      get: (k: string) => effective(t.base_role, rolePerms, t.perms, k),
+      get: (k: string) => effective([t.base_role], rolePerms, t.perms, k),
       changed: (k: string) => k in t.perms,
-      set: (k: string, v: boolean) => put(setOverride(t.base_role, rolePerms, t.perms, k, v)),
+      set: (k: string, v: boolean) => put(setOverride([t.base_role], rolePerms, t.perms, k, v)),
       resetPage: (p: CatalogPage) => put(resetPage(p, t.perms)),
-      allowAll: (p: CatalogPage) => put(allowAllPage(t.base_role, rolePerms, p, t.perms)),
+      allowAll: (p: CatalogPage) => put(allowAllPage([t.base_role], rolePerms, p, t.perms)),
     };
   };
 
@@ -218,7 +218,9 @@ export function TemplatesPermissions() {
             أما <b>الفروع</b> اللي الموظف يشتغل فيها فبتتحدد عند الموظف نفسه، مش في القالب.
           </div>
         )}
-        <PermissionEditor bind={sel.kind === "role" ? roleBind(sel.role) : customBind(sel.id)} />
+        {sel.kind === "role" ? <PermissionEditor bind={roleBind(sel.role)} />
+          : tplDraft[sel.id] ? <PermissionEditor bind={customBind(sel.id)} />
+          : <div className="p-6 text-sm text-muted-foreground text-center">القالب ده مش موجود — اختار قالب من القايمة.</div>}
       </main>
 
       <Dialog open={newOpen} onOpenChange={setNewOpen}>

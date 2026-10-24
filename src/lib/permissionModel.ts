@@ -1,32 +1,42 @@
 /**
  * Pure helpers behind the permissions screens (no React, no Supabase) — unit-tested in permissionModel.test.ts.
  *
- * An employee = one template (his role) + his own overrides. A value that equals the template is never stored
- * as an override, so «متعدّل» always means a real difference and «رجّعه للقالب» is just «no overrides».
+ * A person = his roles (the template) + his own overrides. Overrides are keyed «key» (every branch, the base)
+ * or «key@<branch id>» (that branch only, migration 0114). A value that equals what he would get anyway is
+ * never stored, so «متعدّل» always means a real difference and «رجّعه للقالب» is just «no overrides».
  */
-import { checkPermission } from "@/lib/roles";
-import { CatalogPage, CatalogSection, PERMISSION_CATALOG, partKey } from "@/lib/permissionCatalog";
+import { branchKey, checkPermission } from "@/lib/roles";
+import { CatalogPage, PERMISSION_CATALOG, partKey } from "@/lib/permissionCatalog";
 
 export type Overrides = Record<string, boolean>;
 export type RolePerms = Record<string, Record<string, boolean>>;
+export type Roles = string[];
 
-/** Effective value for one key: template (role) + overrides, parts follow their page. */
-export function effective(role: string, rolePerms: RolePerms, overrides: Overrides, key: string): boolean {
-  return checkPermission(role ? [role as any] : [], rolePerms, key, overrides);
+const scoped = (key: string, branch?: string | null) => (branch ? branchKey(key, branch) : key);
+
+/** «sales.create@b1» → { key: "sales.create", branch: "b1" } */
+export function parseKey(k: string): { key: string; branch: string | null } {
+  const i = k.indexOf("@");
+  return i < 0 ? { key: k, branch: null } : { key: k.slice(0, i), branch: k.slice(i + 1) };
 }
 
-/** What the template alone gives for this key, keeping the other overrides (a part follows an overridden page). */
-export function templateValue(role: string, rolePerms: RolePerms, overrides: Overrides, key: string): boolean {
+/** Effective value of one key for these roles + overrides, in one branch (or the base when no branch). */
+export function effective(roles: Roles, rolePerms: RolePerms, overrides: Overrides, key: string, branch?: string | null): boolean {
+  return checkPermission(roles as any, rolePerms, key, overrides, branch ?? null);
+}
+
+/** What he would get for this key (in this branch) without this very override. */
+export function templateValue(roles: Roles, rolePerms: RolePerms, overrides: Overrides, key: string, branch?: string | null): boolean {
   const rest = { ...overrides };
-  delete rest[key];
-  return effective(role, rolePerms, rest, key);
+  delete rest[scoped(key, branch)];
+  return effective(roles, rolePerms, rest, key, branch);
 }
 
-/** Set a key; drop the override when the value is what the template already gives. */
-export function setOverride(role: string, rolePerms: RolePerms, overrides: Overrides, key: string, value: boolean): Overrides {
+/** Set a key (for every branch, or one branch); drop the override when it changes nothing. */
+export function setOverride(roles: Roles, rolePerms: RolePerms, overrides: Overrides, key: string, value: boolean, branch?: string | null): Overrides {
   const next = { ...overrides };
-  if (templateValue(role, rolePerms, overrides, key) === value) delete next[key];
-  else next[key] = value;
+  if (templateValue(roles, rolePerms, overrides, key, branch) === value) delete next[scoped(key, branch)];
+  else next[scoped(key, branch)] = value;
   return next;
 }
 
@@ -39,27 +49,29 @@ export function pageKeys(page: CatalogPage): string[] {
   ];
 }
 
-export const pageChanged = (page: CatalogPage, overrides: Overrides) => pageKeys(page).some((k) => k in overrides);
+export const pageChanged = (page: CatalogPage, overrides: Overrides, branch?: string | null) =>
+  pageKeys(page).some((k) => scoped(k, branch) in overrides);
 
-export function resetPage(page: CatalogPage, overrides: Overrides): Overrides {
+export function resetPage(page: CatalogPage, overrides: Overrides, branch?: string | null): Overrides {
   const next = { ...overrides };
-  pageKeys(page).forEach((k) => delete next[k]);
+  pageKeys(page).forEach((k) => delete next[scoped(k, branch)]);
   return next;
 }
 
 /** «الكل مسموح» for one page: the page, every action, every tab and every part on. */
-export function allowAllPage(role: string, rolePerms: RolePerms, page: CatalogPage, overrides: Overrides): Overrides {
+export function allowAllPage(roles: Roles, rolePerms: RolePerms, page: CatalogPage, overrides: Overrides, branch?: string | null): Overrides {
   let next = { ...overrides };
-  pageKeys(page).forEach((k) => { next = setOverride(role, rolePerms, next, k, true); });
+  pageKeys(page).forEach((k) => { next = setOverride(roles, rolePerms, next, k, true, branch); });
   return next;
 }
 
-/** Overrides compared with the template: extra = allowed beyond it, revoked = taken away. */
-export function diffOverrides(role: string, rolePerms: RolePerms, overrides: Overrides) {
+/** Overrides compared with the template: extra = allowed beyond it, revoked = taken away (each with its branch). */
+export function diffOverrides(roles: Roles, rolePerms: RolePerms, overrides: Overrides) {
   const extra: string[] = [];
   const revoked: string[] = [];
   Object.entries(overrides).forEach(([k, v]) => {
-    const t = templateValue(role, rolePerms, overrides, k);
+    const { key, branch } = parseKey(k);
+    const t = templateValue(roles, rolePerms, overrides, key, branch);
     if (v && !t) extra.push(k);
     else if (!v && t) revoked.push(k);
   });
@@ -67,15 +79,20 @@ export function diffOverrides(role: string, rolePerms: RolePerms, overrides: Ove
 }
 
 /** «شيل الصلاحيات الزيادة بس»: keep the restrictions, drop the extra grants. */
-export function clearExtras(role: string, rolePerms: RolePerms, overrides: Overrides): Overrides {
-  const { extra } = diffOverrides(role, rolePerms, overrides);
+export function clearExtras(roles: Roles, rolePerms: RolePerms, overrides: Overrides): Overrides {
+  const { extra } = diffOverrides(roles, rolePerms, overrides);
   const next = { ...overrides };
   extra.forEach((k) => delete next[k]);
   return next;
 }
 
-/** Readable label for any key (page action, tab, part). */
-export function keyLabel(key: string): string {
+/** Overrides of one branch only / of the base only. */
+export const branchOverrides = (overrides: Overrides, branch: string | null) =>
+  Object.keys(overrides).filter((k) => parseKey(k).branch === branch);
+
+/** Readable label for any key (page action, tab, part); the branch name is added by the caller. */
+export function keyLabel(k: string): string {
+  const { key } = parseKey(k);
   const ACT: Record<string, string> = { view: "يشوف", create: "يضيف", update: "يعدل", delete: "يلغي" };
   for (const s of PERMISSION_CATALOG) for (const p of s.pages) {
     for (const a of p.actions) if (key === `${p.key}.${a}`) return `${p.label} — ${ACT[a]}`;
@@ -85,16 +102,13 @@ export function keyLabel(key: string): string {
   return key;
 }
 
-/** Sidebar as the employee will see it: the pages he can view, per section. */
-export function sidebarPreview(role: string, rolePerms: RolePerms, overrides: Overrides, sections: CatalogSection[] = PERMISSION_CATALOG) {
-  return sections
-    .filter((s) => s.id !== "personal")
-    .map((s) => ({
-      id: s.id,
-      label: s.label,
-      items: s.pages.filter((p) => p.scope !== "data" && p.actions.includes("view") && effective(role, rolePerms, overrides, `${p.key}.view`)).map((p) => p.label),
-    }));
-}
-
 /** Overrides → rows for save_user_permissions. */
-export const toRows = (overrides: Overrides) => Object.entries(overrides).map(([key, allowed]) => ({ key, allowed }));
+export const toRows = (overrides: Overrides) =>
+  Object.entries(overrides).map(([k, allowed]) => {
+    const { key, branch } = parseKey(k);
+    return branch ? { key, allowed, branch } : { key, allowed };
+  });
+
+/** DB rows → overrides map. */
+export const fromRows = (rows: { permission_key: string; allowed: boolean; branch_id?: string | null }[]): Overrides =>
+  Object.fromEntries(rows.map((r) => [r.branch_id ? branchKey(r.permission_key, r.branch_id) : r.permission_key, !!r.allowed]));

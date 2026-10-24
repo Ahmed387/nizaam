@@ -14,11 +14,11 @@ function Harness({ onChange }: { onChange?: (o: Record<string, boolean>) => void
     <MemoryRouter>
       <PermissionEditor bind={{
         resetWord: "القالب",
-        get: (k) => effective("cashier", rp, o, k),
+        get: (k) => effective(["cashier"], rp, o, k),
         changed: (k) => k in o,
-        set: (k, v) => upd(setOverride("cashier", rp, o, k, v)),
+        set: (k, v) => upd(setOverride(["cashier"], rp, o, k, v)),
         resetPage: (p) => upd(resetPage(p, o)),
-        allowAll: (p) => upd(allowAllPage("cashier", rp, p, o)),
+        allowAll: (p) => upd(allowAllPage(["cashier"], rp, p, o)),
         customizeHref: (p) => (p.route ? `${p.route.replace(":branch", "b1")}?perm_for=u1` : null),
       }} />
     </MemoryRouter>
@@ -42,16 +42,6 @@ describe("PermissionEditor", () => {
     expect(screen.getAllByText(/متعدّل عن القالب/).length).toBeGreaterThan(0);
   });
 
-  it("opens a page's parts and hides one card with the eye", () => {
-    const onChange = vi.fn();
-    render(<Harness onChange={onChange} />);
-    fireEvent.click(screen.getAllByRole("button", { name: /14 أجزاء/ })[0]);
-    fireEvent.click(screen.getByRole("button", { name: "إخفاء رصيد الخزنة" }));
-    expect(onChange).toHaveBeenLastCalledWith({ "part.dashboard.till_balance.view": false });
-    expect(screen.getByRole("button", { name: "إظهار رصيد الخزنة" })).toBeInTheDocument();
-    expect(screen.getAllByText(/رقم حساس/).length).toBeGreaterThan(0);
-  });
-
   it("action chips switch create / update / delete", () => {
     const onChange = vi.fn();
     render(<Harness onChange={onChange} />);
@@ -69,10 +59,25 @@ describe("PermissionEditor", () => {
     expect(screen.queryAllByRole("tab")).toHaveLength(0);
   });
 
-  it("offers «ظبطها على الصفحة نفسها» for a page that has parts", () => {
+  it("every open page offers «افتح الصفحة وظبطها» (the real page, box by box)", () => {
     render(<Harness />);
-    const link = screen.getAllByRole("link", { name: /ظبطها على الصفحة نفسها/ })[0];
-    expect(link.getAttribute("href")).toMatch(/perm_for=u1/);
+    const link = screen.getAllByRole("link", { name: /افتح الصفحة وظبطها/ })[0];
+    expect(link.getAttribute("href")).toMatch(/^\/branch\/b1\/dashboard\?perm_for=u1/);
+    // no preview, no parts grid any more
+    expect(screen.queryByText(/معاينة/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /أجزاء/ })).toBeNull();
+  });
+
+  it("a hidden page has no «افتح الصفحة وظبطها»", () => {
+    render(<Harness />);
+    const before = screen.getAllByRole("link", { name: /افتح الصفحة وظبطها/ }).length;
+    fireEvent.click(screen.getByRole("switch", { name: "إخفاء الرئيسية" }));
+    expect(screen.queryAllByRole("link", { name: /افتح الصفحة وظبطها/ }).length).toBe(before - 1);
+  });
+
+  it("shows the branch it is setting", () => {
+    render(<MemoryRouter><PermissionEditor bind={{ resetWord: "القالب", get: () => true, changed: () => false, set: () => {}, resetPage: () => {}, allowAll: () => {}, scopeNote: "في فرع سكة تلة بس" }} /></MemoryRouter>);
+    expect(screen.getByText("في فرع سكة تلة بس")).toBeInTheDocument();
   });
 
   it("the personal-expenses tab only explains, it changes nothing", () => {

@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PermPart, usePartVisible } from "@/contexts/PermCustomize";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
@@ -32,6 +33,7 @@ const daysAgo = (n: number) => new Date(Date.now() - n * 86400000).toISOString()
 
 export default function BranchReports() {
   const canViewNetProfit = useCanViewNetProfit();
+  const tabOn = usePartVisible("reports");
   const { id: branchId } = useParams<{ id: string }>();
   const { tenantId, profile } = useAuth();
   const [from, setFrom] = useState(daysAgo(30));
@@ -224,7 +226,7 @@ export default function BranchReports() {
         }
       />
 
-      <div className="card-elevated p-4 mb-6 flex flex-wrap gap-3 items-end">
+      <PermPart page="reports" part="date_filter"><div className="card-elevated p-4 mb-6 flex flex-wrap gap-3 items-end">
         <div><Label>من</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1.5" /></div>
         <div><Label>إلى</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1.5" /></div>
         {loading && <div className="text-xs text-muted-foreground self-center">جاري التحديث…</div>}
@@ -233,26 +235,26 @@ export default function BranchReports() {
           <Button size="sm" variant="ghost" onClick={() => { setFrom(daysAgo(7)); setTo(today()); }}>آخر 7 أيام</Button>
           <Button size="sm" variant="ghost" onClick={() => { setFrom(daysAgo(30)); setTo(today()); }}>آخر 30 يوم</Button>
         </div>
-      </div>
+      </div></PermPart>
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-6">
-        <StatCard label="المبيعات (صافي)" value={formatEGP(totalSales)} icon={<ShoppingCart className="w-4 h-4" />} hint="بعد خصم المرتجعات" />
-        <StatCard label="المرتجعات" value={formatEGP(totalReturns)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${returns.length} عملية`} />
-        <StatCard label="إجمالي الربح" value={formatEGP(grossProfit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-        <StatCard label="المصاريف التشغيلية (OPEX)" value={formatEGP(totalExpenses)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" hint="بدون مرتجعات / مشتريات" />
-        <StatCard label="صافي الربح (Net Profit)" value={canViewNetProfit ? formatEGP(netProfit) : NET_PROFIT_MASK} icon={<Wallet className="w-4 h-4" />} accent={canViewNetProfit ? (netProfit >= 0 ? "success" : "destructive") : undefined} />
-        <StatCard label="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} />
+        <PermPart page="reports" part="net_sales"><StatCard label="المبيعات (صافي)" value={formatEGP(totalSales)} icon={<ShoppingCart className="w-4 h-4" />} hint="بعد خصم المرتجعات" /></PermPart>
+        <PermPart page="reports" part="returns"><StatCard label="المرتجعات" value={formatEGP(totalReturns)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${returns.length} عملية`} /></PermPart>
+        <PermPart page="reports" part="gross_profit"><StatCard label="إجمالي الربح" value={formatEGP(grossProfit)} icon={<TrendingUp className="w-4 h-4" />} accent="success" /></PermPart>
+        <PermPart page="reports" part="opex"><StatCard label="المصاريف التشغيلية (OPEX)" value={formatEGP(totalExpenses)} icon={<TrendingDown className="w-4 h-4" />} accent="destructive" hint="بدون مرتجعات / مشتريات" /></PermPart>
+        <PermPart page="reports" part="net_profit"><StatCard label="صافي الربح (Net Profit)" value={canViewNetProfit ? formatEGP(netProfit) : NET_PROFIT_MASK} icon={<Wallet className="w-4 h-4" />} accent={canViewNetProfit ? (netProfit >= 0 ? "success" : "destructive") : undefined} /></PermPart>
+        <PermPart page="reports" part="invoice_count"><StatCard label="عدد الفواتير" value={String(activeInv.length)} icon={<ShoppingCart className="w-4 h-4" />} /></PermPart>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <StatCard label="أيام العمل الفعلية" value={String(workingDays)} icon={<CalendarDays className="w-4 h-4" />} hint="بعد استبعاد الإجازات والإغلاق" />
-        <StatCard label="متوسط المبيعات / يوم عمل" value={formatEGP(workingDays ? totalSales / workingDays : 0)} icon={<ShoppingCart className="w-4 h-4" />} />
-        <StatCard label="متوسط الربح / يوم عمل" value={canViewNetProfit ? formatEGP(workingDays ? netProfit / workingDays : 0) : NET_PROFIT_MASK} icon={<Wallet className="w-4 h-4" />} accent={canViewNetProfit ? (netProfit >= 0 ? "success" : "destructive") : undefined} />
-        <StatCard label="متوسط الفواتير / يوم عمل" value={(workingDays ? activeInv.length / workingDays : 0).toFixed(1)} icon={<FileText className="w-4 h-4" />} />
+        <PermPart page="reports" part="working_days"><StatCard label="أيام العمل الفعلية" value={String(workingDays)} icon={<CalendarDays className="w-4 h-4" />} hint="بعد استبعاد الإجازات والإغلاق" /></PermPart>
+        <PermPart page="reports" part="avg_sales_day"><StatCard label="متوسط المبيعات / يوم عمل" value={formatEGP(workingDays ? totalSales / workingDays : 0)} icon={<ShoppingCart className="w-4 h-4" />} /></PermPart>
+        <PermPart page="reports" part="avg_profit_day"><StatCard label="متوسط الربح / يوم عمل" value={canViewNetProfit ? formatEGP(workingDays ? netProfit / workingDays : 0) : NET_PROFIT_MASK} icon={<Wallet className="w-4 h-4" />} accent={canViewNetProfit ? (netProfit >= 0 ? "success" : "destructive") : undefined} /></PermPart>
+        <PermPart page="reports" part="avg_invoices_day"><StatCard label="متوسط الفواتير / يوم عمل" value={(workingDays ? activeInv.length / workingDays : 0).toFixed(1)} icon={<FileText className="w-4 h-4" />} /></PermPart>
       </div>
 
 
-      <Tabs defaultValue="charts">
+      <Tabs defaultValue={["tab_charts", "tab_products", "tab_leastsold", "tab_expenses", "tab_lowstock"].map((k, i) => (tabOn(k) ? ["charts", "products", "leastsold", "expenses", "lowstock"][i] : null)).find(Boolean) ?? "charts"}>
         <TabsList>
           <TabsTrigger value="charts">📊 التحليل البصري</TabsTrigger>
           <TabsTrigger value="products">أكثر مبيعاً</TabsTrigger>
@@ -263,9 +265,9 @@ export default function BranchReports() {
 
         <TabsContent value="charts" className="mt-4 space-y-6">
           <div className="flex justify-end">
-            <Button size="sm" onClick={() => buildTabReport("charts")} className="gap-2">
+            <PermPart page="reports" part="pdf_button"><Button size="sm" onClick={() => buildTabReport("charts")} className="gap-2">
               <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
-            </Button>
+            </Button></PermPart>
           </div>
           {(() => {
             // sales by day
@@ -283,7 +285,7 @@ export default function BranchReports() {
             return (
               <>
                 <div className="grid lg:grid-cols-2 gap-6">
-                  <div className="card-elevated p-4">
+                  <PermPart page="reports" part="chart_daily"><div className="card-elevated p-4">
                     <h4 className="font-bold mb-3 text-base">المبيعات والأرباح اليومية</h4>
                     <ResponsiveContainer width="100%" height={320}>
                       <AreaChart data={dailyData} margin={{ top: 10, right: 24, left: 24, bottom: 8 }}>
@@ -323,10 +325,10 @@ export default function BranchReports() {
                         <Area type="monotone" dataKey="profit" name="الربح" stroke="hsl(var(--success))" strokeWidth={2.5} fill="url(#profitGrad)" />
                       </AreaChart>
                     </ResponsiveContainer>
-                  </div>
+                  </div></PermPart>
 
 
-                  <div className="card-elevated p-4">
+                  <PermPart page="reports" part="chart_expenses"><div className="card-elevated p-4">
                     <h4 className="font-bold mb-3 text-base">المصروفات حسب النوع</h4>
                     {expensesData.length === 0 ? (
                       <div className="text-center py-12 text-muted-foreground text-sm">لا توجد مصروفات</div>
@@ -381,10 +383,10 @@ export default function BranchReports() {
                         </div>
                       </div>
                     )}
-                  </div>
+                  </div></PermPart>
                 </div>
 
-                <div className="card-elevated p-4">
+                <PermPart page="reports" part="chart_top10"><div className="card-elevated p-4">
                   <h4 className="font-bold mb-3 text-base">أكثر 10 منتجات إيراداً</h4>
                   {topProducts.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground text-sm">لا توجد بيانات</div>
@@ -443,7 +445,7 @@ export default function BranchReports() {
                     </ResponsiveContainer>
                     </div>
                   )}
-                </div>
+                </div></PermPart>
 
               </>
             );
@@ -452,11 +454,11 @@ export default function BranchReports() {
 
         <TabsContent value="products" className="mt-4 space-y-3">
           <div className="flex justify-end">
-            <Button size="sm" onClick={() => buildTabReport("products")} className="gap-2">
+            <PermPart page="reports" part="pdf_button"><Button size="sm" onClick={() => buildTabReport("products")} className="gap-2">
               <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
-            </Button>
+            </Button></PermPart>
           </div>
-          <DataTable rows={topProducts} loading={loading} empty="لا توجد بيانات"
+          <DataTable permPage="reports" permTable="top" rows={topProducts} loading={loading} empty="لا توجد بيانات"
             columns={[
               { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="block text-center">{r.name}</b> },
               { key: "qty", header: "الكمية المباعة", align: "center" },
@@ -466,11 +468,11 @@ export default function BranchReports() {
         </TabsContent>
         <TabsContent value="leastsold" className="mt-4 space-y-3">
           <div className="flex justify-end">
-            <Button size="sm" onClick={() => buildTabReport("leastsold")} className="gap-2">
+            <PermPart page="reports" part="pdf_button"><Button size="sm" onClick={() => buildTabReport("leastsold")} className="gap-2">
               <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
-            </Button>
+            </Button></PermPart>
           </div>
-          <DataTable rows={leastProducts} loading={loading} empty="لا توجد بيانات"
+          <DataTable permPage="reports" permTable="least" rows={leastProducts} loading={loading} empty="لا توجد بيانات"
             columns={[
               { key: "name", header: "المنتج", align: "center", render: (r: any) => <b className="block text-center">{r.name}</b> },
               { key: "qty", header: "الكمية المباعة", align: "center", render: (r: any) => <b className="text-destructive">{r.qty}</b> },
@@ -480,11 +482,11 @@ export default function BranchReports() {
         </TabsContent>
         <TabsContent value="expenses" className="mt-4 space-y-3">
           <div className="flex justify-end">
-            <Button size="sm" onClick={() => buildTabReport("expenses")} className="gap-2">
+            <PermPart page="reports" part="pdf_button"><Button size="sm" onClick={() => buildTabReport("expenses")} className="gap-2">
               <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
-            </Button>
+            </Button></PermPart>
           </div>
-          <DataTable rows={Object.entries(expByType).map(([type, amount]) => ({ type, amount }))} empty="لا توجد مصروفات"
+          <DataTable permPage="reports" permTable="expenses" rows={Object.entries(expByType).map(([type, amount]) => ({ type, amount }))} empty="لا توجد مصروفات"
             columns={[
               { key: "type", header: "النوع" },
               { key: "amount", header: "المبلغ", render: (r: any) => <b className="text-destructive">{formatEGP(r.amount)}</b> },
@@ -492,11 +494,11 @@ export default function BranchReports() {
         </TabsContent>
         <TabsContent value="lowstock" className="mt-4 space-y-3">
           <div className="flex justify-end">
-            <Button size="sm" onClick={() => buildTabReport("lowstock")} className="gap-2">
+            <PermPart page="reports" part="pdf_button"><Button size="sm" onClick={() => buildTabReport("lowstock")} className="gap-2">
               <FileText className="w-4 h-4" /> تقرير تفصيلي PDF
-            </Button>
+            </Button></PermPart>
           </div>
-          <DataTable rows={lowStock} empty="كل المنتجات بمخزون كافي"
+          <DataTable permPage="reports" permTable="lowstock" rows={lowStock} empty="كل المنتجات بمخزون كافي"
             columns={[
               { key: "name", header: "المنتج", align: "center" },
               { key: "quantity", header: "المتوفر", align: "center", render: (r: any) => <b className="text-destructive">{r.quantity}</b> },

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { PermPart } from "@/contexts/PermCustomize";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -342,25 +343,27 @@ export default function Contacts() {
         title="الموردين والعملاء"
         actions={
           <div className="flex flex-wrap gap-2">
+            <PermPart page="customers" part="export_buttons"><div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!total} className="gap-2">
               <FileSpreadsheet className="w-4 h-4" /> Excel
             </Button>
             <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={!total} className="gap-2">
               <Printer className="w-4 h-4" /> PDF
             </Button>
-            <Button className="btn-gradient" onClick={openNew}>
+            </div></PermPart>
+            <PermPart page="customers" part="add_button"><Button className="btn-gradient" onClick={openNew}>
               <Plus className="w-4 h-4 ml-1" /> إضافة جهة
-            </Button>
+            </Button></PermPart>
           </div>
         }
       />
 
-      <div className="mb-4 text-base sm:text-lg font-semibold text-foreground/90">
+      <PermPart page="customers" part="counts_line"><div className="mb-4 text-base sm:text-lg font-semibold text-foreground/90">
         {counts.both > 0
           ? <>إجمالي <span className="text-primary">{counts.all}</span> جهة • <span className="text-primary">{counts.customer - counts.both}</span> عميل • <span className="text-primary">{counts.supplier - counts.both}</span> مورد • <span className="text-primary">{counts.both}</span> عميل ومورد</>
           : <>إجمالي <span className="text-primary">{counts.all}</span> جهة • <span className="text-primary">{counts.customer}</span> عميل • <span className="text-primary">{counts.supplier}</span> مورد</>
         }
-      </div>
+      </div></PermPart>
 
 
       {/* Balance KPIs — هذا الفرع فقط (فواتيره وفلوسه)، العملاء والموردين كل جانب لوحده */}

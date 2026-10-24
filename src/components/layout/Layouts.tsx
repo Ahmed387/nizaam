@@ -60,13 +60,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const totalAdminApprovals = (pendingApprovals || 0) + (pendingDiscounts || 0);
 
   // Role-based visibility gate — identical rules to the previous flat sidebar.
+  // The company owner sees everything; a manager / viewer / partner sees what the owner left open for them
+  // (migration 0114: their role opens everything by default, the owner can close pages one by one).
   const allow = (perm: string, opts: { to?: string; ownerOnly?: boolean; adminOnly?: boolean } = {}) => {
-    if (ownerView) {
-      if (isViewer && !isAdmin && opts.to === "/admin/settings") return false;
-      return true;
-    }
-    if (opts.ownerOnly) return can(perm);
-    return isAdmin || can(perm);
+    if (isOwner || isSuperAdmin) return true;
+    if (isViewer && !isAdmin && opts.to === "/admin/settings") return false;
+    return can(perm);
   };
   const only = (cond: boolean, item: NavItem): NavItem[] => (cond ? [item] : []);
   // A parent section stays visible when the user owns the parent permission OR
@@ -344,7 +343,7 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
 
   const isManager = hasRole("branch_manager");
   const canSeeDiscounts = isAdmin || isManager;
-  const canAccessAdmin = isAdmin || hasPerm("admin_home.view");
+  const canAccessAdmin = hasPerm("admin_home.view");
   const nav: NavItem[] = [
     ...(canAccessAdmin ? [{ to: "/admin/dashboard", label: "↩ لوحة التحكم", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
     ...allNav.filter((i) => hasPerm(i.perm)).map(({ perm, ...rest }) => rest),

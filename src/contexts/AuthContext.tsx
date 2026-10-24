@@ -2,7 +2,7 @@ import { withAuthRetry } from "@/lib/authRetry";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
-import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission } from "@/lib/roles";
+import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission, branchKey } from "@/lib/roles";
 
 interface Tenant {
   id: string;
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadCtxInner = async (uid: string) => {
     // Speed (login): the user's own permission overrides don't depend on the context — fetch them alongside it.
-    const overridesP = supabase.from("user_permissions" as any).select("permission_key, allowed").eq("user_id", uid);
+    const overridesP = supabase.from("user_permissions" as any).select("permission_key, allowed, branch_id").eq("user_id", uid);
     const ctx = await fetchUserContext(uid);
     const [, { data: overrides }] = await Promise.all([loadPerms(ctx.tenantId), overridesP]);
     setProfile(ctx.profile as any);
@@ -94,7 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRoles(ctx.roles);
     // الأوعية المالية النظامية ليست فروعًا تشغيلية، فتُستبعد من قوائم الفروع في الواجهة.
     setBranches((ctx.branches as any[]).filter((b) => !b?.is_system) as any);
-    setUserPerms(Object.fromEntries((overrides ?? []).map((r: any) => [r.permission_key, !!r.allowed])));
+    // per-branch overrides (migration 0114) are kept as «key@branch»; the plain key is the base for every branch
+    setUserPerms(Object.fromEntries((overrides ?? []).map((r: any) => [r.branch_id ? branchKey(r.permission_key, r.branch_id) : r.permission_key, !!r.allowed])));
   };
 
   // On start-up both getSession() and onAuthStateChange(INITIAL_SESSION) ask for the same context:
@@ -271,6 +272,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !["view", "read"].includes(action);
   };
 
+  const isFullOwner = roles.includes("owner") || roles.includes("super_admin") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id);
+
   // stable while the roles don't change, so effects that depend on it don't re-run on every auth render
   const hasRole = useCallback((r: AppRole) => roles.includes(r), [roles]);
 
@@ -295,7 +298,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isOwner: roles.includes("owner") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id),
     hasRole,
     can: (key) => {
-      if (!checkPermission(roles, permsByRole, key, userPerms)) return false;
+      // the company owner is never restricted (migration 0114)
+      if (isFullOwner) return true;
+      if (!checkPermission(roles, permsByRole, key, userPerms, activeBranchId())) return false;
       // Hard cap: inside a branch marked "read", every write permission is dropped
       // regardless of role matrix or per-user overrides.
       return !isWriteKey(key) || !readOnlyBranch(activeBranchId());
@@ -303,7 +308,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     branchAccess: (branchId) => (isFullAccess ? "manage" : branchLevel(branchId)),
     isBranchReadOnly: (branchId) => readOnlyBranch(branchId),
     canInBranch: (key, branchId) => {
-      if (!checkPermission(roles, permsByRole, key, userPerms)) return false;
+      if (isFullOwner) return true;
+      if (!checkPermission(roles, permsByRole, key, userPerms, branchId)) return false;
       return !isWriteKey(key) || !readOnlyBranch(branchId);
     },
     signOut: async () => {

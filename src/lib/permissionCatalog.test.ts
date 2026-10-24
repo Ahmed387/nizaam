@@ -51,12 +51,46 @@ describe("permission catalogue (grouped like the sidebar)", () => {
   it("finds the page of a route for the customize bar", () => {
     expect(pageForPath("/branch/abc-123/dashboard")?.key).toBe("dashboard");
     expect(pageForPath("/admin/dashboard")?.key).toBe("admin_home");
-    expect(pageForPath("/branch/abc/invoices")).toBeNull();
+    expect(pageForPath("/branch/abc/invoices")?.key).toBe("invoices");
+    expect(pageForPath("/branch/abc/invoices/123")).toBeNull(); // a single document is not a catalogue page
+    expect(pageForPath("/somewhere")).toBeNull();
   });
 
   it("search finds pages by a card name too", () => {
     expect(searchCatalog("رصيد الخزنة").map((r) => r.page.key)).toContain("dashboard");
     expect(searchCatalog("صافي الربح").map((r) => r.page.key)).toContain("net_profit");
     expect(searchCatalog("   ")).toEqual([]);
+  });
+});
+
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { PAGE_PARTS as PARTS_ALL } from "./permissionCatalog";
+
+function sources(dir: string): string[] {
+  return readdirSync(dir).flatMap((f) => {
+    const p = join(dir, f);
+    if (statSync(p).isDirectory()) return sources(p);
+    return /\.tsx$/.test(f) && !/\.test\./.test(f) ? [p] : [];
+  });
+}
+
+describe("every hand-tagged box is in the catalogue", () => {
+  it("each <PermPart page=… part=…> literal exists in PAGE_PARTS (so the editor can list and label it)", () => {
+    const missing: string[] = [];
+    let seen = 0;
+    for (const f of sources("src")) {
+      const txt = readFileSync(f, "utf8");
+      for (const m of txt.matchAll(/<PermPart[^>]*?page="([a-z0-9_]+)"[^>]*?part="([a-z0-9_]+)"/g)) {
+        seen++;
+        if (!(PARTS_ALL[m[1]] ?? []).some((p) => p.id === m[2])) missing.push(`${f}: ${m[1]}.${m[2]}`);
+      }
+    }
+    expect(seen).toBeGreaterThan(40);
+    expect(missing).toEqual([]);
+  });
+  it("part ids follow the database rule", () => {
+    Object.entries(PARTS_ALL).forEach(([page, parts]) => parts.forEach((p) =>
+      expect(`part.${page}.${p.id}.view`).toMatch(/^part\.[a-z0-9_]+\.[a-z0-9_]+\.view$/)));
   });
 });

@@ -2,6 +2,7 @@ import * as React from "react";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 
 import { cn } from "@/lib/utils";
+import { AutoTab } from "@/contexts/PermCustomize";
 
 const Tabs = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Root>,
@@ -30,6 +31,7 @@ const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
 >(({ className, ...props }, ref) => (
+  <AutoTab as="trigger" value={props.value} label={props.children}>
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
@@ -38,6 +40,7 @@ const TabsTrigger = React.forwardRef<
     )}
     {...props}
   />
+  </AutoTab>
 ));
 TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
@@ -45,6 +48,7 @@ const TabsContent = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
 >(({ className, ...props }, ref) => (
+  <AutoTab as="content" value={props.value}>
   <TabsPrimitive.Content
     ref={ref}
     className={cn(
@@ -53,6 +57,7 @@ const TabsContent = React.forwardRef<
     )}
     {...props}
   />
+  </AutoTab>
 ));
 TabsContent.displayName = TabsPrimitive.Content.displayName;
 

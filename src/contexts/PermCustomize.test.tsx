@@ -55,13 +55,13 @@ describe("PermPart — customize on the page (owner)", () => {
     expect(screen.getByText(/بتظبط اللي يظهر لـ mohayassr07/)).toBeInTheDocument();
     // his saved override hides «مبيعات الشهر»
     expect(screen.getByRole("button", { name: /إظهار مبيعات الشهر عن mohayassr07/ })).toBeInTheDocument();
-    expect(screen.getByText(/1 مخفي من 14/)).toBeInTheDocument();
+    expect(screen.getByText(/1 مخفي من 3/)).toBeInTheDocument();
   });
 
   it("hides a card, previews as him, and saves through save_user_permissions", async () => {
     show("/branch/b1/dashboard?perm_for=u2");
     fireEvent.click(await screen.findByRole("button", { name: /إخفاء رصيد الخزنة عن mohayassr07/ }));
-    expect(screen.getByText(/2 مخفي من 14/)).toBeInTheDocument();
+    expect(screen.getByText(/2 مخفي من 3/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "شوفها بعينه" }));
     expect(screen.queryByText("كارت رصيد الخزنة")).toBeNull();
     expect(screen.getByText("كارت مبيعات اليوم")).toBeInTheDocument();
@@ -75,6 +75,32 @@ describe("PermPart — customize on the page (owner)", () => {
   it("«أظهر الكل» brings every card back", async () => {
     show("/branch/b1/dashboard?perm_for=u2");
     fireEvent.click(await screen.findByRole("button", { name: "أظهر الكل" }));
-    expect(screen.getByText(/0 مخفي من 14/)).toBeInTheDocument();
+    expect(screen.getByText(/0 مخفي من 3/)).toBeInTheDocument();
+  });
+});
+
+describe("per-branch customize («الفرع ده بس»)", () => {
+  beforeEach(() => { auth.isAdmin = true; auth.isOwner = true; rpc.mockReset(); rpc.mockResolvedValue({ data: 1, error: null }); });
+
+  it("with perm_scope=branch a hidden card is saved for this branch only", async () => {
+    show("/branch/b1/dashboard?perm_for=u2&perm_scope=branch");
+    expect(await screen.findByRole("radio", { name: "الفرع ده بس" })).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByRole("button", { name: /إخفاء رصيد الخزنة عن mohayassr07/ }));
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("save_user_permissions", {
+      p_user: "u2",
+      p_rows: [{ key: "part.dashboard.sales_month.view", allowed: false }, { key: "part.dashboard.till_balance.view", allowed: false, branch: "b1" }],
+    }));
+  });
+
+  it("«كل الفروع» saves the rule for every branch", async () => {
+    show("/branch/b1/dashboard?perm_for=u2&perm_scope=branch");
+    fireEvent.click(await screen.findByRole("radio", { name: "كل الفروع" }));
+    fireEvent.click(screen.getByRole("button", { name: /إخفاء رصيد الخزنة عن mohayassr07/ }));
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("save_user_permissions", {
+      p_user: "u2",
+      p_rows: [{ key: "part.dashboard.sales_month.view", allowed: false }, { key: "part.dashboard.till_balance.view", allowed: false }],
+    }));
   });
 });

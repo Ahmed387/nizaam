@@ -2,6 +2,7 @@ import { forwardRef, ReactNode } from "react";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { MetricHint, type MetricHintProps } from "@/components/ui/MetricHint";
+import { AutoPart } from "@/contexts/PermCustomize";
 
 type Accent = "primary" | "success" | "warning" | "destructive" | "secondary";
 
@@ -53,7 +54,11 @@ interface StatCardProps extends React.HTMLAttributes<HTMLDivElement> {
   accent?: Accent;
 }
 
-export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(function StatCard(
+export const StatCard = forwardRef<HTMLDivElement, StatCardProps>(function StatCard(props, ref) {
+  return <AutoPart prefix="card" label={props.label}><StatCardInner {...props} ref={ref} /></AutoPart>;
+});
+
+const StatCardInner = forwardRef<HTMLDivElement, StatCardProps>(function StatCardInner(
   { label, value, icon, trend, hint, metricHint, accent = "primary", className, ...rest },
   ref
 ) {

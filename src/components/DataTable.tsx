@@ -1,5 +1,8 @@
 import { Fragment, forwardRef, ReactNode, Ref, useEffect, useState, type CSSProperties } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCurrentPermPage, usePermCustomize } from "@/contexts/PermCustomize";
+import { partKey } from "@/lib/permissionCatalog";
 
 type Align = "right" | "left" | "center";
 
@@ -32,6 +35,13 @@ interface DataTableProps<T> {
   tableClassName?: string;
   /** Floor width for column-dense tables: enables horizontal scroll, auto layout and one-line cells. */
   minTableWidth?: string;
+  /**
+   * Permissions page key (migration 0114): every column becomes a part «part.<page>.col_<column key>.view» the
+   * owner can hide per person / per branch; in «افتح الصفحة وظبطها» each header gets a show / hide button.
+   */
+  permPage?: string;
+  /** When one page has several tables, a short id per table so their columns don't share a switch («col_<table>_<key>»). */
+  permTable?: string;
 }
 
 function DataTableInner<T>(
@@ -186,6 +196,78 @@ function DataTableInner<T>(
   );
 }
 
-export const DataTable = forwardRef(DataTableInner) as <T>(
+const DataTableBase = forwardRef(DataTableInner) as <T>(
   props: DataTableProps<T> & { ref?: Ref<HTMLDivElement> }
 ) => JSX.Element;
+
+/** Columns as the signed-in user (or the person being set up) may see them. */
+function PermColumnsTable<T>({ permPage, permTable, columns, ...rest }: DataTableProps<T> & { permPage: string; innerRef?: Ref<HTMLDivElement> }) {
+  const { can } = useAuth();
+  const c = usePermCustomize();
+  // part ids must match the database rule [a-z0-9_] — column keys like «paidRemaining» are normalised
+  const norm = (k: string) => k.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase().replace(/[^a-z0-9_]/g, "_");
+  const pid = (k: string) => `col_${permTable ? `${norm(permTable)}_` : ""}${norm(k)}`;
+  const text = (h: unknown) => (typeof h === "string" || typeof h === "number" ? String(h) : "بدون اسم");
+  // «__sel» (the ✓ box) and friends are plumbing, not data: always shown
+  const fixed = (k: string) => k.startsWith("__");
+  const keys = columns.map((col) => (fixed(col.key) ? "" : partKey(permPage, pid(col.key))));
+  const { active, register } = c;
+  const sig = keys.join("|") + "|" + columns.map((col) => text(col.header)).join("|");
+  useEffect(() => {
+    if (!active) return;
+    const offs = columns.map((col, i) => (keys[i] ? register(keys[i], { page: permPage, part: pid(col.key), label: `عمود «${text(col.header)}»` }) : () => {}));
+    return () => offs.forEach((off) => off());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, register, sig]);
+  let cols = columns;
+  if (!active) cols = columns.filter((_, i) => !keys[i] || can(keys[i]));
+  else if (c.preview) cols = columns.filter((_, i) => !keys[i] || c.isVisible(keys[i]));
+  else cols = columns.map((col, i) => {
+    if (!keys[i]) return col;
+    const v = c.isVisible(keys[i]);
+    return {
+      ...col,
+      className: `${col.className ?? ""} ${v ? "" : "opacity-30"}`,
+      header: (
+        <span className="inline-flex items-center gap-1">
+          {col.header}
+          <button type="button" aria-pressed={v} aria-label={`${v ? "إخفاء" : "إظهار"} عمود ${text(col.header)} عن ${c.targetName}`}
+            onClick={(e) => { e.stopPropagation(); c.toggle(keys[i]); }}
+            className={`inline-flex items-center justify-center w-7 h-7 rounded-full border ${v ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-white text-rose-600 border-rose-300"}`}>
+            {v ? <Eye className="w-3.5 h-3.5" aria-hidden="true" /> : <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />}
+          </button>
+        </span>
+      ) as any,
+    };
+  });
+  const table = <DataTableBase {...(rest as any)} columns={cols} ref={(rest as any).innerRef} />;
+  // an empty table shows no header — in «افتح الصفحة وظبطها» list its columns as chips so they can still be set
+  if (active && !c.preview && !(rest as any).loading && !((rest as any).rows ?? []).length && keys.some(Boolean)) {
+    return (
+      <div className="space-y-2">
+        <div role="group" aria-label="أعمدة الجدول" className="flex flex-wrap items-center gap-1.5 rounded-lg border border-dashed p-2 text-xs">
+          <span className="text-muted-foreground ml-1">الجدول فاضي دلوقتي — أعمدته:</span>
+          {columns.map((col, i) => {
+            if (!keys[i]) return null;
+            const v = c.isVisible(keys[i]);
+            return (
+              <button key={keys[i]} type="button" aria-pressed={v} aria-label={`${v ? "إخفاء" : "إظهار"} عمود ${text(col.header)} عن ${c.targetName}`} onClick={() => c.toggle(keys[i])}
+                className={`inline-flex items-center gap-1 min-h-[32px] rounded-full px-3 font-bold border ${v ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-white text-rose-700 border-rose-300 line-through"}`}>
+                {v ? <Eye className="w-3.5 h-3.5" aria-hidden="true" /> : <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />} {text(col.header)}
+              </button>
+            );
+          })}
+        </div>
+        {table}
+      </div>
+    );
+  }
+  return table;
+}
+
+export const DataTable = forwardRef(function DataTable(props: any, ref: Ref<HTMLDivElement>) {
+  // every table on a catalogue page gets switchable columns; `permPage` only forces / names it
+  const autoPage = useCurrentPermPage();
+  const permPage = props.permPage ?? autoPage;
+  return permPage ? <PermColumnsTable {...props} permPage={permPage} innerRef={ref} /> : <DataTableBase {...props} ref={ref} />;
+}) as <T>(props: DataTableProps<T> & { ref?: Ref<HTMLDivElement> }) => JSX.Element;

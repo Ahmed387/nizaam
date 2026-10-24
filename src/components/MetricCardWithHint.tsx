@@ -1,3 +1,4 @@
+import { AutoPart } from "@/contexts/PermCustomize";
 import { ReactNode } from "react";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { MetricHint, type MetricHintProps } from "@/components/ui/MetricHint";
@@ -24,7 +25,11 @@ interface MetricCardWithHintProps {
 }
 
 /** كارت مالي موحّد مع زر ℹ️ يشرح طريقة الحساب (يفتح بالضغط أو التمرير). */
-export function MetricCardWithHint({ label, value, currency = true, icon, metricHint, tone = "primary", footer, active, onClick }: MetricCardWithHintProps) {
+export function MetricCardWithHint(props: MetricCardWithHintProps) {
+  return <AutoPart prefix="card" label={props.label}><MetricCardInner {...props} /></AutoPart>;
+}
+
+function MetricCardInner({ label, value, currency = true, icon, metricHint, tone = "primary", footer, active, onClick }: MetricCardWithHintProps) {
   return (
     <div
       className={`card-elevated p-5 flex flex-col items-center justify-center text-center ${onClick ? "cursor-pointer transition-shadow hover:ring-1 hover:ring-primary/40" : ""} ${active ? "ring-2 ring-primary" : ""}`}

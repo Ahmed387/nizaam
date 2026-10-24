@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ tenantId: "t1" }) }));
+const auth = { tenantId: "t1", user: { id: "own" }, isOwner: false, tenant: { owner_user_id: "own" } };
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() } }));
 
 const rpc = vi.fn();
@@ -13,10 +14,12 @@ const db: Record<string, any[]> = {
     { id: "c1", name: "mohayassr07", username: "mohayassr07" },
     { id: "m1", name: "مدير الفرع", username: "mgr" },
     { id: "lost", name: "موظف تايه", username: "lost" },
+    { id: "a1", name: "المدير العام", username: "gm" },
   ],
   user_roles: [
     { user_id: "own", role: "owner" }, { user_id: "own", role: "admin" },
     { user_id: "c1", role: "cashier" }, { user_id: "m1", role: "branch_manager" }, { user_id: "lost", role: "warehouse" },
+    { user_id: "a1", role: "admin" },
   ],
   branch_users: [{ user_id: "c1", branch_id: "b1", access_level: "manage" }, { user_id: "m1", branch_id: "b1", access_level: "manage" }],
   branches: [{ id: "b1", name: "سكة تلة" }, { id: "b2", name: "عبدالمنعم الغربى" }],
@@ -44,13 +47,26 @@ import { EmployeesPermissions } from "./EmployeesPermissions";
 const show = (url = "/admin/settings?tab=user-permissions") => render(<MemoryRouter initialEntries={[url]}><EmployeesPermissions /></MemoryRouter>);
 
 describe("Employees permissions screen", () => {
-  beforeEach(() => { rpc.mockReset(); rpc.mockResolvedValue({ data: 1, error: null }); writes.length = 0; });
+  beforeEach(() => { rpc.mockReset(); rpc.mockResolvedValue({ data: 1, error: null }); writes.length = 0; auth.isOwner = false; auth.user = { id: "own" }; });
 
-  it("lists employees but never the owner / admin", async () => {
+  it("a manager sees the employees, never the owner, and not the other managers", async () => {
+    auth.user = { id: "m1" };
     show();
     expect(await screen.findByRole("button", { name: /mohayassr07/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^المالك/ })).toBeNull();
-    expect(screen.getByText(/عندهم كل حاجة/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /المدير العام/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /مدير الفرع/ })).toBeNull(); // himself
+    expect(screen.getByText("المديرين والشركاء بيظبطهم صاحب الشركة بس.")).toBeInTheDocument();
+  });
+
+  it("the owner also sets the general manager (he starts with everything open)", async () => {
+    auth.isOwner = true;
+    show("/admin/settings?tab=user-permissions&user=a1");
+    expect(await screen.findByRole("button", { name: /المدير العام/ })).toHaveTextContent("مدير عام · كل الفروع");
+    expect(screen.queryByRole("button", { name: /^المالك/ })).toBeNull();
+    fireEvent.click(await screen.findByRole("switch", { name: "إخفاء الرئيسية" }));
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("save_user_permissions", { p_user: "a1", p_rows: [{ key: "dashboard.view", allowed: false }] }));
   });
 
   it("warns about an employee with a role but no branch", async () => {
@@ -99,11 +115,25 @@ describe("Employees permissions screen", () => {
     expect(screen.getByRole("button", { name: "انسخ" })).toBeDisabled();
   });
 
-  it("the live preview shows his sidebar sections", async () => {
+  it("per branch: hides the home page in سكة تلة only", async () => {
     show("/admin/settings?tab=user-permissions&user=c1");
-    expect(await screen.findByText("معاينة: القايمة الجانبية عنده")).toBeInTheDocument();
-    const preview = screen.getByRole("complementary", { name: "معاينة القايمة الجانبية" });
-    expect(preview).toHaveTextContent("عام");
-    expect(preview).toHaveTextContent("الرئيسية");
+    const bar = await screen.findByRole("tablist", { name: "الفرع اللي بتظبطه" });
+    expect(bar).toHaveTextContent("كل الفروع");
+    fireEvent.click(screen.getByRole("tab", { name: /سكة تلة/ }));
+    expect(screen.getByText(/بتظبط فرع «سكة تلة» بس/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("switch", { name: "إخفاء الرئيسية" }));
+    expect(screen.getByRole("tab", { name: /سكة تلة · 1 متعدّل/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith("save_user_permissions", {
+      p_user: "c1",
+      p_rows: [{ key: "part.dashboard.till_balance.view", allowed: false }, { key: "dashboard.view", allowed: false, branch: "b1" }],
+    }));
+  });
+
+  it("«افتح الصفحة وظبطها» opens the real page for him, in the chosen branch", async () => {
+    show("/admin/settings?tab=user-permissions&user=c1&branch=b1");
+    const link = (await screen.findAllByRole("link", { name: /افتح الصفحة وظبطها/ }))[0];
+    expect(link.getAttribute("href")).toBe("/branch/b1/dashboard?perm_for=c1&perm_scope=branch");
+    expect(screen.queryByText(/معاينة/)).toBeNull();
   });
 });

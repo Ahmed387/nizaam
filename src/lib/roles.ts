@@ -278,25 +278,34 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
 };
 
 
+/** Override map key for one branch («sales.create@<branch id>»); the plain key is the base for every branch. */
+export const branchKey = (key: string, branchId: string) => `${key}@${branchId}`;
+
 /**
- * Local permission check (mirrors DB has_permission). Admin/super always true.
- * Resolution order: per-user override → role matrix → parent page (for sub-sections).
+ * Local permission check — mirrors the database `perm_resolve(user, key, branch)` (migration 0114):
+ *   super admin / company owner → always true
+ *   override for this branch → override for every branch
+ *   manager (admin) → true unless taken away above
+ *   role matrix → a part follows its page → an admin sub-section follows its parent page
  */
 export function checkPermission(
   roles: AppRole[],
   permsByRole: Record<string, Record<string, boolean>>,
   key: string,
   userOverrides: Record<string, boolean> = {},
+  branchId?: string | null,
 ): boolean {
-  if (roles.includes("admin") || roles.includes("super_admin") || roles.includes("owner")) return true;
+  if (roles.includes("super_admin") || roles.includes("owner")) return true;
+  if (branchId && userOverrides[branchKey(key, branchId)] !== undefined) return userOverrides[branchKey(key, branchId)];
   if (userOverrides[key] !== undefined) return userOverrides[key];
+  if (roles.includes("admin")) return true;
   if (roles.some((r) => permsByRole[r]?.[key] === true)) return true;
   const hasExplicit = roles.some((r) => permsByRole[r]?.[key] !== undefined);
   // A part of a page (card / box / column, migration 0114) with no rule of its own follows its page.
   const part = /^part\.([a-z0-9_]+)\.[a-z0-9_]+\.view$/.exec(key);
-  if (part && !hasExplicit) return checkPermission(roles, permsByRole, `${part[1]}.view`, userOverrides);
+  if (part && !hasExplicit) return checkPermission(roles, permsByRole, `${part[1]}.view`, userOverrides, branchId);
   const parent = SUBSECTION_PARENT[key.replace(/\.[^.]+$/, "")];
-  if (parent && !hasExplicit) return checkPermission(roles, permsByRole, `${parent}.view`, userOverrides);
+  if (parent && !hasExplicit) return checkPermission(roles, permsByRole, `${parent}.view`, userOverrides, branchId);
   return false;
 }
 
