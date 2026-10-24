@@ -1,0 +1,2 @@
+-- Migration test for 0114 — run as ONE batch: snapshot → migration → checks → ROLLBACK (raises at the end).
+-- How: paste this file's PRE block, then 0114, then the CHECKS block, into one execute; nothing is kept.

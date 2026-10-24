@@ -24,8 +24,8 @@ import { BackupTab } from "@/components/BackupTab";
 import { TwoFactorTab } from "@/components/TwoFactorTab";
 import { ViewersTab } from "@/components/ViewersTab";
 import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
-import { RolePermissionsTab } from "@/components/RolePermissionsTab";
-import { UserPermissionsTab } from "@/components/UserPermissionsTab";
+import { TemplatesPermissions } from "@/components/permissions/TemplatesPermissions";
+import { EmployeesPermissions } from "@/components/permissions/EmployeesPermissions";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
 import { NegativeStockSetting } from "@/components/settings/NegativeStockSetting";
 
@@ -229,8 +229,8 @@ export default function Settings() {
           { v: "alerts", icon: BellRing, label: "تنبيهات الخزينة", group: "money" },
           ...(isOwner || canManageAdminTools ? [{ v: "branch-hours", icon: BellRing, label: "مواعيد الفروع والإجازات", group: "branches" }] : []),
           ...(isOwner || canManageAdminTools ? [{ v: "shift-schedules", icon: Clock, label: "مواعيد الورديات", group: "branches" }] : []),
-          ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "صلاحيات الأدوار", group: "people" }] : []),
-          ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "صلاحيات موظف بعينه", group: "people" }] : []),
+          ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "الموظفين", group: "people" }] : []),
+          ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "القوالب (الأدوار)", group: "people" }] : []),
           { v: "viewers", icon: Eye, label: "حسابات المراقبة", group: "people" },
           ...(isOwner ? [{ v: "personal-access", icon: Wallet, label: "الوصول للمصاريف الشخصية", group: "people" }] : []),
           { v: "security", icon: KeyRound, label: "كلمة المرور", group: "security" },
@@ -291,7 +291,7 @@ export default function Settings() {
         </TabsContent>
 
         <TabsContent value="permissions" className="mt-4">
-          <RolePermissionsTab />
+          <TemplatesPermissions />
         </TabsContent>
 
         {isOwner && (
@@ -301,7 +301,7 @@ export default function Settings() {
         )}
 
         <TabsContent value="user-permissions" className="mt-4">
-          <UserPermissionsTab />
+          <EmployeesPermissions />
         </TabsContent>
 
 

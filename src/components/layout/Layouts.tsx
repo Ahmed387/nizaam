@@ -171,15 +171,17 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   // not only the first one — otherwise "الخزنة" always points at one branch.
   const employeeBranchNav: NavItem[] = !isAdmin
     ? branches.flatMap((br) => {
-        const group = `فرع ${br.name}`;
+        // same five sections as the owner's sidebar (owner decision 2026-10-24); the branch name is added
+        // to each label only when the employee works in more than one branch
+        const tag = branches.length > 1 ? ` — ${br.name}` : "";
         return [
-          { to: `/branch/${br.id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, group },
-          ...(can("invoices.view") ? [{ to: `/branch/${br.id}/invoices`, label: "الفواتير والمستندات", icon: <FileText className="w-4 h-4" />, group }] : []),
-          ...(can("inventory.view") ? [{ to: `/branch/${br.id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, group }] : []),
-          ...(can("customers.view") || can("suppliers.view") ? [{ to: `/branch/${br.id}/contacts`, label: "العملاء والموردين", icon: <UserCircle className="w-4 h-4" />, group }] : []),
-          ...(can("treasury.view") ? [{ to: `/branch/${br.id}/treasury`, label: `خزنة ${br.name}`, icon: <Wallet className="w-4 h-4" />, group }] : []),
-          ...(can("employees.view") ? [{ to: `/branch/${br.id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, group }] : []),
-          ...(can("reports.view") ? [{ to: `/branch/${br.id}/reports`, label: "تقارير الفرع", icon: <BarChart3 className="w-4 h-4" />, group }] : []),
+          ...(can("dashboard.view") ? [{ to: `/branch/${br.id}/dashboard`, label: `الرئيسية${tag}`, icon: <Home className="w-4 h-4" />, group: "عــام" }] : []),
+          ...(can("invoices.view") ? [{ to: `/branch/${br.id}/invoices`, label: `الفواتير والمستندات${tag}`, icon: <FileText className="w-4 h-4" />, group: "العمليـات" }] : []),
+          ...(can("inventory.view") ? [{ to: `/branch/${br.id}/inventory`, label: `المخزون${tag}`, icon: <Boxes className="w-4 h-4" />, group: "العمليـات" }] : []),
+          ...(can("customers.view") || can("suppliers.view") ? [{ to: `/branch/${br.id}/contacts`, label: `العملاء والموردين${tag}`, icon: <UserCircle className="w-4 h-4" />, group: "العمليـات" }] : []),
+          ...(can("employees.view") ? [{ to: `/branch/${br.id}/employees`, label: `الموظفين${tag}`, icon: <BadgeDollarSign className="w-4 h-4" />, group: "العمليـات" }] : []),
+          ...(can("treasury.view") ? [{ to: `/branch/${br.id}/treasury`, label: `خزنة ${br.name}`, icon: <Wallet className="w-4 h-4" />, group: "الماليـة" }] : []),
+          ...(can("reports.view") ? [{ to: `/branch/${br.id}/reports`, label: `تقارير الفرع${tag}`, icon: <BarChart3 className="w-4 h-4" />, group: "الماليـة" }] : []),
         ] as NavItem[];
       })
     : [];
@@ -329,15 +331,15 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
 
   // Permission-driven sidebar (admins always see everything; others filtered via role_permissions matrix)
   const allNav: (NavItem & { perm: string })[] = [
-    { to: `/branch/${id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, perm: "dashboard.view", newTab: true },
+    { to: `/branch/${id}/dashboard`, label: "الرئيسية", icon: <Home className="w-4 h-4" />, perm: "dashboard.view", newTab: true, group: "عــام" },
     
-    { to: `/branch/${id}/invoices`, label: "الفواتير والمستندات", icon: <FileText className="w-4 h-4" />, perm: "invoices.view", newTab: true },
+    { to: `/branch/${id}/invoices`, label: "الفواتير والمستندات", icon: <FileText className="w-4 h-4" />, perm: "invoices.view", newTab: true, group: "العمليـات" },
     
-    { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, badge: lowStockCount, perm: "inventory.view", newTab: true },
-    { to: `/branch/${id}/contacts`, label: "العملاء والموردين", icon: <UserCircle className="w-4 h-4" />, perm: "customers.view", newTab: true },
-    { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, perm: "treasury.view", newTab: true },
-    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, badge: pendingAdvCount, perm: "employees.view", newTab: true },
-    { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, perm: "reports.view", newTab: true },
+    { to: `/branch/${id}/inventory`, label: "المخزون", icon: <Boxes className="w-4 h-4" />, badge: lowStockCount, perm: "inventory.view", newTab: true, group: "العمليـات" },
+    { to: `/branch/${id}/contacts`, label: "العملاء والموردين", icon: <UserCircle className="w-4 h-4" />, perm: "customers.view", newTab: true, group: "العمليـات" },
+    { to: `/branch/${id}/treasury`, label: "الخزنة", icon: <Wallet className="w-4 h-4" />, perm: "treasury.view", newTab: true, group: "الماليـة" },
+    { to: `/branch/${id}/employees`, label: "الموظفين", icon: <BadgeDollarSign className="w-4 h-4" />, badge: pendingAdvCount, perm: "employees.view", newTab: true, group: "العمليـات" },
+    { to: `/branch/${id}/reports`, label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, perm: "reports.view", newTab: true, group: "الماليـة" },
   ];
 
   const isManager = hasRole("branch_manager");
@@ -346,9 +348,9 @@ export function BranchLayout({ children, backTo, backLabel }: { children: ReactN
   const nav: NavItem[] = [
     ...(canAccessAdmin ? [{ to: "/admin/dashboard", label: "↩ لوحة التحكم", icon: <LayoutDashboard className="w-4 h-4" /> }] : []),
     ...allNav.filter((i) => hasPerm(i.perm)).map(({ perm, ...rest }) => rest),
-    ...(canSeeDiscounts ? [{ to: `/branch/${id}/discount-approvals`, label: "طلبات الخصم", icon: <Percent className="w-4 h-4" />, badge: pendingDiscountCount || undefined }] : []),
-    ...(canSeeDiscounts ? [{ to: `/branch/${id}/void-approvals`, label: "طلبات إلغاء الدفعات", icon: <Trash2 className="w-4 h-4" /> }] : []),
-    ...(isManager ? [{ to: `/branch/${id}/approval-requests`, label: "طلباتي للموافقة", icon: <Inbox className="w-4 h-4" />, badge: pendingMyApprovals || undefined }] : []),
+    ...(canSeeDiscounts ? [{ to: `/branch/${id}/discount-approvals`, label: "طلبات الخصم", icon: <Percent className="w-4 h-4" />, badge: pendingDiscountCount || undefined, group: "الإدارة" }] : []),
+    ...(canSeeDiscounts ? [{ to: `/branch/${id}/void-approvals`, label: "طلبات إلغاء الدفعات", icon: <Trash2 className="w-4 h-4" />, group: "الإدارة" }] : []),
+    ...(isManager ? [{ to: `/branch/${id}/approval-requests`, label: "طلباتي للموافقة", icon: <Inbox className="w-4 h-4" />, badge: pendingMyApprovals || undefined, group: "الإدارة" }] : []),
   ];
 
 

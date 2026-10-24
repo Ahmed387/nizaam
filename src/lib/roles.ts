@@ -291,13 +291,17 @@ export function checkPermission(
   if (roles.includes("admin") || roles.includes("super_admin") || roles.includes("owner")) return true;
   if (userOverrides[key] !== undefined) return userOverrides[key];
   if (roles.some((r) => permsByRole[r]?.[key] === true)) return true;
+  const hasExplicit = roles.some((r) => permsByRole[r]?.[key] !== undefined);
+  // A part of a page (card / box / column, migration 0114) with no rule of its own follows its page.
+  const part = /^part\.([a-z0-9_]+)\.[a-z0-9_]+\.view$/.exec(key);
+  if (part && !hasExplicit) return checkPermission(roles, permsByRole, `${part[1]}.view`, userOverrides);
   const parent = SUBSECTION_PARENT[key.replace(/\.[^.]+$/, "")];
-  if (parent) {
-    const hasExplicit = roles.some((r) => permsByRole[r]?.[key] !== undefined);
-    if (!hasExplicit) return checkPermission(roles, permsByRole, `${parent}.view`, userOverrides);
-  }
+  if (parent && !hasExplicit) return checkPermission(roles, permsByRole, `${parent}.view`, userOverrides);
   return false;
 }
+
+/** Can the signed-in user see this part of a page? (`part.<page>.<part>.view`, follows the page when unset) */
+export const partPermKey = (page: string, part: string) => `part.${page}.${part}.view`;
 
 export async function fetchUserContext(userId: string) {
   const [{ data: profile }, { data: roles }, { data: branchUsers }] = await Promise.all([

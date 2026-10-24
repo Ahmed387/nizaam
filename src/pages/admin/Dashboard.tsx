@@ -1,4 +1,5 @@
 import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
+import { PermPart } from "@/contexts/PermCustomize";
 import { fetchOpeningSummary, type OpeningSummary } from "@/lib/ledger";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -93,22 +94,31 @@ export default function AdminDashboard() {
 
 
       {/* 1) The answer first: are we winning, and what is the stock worth (this month) */}
-      <div className="mb-6"><BusinessSnapshot compact /></div>
+      <PermPart page="admin_home" part="business_snapshot"><div className="mb-6"><BusinessSnapshot compact /></div></PermPart>
 
       {/* 2) Today — four plain numbers */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <PermPart page="admin_home" part="sales_today">
         <Link to="/admin/reports-hub?tab=central" className="block hover:scale-[1.02] transition-transform" title="افتح التقارير التفصيلية">
           <StatCard label="مبيعات النهارده" value={formatEGP(salesToday)} icon={<DollarSign className="w-5 h-5" />} accent="success" hint={`${invoicesToday} فاتورة`} />
         </Link>
+        </PermPart>
+        <PermPart page="admin_home" part="low_stock">
         <StatCard label="أصناف قربت تخلص" value={lowStock} icon={<AlertTriangle className="w-5 h-5" />} accent={lowStock > 0 ? "warning" : "secondary"} />
+        </PermPart>
+        <PermPart page="admin_home" part="pending_approvals">
         <Link to="/admin/approvals-hub?tab=approvals" className="block hover:scale-[1.02] transition-transform">
           <StatCard label="طلبات مستنية موافقتك" value={pendingApprovals} icon={<CheckSquare className="w-5 h-5" />} accent={pendingApprovals > 0 ? "warning" : "secondary"} />
         </Link>
+        </PermPart>
+        <PermPart page="admin_home" part="data_errors">
         <Link to="/admin/system-health?tab=integrity" className="block hover:scale-[1.02] transition-transform">
           <StatCard label="أخطاء في البيانات" value={integrity?.errors ?? 0} icon={<ClipboardCheck className="w-5 h-5" />} accent={integrity && integrity.errors > 0 ? "warning" : "secondary"} hint={integrity ? `${integrity.warnings} تنبيه` : undefined} />
         </Link>
+        </PermPart>
       </div>
 
+      <PermPart page="admin_home" part="branches">
       {/* 3) Branches — one small card each: today's sales and the four daily actions */}
       <div className="mb-6">
         <h3 className="font-bold text-lg mb-3">الفروع</h3>
@@ -143,7 +153,9 @@ export default function AdminDashboard() {
           ))}
         </div>
       </div>
+      </PermPart>
 
+      <PermPart page="admin_home" part="recent_docs">
       {/* Latest 5 documents */}
       <div>
         <h3 className="font-bold mb-3">آخر 5 حركات</h3>
@@ -155,7 +167,7 @@ export default function AdminDashboard() {
           indexColumn
           getRowKey={(r: RecentDoc) => `${r.kind}-${r.id}`}
           isRowExpanded={(r: RecentDoc) => expandedRowId === `${r.kind}-${r.id}`}
-          renderExpandedRow={(r: RecentDoc) => <RecentDocDetails doc={r} />}
+          renderExpandedRow={(r: RecentDoc) => <PermPart page="admin_home" part="doc_details"><RecentDocDetails doc={r} /></PermPart>}
           columns={[
             {
               key: "kind",
@@ -181,6 +193,7 @@ export default function AdminDashboard() {
           ]}
         />
       </div>
+      </PermPart>
     </AdminLayout>
   );
 }

@@ -33,6 +33,7 @@ import ShiftAlertBar from "@/components/ShiftAlertBar";
 import DesktopNotifications from "@/components/DesktopNotifications";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { PermCustomizeProvider } from "@/contexts/PermCustomize";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { usePresenceHeartbeat } from "@/hooks/usePresenceHeartbeat";
@@ -236,6 +237,7 @@ const App = () => (
           <PaidCelebration />
           <ShiftAlertBar />
           <DesktopNotifications />
+          <PermCustomizeProvider>
           <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -417,6 +419,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          </PermCustomizeProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

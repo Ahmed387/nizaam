@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -31,6 +31,9 @@ import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
 export default function EmployeeProfile() {
   const { id } = useParams<{ id: string }>();
+  // «حساب الدخول» from the permissions screen opens /admin/employees/:id?tab=account
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
   const nav = useNavigate();
   const { user, profile, isAdmin } = useAuth();
 
@@ -432,7 +435,7 @@ export default function EmployeeProfile() {
         </div>
       </div>
 
-      <Tabs defaultValue="salaries">
+      <Tabs defaultValue={tabParam === "account" ? "account" : "salaries"}>
         <TabsList>
           <TabsTrigger value="salaries"><Receipt className="w-4 h-4 ml-1" /> الرواتب</TabsTrigger>
           <TabsTrigger value="attendance"><Calendar className="w-4 h-4 ml-1" /> الحضور</TabsTrigger>

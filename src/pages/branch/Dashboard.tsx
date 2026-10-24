@@ -6,6 +6,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
+import { PermPart } from "@/contexts/PermCustomize";
 import { DataTable } from "@/components/DataTable";
 import { invoiceProfit } from "@/lib/profitEngine";
 import { supabase } from "@/integrations/supabase/client";
@@ -192,11 +193,12 @@ export default function BranchDashboard() {
       <h2 className="text-2xl font-extrabold mb-4 mt-1">نظرة عامة على نشاط اليوم</h2>
 
       {/* Active reservations (real-time) */}
-      {id && <div className="mb-6"><ActiveReservationsPanel branchId={id} /></div>}
+      <PermPart page="dashboard" part="reservations">{id && <div className="mb-6"><ActiveReservationsPanel branchId={id} /></div>}</PermPart>
 
 
 
       {/* Quick actions */}
+      <PermPart page="dashboard" part="quick_actions">
       <div className="card-elevated p-4 mb-6">
         <h3 className="font-bold mb-3 text-sm text-muted-foreground">إجراءات سريعة</h3>
         <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-3">
@@ -211,10 +213,12 @@ export default function BranchDashboard() {
           ))}
         </div>
       </div>
+      </PermPart>
 
 
       {/* KPI Cards with comparisons */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <PermPart page="dashboard" part="sales_today">
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="flex items-center gap-1 text-base font-bold text-foreground">مبيعات اليوم <MetricHint meaning="صافي مبيعات الفرع المسجلة اليوم وفق حدود يوم القاهرة." source="فواتير invoices النشطة غير المرحّلة وبنود invoice_items للفرع، مع الكميات المرتجعة وخصم الفاتورة." formula="إجمالي بنود البيع بعد المرتجعات − خصم الفواتير" /></span>
@@ -229,7 +233,9 @@ export default function BranchDashboard() {
             <span className="text-muted-foreground">vs أمس</span>
           </div>
         </div>
+        </PermPart>
 
+        <PermPart page="dashboard" part="sales_month">
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="flex items-center gap-1 text-base font-bold text-foreground">مبيعات الشهر <MetricHint meaning="صافي مبيعات الفرع من بداية الشهر الحالي حتى الآن بتوقيت القاهرة." source="فواتير invoices النشطة غير المرحّلة وبنود invoice_items للفرع خلال الشهر، مع الكميات المرتجعة وخصم الفاتورة." formula="إجمالي بنود بيع الشهر بعد المرتجعات − خصم الفواتير" /></span>
@@ -244,7 +250,9 @@ export default function BranchDashboard() {
             <span className="text-muted-foreground">vs الشهر السابق</span>
           </div>
         </div>
+        </PermPart>
 
+        <PermPart page="dashboard" part="gross_profit_today">
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="flex items-center gap-1 text-base font-bold text-foreground">مجمل ربح اليوم <MetricHint meaning="ربح البضاعة المباعة اليوم قبل المصروفات (مش صافي ربح): المبيعات بعد المرتجعات وخصم الفاتورة ناقص تكلفتها الفعلية وقت البيع." source="فواتير اليوم (بتاريخ الفاتورة) وبنودها: unit_cost_at_sale والكميات المرتجعة وخصم الفاتورة." formula="صافي إيراد المبيعات − تكلفة البضاعة المباعة (بتكلفة وقت البيع)" /></span>
@@ -255,7 +263,9 @@ export default function BranchDashboard() {
             هامش: {canViewNetProfit ? `${salesToday > 0 ? ((profitToday / salesToday) * 100).toFixed(1) : 0}%` : "---"}
           </div>
         </div>
+        </PermPart>
 
+        <PermPart page="dashboard" part="till_balance">
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
             <span className="flex items-center gap-1 text-base font-bold text-foreground">رصيد الخزنة <MetricHint meaning="رصيد خزنة الفرع دلوقتي (كل الطرق)، شامل النقدية الافتتاحية." source="حركات treasury للفرع — نفس مصدر صفحة الخزنة وفحص الرصيد." formula="Σ الوارد − Σ المنصرف" /></span>
@@ -266,9 +276,11 @@ export default function BranchDashboard() {
             {newCust} عميل جديد اليوم
           </div>
         </div>
+        </PermPart>
       </div>
 
 
+      <PermPart page="dashboard" part="month_target">
       {monthlyTarget > 0 && (() => {
         // the branch target is a SALES target (branches.monthly_sales_target) — compared with this month's net sales
         const achieved = Math.max(0, salesMonth);
@@ -298,10 +310,12 @@ export default function BranchDashboard() {
           </div>
         );
       })()}
+      </PermPart>
 
 
       {/* Charts row */}
       <div className="grid lg:grid-cols-3 gap-6 mb-6">
+        <PermPart page="dashboard" part="sales_chart">
         <div className="card-elevated p-4 lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-base">المبيعات آخر 30 يوم</h3>
@@ -360,7 +374,9 @@ export default function BranchDashboard() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        </PermPart>
 
+        <PermPart page="dashboard" part="collections">
         <div className="card-elevated p-4">
           <h3 className="font-bold mb-3">تحصيلات اليوم حسب الطريقة</h3>
           {paymentBreakdown.length === 0 ? (
@@ -373,10 +389,12 @@ export default function BranchDashboard() {
 
           )}
         </div>
+        </PermPart>
       </div>
 
       {/* Top products & customers */}
       <div className="grid lg:grid-cols-2 gap-6 mb-6">
+        <PermPart page="dashboard" part="top_products">
         <div className="card-elevated p-4">
           <h3 className="font-bold mb-4 flex items-center gap-2"><Package className="w-4 h-4 text-primary" /> أكثر المنتجات مبيعاً اليوم</h3>
           {topProducts.length === 0 ? (
@@ -411,7 +429,9 @@ export default function BranchDashboard() {
             </div>
           )}
         </div>
+        </PermPart>
 
+        <PermPart page="dashboard" part="top_customers">
         <div className="card-elevated p-4">
           <h3 className="font-bold mb-3 flex items-center gap-2"><UserPlus className="w-4 h-4 text-primary" /> أكثر العملاء شراءً (30 يوم)</h3>
           {topCustomers.length === 0 ? (
@@ -436,10 +456,12 @@ export default function BranchDashboard() {
             </div>
           )}
         </div>
+        </PermPart>
       </div>
 
       {/* Recent invoices & low stock */}
       <div className="grid lg:grid-cols-2 gap-6">
+        <PermPart page="dashboard" part="recent_moves">
         <div>
           <h3 className="font-bold mb-3 text-lg">آخر الحركات</h3>
           <DataTable rows={recent} empty="لا توجد حركات" onRowClick={(r: RecentDoc) => (r.kind === "sale" ? setOpenInvoice(r.id) : nav(r.path))} columns={[
@@ -449,9 +471,11 @@ export default function BranchDashboard() {
             { key: "amount", header: "المبلغ", render: (r: RecentDoc) => formatEGP(r.amount) },
             { key: "created_at", header: "الوقت", render: (r: RecentDoc) => formatDateTime(r.created_at) },
           ]} />
-          {id && <InvoiceQuickDialog invoiceId={openInvoice} branchId={id} onClose={() => setOpenInvoice(null)} />}
+          <PermPart page="dashboard" part="invoice_quick">{id && <InvoiceQuickDialog invoiceId={openInvoice} branchId={id} onClose={() => setOpenInvoice(null)} />}</PermPart>
         </div>
+        </PermPart>
 
+        <PermPart page="dashboard" part="stock_alerts">
         <div>
           <h3 className="font-bold mb-3 flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-warning" /> تنبيهات المخزون ({lowStock.length})</h3>
           <DataTable rows={lowStock} empty="كل المنتجات بمخزون كافٍ ✓"
@@ -461,6 +485,7 @@ export default function BranchDashboard() {
               { key: "low_stock_alert", header: "الحد التنبيهي" },
             ]} />
         </div>
+        </PermPart>
       </div>
     </BranchLayout>
   );
