@@ -133,6 +133,9 @@ export const PAGE_PARTS: Record<string, PagePart[]> = {
   ],
   sales: [
     { id: "discount_bar", label: "شريط الخصم (إجمالي الخصم ونسبته والحد المسموح)", kind: "بوكس", sensitive: true },
+    { id: "cost_total", label: "إجمالي التكلفة (تحت الإجمالي النهائي)", kind: "بوكس", sensitive: true },
+    { id: "net_profit", label: "صافي الربح (تحت الإجمالي النهائي)", kind: "بوكس", sensitive: true },
+    { id: "profit_pct", label: "نسبة الربح (تحت الإجمالي النهائي)", kind: "بوكس", sensitive: true },
   ],
   inventory: [
     { id: "import_button", label: "زرار استيراد Excel", kind: "زرار" },

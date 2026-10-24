@@ -2117,9 +2117,9 @@ export default function NewSale() {
               <div className="border-t border-border pt-3 flex justify-between text-base"><span className="font-bold">الإجمالي النهائي</span><span className={`${overLimit && isCashierOnly ? "text-destructive" : "text-primary"} font-extrabold text-xl`}>{formatEGP(total)}</span></div>
               {showCost && items.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-dashed border-border space-y-1">
-                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">إجمالي التكلفة</span><span>{formatEGP(totalCost)}</span></div>
-                  <div className="flex justify-between"><span className="font-bold">💰 صافي الربح</span><span className={!canViewNetProfit ? "text-muted-foreground font-extrabold" : totalProfit >= 0 ? "text-success font-extrabold" : "text-destructive font-extrabold"}>{canViewNetProfit ? formatEGP(totalProfit) : NET_PROFIT_MASK}</span></div>
-                  <div className="flex justify-between text-xs"><span className="text-muted-foreground">نسبة الربح</span><span className={!canViewNetProfit ? "text-muted-foreground font-bold" : totalProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{canViewNetProfit ? `${profitPct.toFixed(2)}%` : "---"}</span></div>
+                  <PermPart page="sales" part="cost_total"><div className="flex justify-between text-xs"><span className="text-muted-foreground">إجمالي التكلفة</span><span>{formatEGP(totalCost)}</span></div></PermPart>
+                  <PermPart page="sales" part="net_profit"><div className="flex justify-between"><span className="font-bold">💰 صافي الربح</span><span className={!canViewNetProfit ? "text-muted-foreground font-extrabold" : totalProfit >= 0 ? "text-success font-extrabold" : "text-destructive font-extrabold"}>{canViewNetProfit ? formatEGP(totalProfit) : NET_PROFIT_MASK}</span></div></PermPart>
+                  <PermPart page="sales" part="profit_pct"><div className="flex justify-between text-xs"><span className="text-muted-foreground">نسبة الربح</span><span className={!canViewNetProfit ? "text-muted-foreground font-bold" : totalProfit >= 0 ? "text-success font-bold" : "text-destructive font-bold"}>{canViewNetProfit ? `${profitPct.toFixed(2)}%` : "---"}</span></div></PermPart>
                 </div>
               )}
             </div>
