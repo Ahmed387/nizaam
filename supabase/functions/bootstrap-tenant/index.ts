@@ -1,7 +1,7 @@
 // Public edge function: bootstrap a full tenant (company + branches + partners + admin)
 // with automatic Chart of Accounts seeding (via trg_seed_coa_on_tenant), treasuries,
 // capital contributions, and trial-balance verification. verify_jwt = false.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 import { friendlyAuthError } from '../_shared/authErrors.ts';
 
 const corsHeaders = {
