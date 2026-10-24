@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Wallet, Pencil, Loader2, RefreshCw, Plus } from "lucide-react";
@@ -144,7 +145,7 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <PermTable className="w-full text-sm">
                 <thead>
                   <tr className="bg-surface-2 border-b border-border">
                     <th className="px-4 py-3 text-right">التاريخ</th>
@@ -177,7 +178,7 @@ export function ShipmentPaymentsPanel({ shipmentId, canEdit, onChanged }: Props)
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </PermTable>
             </div>
           )}
         </>

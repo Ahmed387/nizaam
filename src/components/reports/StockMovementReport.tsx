@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { ChevronLeft, Boxes, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcErrorText } from "@/lib/rpcError";
@@ -137,7 +138,7 @@ export function StockMovementReport({ from, to }: { from: string; to: string }) 
 
       {!branch && (
         <div className={`card-elevated overflow-x-auto ${loading ? "opacity-60" : ""}`}>
-          <table className="w-full text-sm">
+          <PermTable className="w-full text-sm">
             {head("الفرع")}
             <tbody>
               {(data?.branches ?? []).map((b) => (
@@ -154,7 +155,7 @@ export function StockMovementReport({ from, to }: { from: string; to: string }) 
                 </tr>
               )}
             </tbody>
-          </table>
+          </PermTable>
         </div>
       )}
 
@@ -168,7 +169,7 @@ export function StockMovementReport({ from, to }: { from: string; to: string }) 
             </div>
           </div>
           <div className="card-elevated overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               {head("الصنف", true)}
               <tbody>
                 {products === null && <tr><td colSpan={COLS.length + 3} className="p-6 text-center text-muted-foreground">بيحمّل...</td></tr>}
@@ -181,7 +182,7 @@ export function StockMovementReport({ from, to }: { from: string; to: string }) 
                 ))}
                 {products !== null && shown.length === 0 && <tr><td colSpan={COLS.length + 3} className="p-6 text-center text-muted-foreground">مفيش أصناف</td></tr>}
               </tbody>
-            </table>
+            </PermTable>
           </div>
         </>
       )}

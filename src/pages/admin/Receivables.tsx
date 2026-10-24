@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { cairoTodayDay } from "@/lib/cairoDate";
@@ -160,7 +161,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
   const renderTable = (rows: Plan[]) => (
     <Card className="overflow-hidden">
       <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <PermTable className="w-full text-sm">
         <thead className="bg-surface-2">
           <tr>
             <th className="px-3 py-2 text-right">الجهة</th>
@@ -219,7 +220,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
             <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">لا توجد خطط نشطة</td></tr>
           )}
         </tbody>
-      </table>
+      </PermTable>
       </div>
     </Card>
   );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { supabase } from "@/integrations/supabase/client";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { useAttachmentCounts, type RecordType } from "@/hooks/useAttachmentCounts";
@@ -120,7 +121,7 @@ export function DocumentMoneyMovements({ docId, docRecordType, canEdit = true, o
         <div className="text-xs text-muted-foreground text-center py-2 rounded border border-dashed">لا توجد حركات فلوس على المستند ده</div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <PermTable className="w-full text-xs">
             <thead>
               <tr className="text-muted-foreground border-b">
                 <th className="text-right py-1">السند</th>
@@ -148,7 +149,7 @@ export function DocumentMoneyMovements({ docId, docRecordType, canEdit = true, o
                 </tr>
               ))}
             </tbody>
-          </table>
+          </PermTable>
         </div>
       )}
     </div>

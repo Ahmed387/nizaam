@@ -39,6 +39,7 @@ function makeDb() {
     role_permissions: [],
     user_permissions: [{ user_id: CASH, tenant_id: T, permission_key: "part.dashboard.gross_profit_today.view", allowed: false }],
     permission_templates: [],
+    products: [{ id: "p1", name: "غسالة تجربة", sku: "SKU-1", branch_id: B1, tenant_id: T, quantity: 3, low_stock_alert: 1, cost_price: 100, selling_price: 150, market_price: 160, created_at: "2026-10-01T10:00:00Z" }],
   };
 }
 
@@ -145,6 +146,13 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
   await page.getByRole("tab", { name: /أكثر مبيعاً/ }).click(); await page.waitForTimeout(400);
   check("التقارير: عين على كل عمود في الجدول", await vis(page.getByRole("button", { name: /إخفاء عمود الإيراد عن مدير الفرع/ })));
   await shot(page, "p5-reports");
+  // 2c) a plain table (inventory): an eye on every column, hide «الأسعار» for him
+  await page.goto(`${BASE}/branch/${B1}/inventory?perm_for=${CASH}&perm_scope=branch`); await settle(page); await page.waitForTimeout(800);
+  check("المخزون: عين على عمود «الأسعار» و«الكمية»", await vis(page.getByRole("button", { name: /إخفاء عمود الأسعار عن mohayassr07/ })) && await vis(page.getByRole("button", { name: /إخفاء عمود الكمية عن mohayassr07/ })));
+  await page.getByRole("button", { name: /إخفاء عمود الأسعار عن mohayassr07/ }).click(); await page.waitForTimeout(300);
+  check("المخزون: العمود بقى «إظهار»", await vis(page.getByRole("button", { name: /إظهار عمود الأسعار عن mohayassr07/ })));
+  await shot(page, "p5b-inventory");
+  await page.getByRole("button", { name: "حفظ وخروج" }).click(); await page.waitForTimeout(1200);
   const e1 = db.calls.filter((c) => c.pageerror); if (e1.length) check("مفيش أخطاء في الصفحة", false, e1.map((x) => x.pageerror).join(" | "));
   await ctx.close();
 
@@ -155,6 +163,9 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
   check("سكة تلة: لسه شايف «مبيعات اليوم»", await vis(page.getByText("مبيعات اليوم")));
   check("قايمته الجانبية بالأقسام (عام / العمليات)", await vis(page.getByText("عــام")) && await vis(page.getByText("العمليـات")));
   await shot(page, "p6-cashier-b1");
+  await page.goto(`${BASE}/branch/${B1}/inventory`); await settle(page); await page.waitForTimeout(800);
+  check("الكاشير في المخزون: شايف «غسالة تجربة» ومش شايف عمود الأسعار", await vis(page.getByText("غسالة تجربة")) && !(await vis(page.getByText(/شراء:/))));
+  await shot(page, "p6b-cashier-inventory");
   await page.goto(`${BASE}/branch/${B2}/dashboard`); await settle(page); await page.waitForTimeout(800);
   check("عبدالمنعم الغربى: الرئيسية مقفولة عليه (بيرجع لرئيسية فرع مسموحله)", !page.url().includes(`/branch/${B2}/dashboard`), page.url().replace(BASE, ""));
   await shot(page, "p7-cashier-b2");

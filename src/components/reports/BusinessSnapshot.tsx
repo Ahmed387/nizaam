@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { TrendingUp, TrendingDown, Boxes, Receipt, Wallet, Scale, HandCoins, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { rpcErrorText } from "@/lib/rpcError";
@@ -79,7 +80,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
       </div>
 
       <div className="card-elevated overflow-x-auto">
-        <table className="w-full text-sm">
+        <PermTable className="w-full text-sm">
           <thead className="bg-surface-2">
             <tr className="text-xs">
               {["الفرع", "صافي المبيعات", "المحصّل فعلاً", "الآجل الباقي", "تكلفة المباع", "مجمل الربح", "المصروفات", "صافي الربح", "قيمة البضاعة الآن", "عدد القطع"].map((h) => (
@@ -105,7 +106,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
               </tr>
             ))}
           </tbody>
-        </table>
+        </PermTable>
       </div>
       {!compact && (
         <p className="text-xs text-muted-foreground">

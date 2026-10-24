@@ -1,4 +1,5 @@
 import { edgeErrorMessage } from "@/lib/edgeError";
+import { PermTable } from "@/components/PermTable";
 import { useEffect, useState } from "react";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -135,13 +136,13 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
         <div>عدد الفواتير<b>${t.invoice_count ?? 0}</b></div>
       </div>
       <h3>المبيعات حسب الفرع</h3>
-      <table><thead><tr><th>الفرع</th><th>المبيعات</th></tr></thead><tbody>
+      <PermTable><thead><tr><th>الفرع</th><th>المبيعات</th></tr></thead><tbody>
         ${(s.per_branch ?? []).map((b: any) => `<tr><td>${b.branch_name}</td><td>${fmtMoney(b.sales)}</td></tr>`).join("")}
-      </tbody></table>
+      </tbody></PermTable>
       <h3>أعلى المنتجات مبيعاً</h3>
-      <table><thead><tr><th>المنتج</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>
+      <PermTable><thead><tr><th>المنتج</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>
         ${(s.top_products ?? []).map((p: any) => `<tr><td>${p.name}</td><td>${p.qty}</td><td>${fmtMoney(p.total)}</td></tr>`).join("")}
-      </tbody></table>
+      </tbody></PermTable>
       ${ai ? `<div style="margin-top:24px;padding:16px;border:1px solid #ddd;border-radius:8px;background:#fafafa">
         <h2 style="margin-top:0">🤖 تحليل ذكاء اصطناعي</h2>
         ${mdToHtml(ai)}

@@ -1,9 +1,31 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { AutoPart } from "@/contexts/PermCustomize";
+
+/** The text of the first <CardTitle> inside (permissions 0114: a Card on a catalogue page is switchable by its title). */
+function titleOf(node: React.ReactNode, depth = 0): string | null {
+  if (depth > 5 || node == null || typeof node === "boolean") return null;
+  if (Array.isArray(node)) {
+    for (const n of node) { const t = titleOf(n, depth + 1); if (t) return t; }
+    return null;
+  }
+  if (!React.isValidElement(node)) return null;
+  const el = node as React.ReactElement<any>;
+  if (el.type === CardTitle) {
+    const flat = (n: React.ReactNode): string =>
+      typeof n === "string" || typeof n === "number" ? String(n)
+        : Array.isArray(n) ? n.map(flat).join("")
+        : React.isValidElement(n) ? flat((n.props as any).children) : "";
+    return flat(el.props.children).replace(/\s+/g, " ").trim() || null;
+  }
+  return titleOf(el.props?.children, depth + 1);
+}
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+  <AutoPart prefix="card" label={titleOf(props.children)}>
+    <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
+  </AutoPart>
 ));
 Card.displayName = "Card";
 

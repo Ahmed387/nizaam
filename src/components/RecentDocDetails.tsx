@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { Link } from "react-router-dom";
 import { Loader2, ArrowUpLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,7 +69,7 @@ export function RecentDocDetails({ doc }: { doc: RecentDoc }) {
   return (
     <div className="bg-muted/40 p-4 border-b rounded-b-md shadow-inner space-y-3 animate-fade-in" onClick={(e) => e.stopPropagation()}>
       {lines.length ? (
-        <table className="w-full text-sm border border-border/60 rounded-md overflow-hidden">
+        <PermTable className="w-full text-sm border border-border/60 rounded-md overflow-hidden">
           <thead className="bg-surface-2">
             <tr>
               <th className="p-2 w-10 text-center">#</th>
@@ -89,7 +90,7 @@ export function RecentDocDetails({ doc }: { doc: RecentDoc }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </PermTable>
       ) : (
         <p className="text-sm text-muted-foreground text-center">لا توجد أصناف</p>
       )}

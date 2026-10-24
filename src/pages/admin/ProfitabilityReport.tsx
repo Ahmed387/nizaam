@@ -1,4 +1,5 @@
 import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
+import { PermTable } from "@/components/PermTable";
 import { VariantLine } from "@/components/VariantChips";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -338,7 +339,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 <h4 className="font-extrabold text-success text-base md:text-lg flex items-center justify-center gap-2"><TrendingUp className="w-5 h-5" /> أعلى 10 منتجات بالهامش</h4>
                 <p className="mt-1 text-xs md:text-sm text-success/80">المنتجات الأكثر ربحية نسبةً للإيراد — ركز على دعم مبيعاتها.</p>
               </div>
-              <table className="w-full text-sm table-fixed">
+              <PermTable className="w-full text-sm table-fixed">
                 <colgroup>
                   <col className="w-10" />
                   <col />
@@ -367,14 +368,14 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </PermTable>
             </div>
             <div className="card-elevated p-0 overflow-hidden border-r-4 border-destructive/50 shadow-sm">
               <div className="px-5 py-4 bg-destructive/10 border-b border-destructive/20 text-center">
                 <h4 className="font-extrabold text-destructive text-base md:text-lg flex items-center justify-center gap-2"><TrendingDown className="w-5 h-5" /> أقل 10 منتجات بالهامش</h4>
                 <p className="mt-1 text-xs md:text-sm text-destructive/80">منتجات بهامش ضعيف — راجع التسعير أو تكلفة الشراء.</p>
               </div>
-              <table className="w-full text-sm table-fixed">
+              <PermTable className="w-full text-sm table-fixed">
                 <colgroup>
                   <col className="w-10" />
                   <col />
@@ -403,7 +404,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </PermTable>
             </div>
           </div>
         );
@@ -418,7 +419,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-xs md:text-sm border-collapse">
+          <PermTable className="w-full text-xs md:text-sm border-collapse">
             <thead>
               <tr className="bg-surface-2 border-b-2 border-border">
                 <th className="px-3 py-3 w-8"></th>
@@ -482,7 +483,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 );
               })}
             </tbody>
-          </table>
+          </PermTable>
         </div>
       </div>
 

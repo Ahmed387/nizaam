@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -163,7 +164,7 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
             </div>
             {ins.length > 0 && (
               <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <PermTable className="w-full text-sm">
                 <thead className="bg-surface-2">
                   <tr>
                     <th className="px-3 py-2 text-right">#</th>
@@ -214,7 +215,7 @@ export function PaymentPlansPanel({ entityType, entityId, direction }: Props) {
                     );
                   })}
                 </tbody>
-              </table>
+              </PermTable>
               </div>
             )}
 

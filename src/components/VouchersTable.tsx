@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -176,11 +177,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     const esc = (x: any) => String(x ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
     const row = (k: string, v: any) => `<tr><th>${k}</th><td>${esc(v)}</td></tr>`;
     w.document.write(`<html dir="rtl"><head><title>سند ${esc(r.voucher_number)}</title><style>body{font-family:Tahoma,sans-serif;padding:24px}h2{text-align:center}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:8px;text-align:right}th{width:30%;background:#f2f2f2}</style></head><body>
-      <h2>${esc(VOUCHER_TYPE_LABEL[r.type])} رقم ${esc(r.voucher_number)}</h2><table>
+      <h2>${esc(VOUCHER_TYPE_LABEL[r.type])} رقم ${esc(r.voucher_number)}</h2><PermTable>
       ${row("التاريخ", formatDate(r.voucher_date))}${row("المبلغ", formatEGP(Number(r.amount)))}
       ${row("التصنيف", catMap[r.category_id] ?? "")}${row("اسم الحساب", accountOf(r) ?? "")}
       ${row("طريقة الدفع", PAYMENT_METHOD_LABELS[r.payment_method] ?? "")}${row("الحالة", r.status === "active" ? "نشط" : "ملغي")}
-      ${row("الوصف", r.description ?? "")}</table><script>window.onload=()=>window.print()</script></body></html>`);
+      ${row("الوصف", r.description ?? "")}</PermTable><script>window.onload=()=>window.print()</script></body></html>`);
     w.document.close();
   };
 

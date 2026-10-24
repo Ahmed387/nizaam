@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
@@ -129,7 +130,7 @@ export function GlReconciliationPanel() {
                 {showOpening ? "إخفاء التفاصيل" : `تفاصيل الجهات (${opening.length})${openingIssues.length ? ` — ${openingIssues.length} محتاجين مراجعة` : ""}`}
               </Button>
             </div>
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead><tr className="bg-muted/20"><th className="p-2 text-right">الحساب</th><th className="p-2 text-right">الدفتر الموحد</th><th className="p-2 text-right">قيد الرصيد الافتتاحي</th><th className="p-2 text-right">الحالة</th></tr></thead>
               <tbody>
                 {openingAccounts.map((a) => {
@@ -145,7 +146,7 @@ export function GlReconciliationPanel() {
                   );
                 })}
               </tbody>
-            </table>
+            </PermTable>
             {showOpening && (
               <div className="p-2">
                 <DataTable

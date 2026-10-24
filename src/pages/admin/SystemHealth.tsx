@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { IntegrityAuditPanel } from "@/components/IntegrityAuditPanel";
@@ -272,7 +273,7 @@ export default function SystemHealth() {
             <p className="text-xs text-muted-foreground mt-1">لازم مجموع نسب كل شركة = 100% (رأس مال + تشغيل).</p>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">الشركة</th><th className="p-2">رأس المال</th><th className="p-2">التشغيل</th><th className="p-2">عدد الشركاء</th><th className="p-2">الحالة</th></tr></thead>
               <tbody>
                 {shares.map((s, i) => (
@@ -286,7 +287,7 @@ export default function SystemHealth() {
                 ))}
                 {shares.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">مفيش شركاء لسه</td></tr>}
               </tbody>
-            </table>
+            </PermTable>
           </CardContent>
         </Card>
 
@@ -297,7 +298,7 @@ export default function SystemHealth() {
             <p className="text-xs text-muted-foreground mt-1">في المحاسبة الصح: المدين لازم يساوي الدائن. لو فيه فرق يبقى فيه قيد غلط.</p>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">الشركة</th><th className="p-2">مدين</th><th className="p-2">دائن</th><th className="p-2">الفرق</th><th className="p-2">القيود</th><th className="p-2">الحالة</th></tr></thead>
               <tbody>
                 {tb.map((t, i) => (
@@ -312,7 +313,7 @@ export default function SystemHealth() {
                 ))}
                 {tb.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">مفيش قيود مرحّلة لسه</td></tr>}
               </tbody>
-            </table>
+            </PermTable>
           </CardContent>
         </Card>
 
@@ -331,7 +332,7 @@ export default function SystemHealth() {
             <div className="p-3 text-xs text-muted-foreground bg-muted/20 border-b">
               الفلوس اللي في الخزنة على أرض الواقع لازم تكون هي نفسها اللي مسجلة في دفتر الأستاذ (حساب 1100). أي فرق يعني فيه حركة اتسجلت في مكان ونسينا نسجلها في التاني.
             </div>
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr className="text-right">
                   <th className="p-2">الشركة</th>
@@ -355,7 +356,7 @@ export default function SystemHealth() {
                   <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">مفيش بيانات كاش لسه</td></tr>
                 )}
               </tbody>
-            </table>
+            </PermTable>
           </CardContent>
         </Card>
 
@@ -366,7 +367,7 @@ export default function SystemHealth() {
             <p className="text-xs text-muted-foreground mt-1">الرصيد المخزّن للشريك لازم يطابق مجموع حركاته (مساهمات - مسحوبات + أرباح).</p>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">الشريك</th><th className="p-2">الرصيد المسجّل</th><th className="p-2">المحسوب من الحركات</th><th className="p-2">الفرق</th><th className="p-2">الحالة</th></tr></thead>
               <tbody>
                 {pb.map((p, i) => {
@@ -383,7 +384,7 @@ export default function SystemHealth() {
                 })}
                 {pb.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">مفيش شركاء لسه</td></tr>}
               </tbody>
-            </table>
+            </PermTable>
           </CardContent>
         </Card>
 
@@ -424,7 +425,7 @@ export default function SystemHealth() {
             <p className="text-xs text-muted-foreground mt-1">كل شركة مسجّلة في السيستم وأرقامها الأساسية.</p>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">الشركة</th><th className="p-2">الفروع</th><th className="p-2">الشركاء</th><th className="p-2">الفواتير النشطة</th><th className="p-2">القيود المرحّلة</th></tr></thead>
               <tbody>
                 {tenants.map((t: any) => (
@@ -437,7 +438,7 @@ export default function SystemHealth() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </PermTable>
           </CardContent>
         </Card>
 
@@ -448,7 +449,7 @@ export default function SystemHealth() {
             <p className="text-xs text-muted-foreground mt-1">اللي كل شريك حطه، سحبه، جاله أرباح، ورصيده دلوقتي.</p>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">الشريك</th><th className="p-2">نسبة التشغيل</th><th className="p-2">مساهمات</th><th className="p-2">مسحوبات</th><th className="p-2">أرباح موزّعة</th><th className="p-2">الرصيد دلوقتي</th></tr></thead>
               <tbody>
                 {profits.map((p: any) => (
@@ -462,7 +463,7 @@ export default function SystemHealth() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </PermTable>
           </CardContent>
         </Card>
 
@@ -473,7 +474,7 @@ export default function SystemHealth() {
             <p className="text-xs text-muted-foreground mt-1">لو الشركة عملت مكسب، ده اللي كل شريك مستحقه فعلياً.</p>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr className="text-right">
                   <th className="p-2">الشريك</th>
@@ -504,7 +505,7 @@ export default function SystemHealth() {
                   );
                 })}
               </tbody>
-            </table>
+            </PermTable>
             <div className="p-3 text-xs text-muted-foreground border-t bg-muted/20">
               حصة الشريك = صافي ربح الشركة × نسبة التشغيل. صافي الربح = المبيعات − التكلفة − المصاريف.
             </div>

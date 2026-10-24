@@ -1,4 +1,5 @@
 import { fetchSideBalances } from "@/lib/ledger";
+import { PermTable } from "@/components/PermTable";
 import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
@@ -406,7 +407,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const printSummary = () => {
     const branchTable = scope === "global" ? `
       <h3>أداء الفروع</h3>
-      <table><thead><tr><th>الفرع</th><th>الفواتير</th><th>المبيعات</th><th>الربح</th><th>المصروفات</th><th>الصافي</th><th>المخزون</th></tr></thead><tbody>
+      <PermTable><thead><tr><th>الفرع</th><th>الفواتير</th><th>المبيعات</th><th>الربح</th><th>المصروفات</th><th>الصافي</th><th>المخزون</th></tr></thead><tbody>
         ${perBranch.map((b) => `<tr>
           <td><b>${b.name}</b></td><td>${b.invoices}</td>
           <td>${formatEGP(b.sales)}</td>
@@ -415,7 +416,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           <td class="${b.net >= 0 ? "pos" : "neg"}"><b>${formatEGP(b.net)}</b></td>
           <td>${formatEGP(b.inventoryValue)}</td>
         </tr>`).join("")}
-      </tbody></table>` : "";
+      </tbody></PermTable>` : "";
 
     const html = `
       <div class="kpi">
@@ -428,9 +429,9 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       </div>
       ${branchTable}
       <h3>أكثر المنتجات مبيعاً</h3>
-      <table><thead><tr><th>#</th><th>المنتج</th><th>الكمية</th><th>الإيراد</th></tr></thead><tbody>
+      <PermTable><thead><tr><th>#</th><th>المنتج</th><th>الكمية</th><th>الإيراد</th></tr></thead><tbody>
         ${[...topProductsAll].sort((a,b)=>b.revenue-a.revenue).slice(0,15).map((p, i) => `<tr><td>${i + 1}</td><td>${p.name}</td><td>${p.qty}</td><td>${formatEGP(p.revenue)}</td></tr>`).join("") || "<tr><td colspan='4'>لا توجد بيانات</td></tr>"}
-      </tbody></table>
+      </tbody></PermTable>
     `;
     printReport(`تقرير ${currentBranchName} (${from} → ${to})`, html);
   };
@@ -739,7 +740,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                 <Link to="/admin/reports-hub?tab=snapshot" className="absolute top-3 left-3 text-[11px] text-primary hover:underline">صافي الربح لكل فرع → 🎯 هل بنكسب؟</Link>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs md:text-sm border-collapse">
+                <PermTable className="w-full text-xs md:text-sm border-collapse">
                   <thead className="bg-surface-2 border-b-2 border-border">
                     <tr>
                       <th className="px-3 py-3 text-right font-bold uppercase tracking-wider text-foreground/80">الفرع</th>
@@ -781,7 +782,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                       <td className="px-3 py-3 text-center tabular-nums whitespace-nowrap text-destructive border-r border-border/40">{formatEGP(perBranch.reduce((s, b) => s + b.expenses, 0))}</td>
                     </tr>
                   </tfoot>
-                </table>
+                </PermTable>
               </div>
             </div>
 

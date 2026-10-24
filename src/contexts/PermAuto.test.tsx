@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 // the signed-in user may not see: one auto card, one tab, one column
@@ -21,6 +21,8 @@ import { PermCustomizeProvider, autoPartId } from "./PermCustomize";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PermTable } from "@/components/PermTable";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 const Page = () => (
   <>
@@ -32,6 +34,11 @@ const Page = () => (
       <TabsContent value="b">محتوى ب</TabsContent>
     </Tabs>
     <DataTable rows={[{ id: 1, name: "عميل", phone: "010" }]} columns={[{ key: "name", header: "الاسم" }, { key: "phone", header: "التليفون" }]} />
+    <PermTable>
+      <thead><tr><th>المنتج</th><th>الأسعار</th></tr></thead>
+      <tbody><tr><td>غسالة</td><td>شراء 100</td></tr></tbody>
+    </PermTable>
+    <Card><CardHeader><CardTitle>أعلى العملاء</CardTitle></CardHeader><CardContent>محتوى الكارت</CardContent></Card>
   </>
 );
 const show = (url: string) => render(<MemoryRouter initialEntries={[url]}><PermCustomizeProvider><Page /></PermCustomizeProvider></MemoryRouter>);
@@ -58,6 +65,16 @@ describe("every card, tab and column tags itself on a catalogue page", () => {
     expect(screen.queryByText("التليفون")).toBeNull();
   });
 
+  it("a plain table hides a column with CSS, and a Card by its title", async () => {
+    hidden.add(`part.dashboard.${autoPartId("col", "الأسعار")}.view`);
+    hidden.add(`part.dashboard.${autoPartId("card", "أعلى العملاء")}.view`);
+    const { container } = show("/branch/b1/dashboard");
+    await waitFor(() => expect(container.querySelector("style")?.textContent ?? "").toMatch(/nth-child\(2\)/));
+    expect(container.querySelector("style")!.textContent).toMatch(/display: none/);
+    expect(screen.queryByText("محتوى الكارت")).toBeNull();
+    expect(screen.getByText("غسالة")).toBeInTheDocument();
+  });
+
   it("off a catalogue page nothing changes", () => {
     hidden.add("part.reports.col_phone.view");
     show("/somewhere/else");
@@ -72,6 +89,9 @@ describe("every card, tab and column tags itself on a catalogue page", () => {
     expect(screen.getByRole("button", { name: /إخفاء تاب «تاب ب» عن mohayassr07/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /إخفاء عمود التليفون عن mohayassr07/ }));
     expect(screen.getByRole("button", { name: /إظهار عمود التليفون عن mohayassr07/ })).toBeInTheDocument();
-    expect(screen.getByText(/1 مخفي من 6/)).toBeInTheDocument();
+    expect(screen.getByText(/1 مخفي من 9/)).toBeInTheDocument();
+    // a plain <table> and a titled Card get their switches too
+    expect(await screen.findByRole("button", { name: /إخفاء عمود الأسعار عن mohayassr07/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /إخفاء كارت «أعلى العملاء» عن mohayassr07/ })).toBeInTheDocument();
   });
 });

@@ -52,10 +52,10 @@ describe("PermPart — customize on the page (owner)", () => {
   it("puts a show / hide button on every card for that employee", async () => {
     show("/branch/b1/dashboard?perm_for=u2");
     expect(await screen.findByRole("region", { name: "شريط تظبيط الصفحة" })).toBeInTheDocument();
-    expect(screen.getByText(/بتظبط اللي يظهر لـ mohayassr07/)).toBeInTheDocument();
+    expect(await screen.findByText(/بتظبط اللي يظهر لـ mohayassr07/)).toBeInTheDocument();
     // his saved override hides «مبيعات الشهر»
-    expect(screen.getByRole("button", { name: /إظهار مبيعات الشهر عن mohayassr07/ })).toBeInTheDocument();
-    expect(screen.getByText(/1 مخفي من 3/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /إظهار مبيعات الشهر عن mohayassr07/ })).toBeInTheDocument();
+    expect(await screen.findByText(/1 مخفي من 3/)).toBeInTheDocument();
   });
 
   it("hides a card, previews as him, and saves through save_user_permissions", async () => {

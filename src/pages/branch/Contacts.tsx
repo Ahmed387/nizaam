@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PermPart } from "@/contexts/PermCustomize";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -204,7 +205,7 @@ export default function Contacts() {
       if (k.startsWith("حساب ") && v !== "") return `<td><b>${formatEGP(Math.abs(Number(v as any)))}</b></td>`;
       return `<td>${v ?? ""}</td>`;
     }).join("")}</tr>`).join("");
-    printReport(title, `${summary}<table><thead>${head}</thead><tbody>${body}</tbody></table>`);
+    printReport(title, `${summary}<PermTable><thead>${head}</thead><tbody>${body}</tbody></PermTable>`);
   };
 
   const openNew = () => {

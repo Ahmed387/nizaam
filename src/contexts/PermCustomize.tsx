@@ -177,20 +177,23 @@ export function PermCustomizeProvider({ children }: { children: ReactNode }) {
 /** true inside a PermPart, so a card / table that tags itself automatically doesn't get a second switch. */
 const InPart = createContext(false);
 
-export function PermPart({ page, part, label, children, className }: { page: string; part: string; label?: string; children: ReactNode; className?: string }) {
+export function PermPart({ page, part, label, auto, children, className }: { page: string; part: string; label?: string; auto?: boolean; children: ReactNode; className?: string }) {
   const { can } = useAuth();
+  // a hand-tagged box covers the cards inside it; an automatic one (a Card by its title) lets them keep their own switch
+  const parentInside = useContext(InPart);
+  const inside = auto ? parentInside : true;
   const c = usePermCustomize();
   const key = partKey(page, part);
   const info = partInfo(page, part);
   const name = info?.label ?? label ?? part;
   const { register, active } = c;
   useEffect(() => (active ? register(key, { page, part, info, label }) : undefined), [active, register, key, page, part, info, label]);
-  if (!c.active) return can(key) ? <InPart.Provider value>{children}</InPart.Provider> : null;
+  if (!c.active) return can(key) ? <InPart.Provider value={inside}>{children}</InPart.Provider> : null;
   const visible = c.isVisible(key);
-  if (c.preview || info?.offscreen) return visible ? <InPart.Provider value>{children}</InPart.Provider> : null;
+  if (c.preview || info?.offscreen) return visible ? <InPart.Provider value={inside}>{children}</InPart.Provider> : null;
   return (
     <div className={`relative rounded-xl ${visible ? "ring-2 ring-emerald-400/60" : "ring-2 ring-dashed ring-rose-400/70"} ${className ?? ""}`} data-perm-part={key}>
-      <div className={visible ? "" : "opacity-40 pointer-events-none select-none"} aria-hidden={!visible}><InPart.Provider value>{children}</InPart.Provider></div>
+      <div className={visible ? "" : "opacity-40 pointer-events-none select-none"} aria-hidden={!visible}><InPart.Provider value={inside}>{children}</InPart.Provider></div>
       <button type="button" aria-pressed={visible} aria-label={`${visible ? "إخفاء" : "إظهار"} ${name} عن ${c.targetName}`} onClick={() => c.toggle(key)}
         className={`absolute -top-3 left-3 z-10 flex items-center gap-1 min-h-[32px] rounded-full px-3 text-xs font-extrabold shadow ${visible ? "bg-emerald-50 text-emerald-800 border border-emerald-300" : "bg-white text-rose-700 border border-rose-300"}`}>
         {visible ? <Eye className="w-3.5 h-3.5" aria-hidden="true" /> : <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />}
@@ -237,7 +240,7 @@ export function AutoPart({ prefix, label, children }: { prefix: string; label: u
   const page = useCurrentPermPage();
   const text = typeof label === "string" || typeof label === "number" ? String(label) : null;
   if (inside || !page || !text) return <>{children}</>;
-  return <PermPart page={page} part={autoPartId(prefix, text)} label={`كارت «${text}»`}>{children}</PermPart>;
+  return <PermPart page={page} part={autoPartId(prefix, text)} label={`كارت «${text}»`} auto>{children}</PermPart>;
 }
 
 const tabPartId = (value: string) => `tab_${value.replace(/([a-z])([A-Z])/g, "$1_$2").toLowerCase().replace(/[^a-z0-9_]/g, "_")}`;

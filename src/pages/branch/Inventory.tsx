@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { PermPart } from "@/contexts/PermCustomize";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -754,7 +755,7 @@ export default function Inventory() {
             ) : filtered.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">لا توجد منتجات</div>
             ) : (
-              <table className="w-full min-w-[1000px] text-sm table-fixed">
+              <PermTable className="w-full min-w-[1000px] text-sm table-fixed">
                 <colgroup>
                   <col className="w-[35%]" />
                   <col className="w-[10%]" />
@@ -859,7 +860,7 @@ export default function Inventory() {
                     );
                   })}
                 </tbody>
-              </table>
+              </PermTable>
             )}
           </div>
 

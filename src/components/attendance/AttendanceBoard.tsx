@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { ChevronRight, ChevronLeft, Wallet, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -326,7 +327,7 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
           <div className="text-xs text-muted-foreground">المرتب محسوب من الحضور تلقائياً: الإجازة مدفوعة، الغياب المسجّل بس هو اللي بيتخصم، ونص اليوم والساعات بنسبتها. اليوم اللي مفيهوش تسجيل بيتحسب يوم عادي. البونص والجزاء المتسجلين على الشهر بيتضافوا / بيتخصموا وقت الصرف، وقسط السلف المستحق إجباري.</div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <PermTable className="w-full text-sm">
             <thead className="bg-surface-2">
               <tr className="text-xs">
                 {["الموظف", "الأساسي", "أيام العمل", "أيام مدفوعة", "غياب", "خصم الحضور", "المستحق بالحضور", "بونص / جزاء", "قسط السلف المستحق", "الصافي المتوقع", ""].map((h) => <th key={h} className="px-2 py-2.5 font-extrabold text-center">{h}</th>)}
@@ -365,7 +366,7 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
               })}
               {payroll.length === 0 && <tr><td colSpan={11} className="p-8 text-center text-muted-foreground">لا يوجد موظفين</td></tr>}
             </tbody>
-          </table>
+          </PermTable>
         </div>
       </div>
 

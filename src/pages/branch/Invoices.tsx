@@ -1,4 +1,5 @@
 import { ContactLookup } from "@/components/ContactLookup";
+import { PermTable } from "@/components/PermTable";
 import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
 import { PermPart, usePartVisible } from "@/contexts/PermCustomize";
 import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
@@ -981,7 +982,7 @@ export default function Invoices() {
       if (v && typeof v === "object") v = r[c.key] ?? "";
       return `<td>${v ?? ""}</td>`;
     }).join("")}</tr>`).join("");
-    printReport(currentTabLabel, `<table><thead>${head}</thead><tbody>${body}</tbody></table>`);
+    printReport(currentTabLabel, `<PermTable><thead>${head}</thead><tbody>${body}</tbody></PermTable>`);
   };
 
   // Descriptive PDF button label per tab

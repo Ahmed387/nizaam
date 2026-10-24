@@ -1,4 +1,5 @@
 import { AlertCircle, PackageOpen, RefreshCw } from "lucide-react";
+import { PermTable } from "@/components/PermTable";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +73,7 @@ export function InvoiceItemsAccordion({ tenantId, branchId, invoiceId, expanded 
   return (
     <Container>
       <div className="overflow-x-auto p-3 md:p-4">
-        <table className="w-full min-w-[620px] text-sm">
+        <PermTable className="w-full min-w-[620px] text-sm">
           <thead>
             <tr className="bg-slate-200/80 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
               <th className="rounded-tr-lg p-2.5 text-right font-bold">#</th>
@@ -117,7 +118,7 @@ export function InvoiceItemsAccordion({ tenantId, branchId, invoiceId, expanded 
               </tr>
             ))}
           </tbody>
-        </table>
+        </PermTable>
       </div>
 
       {/* Summary highlight bar */}

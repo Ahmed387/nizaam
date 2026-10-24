@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -620,7 +621,7 @@ export default function AllSuppliers() {
                       </div>
                       {items.length > 0 ? (
                         <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <PermTable className="w-full text-sm">
                           <thead className="bg-background">
                             <tr className="text-xs text-muted-foreground border-b">
                               <th className="text-right p-2">الصنف</th>
@@ -639,7 +640,7 @@ export default function AllSuppliers() {
                               </tr>
                             ))}
                           </tbody>
-                        </table>
+                        </PermTable>
                         </div>
                       ) : (
                         <div className="p-3 text-xs text-muted-foreground">لا توجد أصناف مسجّلة لهذه فاتورة الشراء.</div>
@@ -717,7 +718,7 @@ export default function AllSuppliers() {
               <div className="p-6 text-center text-sm text-muted-foreground">اختر الفرع أولاً</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <PermTable className="w-full text-sm">
                   <thead>
                     <tr className="bg-background border-b text-xs text-muted-foreground">
                       <th className="text-right p-2">المنتج</th>
@@ -758,7 +759,7 @@ export default function AllSuppliers() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </PermTable>
               </div>
             )}
             <div className="p-3 border-t bg-muted/20 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">

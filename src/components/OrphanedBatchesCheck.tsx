@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -55,7 +56,7 @@ export function OrphanedBatchesCheck() {
 
       {result && result.length > 0 && (
         <div className="border rounded-md overflow-hidden">
-          <table className="w-full text-sm">
+          <PermTable className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
                 <th className="px-3 py-2 text-right">المنتج</th>
@@ -72,7 +73,7 @@ export function OrphanedBatchesCheck() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </PermTable>
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useNavigate } from "react-router-dom";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -320,7 +321,7 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
                 </DialogDescription>
               </DialogHeader>
               {Object.keys(open.changes ?? {}).length > 0 ? (
-                <table className="w-full text-sm">
+                <PermTable className="w-full text-sm">
                   <thead><tr className="border-b text-muted-foreground"><th className="py-1.5 text-right">البيان</th><th className="py-1.5 text-center">قبل</th><th className="py-1.5 text-center">بعد</th></tr></thead>
                   <tbody>
                     {Object.entries(open.changes).map(([f, c]) => (
@@ -331,7 +332,7 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </PermTable>
               ) : (
                 <div className="space-y-1 text-sm">
                   <div>العميل / المورد: <b>{open.snapshot?.party_name ?? "—"}</b></div>

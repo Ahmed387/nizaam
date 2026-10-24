@@ -1,4 +1,5 @@
 import { getCairoDayBounds } from "@/lib/cairoDate";
+import { PermTable } from "@/components/PermTable";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -233,7 +234,7 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
         {loading ? (
           <div className="flex justify-center p-10"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
         ) : (
-          <table className="w-full text-sm">
+          <PermTable className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-right">
                 <th className="p-3">الكاشير</th>
@@ -327,7 +328,7 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
               ))}
             </tbody>
 
-          </table>
+          </PermTable>
         )}
         {rows.length > PAGE && (
           <div className="flex items-center justify-center gap-2 p-3 text-sm">
@@ -341,7 +342,7 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
       {stats.ranking.length > 0 && (
         <Card className="p-4 mt-4 overflow-x-auto">
           <div className="font-bold mb-3">مقارنة أداء الكاشيرية</div>
-          <table className="w-full text-sm">
+          <PermTable className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr className="text-right">
                 <th className="p-2">الكاشير</th>
@@ -366,7 +367,7 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
                 </tr>
               ))}
             </tbody>
-          </table>
+          </PermTable>
         </Card>
       )}
 

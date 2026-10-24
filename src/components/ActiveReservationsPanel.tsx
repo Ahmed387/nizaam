@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { PermTable } from "@/components/PermTable";
 import { VariantLine } from "@/components/VariantChips";
 import type { VariantAttrs } from "@/lib/productVariant";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,7 +77,7 @@ export function ActiveReservationsPanel({ branchId }: { branchId: string }) {
 
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <PermTable className="w-full text-sm">
             <thead className="bg-surface-2">
               <tr>
                 <th className="px-3 py-2 text-right">المنتج</th>
@@ -110,7 +111,7 @@ export function ActiveReservationsPanel({ branchId }: { branchId: string }) {
                 );
               })}
             </tbody>
-          </table>
+          </PermTable>
         </div>
       )}
     </div>

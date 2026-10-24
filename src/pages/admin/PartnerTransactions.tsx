@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { useSearchParams } from "react-router-dom";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -95,7 +96,7 @@ export default function PartnerTransactions({ embedded }: { embedded?: boolean }
         <Card>
           <CardHeader><CardTitle>آخر 20 حركة</CardTitle></CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">التاريخ</th><th className="p-2">الشريك</th><th className="p-2">النوع</th><th className="p-2">المبلغ</th><th className="p-2">الوصف</th><th className="p-2 w-14">إجراءات</th></tr></thead>
               <tbody>
                 {recent.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا يوجد</td></tr>}
@@ -116,7 +117,7 @@ export default function PartnerTransactions({ embedded }: { embedded?: boolean }
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </PermTable>
           </CardContent>
         </Card>
         <EditPartnerTxDialog
