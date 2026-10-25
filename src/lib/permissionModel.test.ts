@@ -144,3 +144,43 @@ describe("company roles (migration 0115) — same order as perm_resolve", () => 
     expect(roleName("cashier", [])).toBe("كاشير");
   });
 });
+
+describe("per-branch level and template (migration 0122) — same order as perm_resolve", () => {
+  const rp = {
+    cashier: { "sales.view": true, "sales.create": true, "sales.delete": false, "treasury.view": true, "receipt_vouchers.create": false, "payment_vouchers.create": false, "admin_settings.view": false },
+    warehouse: { "inventory.update": true, "sales.create": false },
+    "tpl:t1": { "sales.view": true, "sales.create": true, "sales.delete": false, "treasury.view": false, "receipt_vouchers.create": true },
+  } as any;
+  const roles = ["cashier"];
+  const rules = {
+    b1: { full: true }, b2: { role: "tpl:t1" }, b3: { read: true }, b4: { role: "warehouse" },
+  };
+  const eff = (k: string, b: string | null, o = {}) => effective(roles, rp, o, k, b, rules);
+
+  it("«إدارة كاملة»: everything in that branch, never the company pages", () => {
+    expect(eff("sales.delete", "b1")).toBe(true);
+    expect(eff("payment_vouchers.create", "b1")).toBe(true);
+    expect(eff("part.dashboard.gross_profit_today.view", "b1")).toBe(true);
+    expect(eff("admin_settings.view", "b1")).toBe(false);
+  });
+  it("«إدارة جزئية» on a company role in شلبى, on a ready role in the 4th branch", () => {
+    expect(eff("treasury.view", "b2")).toBe(false);
+    expect(eff("receipt_vouchers.create", "b2")).toBe(true);
+    expect(eff("inventory.update", "b4")).toBe(true);
+    expect(eff("sales.create", "b4")).toBe(false);
+  });
+  it("«عرض فقط»: views, never writes — not even with his own change", () => {
+    expect(eff("sales.view", "b3")).toBe(true);
+    expect(eff("sales.create", "b3")).toBe(false);
+    expect(eff("sales.create", "b3", { "sales.create@b3": true })).toBe(false);
+  });
+  it("outside a branch he is his main role; his change in a branch beats its level / template", () => {
+    expect(eff("treasury.view", null)).toBe(true);
+    expect(eff("treasury.view", "b2", { "treasury.view@b2": true })).toBe(true);
+    expect(eff("sales.delete", "b1", { "sales.delete@b1": false })).toBe(false);
+  });
+  it("setOverride stores nothing when the branch already gives it", () => {
+    expect(setOverride(roles, rp, {}, "sales.delete", true, "b1", rules)).toEqual({});
+    expect(setOverride(roles, rp, {}, "treasury.view", true, "b2", rules)).toEqual({ "treasury.view@b2": true });
+  });
+});

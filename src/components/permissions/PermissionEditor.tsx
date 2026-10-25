@@ -20,6 +20,8 @@ export interface EditorBinding {
   resetWord: string;
   /** shown on top of the list, e.g. «في فرع سكة تلة بس» */
   scopeNote?: string;
+  /** a key that can't be opened here and why (e.g. «الشريك عرض بس»), shown locked and off */
+  locked?: (key: string) => string | null;
 }
 
 export const pageOnKey = (p: CatalogPage) => `${p.key}.${p.actions.includes("view") ? "view" : p.actions[0]}`;
@@ -95,11 +97,13 @@ export function PermissionEditor({ bind, personalNote }: { bind: EditorBinding; 
                   <div role="group" aria-label="يقدر يعمل إيه" className="flex flex-wrap gap-1.5">
                     {p.actions.filter((a) => `${p.key}.${a}` !== onKey).map((a) => {
                       const k = `${p.key}.${a}`;
-                      const v = bind.get(k);
+                      const why = bind.locked?.(k) ?? null;
+                      const v = !why && bind.get(k);
                       return (
-                        <button key={a} type="button" aria-pressed={v} onClick={() => bind.set(k, !v)}
-                          className={`min-h-[36px] rounded-full px-3 text-xs font-bold border transition-colors ${v ? "bg-primary/10 text-primary border-primary/40" : "bg-background text-muted-foreground border-dashed line-through"}`}>
-                          {ACTION_LABELS[a]}
+                        <button key={a} type="button" aria-pressed={v} disabled={!!why} title={why ?? undefined}
+                          aria-label={why ? `${ACTION_LABELS[a]} — ${why}` : undefined} onClick={() => bind.set(k, !v)}
+                          className={`min-h-[36px] rounded-full px-3 text-xs font-bold border transition-colors ${why ? "bg-muted text-muted-foreground border-dashed opacity-70 cursor-not-allowed" : v ? "bg-primary/10 text-primary border-primary/40" : "bg-background text-muted-foreground border-dashed line-through"}`}>
+                          {why && <Lock className="w-3 h-3 inline ml-1" aria-hidden="true" />}{ACTION_LABELS[a]}
                         </button>
                       );
                     })}

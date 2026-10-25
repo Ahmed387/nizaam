@@ -2,8 +2,8 @@ import { withAuthRetry } from "@/lib/authRetry";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
-import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission, branchKey } from "@/lib/roles";
-import { CompanyRole, RoleSetting, roleName, withCompanyRole } from "@/lib/companyRoles";
+import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission, branchKey, BranchRule } from "@/lib/roles";
+import { CompanyRole, RoleSetting, roleName, tplRole, withCompanyRole } from "@/lib/companyRoles";
 
 interface Tenant {
   id: string;
@@ -24,7 +24,7 @@ interface AuthCtx {
   tenantId: string | null;
   tenant: Tenant | null;
   roles: AppRole[];
-  branches: { id: string; name: string; code: string; access_level?: "manage" | "read" }[];
+  branches: { id: string; name: string; code: string; access_level?: "manage" | "read"; full_access?: boolean; branch_role?: string | null; branch_template?: string | null }[];
   loading: boolean;
   ctxReady: boolean;
   /** Branch ids this user may see in admin pages; null = all branches. */
@@ -68,6 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userPerms, setUserPerms] = useState<Record<string, boolean>>({});
   const [companyRole, setCompanyRole] = useState<CompanyRole | null>(null);
   const [roleSettings, setRoleSettings] = useState<RoleSetting[]>([]);
+  // company roles chosen as the template of one of his branches (migration 0122)
+  const [branchTemplates, setBranchTemplates] = useState<CompanyRole[]>([]);
   const currentUserIdRef = useRef<string | null>(null);
 
   const loadPerms = async (tid: string | null) => {
@@ -108,6 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(ctx.profile as any);
     setTenantId(ctx.tenantId);
     setTenant(ctx.tenant);
+    const tplIds = Array.from(new Set((ctx.branches as any[]).map((b) => b?.branch_template).filter(Boolean)));
+    if (tplIds.length) {
+      const { data: bt } = await supabase.from("permission_templates" as any).select("id, name, base_role, perms").in("id", tplIds);
+      setBranchTemplates(((bt ?? []) as any[]).map((t) => ({ id: t.id, name: t.name, base_role: t.base_role, perms: t.perms ?? {} })));
+    } else setBranchTemplates([]);
     setRoles(ctx.roles);
     // الأوعية المالية النظامية ليست فروعًا تشغيلية، فتُستبعد من قوائم الفروع في الواجهة.
     setBranches((ctx.branches as any[]).filter((b) => !b?.is_system) as any);
@@ -283,6 +290,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const readOnlyBranch = (branchId?: string | null) => !isFullAccess && branchLevel(branchId) === "read";
 
+  /** How he works in this branch (migration 0122): read / full / its template — same as perm_resolve. */
+  const ruleFor = (branchId?: string | null): BranchRule | null => {
+    if (isFullAccess || !branchId) return null;
+    const b = branches.find((x) => x.id === branchId);
+    if (!b) return null;
+    return { read: b.access_level === "read", full: !!b.full_access, role: b.branch_template ? tplRole(b.branch_template) : b.branch_role ?? null };
+  };
+
   /** Any permission action that is not a plain view/read. */
   const isWriteKey = (key: string) => {
     const action = key.split(".").pop() ?? "";
@@ -290,7 +305,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // a person on a company role is resolved as «tpl:<id>» (its differences over his ready role) — same order as perm_resolve
-  const eff = withCompanyRole(roles, permsByRole, companyRole);
+  const eff0 = withCompanyRole(roles, permsByRole, companyRole);
+  // the company roles of his branches as pseudo roles «tpl:<id>» (their ready role's map + their differences)
+  const eff = branchTemplates.length
+    ? { roles: eff0.roles, permsByRole: branchTemplates.reduce((m, t) => ({ ...m, [tplRole(t.id)]: { ...(m[t.base_role] ?? {}), ...t.perms } }), eff0.permsByRole) }
+    : eff0;
   const isFullOwner = roles.includes("owner") || roles.includes("super_admin") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id);
 
   // stable while the roles don't change, so effects that depend on it don't re-run on every auth render
@@ -319,7 +338,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     can: (key) => {
       // the company owner is never restricted (migration 0114)
       if (isFullOwner) return true;
-      if (!checkPermission(eff.roles as AppRole[], eff.permsByRole, key, userPerms, activeBranchId())) return false;
+      if (!checkPermission(eff.roles as AppRole[], eff.permsByRole, key, userPerms, activeBranchId(), ruleFor(activeBranchId()))) return false;
       // Hard cap: inside a branch marked "read", every write permission is dropped
       // regardless of role matrix or per-user overrides.
       return !isWriteKey(key) || !readOnlyBranch(activeBranchId());
@@ -328,7 +347,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isBranchReadOnly: (branchId) => readOnlyBranch(branchId),
     canInBranch: (key, branchId) => {
       if (isFullOwner) return true;
-      if (!checkPermission(eff.roles as AppRole[], eff.permsByRole, key, userPerms, branchId)) return false;
+      if (!checkPermission(eff.roles as AppRole[], eff.permsByRole, key, userPerms, branchId, ruleFor(branchId))) return false;
       return !isWriteKey(key) || !readOnlyBranch(branchId);
     },
     signOut: async () => {

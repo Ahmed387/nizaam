@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 import { ROLE_LABELS } from "@/lib/roles";
@@ -16,11 +16,13 @@ const db: Record<string, any[]> = {
     { id: "m1", name: "مدير الفرع", username: "mgr" },
     { id: "lost", name: "موظف تايه", username: "lost" },
     { id: "a1", name: "المدير العام", username: "gm" },
+    { id: "p1", name: "الحاج ناصر", username: "nasser" },
   ],
   user_roles: [
     { user_id: "own", role: "owner" }, { user_id: "own", role: "admin" },
     { user_id: "c1", role: "cashier" }, { user_id: "m1", role: "branch_manager" }, { user_id: "lost", role: "warehouse" },
     { user_id: "a1", role: "admin" },
+    { user_id: "p1", role: "partner" }, { user_id: "p1", role: "viewer" },
   ],
   branch_users: [{ user_id: "c1", branch_id: "b1", access_level: "manage" }, { user_id: "m1", branch_id: "b1", access_level: "manage" }],
   branches: [{ id: "b1", name: "سكة تلة" }, { id: "b2", name: "عبدالمنعم الغربى" }],
@@ -42,7 +44,7 @@ function q(table: string) {
   };
   return c;
 }
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (t: string) => q(t), rpc: (...a: unknown[]) => rpc(...a) } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (t: string) => q(t), rpc: (...a: unknown[]) => rpc(...a), functions: { invoke: vi.fn().mockResolvedValue({ data: {}, error: null }) } } }));
 
 import { EmployeesPermissions } from "./EmployeesPermissions";
 const show = (url = "/admin/settings?tab=user-permissions") => render(<MemoryRouter initialEntries={[url]}><EmployeesPermissions /></MemoryRouter>);
@@ -80,7 +82,7 @@ describe("Employees permissions screen", () => {
     expect(await screen.findByText("حساب الدخول: mohayassr07")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /حساب الدخول/ }).getAttribute("href")).toBe("/admin/employees/e1?tab=account");
     expect(await screen.findByRole("button", { name: /سكة تلة/, pressed: true })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "إدارة كاملة" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "إدارة جزئية", checked: true })).toBeInTheDocument();
     expect(screen.getByText(/ممنوع استثناءً 1/)).toBeInTheDocument();
   });
 
@@ -103,10 +105,42 @@ describe("Employees permissions screen", () => {
     expect(await screen.findByText(/ممنوع استثناءً 1/)).toBeInTheDocument();
   });
 
-  it("branch level switches between إدارة كاملة and عرض فقط", async () => {
+  it("each branch: إدارة كاملة / إدارة جزئية على قالب / عرض فقط — saved on the branch link", async () => {
     show("/admin/settings?tab=user-permissions&user=c1");
-    fireEvent.click(await screen.findByRole("button", { name: "إدارة كاملة" }));
-    expect(screen.getByRole("button", { name: "عرض فقط" })).toBeInTheDocument();
+    const levels = await screen.findByRole("radiogroup", { name: "شغله في سكة تلة" });
+    fireEvent.click(within(levels).getByRole("radio", { name: "إدارة كاملة" }));
+    fireEvent.click(screen.getByRole("button", { name: /عبدالمنعم الغربى/ }));
+    fireEvent.click(within(screen.getByRole("radiogroup", { name: "شغله في عبدالمنعم الغربى" })).getByRole("radio", { name: "عرض فقط" }));
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+    await waitFor(() => expect(writes).toContainEqual({ table: "branch_users", op: "update", x: { access_level: "manage", full_access: true, branch_role: null, branch_template: null } }));
+    expect(writes).toContainEqual({ table: "branch_users", op: "insert", x: [{ user_id: "c1", branch_id: "b2", tenant_id: "t1", access_level: "read", full_access: false, branch_role: null, branch_template: null }] });
+  });
+
+  it("in a «عرض فقط» branch the write buttons are locked", async () => {
+    db.branch_users[0] = { user_id: "c1", branch_id: "b1", access_level: "read" };
+    show("/admin/settings?tab=user-permissions&user=c1&branch=b1");
+    fireEvent.click(await screen.findByRole("tab", { name: /^العمليات/ }));
+    const add = (await screen.findAllByRole("button", { name: /الفرع ده «عرض فقط»/ }))[0];
+    expect(add).toBeDisabled();
+    db.branch_users[0] = { user_id: "c1", branch_id: "b1", access_level: "manage" };
+  });
+
+  it("two tabs: employees and partners; a partner is view only", async () => {
+    auth.isOwner = true;
+    show();
+    expect(await screen.findByRole("tab", { name: /الموظفين \(/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("button", { name: /الحاج ناصر/ })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: /الشركاء \(1\)/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /الحاج ناصر/ }));
+    expect(screen.queryByRole("button", { name: /mohayassr07/ })).toBeNull();
+    fireEvent.click(await screen.findByRole("tab", { name: /^العمليات/ }));
+    expect((await screen.findAllByRole("button", { name: /الشريك عرض بس/ }))[0]).toBeDisabled();
+  });
+
+  it("«حساب مراقبة جديد» lives in the employees list now", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: /حساب مراقبة جديد/ }));
+    expect(screen.getByLabelText("الإيميل")).toBeInTheDocument();
   });
 
   it("copies another employee through copy_user_permissions", async () => {
@@ -123,7 +157,7 @@ describe("Employees permissions screen", () => {
     fireEvent.click(screen.getByRole("tab", { name: /سكة تلة/ }));
     expect(screen.getByText(/بتظبط فرع «سكة تلة» بس/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("switch", { name: "إخفاء الرئيسية" }));
-    expect(screen.getByRole("tab", { name: /سكة تلة · 1 متعدّل/ })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /سكة تلة · إدارة جزئية · 1 /u })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("save_user_permissions", {
       p_user: "c1",

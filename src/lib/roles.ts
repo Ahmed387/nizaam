@@ -282,11 +282,22 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
 export const branchKey = (key: string, branchId: string) => `${key}@${branchId}`;
 
 /**
- * Local permission check — mirrors the database `perm_resolve(user, key, branch)` (migration 0114):
+ * How one employee works in one branch (migration 0122): «عرض فقط» (read), «إدارة كاملة» (full — every branch
+ * permission there), or «إدارة جزئية» = his role, or the template chosen for that branch (`role` = a ready role
+ * or «tpl:<id>», whose map must be in permsByRole), plus his own changes.
+ */
+export type BranchRule = { read?: boolean; full?: boolean; role?: string | null };
+
+/** Any permission action that is not a plain view / read. */
+export const isWriteKey = (key: string) => !["view", "read"].includes(key.split(".").pop() ?? "");
+
+/**
+ * Local permission check — mirrors the database `perm_resolve(user, key, branch)` (migrations 0114 / 0115 / 0122):
  *   super admin / company owner → always true
- *   override for this branch → override for every branch
- *   manager (admin) → true unless taken away above
- *   role matrix → a part follows its page → an admin sub-section follows its parent page
+ *   «عرض فقط» branch + a write key → false
+ *   override for this branch → «إدارة كاملة» branch (any key but a company page «admin_…») → true
+ *   override for every branch → manager (admin) → true unless taken away above
+ *   the branch's template (when chosen) or his roles → a part follows its page → an admin sub-section follows its parent
  */
 export function checkPermission(
   roles: AppRole[],
@@ -294,18 +305,22 @@ export function checkPermission(
   key: string,
   userOverrides: Record<string, boolean> = {},
   branchId?: string | null,
+  rule?: BranchRule | null,
 ): boolean {
   if (roles.includes("super_admin") || roles.includes("owner")) return true;
+  if (branchId && rule?.read && isWriteKey(key)) return false;
   if (branchId && userOverrides[branchKey(key, branchId)] !== undefined) return userOverrides[branchKey(key, branchId)];
+  if (branchId && rule?.full && !/^(part\.)?admin_/.test(key)) return true;
   if (userOverrides[key] !== undefined) return userOverrides[key];
   if (roles.includes("admin")) return true;
-  if (roles.some((r) => permsByRole[r]?.[key] === true)) return true;
-  const hasExplicit = roles.some((r) => permsByRole[r]?.[key] !== undefined);
+  const rs = branchId && rule?.role ? [rule.role] : roles;
+  if (rs.some((r) => permsByRole[r]?.[key] === true)) return true;
+  const hasExplicit = rs.some((r) => permsByRole[r]?.[key] !== undefined);
   // A part of a page (card / box / column, migration 0114) with no rule of its own follows its page.
   const part = /^part\.([a-z0-9_]+)\.[a-z0-9_]+\.view$/.exec(key);
-  if (part && !hasExplicit) return checkPermission(roles, permsByRole, `${part[1]}.view`, userOverrides, branchId);
+  if (part && !hasExplicit) return checkPermission(roles, permsByRole, `${part[1]}.view`, userOverrides, branchId, rule);
   const parent = SUBSECTION_PARENT[key.replace(/\.[^.]+$/, "")];
-  if (parent && !hasExplicit) return checkPermission(roles, permsByRole, `${parent}.view`, userOverrides, branchId);
+  if (parent && !hasExplicit) return checkPermission(roles, permsByRole, `${parent}.view`, userOverrides, branchId, rule);
   return false;
 }
 
@@ -313,11 +328,18 @@ export function checkPermission(
 export const partPermKey = (page: string, part: string) => `part.${page}.${part}.view`;
 
 export async function fetchUserContext(userId: string) {
-  const [{ data: profile }, { data: roles }, { data: branchUsers }] = await Promise.all([
+  const [{ data: profile }, { data: roles }, buRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
     supabase.from("user_roles").select("role").eq("user_id", userId),
-    supabase.from("branch_users").select("branch_id, access_level, branches(*)").eq("user_id", userId),
+    supabase.from("branch_users").select("branch_id, access_level, full_access, branch_role, branch_template, branches(*)").eq("user_id", userId),
   ]);
+  // a database without migration 0122 has no full_access / branch_role / branch_template: read the old columns
+  // instead of leaving the employee with no branch at all
+  let branchUsers: any[] | null = (buRes as any).data;
+  if ((buRes as any).error) {
+    const { data } = await supabase.from("branch_users").select("branch_id, access_level, branches(*)").eq("user_id", userId);
+    branchUsers = data as any[] | null;
+  }
 
   const tid = (profile as any)?.tenant_id ?? null;
   const userRoles = (roles ?? []).map((r) => r.role as AppRole);
@@ -342,8 +364,11 @@ export async function fetchUserContext(userId: string) {
 
   // Per-branch access level from branch_users (manage | read). Missing = manage (backward compatible).
   const accessByBranch: Record<string, "manage" | "read"> = {};
+  // how he works in each branch (migration 0122): full / read / the template of that branch
+  const ruleByBranch: Record<string, { full: boolean; role: string | null; template: string | null }> = {};
   (branchUsers ?? []).forEach((b: any) => {
     accessByBranch[b.branch_id] = b.access_level === "read" ? "read" : "manage";
+    ruleByBranch[b.branch_id] = { full: !!b.full_access, role: b.branch_role ?? null, template: b.branch_template ?? null };
   });
 
   // Admin/Supervisor/Viewer see all tenant branches. Others see only their assigned branches.
@@ -358,6 +383,9 @@ export async function fetchUserContext(userId: string) {
   branches = branches.map((b: any) => ({
     ...b,
     access_level: isAdminOrSuper ? "manage" : (accessByBranch[b.id] ?? "manage"),
+    full_access: !isAdminOrSuper && !!ruleByBranch[b.id]?.full,
+    branch_role: isAdminOrSuper ? null : ruleByBranch[b.id]?.role ?? null,
+    branch_template: isAdminOrSuper ? null : ruleByBranch[b.id]?.template ?? null,
   }));
 
   return {

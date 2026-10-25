@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Loader2, Save, Copy, BookmarkPlus, RotateCcw, AlertTriangle, Search, KeyRound, Check, Undo2, Building2 } from "lucide-react";
+import { Loader2, Save, Copy, BookmarkPlus, RotateCcw, AlertTriangle, Search, KeyRound, Check, Undo2, Building2, Eye, UserPlus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,7 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AppRole, DEFAULT_ROLE_PERMISSIONS, MANAGED_ROLES, ROLE_LABELS } from "@/lib/roles";
+import { AppRole, DEFAULT_ROLE_PERMISSIONS, MANAGED_ROLES, ROLE_LABELS, BranchRule, isWriteKey } from "@/lib/roles";
+import { confirmAlert } from "@/components/ConfirmDialog";
+import { edgeErrorMessage } from "@/lib/edgeError";
 import { CatalogPage } from "@/lib/permissionCatalog";
 import {
   Overrides, RolePerms, allowAllPage, branchOverrides, clearExtras, diffOverrides, effective, fromRows, keyLabel, parseKey,
@@ -24,6 +26,27 @@ import { PermissionEditor } from "./PermissionEditor";
 export const NEVER_MANAGED = ["owner", "super_admin"];
 
 type Person = { id: string; name: string; username: string };
+/** How he works in one branch (migration 0122): «كاملة» everything there, «جزئية» his role or the template chosen
+ *  for that branch (+ his own changes), «عرض» view only. role: a ready role, «tpl:<id>», or null = his main role. */
+export type BranchLevel = "full" | "partial" | "read";
+export type BranchLink = { level: BranchLevel; role: string | null };
+type Links = Record<string, BranchLink>;
+export const LEVEL_LABEL: Record<BranchLevel, string> = { full: "إدارة كاملة", partial: "إدارة جزئية", read: "عرض فقط" };
+/** branch_users row → link */
+export const linkFromRow = (r: any): BranchLink => ({
+  level: r.access_level === "read" ? "read" : r.full_access ? "full" : "partial",
+  role: r.branch_template ? tplRole(r.branch_template) : r.branch_role ?? null,
+});
+/** link → branch_users columns */
+export const linkToRow = (l: BranchLink) => ({
+  access_level: l.level === "read" ? "read" : "manage",
+  full_access: l.level === "full",
+  branch_role: l.level === "partial" && l.role && !isTplRole(l.role) ? l.role : null,
+  branch_template: l.level === "partial" && l.role && isTplRole(l.role) ? tplId(l.role) : null,
+});
+/** links → the rules the resolver uses in each branch */
+export const rulesOf = (links: Links): Record<string, BranchRule> =>
+  Object.fromEntries(Object.entries(links).map(([b, l]) => [b, { read: l.level === "read", full: l.level === "full", role: l.level === "partial" ? l.role : null }]));
 type Template = { id: string; name: string; base_role: string; perms: Overrides };
 
 export function EmployeesPermissions() {
@@ -33,7 +56,7 @@ export function EmployeesPermissions() {
   const [people, setPeople] = useState<Person[]>([]);
   const [rolesByUser, setRolesByUser] = useState<Record<string, string[]>>({});
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
-  const [linksByUser, setLinksByUser] = useState<Record<string, Record<string, "manage" | "read">>>({});
+  const [linksByUser, setLinksByUser] = useState<Record<string, Links>>({});
   const [empByUser, setEmpByUser] = useState<Record<string, string>>({});
   const [rolePerms, setRolePerms] = useState<RolePerms>({});
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -42,7 +65,13 @@ export function EmployeesPermissions() {
 
   const [userId, setUserId] = useState<string>(params.get("user") ?? "");
   const [role, setRole] = useState("");
-  const [links, setLinks] = useState<Record<string, "manage" | "read">>({});
+  const [links, setLinks] = useState<Links>({});
+  const [peopleTab, setPeopleTab] = useState<"staff" | "partners">("staff");
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerForm, setViewerForm] = useState({ name: "", email: "", password: "" });
+  const [viewerBusy, setViewerBusy] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [newPwd, setNewPwd] = useState("");
   const [overrides, setOverrides] = useState<Overrides>({});
   const [scope, setScope] = useState<string | null>(params.get("branch") || null);
   const [saved, setSaved] = useState({ role: "", links: "{}", overrides: "{}" });
@@ -62,7 +91,7 @@ export function EmployeesPermissions() {
     const [profs, roles, bu, brs, emps, rp, tpl, ups, ucr] = await Promise.all([
       supabase.from("profiles").select("id, name, username").eq("tenant_id", tenantId).order("name"),
       supabase.from("user_roles").select("user_id, role").eq("tenant_id", tenantId),
-      supabase.from("branch_users").select("user_id, branch_id, access_level"),
+      supabase.from("branch_users").select("user_id, branch_id, access_level, full_access, branch_role, branch_template"),
       (supabase.from("branches") as any).select("id, name").eq("tenant_id", tenantId).eq("is_system", false).order("name"),
       supabase.from("employees").select("id, user_id").eq("tenant_id", tenantId).not("user_id", "is", null),
       supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId),
@@ -72,8 +101,10 @@ export function EmployeesPermissions() {
     ]);
     const rmap: Record<string, string[]> = {};
     ((roles.data ?? []) as any[]).forEach((r) => (rmap[r.user_id] = [...(rmap[r.user_id] ?? []), r.role]));
-    const lmap: Record<string, Record<string, "manage" | "read">> = {};
-    ((bu.data ?? []) as any[]).forEach((r) => ((lmap[r.user_id] = lmap[r.user_id] ?? {})[r.branch_id] = r.access_level === "read" ? "read" : "manage"));
+    // a database without 0122 has only access_level: read it the old way
+    const buRows = bu.error ? (((await supabase.from("branch_users").select("user_id, branch_id, access_level")).data ?? []) as any[]) : ((bu.data ?? []) as any[]);
+    const lmap: Record<string, Links> = {};
+    buRows.forEach((r) => ((lmap[r.user_id] = lmap[r.user_id] ?? {})[r.branch_id] = linkFromRow(r)));
     const pmap: RolePerms = {};
     ((rp.data ?? []) as any[]).forEach((r) => ((pmap[r.role] = pmap[r.role] ?? {})[r.permission_key] = !!r.allowed));
     Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([r, d]) => { if (!pmap[r]) pmap[r] = { ...d }; });
@@ -131,10 +162,14 @@ export function EmployeesPermissions() {
     openUser(uid);
   };
 
-  const unassigned = useMemo(() => people.filter((u) => managedRole(u.id) && kindOf(u.id) === "staff" && !Object.keys(linksByUser[u.id] ?? {}).length),
+  const unassigned = useMemo(() => people.filter((u) => managedRole(u.id) && managedRole(u.id) !== "viewer" && kindOf(u.id) === "staff" && !Object.keys(linksByUser[u.id] ?? {}).length),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [people, rolesByUser, linksByUser]);
+  const isPartner = (uid: string) => kindOf(uid) === "partner";
+  const staffCount = people.filter((u) => !isPartner(u.id)).length;
+  const partnerCount = people.length - staffCount;
   const shown = people.filter((u) => {
+    if ((peopleTab === "partners") !== isPartner(u.id)) return false;
     const t = who.trim();
     if (!t) return true;
     const names = Object.keys(linksByUser[u.id] ?? {}).map((b) => branches.find((x) => x.id === b)?.name ?? "").join(" ");
@@ -149,17 +184,32 @@ export function EmployeesPermissions() {
   const rolePermsX = useMemo(() => templates.reduce((m, t) => withCompanyRole([t.base_role], m, t).permsByRole, rolePerms), [templates, rolePerms]);
   const scopeBranches = kind === "staff" ? branches.filter((b) => b.id in links) : branches;
   const branchName = (id: string | null) => (id ? branches.find((b) => b.id === id)?.name ?? "فرع" : "كل الفروع");
-  const diff = useMemo(() => diffOverrides(effRoles, rolePermsX, overrides), [effRoles.join(), rolePermsX, overrides]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rules = useMemo(() => (kind === "staff" ? rulesOf(links) : {}), [kind, links]);
+  const diff = useMemo(() => diffOverrides(effRoles, rolePermsX, overrides, rules), [effRoles.join(), rolePermsX, overrides, rules]); // eslint-disable-line react-hooks/exhaustive-deps
+  // partners and monitoring accounts are view only; a «عرض فقط» branch too (the server refuses any write there)
+  const locked = (k: string): string | null => {
+    if (!isWriteKey(k)) return null;
+    if (kind === "partner") return "الشريك عرض بس";
+    if (kind === "staff" && role === "viewer") return "حساب المراقبة عرض بس";
+    if (scope && links[scope]?.level === "read") return "الفرع ده «عرض فقط»";
+    return null;
+  };
+  const scopeLink = scope ? links[scope] : null;
   const kindLabel = kind === "manager" ? "مدير عام — كل حاجة مفتوحة لحد ما تقفل" : kind === "partner" ? "شريك — عرض بس لحد ما تقفل" : null;
 
   const bind = {
     resetWord: "الدور",
-    scopeNote: scope ? `بتظبط فرع «${branchName(scope)}» بس — اللي مش متعدّل هنا بياخد من «كل الفروع»` : undefined,
-    get: (k: string) => effective(effRoles, rolePermsX, overrides, k, scope),
+    scopeNote: scope
+      ? `بتظبط فرع «${branchName(scope)}» بس — ${scopeLink?.level === "full" ? "إدارة كاملة: كل حاجة مفتوحة، واللي تقفله هنا بيتقفل في الفرع ده بس"
+        : scopeLink?.level === "read" ? "عرض فقط: يتفرج ومايعدّلش"
+        : scopeLink?.role ? `على قالب «${roleTitle(scopeLink.role)}»، واللي تغيّره هنا بيبقى للفرع ده بس` : "اللي مش متعدّل هنا بياخد من «كل الفروع»"}`
+      : undefined,
+    get: (k: string) => !locked(k) && effective(effRoles, rolePermsX, overrides, k, scope, rules),
     changed: (k: string) => (scope ? `${k}@${scope}` : k) in overrides,
-    set: (k: string, v: boolean) => setOverrides((o) => setOverride(effRoles, rolePermsX, o, k, v, scope)),
+    set: (k: string, v: boolean) => { if (!locked(k)) setOverrides((o) => setOverride(effRoles, rolePermsX, o, k, v, scope, rules)); },
     resetPage: (p: CatalogPage) => setOverrides((o) => resetPage(p, o, scope)),
-    allowAll: (p: CatalogPage) => setOverrides((o) => allowAllPage(effRoles, rolePermsX, p, o, scope)),
+    allowAll: (p: CatalogPage) => setOverrides((o) => allowAllPage(effRoles, rolePermsX, p, o, scope, rules)),
+    locked,
     customizeHref: (p: CatalogPage) => {
       if (!p.route || !userId) return null;
       const qs = `perm_for=${userId}${scope ? `&perm_scope=branch` : ""}`;
@@ -205,11 +255,11 @@ export function EmployeesPermissions() {
           if (error) throw error;
         }
         if (added.length) {
-          const { error } = await supabase.from("branch_users").insert(added.map((b) => ({ user_id: userId, branch_id: b, tenant_id: tenantId, access_level: links[b] })) as any);
+          const { error } = await supabase.from("branch_users").insert(added.map((b) => ({ user_id: userId, branch_id: b, tenant_id: tenantId, ...linkToRow(links[b]) })) as any);
           if (error) throw error;
         }
-        for (const b of Object.keys(links).filter((x) => x in prev && prev[x] !== links[x])) {
-          const { error } = await supabase.from("branch_users").update({ access_level: links[b] } as any).eq("user_id", userId).eq("branch_id", b);
+        for (const b of Object.keys(links).filter((x) => x in prev && JSON.stringify(prev[x]) !== JSON.stringify(links[x]))) {
+          const { error } = await supabase.from("branch_users").update(linkToRow(links[b]) as any).eq("user_id", userId).eq("branch_id", b);
           if (error) throw error;
         }
       }
@@ -250,6 +300,39 @@ export function EmployeesPermissions() {
     load();
   };
 
+  // monitoring accounts (was the «حسابات المراقبة» tab): created / changed / removed by the manage-viewer function
+  const strongPwd = (p: string) => p.length >= 8 && /[A-Za-z]/.test(p) && /[0-9]/.test(p);
+  const createViewer = async () => {
+    const email = viewerForm.email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return toast.error("اكتب إيميل صحيح زي name@company.com");
+    if (!strongPwd(viewerForm.password)) return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وفيها حرف ورقم");
+    setViewerBusy(true);
+    const { data, error } = await supabase.functions.invoke("manage-viewer", {
+      body: { action: "create", email, password: viewerForm.password, name: viewerForm.name.trim() || email.split("@")[0] },
+    });
+    setViewerBusy(false);
+    if (error || (data as any)?.error) return toast.error((await edgeErrorMessage(error, data)) ?? "فشل الإنشاء");
+    toast.success((data as any)?.kept_existing_password ? "اتضافت صلاحية المراقب للحساب الموجود — كلمة مروره زي ما هي" : "اتعمل حساب المراقبة — ظبط هو يشوف إيه من هنا");
+    setViewerOpen(false);
+    await load();
+  };
+  const changeViewerPwd = async () => {
+    if (!userId || !strongPwd(newPwd)) return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وفيها حرف ورقم");
+    const { data, error } = await supabase.functions.invoke("manage-viewer", { body: { action: "update_password", user_id: userId, password: newPwd } });
+    if (error || (data as any)?.error) return toast.error((await edgeErrorMessage(error, data)) ?? "فشل التغيير");
+    toast.success("اتغيرت كلمة المرور");
+    setPwdOpen(false); setNewPwd("");
+  };
+  const removeViewer = async () => {
+    if (!userId || !person) return;
+    if (!(await confirmAlert({ title: `تمسح حساب المراقبة «${person.name || person.username}»؟`, description: "مش هيقدر يدخل تاني، والخطوة دي مش هترجع.", confirmLabel: "أيوه، امسح", cancelLabel: "لأ", tone: "danger" }))) return;
+    const { data, error } = await supabase.functions.invoke("manage-viewer", { body: { action: "delete", user_id: userId } });
+    if (error || (data as any)?.error) return toast.error((await edgeErrorMessage(error, data)) ?? "فشل المسح");
+    toast.success("اتمسح الحساب");
+    setUserId("");
+    await load();
+  };
+
   const chip = (k: string) => {
     const { branch } = parseKey(k);
     return `${keyLabel(k)}${branch ? ` (${branchName(branch)})` : ""}`;
@@ -260,7 +343,13 @@ export function EmployeesPermissions() {
   return (
     <div dir="rtl" className="flex flex-wrap gap-4 items-start">
       <aside aria-label="الموظفين" className="flex-[1_1_240px] max-w-[300px] rounded-xl border bg-card p-3 space-y-2">
-        <Label htmlFor="who">ابحث عن موظف</Label>
+        <div role="tablist" aria-label="مين" className="grid grid-cols-2 gap-1 rounded-lg bg-muted/50 p-1">
+          {([["staff", `الموظفين (${staffCount})`], ["partners", `الشركاء (${partnerCount})`]] as const).map(([v, label]) => (
+            <button key={v} type="button" role="tab" aria-selected={peopleTab === v} onClick={() => setPeopleTab(v)}
+              className={`min-h-[36px] rounded-md text-sm font-bold ${peopleTab === v ? "bg-background shadow-sm text-primary" : "text-muted-foreground"}`}>{label}</button>
+          ))}
+        </div>
+        <Label htmlFor="who">{peopleTab === "partners" ? "ابحث عن شريك" : "ابحث عن موظف"}</Label>
         <div className="relative">
           <Search className="w-4 h-4 absolute top-3 right-3 text-muted-foreground" aria-hidden="true" />
           <Input id="who" value={who} onChange={(e) => setWho(e.target.value)} placeholder="الاسم أو الفرع" className="pr-9" />
@@ -276,7 +365,7 @@ export function EmployeesPermissions() {
           const k = kindOf(u.id);
           const r = managedRole(u.id);
           const bnames = Object.keys(linksByUser[u.id] ?? {}).map((b) => branches.find((x) => x.id === b)?.name).filter(Boolean);
-          const sub = k === "manager" ? "مدير عام · كل الفروع" : k === "partner" ? "شريك · كل الفروع" : `${roleTitle(r)} · ${bnames.length ? bnames.join("، ") : "مش مربوط بفرع"}`;
+          const sub = k === "manager" ? "مدير عام · كل الفروع" : k === "partner" ? "شريك · كل الفروع" : r === "viewer" ? "حساب مراقبة · كل الفروع (عرض بس)" : `${roleTitle(r)} · ${bnames.length ? bnames.join("، ") : "مش مربوط بفرع"}`;
           return (
             <button key={u.id} type="button" onClick={() => pick(u.id)} aria-current={sel}
               className={`w-full flex items-center gap-2 rounded-lg p-2 text-right border ${sel ? "bg-primary/10 border-primary/40" : "border-transparent hover:bg-muted/50"}`}>
@@ -289,7 +378,12 @@ export function EmployeesPermissions() {
             </button>
           );
         })}
-        {!people.length && <div className="text-xs text-muted-foreground p-2">مفيش حد ينفع تتحكم في صلاحياته.</div>}
+        {!shown.length && <div className="text-xs text-muted-foreground p-2">{peopleTab === "partners" ? "مفيش شركاء هنا." : "مفيش حد ينفع تتحكم في صلاحياته."}</div>}
+        {peopleTab === "staff" && (
+          <Button variant="outline" size="sm" className="w-full" onClick={() => { setViewerForm({ name: "", email: "", password: "" }); setViewerOpen(true); }}>
+            <UserPlus className="w-4 h-4 ml-1" /> حساب مراقبة جديد
+          </Button>
+        )}
         <p className="text-xs text-muted-foreground leading-relaxed pt-1">
           {isOwner ? "صاحب الشركة بس هو اللي مش بيظهر هنا — عنده كل حاجة على طول." : "المديرين والشركاء بيظبطهم صاحب الشركة بس."}
         </p>
@@ -308,6 +402,12 @@ export function EmployeesPermissions() {
                 </div>
                 {empByUser[person.id] && (
                   <Button asChild variant="ghost" size="sm"><Link to={`/admin/employees/${empByUser[person.id]}?tab=account`}><KeyRound className="w-4 h-4 ml-1" /> حساب الدخول</Link></Button>
+                )}
+                {kind === "staff" && role === "viewer" && !empByUser[person.id] && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => { setNewPwd(""); setPwdOpen(true); }}><KeyRound className="w-4 h-4 ml-1" /> غيّر كلمة المرور</Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={removeViewer}><Trash2 className="w-4 h-4 ml-1" /> امسح حساب المراقبة</Button>
+                  </>
                 )}
                 <Button variant="outline" size="sm" onClick={() => { setCopyFrom(""); setCopyOpen(true); }}><Copy className="w-4 h-4 ml-1" /> انسخ من موظف تاني</Button>
                 {kind === "staff" && <Button variant="outline" size="sm" onClick={() => setTplOpen(true)}><BookmarkPlus className="w-4 h-4 ml-1" /> احفظه كدور جديد</Button>}
@@ -337,29 +437,58 @@ export function EmployeesPermissions() {
                     </Select>
                     {tplNow && <p className="text-[11px] text-muted-foreground leading-relaxed">مربوط بدور «{tplNow.name}»: أي تعديل في الدور ده بيوصله على طول. اللي هتغيّره هنا بيبقى ليه هو بس.</p>}
                   </div>
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">الفروع اللي شغال فيها — دوس على الفرع يتربط، ودوس على المستوى يبدّل</div>
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">الفروع اللي شغال فيها — دوس على الفرع يتربط، واختار شغله فيه إيه</div>
                     <div className="flex flex-wrap gap-2">
                       {branches.map((b) => {
                         const on = b.id in links;
-                        const level = links[b.id] ?? "manage";
+                        const link = links[b.id];
+                        const put = (l: BranchLink) => setLinks((x) => ({ ...x, [b.id]: l }));
                         return (
-                          <div key={b.id} className="flex items-center gap-1">
-                            <button type="button" aria-pressed={on} onClick={() => setLinks((l) => { const n = { ...l }; if (on) delete n[b.id]; else n[b.id] = "manage"; return n; })}
+                          <div key={b.id} className={`rounded-xl border p-2 space-y-1.5 ${on ? "border-primary/40 bg-primary/5" : ""}`}>
+                            <button type="button" aria-pressed={on} onClick={() => setLinks((l) => { const n = { ...l }; if (on) delete n[b.id]; else n[b.id] = { level: "partial", role: null }; return n; })}
                               className={`min-h-[36px] rounded-full border px-3 text-xs font-bold ${on ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}>
                               {on && <Check className="w-3 h-3 inline ml-1" aria-hidden="true" />}{b.name}
                             </button>
                             {on && (
-                              <button type="button" onClick={() => setLinks((l) => ({ ...l, [b.id]: level === "manage" ? "read" : "manage" }))}
-                                className={`min-h-[36px] rounded-full border px-3 text-[11px] font-bold ${level === "manage" ? "bg-success/15 text-success border-success/40" : "bg-warning/15 text-warning border-warning/40"}`}>
-                                {level === "manage" ? "إدارة كاملة" : "عرض فقط"}
-                              </button>
+                              <div role="radiogroup" aria-label={`شغله في ${b.name}`} className="flex gap-1">
+                                {(["full", "partial", "read"] as BranchLevel[]).map((lv) => (
+                                  <button key={lv} type="button" role="radio" aria-checked={link.level === lv}
+                                    onClick={() => put({ level: lv, role: lv === "partial" ? link.role : null })}
+                                    className={`min-h-[32px] rounded-full border px-2.5 text-[11px] font-bold ${link.level === lv
+                                      ? lv === "full" ? "bg-success/15 text-success border-success/40" : lv === "read" ? "bg-warning/15 text-warning border-warning/40" : "bg-primary/15 text-primary border-primary/40"
+                                      : "bg-background text-muted-foreground"}`}>
+                                    {LEVEL_LABEL[lv]}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {on && link.level === "partial" && (
+                              <Select value={link.role ?? "__main"} onValueChange={(v) => put({ level: "partial", role: v === "__main" ? null : v })}>
+                                <SelectTrigger aria-label={`القالب في ${b.name}`} className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__main">زي دوره ({roleTitle(role)})</SelectItem>
+                                  <SelectGroup>
+                                    <SelectLabel>الأدوار الجاهزة</SelectLabel>
+                                    {MANAGED_ROLES.filter((r) => r !== "viewer" && (!hidden.has(r) || r === link.role)).map((r) => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}
+                                  </SelectGroup>
+                                  {templates.length > 0 && (
+                                    <SelectGroup>
+                                      <SelectLabel>أدوار الشركة</SelectLabel>
+                                      {templates.map((t) => <SelectItem key={t.id} value={tplRole(t.id)}>{t.name}</SelectItem>)}
+                                    </SelectGroup>
+                                  )}
+                                </SelectContent>
+                              </Select>
                             )}
                           </div>
                         );
                       })}
                       {!branches.length && <span className="text-xs text-muted-foreground">مفيش فروع</span>}
                     </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      <b>إدارة كاملة</b>: كل حاجة في الفرع ده مفتوحة · <b>إدارة جزئية</b>: دوره أو القالب اللي تختاره للفرع ده، وتقدر تعدّل فوقه من «الفرع» تحت · <b>عرض فقط</b>: يتفرج ومايعدّلش ولا يضيف
+                    </p>
                   </div>
                 </div>
               )}
@@ -374,7 +503,7 @@ export function EmployeesPermissions() {
                 return (
                   <button key={b.id ?? "all"} type="button" role="tab" aria-selected={sel} onClick={() => setScope(b.id)}
                     className={`min-h-[40px] rounded-lg px-3 text-sm font-bold border ${sel ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:border-primary/50"}`}>
-                    {b.name}{n ? ` · ${n} متعدّل` : ""}
+                    {b.name}{b.id && links[b.id] ? ` · ${links[b.id].level === "partial" && links[b.id].role ? roleTitle(links[b.id].role!) : LEVEL_LABEL[links[b.id].level]}` : ""}{n ? ` · ${n} متعدّل` : ""}
                   </button>
                 );
               })}
@@ -388,7 +517,7 @@ export function EmployeesPermissions() {
                   <button type="button" className="rounded-full px-2 py-0.5 bg-destructive/15 text-destructive text-xs font-bold" onClick={() => setShowDiff((s) => !s)}>ممنوع استثناءً {diff.revoked.length}</button>
                   {dirty && <span className="text-xs font-bold">· فيه تغييرات لسه مااتحفظتش</span>}
                   <span className="flex-1" />
-                  <Button size="sm" variant="outline" disabled={!diff.extra.length} onClick={() => setOverrides((o) => clearExtras(effRoles, rolePermsX, o))}><RotateCcw className="w-3.5 h-3.5 ml-1" /> شيل الزيادة بس</Button>
+                  <Button size="sm" variant="outline" disabled={!diff.extra.length} onClick={() => setOverrides((o) => clearExtras(effRoles, rolePermsX, o, rules))}><RotateCcw className="w-3.5 h-3.5 ml-1" /> شيل الزيادة بس</Button>
                   <Button size="sm" variant="outline" disabled={!Object.keys(overrides).length} onClick={() => setOverrides({})}><RotateCcw className="w-3.5 h-3.5 ml-1" /> رجّعه للقالب</Button>
                   <Button size="sm" variant="ghost" disabled={!dirty} onClick={() => openUser(userId)}><Undo2 className="w-3.5 h-3.5 ml-1" /> فضّي التغييرات</Button>
                 </div>
@@ -423,6 +552,39 @@ export function EmployeesPermissions() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setCopyOpen(false)}>إلغاء</Button>
             <Button onClick={doCopy} disabled={!copyFrom}>انسخ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Eye className="w-5 h-5 text-primary" /> حساب مراقبة جديد</DialogTitle>
+            <DialogDescription>بيشوف بيانات الشركة في كل الفروع ومايعدّلش أي حاجة. بعد ما يتعمل، اختاره من القايمة واقفل اللي مش عاوزه يشوفه.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1"><Label htmlFor="v-name">الاسم</Label><Input id="v-name" value={viewerForm.name} onChange={(e) => setViewerForm({ ...viewerForm, name: e.target.value })} /></div>
+            <div className="space-y-1"><Label htmlFor="v-email">الإيميل</Label><Input id="v-email" dir="ltr" type="email" value={viewerForm.email} onChange={(e) => setViewerForm({ ...viewerForm, email: e.target.value })} placeholder="viewer@company.com" /></div>
+            <div className="space-y-1"><Label htmlFor="v-pwd">كلمة المرور</Label><Input id="v-pwd" dir="ltr" type="password" value={viewerForm.password} onChange={(e) => setViewerForm({ ...viewerForm, password: e.target.value })} placeholder="8 أحرف على الأقل، فيها حرف ورقم" /></div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewerOpen(false)}>إلغاء</Button>
+            <Button onClick={createViewer} disabled={viewerBusy}>{viewerBusy && <Loader2 className="w-4 h-4 animate-spin ml-1" />} اعمل الحساب</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pwdOpen} onOpenChange={setPwdOpen}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>كلمة مرور جديدة لـ {person?.name || person?.username}</DialogTitle>
+            <DialogDescription>8 أحرف على الأقل، فيها حرف ورقم.</DialogDescription>
+          </DialogHeader>
+          <Label htmlFor="v-newpwd" className="sr-only">كلمة المرور الجديدة</Label>
+          <Input id="v-newpwd" dir="ltr" type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPwdOpen(false)}>إلغاء</Button>
+            <Button onClick={changeViewerPwd}>غيّر</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

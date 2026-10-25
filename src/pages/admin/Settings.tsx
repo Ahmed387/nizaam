@@ -17,12 +17,11 @@ import { saveCompanySetting } from "@/lib/companySettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { toast } from "sonner";
-import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, Eye, BookOpen, ShieldCheck as Shield2, Users2, Percent, Clock } from "lucide-react";
+import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Wallet, BellRing, DatabaseBackup, ShieldCheck, Target, BookOpen, ShieldCheck as Shield2, Users2, Percent, Clock } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 import { BackupTab } from "@/components/BackupTab";
 import { TwoFactorTab } from "@/components/TwoFactorTab";
-import { ViewersTab } from "@/components/ViewersTab";
 import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 import { TemplatesPermissions } from "@/components/permissions/TemplatesPermissions";
 import { EmployeesPermissions } from "@/components/permissions/EmployeesPermissions";
@@ -39,7 +38,8 @@ interface InventorySettings { default_low_stock_alert: number }
 
 export default function Settings() {
   const [settingsParams, setSettingsParams] = useSearchParams();
-  const settingsTab = settingsParams.get("tab") || "company";
+  // «حسابات المراقبة» moved into «الموظفين» (owner 2026-10-25): old links land there
+  const settingsTab = ((t) => (t === "viewers" ? "user-permissions" : t))(settingsParams.get("tab") || "company");
   const setSettingsTab = (v: string) => { const n = new URLSearchParams(settingsParams); n.set("tab", v); setSettingsParams(n, { replace: true }); };
   const { user, profile, branches, roles, isOwner } = useAuth();
   const canManageAdminTools = roles.includes("admin") || roles.includes("super_admin");
@@ -231,7 +231,6 @@ export default function Settings() {
           ...(isOwner || canManageAdminTools ? [{ v: "shift-schedules", icon: Clock, label: "مواعيد الورديات", group: "branches" }] : []),
           ...(canManageAdminTools ? [{ v: "user-permissions", icon: Users2, label: "الموظفين", group: "people" }] : []),
           ...(canManageAdminTools ? [{ v: "permissions", icon: Users2, label: "القوالب (الأدوار)", group: "people" }] : []),
-          { v: "viewers", icon: Eye, label: "حسابات المراقبة", group: "people" },
           ...(isOwner ? [{ v: "personal-access", icon: Wallet, label: "الوصول للمصاريف الشخصية", group: "people" }] : []),
           { v: "security", icon: KeyRound, label: "كلمة المرور", group: "security" },
           { v: "2fa", icon: ShieldCheck, label: "المصادقة الثنائية", group: "security" },
@@ -641,10 +640,6 @@ export default function Settings() {
 
         <TabsContent value="2fa" className="mt-4">
           <TwoFactorTab />
-        </TabsContent>
-
-        <TabsContent value="viewers" className="mt-4">
-          <ViewersTab />
         </TabsContent>
 
         <TabsContent value="security" className="mt-4">

@@ -5,12 +5,14 @@
  * or «key@<branch id>» (that branch only, migration 0114). A value that equals what he would get anyway is
  * never stored, so «متعدّل» always means a real difference and «رجّعه للقالب» is just «no overrides».
  */
-import { branchKey, checkPermission } from "@/lib/roles";
+import { BranchRule, branchKey, checkPermission } from "@/lib/roles";
 import { CatalogPage, PERMISSION_CATALOG, partKey } from "@/lib/permissionCatalog";
 
 export type Overrides = Record<string, boolean>;
 export type RolePerms = Record<string, Record<string, boolean>>;
 export type Roles = string[];
+/** How he works in each branch (migration 0122): read / full / that branch's template. */
+export type BranchRules = Record<string, BranchRule>;
 
 const scoped = (key: string, branch?: string | null) => (branch ? branchKey(key, branch) : key);
 
@@ -21,21 +23,21 @@ export function parseKey(k: string): { key: string; branch: string | null } {
 }
 
 /** Effective value of one key for these roles + overrides, in one branch (or the base when no branch). */
-export function effective(roles: Roles, rolePerms: RolePerms, overrides: Overrides, key: string, branch?: string | null): boolean {
-  return checkPermission(roles as any, rolePerms, key, overrides, branch ?? null);
+export function effective(roles: Roles, rolePerms: RolePerms, overrides: Overrides, key: string, branch?: string | null, rules?: BranchRules): boolean {
+  return checkPermission(roles as any, rolePerms, key, overrides, branch ?? null, branch ? rules?.[branch] ?? null : null);
 }
 
 /** What he would get for this key (in this branch) without this very override. */
-export function templateValue(roles: Roles, rolePerms: RolePerms, overrides: Overrides, key: string, branch?: string | null): boolean {
+export function templateValue(roles: Roles, rolePerms: RolePerms, overrides: Overrides, key: string, branch?: string | null, rules?: BranchRules): boolean {
   const rest = { ...overrides };
   delete rest[scoped(key, branch)];
-  return effective(roles, rolePerms, rest, key, branch);
+  return effective(roles, rolePerms, rest, key, branch, rules);
 }
 
 /** Set a key (for every branch, or one branch); drop the override when it changes nothing. */
-export function setOverride(roles: Roles, rolePerms: RolePerms, overrides: Overrides, key: string, value: boolean, branch?: string | null): Overrides {
+export function setOverride(roles: Roles, rolePerms: RolePerms, overrides: Overrides, key: string, value: boolean, branch?: string | null, rules?: BranchRules): Overrides {
   const next = { ...overrides };
-  if (templateValue(roles, rolePerms, overrides, key, branch) === value) delete next[scoped(key, branch)];
+  if (templateValue(roles, rolePerms, overrides, key, branch, rules) === value) delete next[scoped(key, branch)];
   else next[scoped(key, branch)] = value;
   return next;
 }
@@ -59,19 +61,19 @@ export function resetPage(page: CatalogPage, overrides: Overrides, branch?: stri
 }
 
 /** «الكل مسموح» for one page: the page, every action, every tab and every part on. */
-export function allowAllPage(roles: Roles, rolePerms: RolePerms, page: CatalogPage, overrides: Overrides, branch?: string | null): Overrides {
+export function allowAllPage(roles: Roles, rolePerms: RolePerms, page: CatalogPage, overrides: Overrides, branch?: string | null, rules?: BranchRules): Overrides {
   let next = { ...overrides };
-  pageKeys(page).forEach((k) => { next = setOverride(roles, rolePerms, next, k, true, branch); });
+  pageKeys(page).forEach((k) => { next = setOverride(roles, rolePerms, next, k, true, branch, rules); });
   return next;
 }
 
 /** Overrides compared with the template: extra = allowed beyond it, revoked = taken away (each with its branch). */
-export function diffOverrides(roles: Roles, rolePerms: RolePerms, overrides: Overrides) {
+export function diffOverrides(roles: Roles, rolePerms: RolePerms, overrides: Overrides, rules?: BranchRules) {
   const extra: string[] = [];
   const revoked: string[] = [];
   Object.entries(overrides).forEach(([k, v]) => {
     const { key, branch } = parseKey(k);
-    const t = templateValue(roles, rolePerms, overrides, key, branch);
+    const t = templateValue(roles, rolePerms, overrides, key, branch, rules);
     if (v && !t) extra.push(k);
     else if (!v && t) revoked.push(k);
   });
@@ -79,8 +81,8 @@ export function diffOverrides(roles: Roles, rolePerms: RolePerms, overrides: Ove
 }
 
 /** «شيل الصلاحيات الزيادة بس»: keep the restrictions, drop the extra grants. */
-export function clearExtras(roles: Roles, rolePerms: RolePerms, overrides: Overrides): Overrides {
-  const { extra } = diffOverrides(roles, rolePerms, overrides);
+export function clearExtras(roles: Roles, rolePerms: RolePerms, overrides: Overrides, rules?: BranchRules): Overrides {
+  const { extra } = diffOverrides(roles, rolePerms, overrides, rules);
   const next = { ...overrides };
   extra.forEach((k) => delete next[k]);
   return next;
