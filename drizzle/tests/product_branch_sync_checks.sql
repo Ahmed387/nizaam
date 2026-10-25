@@ -1,6 +1,6 @@
 -- Integration test (real A & N database, ONE transaction that raises at the end → ROLLBACK, nothing is kept):
 -- a product added in one branch reaches the other branches (everything but the quantity), and later changes of
--- its details follow it to the other branches. Run the whole file in one execute_sql; read «ROLLBACK-RESULTS».
+-- its details (not quantity, not prices — each branch its own) follow it to the other branches (migration 0119). Run the whole file in one execute_sql; read «ROLLBACK-RESULTS».
 CREATE FUNCTION pg_temp.as_(uid uuid) RETURNS void LANGUAGE plpgsql AS $f$
 BEGIN EXECUTE 'reset role';
   PERFORM set_config('request.jwt.claims', json_build_object('sub', uid, 'role', 'authenticated')::text, true);
@@ -79,10 +79,11 @@ BEGIN
   PERFORM pg_temp.as_(owner);
   PERFORM public.update_product_price_with_reason(pid, 1500, NULL, 1600, 'اختبار مزامنة الأسعار');
   EXECUTE 'reset role';
-  bad := '';
-  FOREACH f IN ARRAY ARRAY['selling_price','market_price'] LOOP IF pg_temp.diff(v_sku, f) > 0 THEN bad := bad || f || ' '; END IF; END LOOP;
-  IF bad = '' THEN pass := pass + 1; r := r || '✅ 7. سعر البيع وسعر السوق وصلوا لكل الفروع' || E'\n';
-  ELSE fail := fail + 1; r := r || '❌ 7. السعر اتغير في فرعه بس: ' || bad || E'\n'; END IF;
+  -- owner rule 2026-10-25: every branch has its own price → the change stays in its branch
+  IF (SELECT selling_price FROM products WHERE id = pid) = 1500
+     AND NOT EXISTS (SELECT 1 FROM products WHERE sku = v_sku AND id <> pid AND (selling_price <> 1000 OR market_price <> 1100))
+  THEN pass := pass + 1; r := r || '✅ 7. السعر اتغير في فرعه بس (كل فرع ليه سعره)' || E'\n';
+  ELSE fail := fail + 1; r := r || '❌ 7. تغيير السعر وصل لفروع تانية' || E'\n'; END IF;
 
   PERFORM pg_temp.as_(owner);
   PERFORM public.update_product_details(pid, jsonb_build_object('sku', v_sku || '-B'));
