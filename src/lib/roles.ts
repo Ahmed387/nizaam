@@ -85,6 +85,7 @@ export const ADMIN_SUBSECTION_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_catalog_categories", label: "الفروع والمخزون ← التصنيفات", actions: ["view"] },
   { key: "admin_catalog_pricelist", label: "الفروع والمخزون ← قائمة الأسعار", actions: ["view"] },
   { key: "admin_catalog_inventory", label: "الفروع والمخزون ← مخزون كل الفروع", actions: ["view"] },
+  { key: "admin_catalog_images", label: "الفروع والمخزون ← صور المنتجات", actions: ["view"] },
   // المالية
   { key: "admin_finance_vouchers", label: "المالية ← السندات المالية", actions: ["view"] },
   { key: "admin_finance_receivables", label: "المالية ← ذمم العملاء والموردين", actions: ["view"] },
@@ -113,6 +114,7 @@ export const SUBSECTION_PARENT: Record<string, string> = {
   admin_catalog_categories: "admin_catalog",
   admin_catalog_pricelist: "admin_catalog",
   admin_catalog_inventory: "admin_catalog",
+  admin_catalog_images: "admin_catalog",
   admin_finance_vouchers: "admin_finance",
   admin_finance_receivables: "admin_finance",
   admin_reports_owner: "admin_reports_hub",
@@ -176,6 +178,7 @@ export const PERM_HELP: Record<string, string> = {
   admin_catalog_categories: "شجرة تصنيفات الأصناف.",
   admin_catalog_pricelist: "قائمة أسعار البيع وتعديلها بالجملة (نسبة زيادة أو تخفيض).",
   admin_catalog_inventory: "مخزون كل الفروع في شاشة واحدة.",
+  admin_catalog_images: "صور المنتجات: ملخص الصور، ربط صورة بمنتج، أكبر الصور ومسحها، والرفع بالجملة (الربط والمسح والرفع لمين يقدر يعدّل المخزون بس).",
   admin_finance_vouchers: "كل سندات القبض والصرف لكل الفروع.",
   admin_finance_receivables: "المستحق على العملاء والمستحق للموردين.",
   admin_monthly_profit: "ملخص الأرباح الشهري بالعامية: الشركة كسبت كام الشهر ده ونصيب كل شريك.",

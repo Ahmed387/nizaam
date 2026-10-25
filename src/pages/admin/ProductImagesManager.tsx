@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { StatCard } from "@/components/StatCard";
 import { PermTable } from "@/components/PermTable";
+import { PermCard } from "@/contexts/PermCustomize";
 import ProductImage from "@/components/ProductImage";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { shrinkProductImage } from "@/lib/imagePolicy";
@@ -73,7 +74,8 @@ async function setImage(products: Prod[], image: string | null) {
   }
 }
 
-export default function ProductImagesManager({ reloadKey = 0 }: { reloadKey?: number }) {
+/** canEdit = may link / delete / fix (owner, admin, or «تعديل المخزون»); otherwise the page only shows the photos. */
+export default function ProductImagesManager({ reloadKey = 0, canEdit = true }: { reloadKey?: number; canEdit?: boolean }) {
   const { tenantId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [prods, setProds] = useState<Prod[]>([]);
@@ -209,7 +211,7 @@ export default function ProductImagesManager({ reloadKey = 0 }: { reloadKey?: nu
         <StatCard label="منتجات صورتها مفقودة" value={missing.length} icon={<AlertTriangle className="w-5 h-5" />} accent={missing.length ? "destructive" : "success"}
           metricHint={{ meaning: "منتج متسجل عليه صورة والملف مش موجود — بيبعت طلب ضايع في كل شاشة. لازم يفضل 0", source: "المنتجات + مخزن الصور", formula: "منتجات خانة صورتها مليانة والملف مش في المخزن" }} />
       </div>
-      {missing.length > 0 && (
+      {canEdit && missing.length > 0 && (
         <div className="card-elevated p-3 flex flex-wrap items-center gap-2 border-destructive/40">
           <AlertTriangle className="w-4 h-4 text-destructive" />
           <span className="text-sm">{missing.length} منتج متسجل عليهم صورة مش موجودة. «صلّحهم» يفضّي خانة الصورة فيهم بس.</span>
@@ -217,8 +219,8 @@ export default function ProductImagesManager({ reloadKey = 0 }: { reloadKey?: nu
         </div>
       )}
 
-      {/* link a photo */}
-      <div className="card-elevated p-4 space-y-3">
+      {/* link a photo — each box has its own show / hide switch («افتح الصفحة وظبطها») */}
+      {canEdit && <PermCard label="اربط صورة بمنتج"><div className="card-elevated p-4 space-y-3">
         <div className="flex items-center gap-2 font-extrabold"><Link2 className="w-5 h-5 text-primary" /> اربط صورة بمنتج</div>
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative flex-1 min-w-[220px]">
@@ -258,10 +260,10 @@ export default function ProductImagesManager({ reloadKey = 0 }: { reloadKey?: nu
             <Button onClick={link} disabled={busy || !preview}>{busy ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Link2 className="w-4 h-4 ml-1" />} اربط</Button>
           </div>
         )}
-      </div>
+      </div></PermCard>}
 
       {/* biggest photos */}
-      <div className="card-elevated p-4 space-y-3">
+      <PermCard label="أكبر الصور"><div className="card-elevated p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 font-extrabold flex-1"><Maximize2 className="w-5 h-5 text-primary" /> أكبر الصور</div>
           <span className="text-xs text-muted-foreground">عرض:</span>
@@ -273,7 +275,7 @@ export default function ProductImagesManager({ reloadKey = 0 }: { reloadKey?: nu
           <PermTable className="w-full text-sm">
             <thead className="bg-surface-2">
               <tr className="text-xs">
-                <th className="px-3 py-2 w-10"><Checkbox checked={allOn} onCheckedChange={(v) => setSel((s) => { const n = new Set(s); visible.forEach((f) => (v ? n.add(f.path) : n.delete(f.path))); return n; })} aria-label="اختار الكل" /></th>
+                {canEdit && <th className="px-3 py-2 w-10"><Checkbox checked={allOn} onCheckedChange={(v) => setSel((s) => { const n = new Set(s); visible.forEach((f) => (v ? n.add(f.path) : n.delete(f.path))); return n; })} aria-label="اختار الكل" /></th>}
                 <th className="px-3 py-2 text-right">الصورة</th>
                 <th className="px-3 py-2 text-right">المنتج</th>
                 <th className="px-3 py-2">الحجم</th>
@@ -285,7 +287,7 @@ export default function ProductImagesManager({ reloadKey = 0 }: { reloadKey?: nu
                 const used = usedBy.get(f.path) ?? [];
                 return (
                   <tr key={f.path} className={`border-t border-border/60 ${sel.has(f.path) ? "bg-destructive/5" : ""}`}>
-                    <td className="px-3 py-1.5 text-center"><Checkbox checked={sel.has(f.path)} onCheckedChange={() => toggle(f.path)} aria-label={`اختار صورة ${nameOf(f.path)}`} /></td>
+                    {canEdit && <td className="px-3 py-1.5 text-center"><Checkbox checked={sel.has(f.path)} onCheckedChange={() => toggle(f.path)} aria-label={`اختار صورة ${nameOf(f.path)}`} /></td>}
                     <td className="px-3 py-1.5"><ProductImage src={f.path} className="w-10 h-10 rounded object-cover" /></td>
                     <td className="px-3 py-1.5 text-xs">{used.length ? used[0].name : <span className="text-muted-foreground">مش مربوطة بمنتج</span>}</td>
                     <td className="px-3 py-1.5 text-center tabular-nums text-xs font-bold">{kb(f.size)}</td>
@@ -296,14 +298,14 @@ export default function ProductImagesManager({ reloadKey = 0 }: { reloadKey?: nu
             </tbody>
           </PermTable>
         </div>
-        {sel.size > 0 && (
+        {canEdit && sel.size > 0 && (
           <div className="sticky bottom-2 rounded-lg border bg-background shadow-lg p-3 flex flex-wrap items-center gap-3">
             <span className="text-sm flex-1">مختار <b>{selFiles.length}</b> صورة • <b>{kb(selFiles.reduce((s, f) => s + f.size, 0))}</b> • على <b>{selProducts.length}</b> منتج</span>
             <Button variant="ghost" size="sm" onClick={() => setSel(new Set())}>إلغاء الاختيار</Button>
             <Button variant="destructive" onClick={() => setConfirm(true)} disabled={busy}>{busy ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Trash2 className="w-4 h-4 ml-1" />} امسح المختار</Button>
           </div>
         )}
-      </div>
+      </div></PermCard>
 
       <AlertDialog open={confirm} onOpenChange={setConfirm}>
         <AlertDialogContent dir="rtl">

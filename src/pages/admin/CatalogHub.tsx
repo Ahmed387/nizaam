@@ -11,11 +11,13 @@ import PriceAuditLog from "./PriceAuditLog";
 import ProductAttributes from "./ProductAttributes";
 import ProductImagesBulk from "./ProductImagesBulk";
 import ProductImagesManager from "./ProductImagesManager";
+import { PermCard } from "@/contexts/PermCustomize";
 import { useState } from "react";
 
 export default function CatalogHub() {
   const [params, setParams] = useSearchParams();
   const { can, isAdmin } = useAuth();
+  const canEditImages = isAdmin || can("inventory.update");
   const [imgReload, setImgReload] = useState(0);
   const show = {
     branches: can("admin_catalog_branches.view"),
@@ -24,8 +26,9 @@ export default function CatalogHub() {
     inventory: can("admin_catalog_inventory.view"),
     attributes: can("admin_product_attributes.view"),
     "price-audit": can("admin_reports_price_audit.view"),
-    // bulk product photos: whoever may edit products company-wide
-    images: isAdmin || can("admin_catalog_inventory.update"),
+    // product photos: a switch of its own in the permissions screens (owner 2026-10-25); linking / deleting /
+    // uploading needs «تعديل المخزون» on top (the server checks it again in update_product_details)
+    images: can("admin_catalog_images.view"),
   };
   const first = (Object.keys(show) as (keyof typeof show)[]).find((k) => show[k]) ?? "branches";
   const requested = params.get("tab") as keyof typeof show | null;
@@ -49,7 +52,7 @@ export default function CatalogHub() {
         {show.inventory && <TabsContent value="inventory" className="mt-4"><AllInventory embedded /></TabsContent>}
         {show.attributes && <TabsContent value="attributes" className="mt-4"><ProductAttributes embedded /></TabsContent>}
         {show["price-audit"] && <TabsContent value="price-audit" className="mt-4"><PriceAuditLog embedded /></TabsContent>}
-        {show.images && <TabsContent value="images" className="mt-4 space-y-4"><ProductImagesManager reloadKey={imgReload} /><ProductImagesBulk onDone={() => setImgReload((n) => n + 1)} /></TabsContent>}
+        {show.images && <TabsContent value="images" className="mt-4 space-y-4"><ProductImagesManager reloadKey={imgReload} canEdit={canEditImages} />{canEditImages && <PermCard label="رفع صور المنتجات بالجملة"><ProductImagesBulk onDone={() => setImgReload((n) => n + 1)} /></PermCard>}</TabsContent>}
       </Tabs>
     </AdminLayout>
   );

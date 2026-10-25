@@ -104,3 +104,16 @@ describe("every table column can be switched (owner request 2026-10-24)", () => 
     expect(raw).toEqual([]);
   });
 });
+
+describe("product photos tab (owner 2026-10-25)", () => {
+  it("«صور المنتجات» is a switch under الفروع والمخزون, and follows the page when nobody set it", async () => {
+    const { PERMISSION_CATALOG } = await import("./permissionCatalog");
+    const { checkPermission } = await import("./roles");
+    const page = PERMISSION_CATALOG.flatMap((s) => s.pages).find((p) => p.key === "admin_catalog")!;
+    expect(page.children.map((c) => c.key)).toContain("admin_catalog_images");
+    expect(page.children.find((c) => c.key === "admin_catalog_images")!.label).toBe("صور المنتجات");
+    const rp = { warehouse: { "admin_catalog.view": true } } as any;
+    expect(checkPermission(["warehouse"] as any, rp, "admin_catalog_images.view")).toBe(true);
+    expect(checkPermission(["warehouse"] as any, rp, "admin_catalog_images.view", { "admin_catalog_images.view": false })).toBe(false);
+  });
+});
