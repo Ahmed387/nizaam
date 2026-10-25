@@ -1,10 +1,10 @@
-import { aiChat, aiConfigured } from "../_shared/ai.ts";
+import { aiChat, aiConfigured, geminiJson, geminiNative } from "../_shared/ai.ts";
 // Fast PDF price-list parser:
 // 1) Extract text from PDF using unpdf (no native deps, Deno-friendly)
 // 2) Send only text to Gemini flash-lite (5-10x faster than vision)
 // 3) Fallback to vision mode only if text extraction yields too little
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -178,15 +178,63 @@ const TOOL = {
   },
 };
 
-async function callAI(messages: any[], _apiKey?: string) {
+// 2026-10-25 review: gemini-2.5 was closed (404) → the shared helper maps to gemini-3.x; Gemini 3 is meant to run at
+// its default temperature (a forced 0 can make it loop), and a long list needs a big output budget.
+async function callAI(messages: any[]) {
   return await aiChat({
     model: "google/gemini-2.5-flash-lite",
     messages,
-    temperature: 0,
+    max_tokens: 32768,
     tools: [TOOL],
     tool_choice: { type: "function", function: { name: "save_price_list" } },
   });
 }
+
+// The same product list as a native Gemini JSON schema (PDF read as a file — vision mode)
+const PRODUCTS_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    products: {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          product_name: { type: "STRING" }, model_code: { type: "STRING" }, category: { type: "STRING" },
+          cost_price: { type: "NUMBER" }, suggested_sell_price: { type: "NUMBER" },
+        },
+        required: ["product_name", "cost_price"],
+      },
+    },
+  },
+  required: ["products"],
+};
+
+/** Pages → chunks of at most `max` characters (a page is never split), so each AI call stays small and complete. */
+export function chunkPages(pages: string[], max = 18_000): string[] {
+  const out: string[] = [];
+  let cur = "";
+  pages.forEach((p, i) => {
+    const block = `--- صفحة ${i + 1} ---\n${(p ?? "").trim()}`;
+    if (cur && cur.length + block.length > max) { out.push(cur); cur = ""; }
+    cur = cur ? `${cur}\n\n${block}` : block;
+  });
+  if (cur) out.push(cur);
+  return out;
+}
+
+/** Same product twice (a row repeated across a page break / chunk edge) is kept once. */
+export function mergeProducts(lists: any[][]): any[] {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  for (const list of lists) for (const p of list ?? []) {
+    const k = `${normalizeArabicText(p?.product_name)}|${String(p?.model_code ?? "").trim()}|${Number(p?.cost_price) || 0}`;
+    if (seen.has(k)) continue;
+    seen.add(k); out.push(p);
+  }
+  return out;
+}
+
+const MAX_PDF_BYTES = 15 * 1024 * 1024;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -202,24 +250,32 @@ Deno.serve(async (req) => {
     );
     const { data: userData, error: userErr } = await authClient.auth.getUser();
     if (userErr || !userData?.user) return json({ error: "Unauthorized" }, 401);
+    // price lists are applied by the company admin only (apply_price_list_update) — don't spend AI quota for others
+    const uid = userData.user.id;
+    const [{ data: adm }, { data: own }] = await Promise.all([
+      authClient.rpc("is_admin", { _user_id: uid }), authClient.rpc("is_owner", { _user_id: uid }),
+    ]);
+    if (!adm && !own) return json({ error: "قراءة قوائم الأسعار للمدير العام أو صاحب الشركة بس" }, 403);
 
     const { pdfBase64, supplierName } = await req.json();
     if (!pdfBase64) return json({ error: "pdfBase64 required" }, 400);
 
-    const apiKey = "";
-    if (!aiConfigured()) throw new Error("AI_API_KEY not configured");
+    if (!aiConfigured()) return json({ error: "مفتاح الذكاء الاصطناعي (AI_API_KEY) غير مضاف في أسرار Supabase" }, 500);
 
     const supplier = supplierName ?? "غير محدد";
     const t0 = Date.now();
     const bytes = b64ToBytes(pdfBase64);
     console.log(`[parse] supplier=${supplier} pdfBytes=${bytes.length}`);
+    if (bytes.length > MAX_PDF_BYTES) return json({ error: "الملف أكبر من 15 ميجا — قسّمه لأكتر من ملف" }, 413);
 
     // 1) Try fast text extraction (keep page boundaries to preserve row layout)
     let extractedText = "";
+    let pageTexts: string[] = [];
     try {
       const pdf = await getDocumentProxy(bytes);
       const { text } = await extractText(pdf, { mergePages: false });
       const pages = Array.isArray(text) ? text : [text ?? ""];
+      pageTexts = pages.map((x) => String(x ?? ""));
       extractedText = pages
         .map((p, i) => `--- صفحة ${i + 1} ---\n${(p ?? "").trim()}`)
         .join("\n\n")
@@ -237,51 +293,72 @@ Deno.serve(async (req) => {
     const useText = extractedText.length > 200 && !quality.corrupt && !multiColumn;
 
     console.log(`[parse] textQuality reason=${quality.reason} ratio=${quality.ratio.toFixed(3)} chars=${quality.total}`);
-    const messages = useText
-      ? [
-          { role: "system", content: SYSTEM(supplier) },
-          {
-            role: "user",
-            content:
-              "النص التالي مستخرج من PDF قائمة أسعار. استخرج كل المنتجات منه:\n\n" +
-              extractedText.slice(0, 120_000),
-          },
-        ]
-      : [
-          { role: "system", content: SYSTEM(supplier) },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "استخرج كل المنتجات والأسعار من ملف PDF التالي:" },
-              {
-                type: "file",
-                file: {
-                  filename: "pricelist.pdf",
-                  file_data: `data:application/pdf;base64,${pdfBase64}`,
-                },
-              },
-            ],
-          },
-        ];
-
     console.log(`[parse] mode=${useText ? "TEXT" : "VISION"}`);
     const tAI = Date.now();
-    const response = await callAI(messages, apiKey);
+    let raw: any[] = [];
 
-    if (!response.ok) {
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      if (response.status === 429) return json({ error: "تم تجاوز حد الاستخدام، حاول لاحقاً" }, 429);
-      if (response.status === 402) return json({ error: "رصيد AI غير كافٍ" }, 402);
+    const aiError = (status: number, t: string) => {
+      console.error("AI error:", status, t.slice(0, 500));
+      if (status === 429) return json({ error: "تم تجاوز حد الاستخدام، حاول لاحقاً" }, 429);
+      if (status === 402) return json({ error: "رصيد AI غير كافٍ" }, 402);
       return json({ error: `خطأ AI: ${t.slice(0, 200)}` }, 500);
+    };
+
+    if (useText) {
+      // every page is read: the old code cut the text at 120,000 characters and lost the rest of a long list
+      const chunks = chunkPages(pageTexts);
+      const results: any[][] = new Array(chunks.length);
+      let next = 0;
+      let failed: Response | null = null;
+      const worker = async () => {
+        while (next < chunks.length && !failed) {
+          const i = next++;
+          const response = await callAI([
+            { role: "system", content: SYSTEM(supplier) },
+            { role: "user", content: "النص التالي مستخرج من PDF قائمة أسعار (جزء من الملف). استخرج كل المنتجات منه:\n\n" + chunks[i] },
+          ]);
+          if (!response.ok) { failed = aiError(response.status, await response.text()); return; }
+          const data = await response.json();
+          const call = data.choices?.[0]?.message?.tool_calls?.[0];
+          try { results[i] = call ? (JSON.parse(call.function.arguments).products ?? []) : []; }
+          catch { failed = json({ error: `الجزء ${i + 1} من الملف رجع ناقص من الذكاء الاصطناعي — جرّب تاني أو قسّم الملف` }, 422); return; }
+        }
+      };
+      await Promise.all([worker(), worker(), worker()]);
+      if (failed) return failed;
+      raw = mergeProducts(results);
+      console.log(`[parse] text chunks=${chunks.length}`);
+    } else if (geminiNative()) {
+      // vision: the PDF itself goes to Gemini's native API (the OpenAI-compatible endpoint has no PDF part)
+      const r = await geminiJson({
+        model: "google/gemini-2.5-flash",
+        system: SYSTEM(supplier),
+        parts: [{ text: "استخرج كل المنتجات والأسعار من ملف PDF ده:" }, { inline_data: { mime_type: "application/pdf", data: pdfBase64 } }],
+        schema: PRODUCTS_SCHEMA,
+      });
+      if (r.ok === false) {
+        if (r.error === "MAX_TOKENS") return json({ error: "القائمة طويلة جداً على قراءة الصور — قسّم الملف لأكتر من جزء" }, 422);
+        return aiError(r.status, r.error);
+      }
+      raw = r.json?.products ?? [];
+    } else {
+      // Lovable / another OpenAI-compatible gateway: keep the file part it understands
+      const response = await callAI([
+        { role: "system", content: SYSTEM(supplier) },
+        { role: "user", content: [
+          { type: "text", text: "استخرج كل المنتجات والأسعار من ملف PDF التالي:" },
+          { type: "file", file: { filename: "pricelist.pdf", file_data: `data:application/pdf;base64,${pdfBase64}` } },
+        ] },
+      ]);
+      if (!response.ok) return aiError(response.status, await response.text());
+      const data = await response.json();
+      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+      if (!toolCall) return json({ error: "لم يتم استخراج أي بيانات من الملف" }, 422);
+      try { raw = JSON.parse(toolCall.function.arguments).products ?? []; }
+      catch { return json({ error: "الرد رجع ناقص من الذكاء الاصطناعي — قسّم الملف لأكتر من جزء" }, 422); }
     }
+    if (!raw.length) return json({ error: "لم يتم استخراج أي بيانات من الملف" }, 422);
 
-    const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) return json({ error: "لم يتم استخراج أي بيانات من الملف" }, 422);
-
-    const args = JSON.parse(toolCall.function.arguments);
-    const raw = args.products ?? [];
     // Safety net: fill any empty model_code from the product name (same logic as the Excel path).
     const products = raw.map((p: any) => ({
       ...p,

@@ -52,3 +52,41 @@ export async function aiChat(body: Record<string, unknown> & { model: string }):
   }
   return resp!;
 }
+
+/** The Google key + native endpoint, when calls go straight to Gemini (not Lovable / another OpenAI-compatible base). */
+export function geminiNative(): { key: string; base: string } | null {
+  const { key, viaLovable } = cfg();
+  if (!key || viaLovable || Deno.env.get("AI_BASE_URL")) return null;
+  return { key, base: "https://generativelanguage.googleapis.com/v1beta" };
+}
+
+/**
+ * Native Gemini generateContent with a JSON schema (used for PDFs: the OpenAI-compatible endpoint does not take
+ * a PDF file part). Tries the same model list as aiChat; a 404 «model not available» falls through.
+ */
+export async function geminiJson(opts: {
+  model: string; system: string; parts: unknown[]; schema: unknown; maxOutputTokens?: number;
+}): Promise<{ ok: true; json: any; finish: string } | { ok: false; status: number; error: string }> {
+  const native = geminiNative();
+  if (!native) return { ok: false, status: 500, error: "native Gemini needs AI_API_KEY without AI_BASE_URL" };
+  let last = { ok: false as const, status: 404, error: "no model" };
+  for (const model of pickModels(opts.model, false)) {
+    const r = await fetch(`${native.base}/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "x-goog-api-key": native.key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: opts.system }] },
+        contents: [{ role: "user", parts: opts.parts }],
+        generationConfig: { responseMimeType: "application/json", responseSchema: opts.schema, maxOutputTokens: opts.maxOutputTokens ?? 65536 },
+      }),
+    });
+    if (r.status === 404) { last = { ok: false, status: 404, error: await r.text() }; continue; }
+    if (!r.ok) return { ok: false, status: r.status, error: await r.text() };
+    const data = await r.json();
+    const cand = data?.candidates?.[0];
+    const text = (cand?.content?.parts ?? []).map((x: any) => x?.text ?? "").join("");
+    try { return { ok: true, json: JSON.parse(text), finish: cand?.finishReason ?? "" }; }
+    catch { return { ok: false, status: 422, error: cand?.finishReason === "MAX_TOKENS" ? "MAX_TOKENS" : "bad json" }; }
+  }
+  return last;
+}
