@@ -10,6 +10,7 @@ import { readZip } from "@/lib/zipRead";
 import { PRODUCT_IMAGE, shrinkProductImage } from "@/lib/imagePolicy";
 import { uploadProductImageAt } from "@/lib/storageImage";
 import { rpcErrorText } from "@/lib/rpcError";
+import { PermTable } from "@/components/PermTable";
 
 /**
  * «رفع صور المنتجات بالجملة» (owner 2026-10-25): pick a zip or many photos → each photo is shrunk ON THIS DEVICE
@@ -169,7 +170,7 @@ export default function ProductImagesBulk() {
             </div>
           )}
           <div className="card-elevated overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-surface-2">
                 <tr className="text-xs"><th className="px-3 py-2 text-right">الصورة</th><th className="px-3 py-2">الحجم</th><th className="px-3 py-2 text-right">المنتج</th><th className="px-3 py-2">الحالة</th></tr>
               </thead>
@@ -188,7 +189,7 @@ export default function ProductImagesBulk() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </PermTable>
           </div>
           <p className="text-xs text-muted-foreground flex gap-1.5"><Info className="w-3.5 h-3.5 mt-0.5 shrink-0" /> الصور الأصلية على جهازك مش بتتغير. رفع نفس الصورة تاني بيستبدل القديمة في نفس مكانها.</p>
         </>
