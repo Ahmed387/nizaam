@@ -1,7 +1,7 @@
 import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
 import { PermCard } from "@/contexts/PermCustomize";
 import { PermPart } from "@/contexts/PermCustomize";
-import { fetchOpeningSummary, type OpeningSummary } from "@/lib/ledger";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -27,6 +27,8 @@ import { RecentDocDetails } from "@/components/RecentDocDetails";
 
 export default function AdminDashboard() {
   const nav = useNavigate();
+  // audit tools (data errors, alerts, overdue marking) are admin only on the server — a viewer / partner never calls them
+  const { isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [salesToday, setSalesToday] = useState(0);
   const [invoicesToday, setInvoicesToday] = useState(0);
@@ -38,13 +40,12 @@ export default function AdminDashboard() {
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const toggleRow = (key: string) => setExpandedRowId((prev) => (prev === key ? null : key));
   const [activeCountBranches, setActiveCountBranches] = useState<Set<string>>(new Set());
-  const [opening, setOpening] = useState<OpeningSummary | null>(null);
   const [integrity, setIntegrity] = useState<{ errors: number; warnings: number; info: number } | null>(null);
 
   const load = useCallback(async () => {
     // «اليوم» حسب توقيت القاهرة — مش ساعة الجهاز. كل الصفوف (بدون حد 1000) ومن نفس الاستعلام للكروت والفروع.
     const day = cairoTodayDay();
-    const [invToday, prods, { data: branches }, { count: approvalsCount }, sessions, ob, audit] = await Promise.all([
+    const [invToday, prods, { data: branches }, { count: approvalsCount }, sessions, audit] = await Promise.all([
       fetchAllRows<any>(() => applyCairoRange(
         supabase.from("invoices").select("id, total, branch_id").eq("status", "active").not("is_migrated", "is", true),
         "invoice_date", day, day).order("id")),
@@ -52,8 +53,7 @@ export default function AdminDashboard() {
       supabase.from("branches").select("*").eq("is_active", true).eq("is_system", false),
       supabase.from("approval_requests" as any).select("id", { count: "exact", head: true }).eq("status", "pending"),
       fetchAllRows<any>(() => supabase.from("inventory_sessions" as any).select("id, branch_id").in("status", ["counting", "reviewing", "pending_approval"]).order("id")),
-      fetchOpeningSummary().catch(() => null),
-      (supabase.rpc as any)("system_integrity_summary", { p_tenant: null }).then((r: any) => r.data ?? null, () => null),
+      isAdmin ? (supabase.rpc as any)("system_integrity_summary", { p_tenant: null }).then((r: any) => r.data ?? null, () => null) : Promise.resolve(null),
     ]);
 
     const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -63,7 +63,6 @@ export default function AdminDashboard() {
     setLowStock(prods.filter((p) => Number(p.low_stock_alert || 0) > 0 && Number(p.quantity || 0) <= Number(p.low_stock_alert)).length);
     setPendingApprovals(approvalsCount ?? 0);
     setActiveSessions(sessions.length);
-    setOpening(ob);
     setIntegrity(audit);
     setRecent(await fetchRecentDocs(5));
     setActiveCountBranches(new Set(sessions.map((s: any) => s.branch_id)));
@@ -75,15 +74,16 @@ export default function AdminDashboard() {
     })));
 
     setLoading(false);
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
+    if (!isAdmin) return;
     (async () => {
       try { await supabase.rpc("mark_overdue_installments" as any); } catch {}
       try { await supabase.rpc("generate_alerts" as any); } catch {}
     })();
-  }, []);
+  }, [isAdmin]);
   useRealtimeRefresh(
     ["invoices", "products", "branches", "inventory_sessions", "approval_requests"],
     load
@@ -112,11 +112,11 @@ export default function AdminDashboard() {
           <StatCard label="طلبات مستنية موافقتك" value={pendingApprovals} icon={<CheckSquare className="w-5 h-5" />} accent={pendingApprovals > 0 ? "warning" : "secondary"} />
         </Link>
         </PermPart>
-        <PermPart page="admin_home" part="data_errors">
+        {isAdmin && <PermPart page="admin_home" part="data_errors">
         <Link to="/admin/system-health?tab=integrity" className="block hover:scale-[1.02] transition-transform">
           <StatCard label="أخطاء في البيانات" value={integrity?.errors ?? 0} icon={<ClipboardCheck className="w-5 h-5" />} accent={integrity && integrity.errors > 0 ? "warning" : "secondary"} hint={integrity ? `${integrity.warnings} تنبيه` : undefined} />
         </Link>
-        </PermPart>
+        </PermPart>}
       </div>
 
       <PermPart page="admin_home" part="branches" group>
