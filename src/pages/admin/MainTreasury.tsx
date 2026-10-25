@@ -1,4 +1,5 @@
 import { applyCairoRange, cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
+import { PermCard } from "@/contexts/PermCustomize";
 import { NumberedPagination } from "@/components/NumberedPagination";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useEffect, useMemo, useState, useCallback } from "react";
@@ -241,10 +242,10 @@ export default function MainTreasury() {
       />
       <TransferFeeCards branchId={branchFilter === "all" ? null : branchFilter} from={from} to={to} />
 
-      <div className="card-elevated p-4 mb-6 border-r-4 border-primary bg-primary/5 text-sm leading-7">
+      <PermCard label="شرح الصفحة (للعرض بس)"><div className="card-elevated p-4 mb-6 border-r-4 border-primary bg-primary/5 text-sm leading-7">
         الصفحة دي <b>للعرض بس</b>، وبتجمّعلك أرصدة خزائن الفروع والأوعية المالية المركزية في مكان واحد.
         <b> لتحويل فلوس فعلي</b>، استخدم زرار <b>«تحويل فلوس من خزنة الشركاء للفروع»</b> فوق، أو روح لخزنة الفرع نفسه.
-      </div>
+      </div></PermCard>
 
 
       {/* Overall totals */}

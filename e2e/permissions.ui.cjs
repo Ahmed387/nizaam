@@ -157,6 +157,14 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
   check("الخزنة: كارت «رصيد الخزنة دلوقتي» لوحده", await vis(page.getByRole("button", { name: /إخفاء كارت «رصيد الخزنة دلوقتي \(كل الأوعية\)» عن مدير الفرع/ })));
   check("الخزنة: كل كارت من كروت الفترة لوحده", await vis(page.getByRole("button", { name: /إخفاء كارت «إجمالي اللي دخل الخزنة في الفترة \(\+\)» عن/ })) && await vis(page.getByRole("button", { name: /إخفاء كارت «صافي حركة الخزنة/ })));
   await shot(page, "p5c-treasury");
+  // 2e) company contacts page: every card and the top buttons
+  await page.goto(`${BASE}/admin/contacts?perm_for=${MGR}`); await settle(page); await page.waitForTimeout(800);
+  check("جهات التواصل: زرار «تصدير Excel» عليه ظاهر/مخفي", await vis(page.getByRole("button", { name: /(إخفاء|إظهار) زرار «تصدير Excel» عن مدير الفرع/ })));
+  check("جهات التواصل: كارت «مستحق لنا على العملاء» لوحده", await vis(page.getByRole("button", { name: /(إخفاء|إظهار) كارت «مستحق لنا على العملاء» عن مدير الفرع/ })));
+  // 2f) the bar stays when moving with the sidebar (no ?perm_for in the link)
+  await page.goto(`${BASE}/admin/employees`); await settle(page); await page.waitForTimeout(600);
+  check("التظبيط فاضل شغال لما تتنقل من القايمة الجانبية", await vis(page.getByText(/بتظبط اللي يظهر لـ مدير الفرع/)));
+  check("الموظفين: زرار «موظف جديد» عليه ظاهر/مخفي", await vis(page.getByRole("button", { name: /(إخفاء|إظهار) زرار «موظف جديد» عن مدير الفرع/ })));
   await page.goto(`${BASE}/branch/${B1}/inventory?perm_for=${CASH}&perm_scope=branch`); await settle(page); await page.waitForTimeout(600);
   await page.getByRole("button", { name: /إخفاء عمود الأسعار عن mohayassr07/ }).click(); await page.waitForTimeout(300);
   await page.getByRole("button", { name: "حفظ وخروج" }).click(); await page.waitForTimeout(1200);
@@ -184,7 +192,7 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
   ({ ctx, page } = await open(browser, db, OWNER));
   await page.goto(`${BASE}/admin/settings?tab=permissions`); await settle(page);
   check("شاشة القوالب فيها الأدوار التمانية", await vis(page.getByRole("button", { name: /مدير فرع/ })) && await vis(page.getByRole("button", { name: /سواق/ })));
-  check("زرار «قالب جديد»", await vis(page.getByRole("button", { name: /قالب جديد/ })));
+  check("زرار «دور جديد»", await vis(page.getByRole("button", { name: /دور جديد/ })));
   await shot(page, "p8-templates");
   await ctx.close();
 

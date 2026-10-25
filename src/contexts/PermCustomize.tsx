@@ -1,4 +1,5 @@
-import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { cloneElement, createContext, Fragment, isValidElement, ReactElement, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { useInRouterContext, useLocation, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Loader2, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
@@ -8,7 +9,7 @@ import { AppRole, DEFAULT_ROLE_PERMISSIONS, ROLE_LABELS } from "@/lib/roles";
 import { PERMISSION_CATALOG, PagePart, pageForPath, partKey } from "@/lib/permissionCatalog";
 import { Overrides, RolePerms, effective, fromRows, setOverride, toRows } from "@/lib/permissionModel";
 import { rpcErrorText } from "@/lib/rpcError";
-import { withCompanyRole } from "@/lib/companyRoles";
+import { CompanyRole, isTplRole, tplId, withCompanyRole } from "@/lib/companyRoles";
 
 /**
  * «افتح الصفحة وظبطها» (owner decision 2026-10-24): any page opened with `?perm_for=<user id>` shows, on every
@@ -33,47 +34,85 @@ const partInfo = (page: string, part: string) =>
   PERMISSION_CATALOG.flatMap((s) => s.pages).find((p) => p.key === page)?.parts.find((x) => x.id === part);
 
 export function PermCustomizeProvider({ children }: { children: ReactNode }) {
-  const { isAdmin, isOwner, tenantId, roleLabel } = useAuth();
+  const { isAdmin, isOwner, tenantId, roleLabel, branches } = useAuth();
   const loc = useLocation();
   const nav = useNavigate();
   const qs = new URLSearchParams(loc.search);
-  const target = qs.get("perm_for");
-  const allowed = !!target && (isAdmin || isOwner);
+  // who is being set up: a person (?perm_for=<user id>) or a role (?perm_role=<ready role | tpl:<id>>).
+  // It stays on while moving between pages (sidebar links drop the query) until «خروج» (owner 2026-10-25).
+  type Tgt = { kind: "user" | "role"; id: string };
+  const urlUser = qs.get("perm_for");
+  const urlRole = qs.get("perm_role");
+  const [sticky, setSticky] = useState<Tgt | null>(() => {
+    try { const v = sessionStorage.getItem("perm_customize"); return v ? (JSON.parse(v) as Tgt) : null; } catch { return null; }
+  });
+  useEffect(() => {
+    const t: Tgt | null = urlUser ? { kind: "user", id: urlUser } : urlRole ? { kind: "role", id: urlRole } : null;
+    if (!t) return;
+    setSticky(t);
+    try { sessionStorage.setItem("perm_customize", JSON.stringify(t)); } catch { /* private mode */ }
+  }, [urlUser, urlRole]);
+  const tgt: Tgt | null = urlUser ? { kind: "user", id: urlUser } : urlRole ? { kind: "role", id: urlRole } : sticky;
+  const target = tgt?.id ?? null;
+  const targetKey = tgt ? `${tgt.kind}:${tgt.id}` : null;
+  const roleMode = tgt?.kind === "role";
+  const allowed = !!tgt && (isAdmin || isOwner);
   const urlBranch = /^\/branch\/([^/]+)/.exec(loc.pathname)?.[1] ?? null;
   const [scopeBranch, setScopeBranch] = useState(qs.get("perm_scope") === "branch");
   // the provider lives above the routes: follow «perm_scope» each time a page is opened from the permissions screen
   const urlScope = qs.get("perm_scope") === "branch";
-  useEffect(() => { setScopeBranch(urlScope); }, [urlScope, loc.pathname]);
-  const [state, setState] = useState<{ uid: string; name: string; roles: string[]; roleNames: string[]; rolePerms: RolePerms; saved: Overrides; draft: Overrides } | null>(null);
+  useEffect(() => { if (urlUser) setScopeBranch(urlScope); }, [urlScope, urlUser, loc.pathname]);
+  const [state, setState] = useState<{
+    key: string; uid: string; name: string; roles: string[]; roleNames: string[]; rolePerms: RolePerms; saved: Overrides; draft: Overrides;
+    role?: { id: string; base: RolePerms; tpl: CompanyRole | null };
+  } | null>(null);
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const registry = useRef(new Map<string, Meta>());
   const [, bump] = useState(0);
 
+  const loadRolePerms = async () => {
+    const { data } = await supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId!);
+    const pmap: RolePerms = {};
+    ((data ?? []) as any[]).forEach((r) => ((pmap[r.role] = pmap[r.role] ?? {})[r.permission_key] = !!r.allowed));
+    Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([r, d]) => { if (!pmap[r]) pmap[r] = { ...d }; });
+    return pmap;
+  };
+
   useEffect(() => {
-    if (!allowed || !tenantId || state?.uid === target) return;
+    if (!allowed || !tenantId || !tgt || state?.key === targetKey) return;
     (async () => {
-      const [prof, roles, rp, ups, cr] = await Promise.all([
-        supabase.from("profiles").select("name, username").eq("id", target!).maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", target!),
-        supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId),
-        supabase.from("user_permissions" as any).select("permission_key, allowed, branch_id").eq("user_id", target!),
-        supabase.from("user_company_roles" as any).select("permission_templates(id, name, base_role, perms)").eq("user_id", target!).maybeSingle(),
+      if (tgt.kind === "role") {
+        // a role: what everyone on it sees (changes are saved into the role itself)
+        const pmap = await loadRolePerms();
+        let tpl: CompanyRole | null = null;
+        if (isTplRole(tgt.id)) {
+          const { data } = await supabase.from("permission_templates" as any).select("id, name, base_role, perms").eq("id", tplId(tgt.id)).maybeSingle();
+          if (data) tpl = { ...(data as any), perms: (data as any).perms ?? {} };
+        }
+        const eff = tpl ? withCompanyRole([tpl.base_role], pmap, tpl) : { roles: [tgt.id], permsByRole: pmap };
+        setState({ key: targetKey!, uid: tgt.id, name: tpl ? tpl.name : roleLabel(tgt.id), roles: eff.roles, rolePerms: eff.permsByRole, roleNames: [], saved: {}, draft: {}, role: { id: tgt.id, base: pmap, tpl } });
+        return;
+      }
+      const [prof, roles, pmap, ups, cr] = await Promise.all([
+        supabase.from("profiles").select("name, username").eq("id", tgt.id).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", tgt.id),
+        loadRolePerms(),
+        supabase.from("user_permissions" as any).select("permission_key, allowed, branch_id").eq("user_id", tgt.id),
+        supabase.from("user_company_roles" as any).select("permission_templates(id, name, base_role, perms)").eq("user_id", tgt.id).maybeSingle(),
       ]);
-      const pmap: RolePerms = {};
-      ((rp.data ?? []) as any[]).forEach((r) => ((pmap[r.role] = pmap[r.role] ?? {})[r.permission_key] = !!r.allowed));
-      Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([r, d]) => { if (!pmap[r]) pmap[r] = { ...d }; });
       const rs0 = ((roles.data ?? []) as any[]).map((r) => r.role as string).filter((r) => r !== "owner");
       // on a company role (migration 0115): resolve like the server — his role's differences over its ready role
       const tpl = (cr as any)?.data?.permission_templates;
       const eff = withCompanyRole(rs0, pmap, tpl ? { id: tpl.id, name: tpl.name, base_role: tpl.base_role, perms: tpl.perms ?? {} } : null);
       const o = fromRows((ups.data ?? []) as any[]);
-      setState({ uid: target!, name: (prof.data as any)?.name || (prof.data as any)?.username || "الموظف", roles: eff.roles, rolePerms: eff.permsByRole, roleNames: tpl ? [tpl.name] : rs0, saved: o, draft: o });
+      setState({ key: targetKey!, uid: tgt.id, name: (prof.data as any)?.name || (prof.data as any)?.username || "الموظف", roles: eff.roles, rolePerms: eff.permsByRole, roleNames: tpl ? [tpl.name] : rs0, saved: o, draft: o });
     })();
-  }, [allowed, target, tenantId, state?.uid]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allowed, targetKey, tenantId, state?.key]);
 
-  const active = allowed && !!state && state.uid === target;
-  const writeBranch = scopeBranch && urlBranch ? urlBranch : null;
+  const active = allowed && !!state && state.key === targetKey;
+  const writeBranch = !roleMode && scopeBranch && urlBranch ? urlBranch : null;
   const isVisible = useCallback((key: string) => (state ? effective(state.roles, state.rolePerms, state.draft, key, urlBranch) : true), [state, urlBranch]);
   const toggle = useCallback((key: string) => setState((s) => {
     if (!s) return s;
@@ -93,15 +132,43 @@ export function PermCustomizeProvider({ children }: { children: ReactNode }) {
   const hiddenCount = parts.filter(([k]) => !isVisible(k)).length;
   const dirty = !!state && JSON.stringify(state.draft) !== JSON.stringify(state.saved);
 
-  const exit = () => nav(`/admin/settings?tab=user-permissions&user=${target}${writeBranch ? `&branch=${writeBranch}` : ""}`);
+  const exit = () => {
+    setSticky(null);
+    try { sessionStorage.removeItem("perm_customize"); } catch { /* ignore */ }
+    if (roleMode) nav(`/admin/settings?tab=permissions&role=${encodeURIComponent(target ?? "")}`);
+    else nav(`/admin/settings?tab=user-permissions&user=${target}${writeBranch ? `&branch=${writeBranch}` : ""}`);
+  };
   const save = async (andExit: boolean) => {
     if (!state) return;
     setSaving(true);
-    const { error } = await supabase.rpc("save_user_permissions" as any, { p_user: state.uid, p_rows: toRows(state.draft) } as any);
+    let error: any = null;
+    if (state.role) {
+      const { id, base, tpl } = state.role;
+      if (tpl) {
+        // company role: its differences over its ready role, nothing stored that the ready role already gives
+        const perms: Record<string, boolean> = { ...tpl.perms, ...state.draft };
+        Object.keys(perms).forEach((k) => { if (effective([tpl.base_role], base, {}, k) === perms[k]) delete perms[k]; });
+        ({ error } = await supabase.from("permission_templates" as any).update({ perms, updated_at: new Date().toISOString() } as any).eq("id", tpl.id));
+        if (!error) {
+          const nt = { ...tpl, perms };
+          const eff = withCompanyRole([tpl.base_role], base, nt);
+          setState({ ...state, rolePerms: eff.permsByRole, roles: eff.roles, saved: {}, draft: {}, role: { id, base, tpl: nt } });
+        }
+      } else {
+        const rows = Object.entries(state.draft).map(([k, v]) => ({ tenant_id: tenantId, role: id, permission_key: k, allowed: v }));
+        ({ error } = rows.length ? await supabase.from("role_permissions" as any).upsert(rows, { onConflict: "tenant_id,role,permission_key" }) : { error: null });
+        if (!error) {
+          const nb = { ...base, [id]: { ...(base[id] ?? {}), ...state.draft } };
+          setState({ ...state, rolePerms: nb, saved: {}, draft: {}, role: { id, base: nb, tpl: null } });
+        }
+      }
+    } else {
+      ({ error } = await supabase.rpc("save_user_permissions" as any, { p_user: state.uid, p_rows: toRows(state.draft) } as any));
+      if (!error) setState({ ...state, saved: state.draft });
+    }
     setSaving(false);
     if (error) return toast.error(rpcErrorText(error, "حفظ الصلاحيات"));
-    toast.success(`اتحفظ اللي يظهر لـ ${state.name}`);
-    setState({ ...state, saved: state.draft });
+    toast.success(state.role ? `اتحفظ دور «${state.name}» — وصل لكل اللي عليه` : `اتحفظ اللي يظهر لـ ${state.name}`);
     if (andExit) exit();
   };
   const setAll = (visible: boolean | null) => setState((s) => {
@@ -119,9 +186,11 @@ export function PermCustomizeProvider({ children }: { children: ReactNode }) {
   const goTo = (key: string) => {
     const p = pages.find((x) => x.key === key);
     if (!p) return;
-    const to = p.route!.includes(":branch") ? (urlBranch ? p.route!.replace(":branch", urlBranch) : null) : p.route!;
-    if (!to) return toast.message("الصفحة دي صفحة فرع — افتحها من صفحة فرع");
-    nav(`${to}?perm_for=${target}${scopeBranch ? "&perm_scope=branch" : ""}`);
+    // a branch page opened from a company page goes to the first branch
+    const b = urlBranch ?? branches[0]?.id ?? null;
+    const to = p.route!.includes(":branch") ? (b ? p.route!.replace(":branch", b) : null) : p.route!;
+    if (!to) return toast.message("مفيش فرع تفتح فيه الصفحة دي");
+    nav(`${to}?${roleMode ? `perm_role=${encodeURIComponent(target ?? "")}` : `perm_for=${target}${scopeBranch ? "&perm_scope=branch" : ""}`}`);
   };
   const offscreen = parts.filter(([, m]) => m.info?.offscreen);
 
@@ -130,9 +199,9 @@ export function PermCustomizeProvider({ children }: { children: ReactNode }) {
       {active && (
         <div dir="rtl" role="region" aria-label="شريط تظبيط الصفحة" className="sticky top-0 z-[60] bg-slate-900 text-white">
           <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
-            <span className="flex items-center gap-2 font-extrabold"><Eye className="w-4 h-4" aria-hidden="true" /> بتظبط اللي يظهر لـ {state!.name} ({state!.roleNames.map((r) => roleLabel(r)).join("، ") || "بدون دور"})</span>
+            <span className="flex items-center gap-2 font-extrabold"><Eye className="w-4 h-4" aria-hidden="true" /> {roleMode ? <>بتظبط دور «{state!.name}» — بيتطبق على كل الموظفين اللي عليه</> : <>بتظبط اللي يظهر لـ {state!.name} ({state!.roleNames.map((r) => roleLabel(r)).join("، ") || "بدون دور"})</>}</span>
             <span className="text-slate-300">{parts.length ? `${hiddenCount} مخفي من ${parts.length} في الصفحة دي` : "الصفحة دي لسه مفيهاش بوكسات بتتظبط"}</span>
-            {urlBranch && (
+            {urlBranch && !roleMode && (
               <span role="radiogroup" aria-label="التغيير لمين" className="flex rounded-lg border border-slate-500 overflow-hidden">
                 <button type="button" role="radio" aria-checked={scopeBranch} onClick={() => setScopeBranch(true)} className={`min-h-[34px] px-3 font-bold ${scopeBranch ? "bg-white text-slate-900" : ""}`}>الفرع ده بس</button>
                 <button type="button" role="radio" aria-checked={!scopeBranch} onClick={() => setScopeBranch(false)} className={`min-h-[34px] px-3 font-bold ${!scopeBranch ? "bg-white text-slate-900" : ""}`}>كل الفروع</button>
@@ -303,4 +372,38 @@ function AutoTabInner({ page, value, label, as, children }: { page: string; valu
     );
   }
   return visible || (as === "content" && c.active && !c.preview) ? <>{children}</> : null;
+}
+
+/** Plain text of a React node (labels of buttons / cards). */
+export function textOfNode(n: ReactNode): string {
+  if (n == null || typeof n === "boolean") return "";
+  if (typeof n === "string" || typeof n === "number") return String(n);
+  if (Array.isArray(n)) return n.map(textOfNode).join(" ");
+  if (isValidElement(n)) return textOfNode((n.props as any).children);
+  return "";
+}
+
+/** A button of any page (Excel, PDF, «موظف جديد» …): its own switch, keyed by its text. */
+export function PermButton({ label, children }: { label: string; children: ReactNode }) {
+  return <AutoPartInner prefix="btn" label={label} kind="زرار">{children}</AutoPartInner>;
+}
+
+/**
+ * Wraps every <Button> found in a header's actions (through divs, fragments and gates like PermGate) in its own
+ * switch — so every page's top buttons can be hidden per person without hand-tagging (owner request 2026-10-25).
+ * Hand-tagged <PermPart> buttons are left alone.
+ */
+export function autoButtons(node: ReactNode, depth = 0): ReactNode {
+  if (depth > 4 || node == null || typeof node === "boolean") return node;
+  if (Array.isArray(node)) return node.map((n, i) => <Fragment key={i}>{autoButtons(n, depth + 1)}</Fragment>);
+  if (!isValidElement(node)) return node;
+  const el = node as ReactElement<any>;
+  if (el.type === PermPart || el.type === PermButton) return el;
+  if (el.type === Button) {
+    const label = textOfNode(el.props.children).replace(/\s+/g, " ").trim();
+    return label ? <PermButton label={label}>{el}</PermButton> : el;
+  }
+  const kids = el.props?.children;
+  if (kids == null || typeof kids === "string") return el;
+  return cloneElement(el, undefined, autoButtons(kids, depth + 1));
 }

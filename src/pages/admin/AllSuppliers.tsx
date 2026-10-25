@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate } from "react-router-dom";
@@ -413,34 +414,34 @@ export default function AllSuppliers() {
 
       {/* بطاقات إحصائيات — من الدفتر الموحد: العملاء والموردين كل جانب لوحده */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
-        <div className="p-4 rounded-lg border bg-card">
+        <PermCard label="عدد الجهات المعروضة"><div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground">عدد الجهات المعروضة</div>
           <div className="text-2xl font-bold mt-1">{stats.count}</div>
-        </div>
-        <div className="p-4 rounded-lg border bg-card">
+        </div></PermCard>
+        <PermCard label="إجمالي المشتريات (فواتير شراء سارية)"><div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground">إجمالي المشتريات (فواتير شراء سارية)</div>
           <FinancialAmount value={stats.totalPurchases} size="md" className="mt-1 justify-start text-primary" />
-        </div>
-        <button type="button" onClick={() => setBalanceFilter("owe_us")} className="text-right p-4 rounded-lg border bg-warning/5 border-warning/30">
+        </div></PermCard>
+        <PermCard label="مستحق لنا على العملاء"><button type="button" onClick={() => setBalanceFilter("owe_us")} className="text-right p-4 rounded-lg border bg-warning/5 border-warning/30">
           <div className="text-xs text-warning flex items-center gap-1"><ArrowDown className="w-3 h-3" /> مستحق لنا على العملاء</div>
           <FinancialAmount value={totals?.customers_open ?? 0} size="md" className="mt-1 justify-start text-warning" />
           <div className="text-[11px] text-muted-foreground">{totals?.customers_open_count ?? 0} عميل</div>
-        </button>
-        <button type="button" onClick={() => setBalanceFilter("customer_advance")} className="text-right p-4 rounded-lg border bg-primary/5 border-primary/30">
+        </button></PermCard>
+        <PermCard label="مقدمات عملاء عندنا (2150)"><button type="button" onClick={() => setBalanceFilter("customer_advance")} className="text-right p-4 rounded-lg border bg-primary/5 border-primary/30">
           <div className="text-xs text-primary">مقدمات عملاء عندنا (2150)</div>
           <FinancialAmount value={totals?.customer_advances ?? 0} size="md" className="mt-1 justify-start text-primary" />
           <div className="text-[11px] text-muted-foreground">{totals?.customer_advances_count ?? 0} عميل</div>
-        </button>
-        <button type="button" onClick={() => setBalanceFilter("we_owe")} className="text-right p-4 rounded-lg border bg-destructive/5 border-destructive/30">
+        </button></PermCard>
+        <PermCard label="مستحق للموردين علينا"><button type="button" onClick={() => setBalanceFilter("we_owe")} className="text-right p-4 rounded-lg border bg-destructive/5 border-destructive/30">
           <div className="text-xs text-destructive flex items-center gap-1"><ArrowUp className="w-3 h-3" /> مستحق للموردين علينا</div>
           <FinancialAmount value={totals?.suppliers_open ?? 0} size="md" className="mt-1 justify-start text-destructive" />
           <div className="text-[11px] text-muted-foreground">{totals?.suppliers_open_count ?? 0} مورد</div>
-        </button>
-        <button type="button" onClick={() => setBalanceFilter("supplier_advance")} className="text-right p-4 rounded-lg border bg-success/5 border-success/30">
+        </button></PermCard>
+        <PermCard label="مقدمات لينا عند الموردين (1460)"><button type="button" onClick={() => setBalanceFilter("supplier_advance")} className="text-right p-4 rounded-lg border bg-success/5 border-success/30">
           <div className="text-xs text-success">مقدمات لينا عند الموردين (1460)</div>
           <FinancialAmount value={totals?.supplier_advances ?? 0} size="md" className="mt-1 justify-start text-success" />
           <div className="text-[11px] text-muted-foreground">{totals?.supplier_advances_count ?? 0} مورد</div>
-        </button>
+        </button></PermCard>
       </div>
 
       <div className="flex gap-2 mb-3 flex-wrap">

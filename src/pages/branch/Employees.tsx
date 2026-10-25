@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { autoButtons } from "@/contexts/PermCustomize";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -140,11 +141,11 @@ export default function Employees() {
         </TabsList>
 
         <TabsContent value="list" className="mt-4">
-          <div className="flex gap-2 flex-wrap justify-end mb-3">
+          {autoButtons(<div className="flex gap-2 flex-wrap justify-end mb-3">
             <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
             <Button variant="outline" onClick={() => setBulkOpen(true)}><KeyRound className="w-4 h-4 ml-1" /> إنشاء حسابات دخول جماعية</Button>
             <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> إضافة موظف</Button>
-          </div>
+          </div>)}
           <DataTable
             loading={loading}
             rows={rows}

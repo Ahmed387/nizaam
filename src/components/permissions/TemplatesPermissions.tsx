@@ -13,7 +13,8 @@ import { CatalogPage } from "@/lib/permissionCatalog";
 import { Overrides, RolePerms, allowAllPage, effective, pageKeys, resetPage, setOverride } from "@/lib/permissionModel";
 import { rpcErrorText } from "@/lib/rpcError";
 import { PermissionEditor } from "./PermissionEditor";
-import { tplRole } from "@/lib/companyRoles";
+import { isTplRole, tplId, tplRole } from "@/lib/companyRoles";
+import { useSearchParams } from "react-router-dom";
 
 type Template = { id: string; name: string; base_role: string; perms: Overrides };
 type Selected = { kind: "role"; role: string } | { kind: "custom"; id: string };
@@ -22,7 +23,15 @@ type Selected = { kind: "role"; role: string } | { kind: "custom"; id: string };
 const MATRIX_KEYS = PERMISSION_GROUPS.flatMap((g) => g.actions.map((a) => `${g.key}.${a}`));
 
 export function TemplatesPermissions() {
-  const { tenantId, roleLabel, roleSettings, refresh } = useAuth();
+  const { tenantId, roleLabel, roleSettings, refresh, branches } = useAuth();
+  const [params] = useSearchParams();
+  // «افتح الصفحة وظبطها» for a whole role: the real page with ?perm_role=… (a branch page opens in the first branch)
+  const roleHref = (role: string) => (p: CatalogPage) => {
+    if (!p.route) return null;
+    const b = branches[0]?.id;
+    if (p.route.includes(":branch") && !b) return null;
+    return `${p.route.replace(":branch", b ?? "")}?perm_role=${encodeURIComponent(role)}`;
+  };
   const hidden = new Set(roleSettings.filter((x) => x.hidden).map((x) => x.role));
   const [usersByTpl, setUsersByTpl] = useState<Record<string, number>>({});
   const [renameOpen, setRenameOpen] = useState<string | null>(null);
@@ -36,7 +45,8 @@ export function TemplatesPermissions() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [tplDraft, setTplDraft] = useState<Record<string, Template>>({});
   const [usersByRole, setUsersByRole] = useState<Record<string, number>>({});
-  const [sel, setSel] = useState<Selected>({ kind: "role", role: MANAGED_ROLES[0] });
+  const initial = params.get("role");
+  const [sel, setSel] = useState<Selected>(initial ? (isTplRole(initial) ? { kind: "custom", id: tplId(initial) } : { kind: "role", role: initial }) : { kind: "role", role: MANAGED_ROLES[0] });
   const [newOpen, setNewOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newBase, setNewBase] = useState<string>("cashier");
@@ -88,6 +98,7 @@ export function TemplatesPermissions() {
     };
     return {
       resetWord: "الافتراضي",
+      customizeHref: roleHref(role),
       get,
       changed: (k: string) => get(k) !== def(k),
       set: (k: string, v: boolean) => put(setKey(map, k, v)),
@@ -108,6 +119,7 @@ export function TemplatesPermissions() {
     const put = (perms: Overrides) => setTplDraft((d) => ({ ...d, [id]: { ...d[id], perms } }));
     return {
       resetWord: "الدور",
+      customizeHref: roleHref(tplRole(id)),
       get: (k: string) => effective([t.base_role], rolePerms, t.perms, k),
       changed: (k: string) => k in t.perms,
       set: (k: string, v: boolean) => put(setOverride([t.base_role], rolePerms, t.perms, k, v)),

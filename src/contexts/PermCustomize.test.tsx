@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-const auth = { isAdmin: false, isOwner: false, tenantId: "t1", roleLabel: (r: string) => r, can: (k: string) => k !== "part.dashboard.till_balance.view" };
+const auth = { isAdmin: false, isOwner: false, tenantId: "t1", branches: [] as any[], roleLabel: (r: string) => r, can: (k: string) => k !== "part.dashboard.till_balance.view" };
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth }));
 
 const rpc = vi.fn();
@@ -13,9 +13,15 @@ const tables: Record<string, any[]> = {
   user_permissions: [{ permission_key: "part.dashboard.sales_month.view", allowed: false }],
   user_company_roles: [],
 };
+const writes: any[] = [];
 function q(table: string) {
   const res = { data: tables[table], error: null };
-  const c: any = { select: () => c, eq: () => c, maybeSingle: () => Promise.resolve({ data: tables[table][0], error: null }), then: (f: any, r: any) => Promise.resolve(res).then(f, r) };
+  const c: any = {
+    select: () => c, eq: () => c, maybeSingle: () => Promise.resolve({ data: tables[table]?.[0] ?? null, error: null }),
+    upsert: (rows: any, o: any) => { writes.push({ table, op: "upsert", rows, o }); return Promise.resolve({ error: null }); },
+    update: (x: any) => { writes.push({ table, op: "update", x }); return c; },
+    then: (f: any, r: any) => Promise.resolve(res).then(f, r),
+  };
   return c;
 }
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (t: string) => q(t), rpc: (...a: unknown[]) => rpc(...a) } }));
@@ -33,7 +39,7 @@ const Page = () => (
 const show = (url: string) => render(<MemoryRouter initialEntries={[url]}><PermCustomizeProvider><Page /></PermCustomizeProvider></MemoryRouter>);
 
 describe("PermPart — normal use", () => {
-  beforeEach(() => { auth.isAdmin = false; auth.isOwner = false; rpc.mockReset(); });
+  beforeEach(() => { auth.isAdmin = false; auth.isOwner = false; rpc.mockReset(); sessionStorage.clear(); });
 
   it("shows the card when the user can see it and hides it otherwise", () => {
     show("/branch/b1/dashboard");
@@ -48,7 +54,7 @@ describe("PermPart — normal use", () => {
 });
 
 describe("PermPart — customize on the page (owner)", () => {
-  beforeEach(() => { auth.isAdmin = true; auth.isOwner = true; rpc.mockReset(); rpc.mockResolvedValue({ data: 1, error: null }); });
+  beforeEach(() => { auth.isAdmin = true; auth.isOwner = true; rpc.mockReset(); rpc.mockResolvedValue({ data: 1, error: null }); sessionStorage.clear(); });
 
   it("puts a show / hide button on every card for that employee", async () => {
     show("/branch/b1/dashboard?perm_for=u2");
@@ -81,7 +87,7 @@ describe("PermPart — customize on the page (owner)", () => {
 });
 
 describe("per-branch customize («الفرع ده بس»)", () => {
-  beforeEach(() => { auth.isAdmin = true; auth.isOwner = true; rpc.mockReset(); rpc.mockResolvedValue({ data: 1, error: null }); });
+  beforeEach(() => { auth.isAdmin = true; auth.isOwner = true; rpc.mockReset(); rpc.mockResolvedValue({ data: 1, error: null }); sessionStorage.clear(); });
 
   it("with perm_scope=branch a hidden card is saved for this branch only", async () => {
     show("/branch/b1/dashboard?perm_for=u2&perm_scope=branch");
@@ -105,3 +111,35 @@ describe("per-branch customize («الفرع ده بس»)", () => {
     }));
   });
 });
+
+describe("customize a whole role on the page (owner 2026-10-25)", () => {
+  beforeEach(() => { auth.isAdmin = true; auth.isOwner = true; writes.length = 0; sessionStorage.clear(); tables.permission_templates = [{ id: "tp1", name: "مندوب مبيعات", base_role: "cashier", perms: {} }]; });
+
+  it("?perm_role=cashier hides a card for every cashier — saved into the role", async () => {
+    show("/branch/b1/dashboard?perm_role=cashier");
+    expect(await screen.findByText(/بتظبط دور «cashier» — بيتطبق على كل الموظفين اللي عليه/)).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "الفرع ده بس" })).toBeNull(); // a role is for every branch
+    fireEvent.click(screen.getByRole("button", { name: /إخفاء رصيد الخزنة عن cashier/ }));
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+    await waitFor(() => expect(writes.find((w) => w.table === "role_permissions")).toMatchObject({
+      op: "upsert", rows: [{ tenant_id: "t1", role: "cashier", permission_key: "part.dashboard.till_balance.view", allowed: false }],
+    }));
+  });
+
+  it("?perm_role=tpl:<id> saves into the company role", async () => {
+    show("/branch/b1/dashboard?perm_role=tpl:tp1");
+    expect(await screen.findByText(/بتظبط دور «مندوب مبيعات»/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /إخفاء رصيد الخزنة عن مندوب مبيعات/ }));
+    fireEvent.click(screen.getByRole("button", { name: "حفظ" }));
+    await waitFor(() => expect(writes.find((w) => w.table === "permission_templates")).toMatchObject({ op: "update", x: { perms: { "part.dashboard.till_balance.view": false } } }));
+  });
+
+  it("stays on when moving to another page without the query, until «خروج»", async () => {
+    const { unmount } = show("/branch/b1/dashboard?perm_for=u2");
+    await screen.findByRole("region", { name: "شريط تظبيط الصفحة" });
+    unmount();
+    show("/branch/b1/dashboard");
+    expect(await screen.findByRole("region", { name: "شريط تظبيط الصفحة" })).toBeInTheDocument();
+  });
+});
+

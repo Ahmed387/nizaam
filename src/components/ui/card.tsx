@@ -22,8 +22,21 @@ function titleOf(node: React.ReactNode, depth = 0): string | null {
   return titleOf(el.props?.children, depth + 1);
 }
 
+/** A KPI card without <CardTitle>: its first small label line («إجمالي العجز/الزيادة» …). */
+function labelOf(children: React.ReactNode): string | null {
+  const first = React.Children.toArray(children).find((c) => React.isValidElement(c)) as React.ReactElement<any> | undefined;
+  const cls = String(first?.props?.className ?? "");
+  if (!first || !/\btext-(xs|sm)\b/.test(cls)) return null;
+  const flat = (n: React.ReactNode): string =>
+    typeof n === "string" || typeof n === "number" ? String(n)
+      : Array.isArray(n) ? n.map(flat).join("")
+      : React.isValidElement(n) ? flat((n.props as any).children) : "";
+  const t = flat(first.props.children).replace(/\s+/g, " ").trim();
+  return t && t.length <= 60 ? t : null;
+}
+
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <AutoPart prefix="card" label={titleOf(props.children)}>
+  <AutoPart prefix="card" label={titleOf(props.children) ?? labelOf(props.children)}>
     <div ref={ref} className={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...props} />
   </AutoPart>
 ));

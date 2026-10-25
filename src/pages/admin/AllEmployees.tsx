@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PermCard, autoButtons } from "@/contexts/PermCustomize";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -291,33 +292,33 @@ export default function AllEmployees() {
         </TabsList>
 
         <TabsContent value="list" className="mt-4 space-y-4">
-          <div className="flex gap-2 flex-wrap justify-end">
+          {autoButtons(<div className="flex gap-2 flex-wrap justify-end">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> موظف جديد</Button>
-          </div>
+          </div>)}
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-4">
-        <div className="p-4 rounded-lg border bg-card">
+        <PermCard label="إجمالي الموظفين"><div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><Users className="w-3 h-3" /> إجمالي الموظفين</div>
           <div className="text-2xl font-bold mt-1">{stats.total}</div>
-        </div>
-        <div className="p-4 rounded-lg border bg-success/5 border-success/30">
+        </div></PermCard>
+        <PermCard label="النشطين"><div className="p-4 rounded-lg border bg-success/5 border-success/30">
           <div className="text-xs text-success flex items-center gap-1"><UserCheck className="w-3 h-3" /> النشطين</div>
           <div className="text-2xl font-bold mt-1 text-success">{stats.active}</div>
-        </div>
-        <div className="p-4 rounded-lg border bg-muted">
+        </div></PermCard>
+        <PermCard label="موقوفين"><div className="p-4 rounded-lg border bg-muted">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><UserX className="w-3 h-3" /> موقوفين</div>
           <div className="text-2xl font-bold mt-1">{stats.inactive}</div>
-        </div>
-        <div className="p-4 rounded-lg border bg-card">
+        </div></PermCard>
+        <PermCard label="إجمالي الرواتب الشهرية"><div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><Wallet className="w-3 h-3" /> إجمالي الرواتب الشهرية</div>
           <FinancialAmount value={stats.salaryTotal} size="md" className="mt-1 justify-start text-primary" />
-        </div>
-        <div className="p-4 rounded-lg border bg-card">
+        </div></PermCard>
+        <PermCard label="صافي الرواتب (بعد السلف)"><div className="p-4 rounded-lg border bg-card">
           <div className="text-xs text-muted-foreground flex items-center gap-1"><Coins className="w-3 h-3" /> صافي الرواتب (بعد السلف)</div>
           <FinancialAmount value={netSalaryTotal} size="md" className="mt-1 justify-start text-success" />
           <div className="text-[11px] text-muted-foreground mt-1">أقساط سلف مستحقة: {formatEGP(stats.advanceDue)}</div>
-        </div>
+        </div></PermCard>
       </div>
 
       <div className="flex gap-3 mb-4 flex-wrap">

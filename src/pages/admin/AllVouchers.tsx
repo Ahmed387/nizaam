@@ -1,4 +1,5 @@
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
+import { PermButton } from "@/contexts/PermCustomize";
 import { PageHeader } from "@/components/layout/AppShell";
 import { VouchersTable } from "@/components/VouchersTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +19,7 @@ export default function AllVouchers({ embedded }: { embedded?: boolean } = {}) {
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader title="السندات المالية" subtitle="كل سندات القبض والصرف من جميع الفروع" />
-      <div className="mb-3"><CreditDepositButton /></div>
+      <div className="mb-3"><PermButton label="إيداع رصيد تحت الحساب"><CreditDepositButton /></PermButton></div>
       <Tabs defaultValue={def}>
         <TabsList>
           <TabsTrigger value="all">الكل</TabsTrigger>

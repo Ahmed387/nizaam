@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -85,26 +86,26 @@ export function GlReconciliationPanel() {
       {gl && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-            <div className={`rounded-lg border p-3 ${ok(gl.inter_branch_1910_total) ? "" : "border-destructive/50 bg-destructive/5"}`}>
+            <PermCard label="حساب جاري الفروع 1910 (الشركة)"><div className={`rounded-lg border p-3 ${ok(gl.inter_branch_1910_total) ? "" : "border-destructive/50 bg-destructive/5"}`}>
               <div className="text-xs text-muted-foreground">حساب جاري الفروع 1910 (الشركة)</div>
               <div className="text-lg font-bold">{formatEGP(gl.inter_branch_1910_total)}</div>
               <div className="text-[11px] text-muted-foreground">{ok(gl.inter_branch_1910_total) ? "✓ صفر زي ما لازم" : "لازم يكون صفر"}</div>
-            </div>
-            <div className={`rounded-lg border p-3 ${ok(gl.customer_advances.ledger - gl.customer_advances.gl_2150) ? "" : "border-warning/50 bg-warning/5"}`}>
+            </div></PermCard>
+            <PermCard label="مقدمات العملاء"><div className={`rounded-lg border p-3 ${ok(gl.customer_advances.ledger - gl.customer_advances.gl_2150) ? "" : "border-warning/50 bg-warning/5"}`}>
               <div className="text-xs text-muted-foreground">مقدمات العملاء</div>
               <div className="text-lg font-bold">{formatEGP(gl.customer_advances.ledger)}</div>
               <div className="text-[11px] text-muted-foreground">القيود (2150): {formatEGP(gl.customer_advances.gl_2150)}</div>
-            </div>
-            <div className={`rounded-lg border p-3 ${ok(gl.supplier_advances.ledger - gl.supplier_advances.gl_1460) ? "" : "border-warning/50 bg-warning/5"}`}>
+            </div></PermCard>
+            <PermCard label="مقدماتنا عند الموردين"><div className={`rounded-lg border p-3 ${ok(gl.supplier_advances.ledger - gl.supplier_advances.gl_1460) ? "" : "border-warning/50 bg-warning/5"}`}>
               <div className="text-xs text-muted-foreground">مقدماتنا عند الموردين</div>
               <div className="text-lg font-bold">{formatEGP(gl.supplier_advances.ledger)}</div>
               <div className="text-[11px] text-muted-foreground">القيود (1460): {formatEGP(gl.supplier_advances.gl_1460)}</div>
-            </div>
-            <div className={`rounded-lg border p-3 ${gl.not_posted.movements + gl.not_posted.allocations + gl.old_entries_still_standing === 0 ? "" : "border-destructive/50 bg-destructive/5"}`}>
+            </div></PermCard>
+            <PermCard label="حركات من غير قيد / قيود قديمة قايمة"><div className={`rounded-lg border p-3 ${gl.not_posted.movements + gl.not_posted.allocations + gl.old_entries_still_standing === 0 ? "" : "border-destructive/50 bg-destructive/5"}`}>
               <div className="text-xs text-muted-foreground">حركات من غير قيد / قيود قديمة قايمة</div>
               <div className="text-lg font-bold">{gl.not_posted.movements + gl.not_posted.allocations} / {gl.old_entries_still_standing}</div>
               <div className="text-[11px] text-muted-foreground">قيود قديمة اتعكست: {gl.retired_old_entries}{gl.not_posted.closed_period_skipped ? ` · في فترات مقفولة: ${gl.not_posted.closed_period_skipped}` : ""}</div>
-            </div>
+            </div></PermCard>
           </div>
 
           <DataTable

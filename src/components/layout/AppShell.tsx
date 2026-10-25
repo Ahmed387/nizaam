@@ -1,4 +1,5 @@
 import { NavLink, useLocation, Link, useNavigate } from "react-router-dom";
+import { autoButtons } from "@/contexts/PermCustomize";
 import { OpenDocsBar } from "@/components/documents/OpenDocsBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
@@ -497,7 +498,8 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
         <h1 className="text-2xl md:text-3xl font-extrabold">{title}</h1>
         {subtitle && <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {/* every top button of every page has its own show / hide switch (permissions 0114) */}
+      {actions && <div className="flex items-center gap-2">{autoButtons(actions)}</div>}
     </div>
   );
 }

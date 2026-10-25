@@ -8,6 +8,7 @@ const auth: any = {
   roleSettings: [{ role: "warehouse", hidden: false, label: "مسؤول المخزن" }, { role: "driver", hidden: true, label: null }],
   roleLabel: (r: string) => (r === "warehouse" ? "مسؤول المخزن" : (ROLE_LABELS as any)[r] ?? r),
   refresh: vi.fn(),
+  branches: [{ id: "b1", name: "سكة تلة", code: "B1" }],
 };
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() } }));
@@ -91,5 +92,14 @@ describe("Roles screen (migration 0115)", () => {
     fireEvent.change(screen.getByLabelText("اسم الدور"), { target: { value: "كاشير مسائي" } });
     fireEvent.click(screen.getByRole("button", { name: "اعمل الدور" }));
     await waitFor(() => expect(inserts[0]).toMatchObject({ tenant_id: "t1", name: "كاشير مسائي", base_role: "cashier", perms: {} }));
+  });
+
+  it("every page of a role has «افتح الصفحة وظبطها» on the real page for the whole role", async () => {
+    show();
+    fireEvent.click(await screen.findByRole("button", { name: /^كاشير\s*2 موظف/ }));
+    const link = screen.getAllByRole("link", { name: /افتح الصفحة وظبطها/ })[0];
+    expect(link.getAttribute("href")).toBe("/branch/b1/dashboard?perm_role=cashier");
+    fireEvent.click(screen.getByRole("button", { name: /مندوب مبيعات/ }));
+    expect(screen.getAllByRole("link", { name: /افتح الصفحة وظبطها/ })[0].getAttribute("href")).toBe("/branch/b1/dashboard?perm_role=tpl%3Atp1");
   });
 });

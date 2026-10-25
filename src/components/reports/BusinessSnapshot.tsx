@@ -51,7 +51,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
       {err && <div className="text-sm text-destructive">{err}</div>}
 
       {/* The verdict */}
-      <div className={`rounded-2xl border p-5 flex flex-wrap items-center justify-between gap-4 ${winning ? "border-success/40 bg-success/5" : "border-destructive/40 bg-destructive/5"}`}>
+      <PermCard label="الشركة كسبانة / خسرانة (صافي الربح)"><div className={`rounded-2xl border p-5 flex flex-wrap items-center justify-between gap-4 ${winning ? "border-success/40 bg-success/5" : "border-destructive/40 bg-destructive/5"}`}>
         <div className="flex items-center gap-3">
           {winning ? <TrendingUp className="w-9 h-9 text-success" /> : <TrendingDown className="w-9 h-9 text-destructive" />}
           <div>
@@ -65,7 +65,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
           صافي المبيعات {formatEGP(t?.net_sales ?? 0)} − تكلفة البضاعة المباعة {formatEGP(t?.cogs ?? 0)} = مجمل ربح {formatEGP(t?.gross_profit ?? 0)}<br />
           − مصروفات التشغيل {formatEGP(t?.expenses ?? 0)} = <b className="text-foreground">صافي {formatEGP(t?.net_profit ?? 0)}</b>
         </div>
-      </div>
+      </div></PermCard>
 
       {/* Money: sold vs really received vs still owed */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

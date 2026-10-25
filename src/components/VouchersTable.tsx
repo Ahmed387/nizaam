@@ -252,7 +252,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
             <div className="text-xs text-muted-foreground">إجمالي الصرف</div>
             <div className="text-xl font-bold text-destructive">{formatEGP(summary.totalOut)}</div>
           </div></PermCard>
-          <div className="card-elevated p-4">
+          <PermCard label="الصافي (القبض − الصرف)"><div className="card-elevated p-4">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>الصافي (القبض − الصرف)</span>
               <Badge variant={summary.net >= 0 ? "secondary" : "destructive"}>{summary.net >= 0 ? "فائض" : "عجز"}</Badge>
@@ -260,7 +260,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
             <div className={`text-xl font-bold ${summary.net >= 0 ? "text-success" : "text-destructive"}`}>
               {formatEGP(Math.abs(summary.net))}
             </div>
-          </div>
+          </div></PermCard>
         </div>
       )}
 

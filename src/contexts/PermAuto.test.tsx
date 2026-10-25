@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 
 // the signed-in user may not see: one auto card, one tab, one column
 const hidden = new Set<string>();
-const auth = { isAdmin: false, isOwner: false, tenantId: "t1", roleLabel: (r: string) => r, can: (k: string) => !hidden.has(k) };
+const auth = { isAdmin: false, isOwner: false, tenantId: "t1", branches: [] as any[], roleLabel: (r: string) => r, can: (k: string) => !hidden.has(k) };
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth }));
 const tables: Record<string, any[]> = {
   profiles: [{ name: "mohayassr07", username: "mohayassr07" }], user_roles: [{ role: "cashier" }], role_permissions: [], user_permissions: [], user_company_roles: [],
@@ -17,7 +17,8 @@ function q(table: string) {
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (t: string) => q(t), rpc: vi.fn() } }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() } }));
 
-import { PermCustomizeProvider, PermCard, PermPart, autoPartId } from "./PermCustomize";
+import { PermCustomizeProvider, PermCard, PermPart, autoPartId, autoButtons } from "./PermCustomize";
+import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,6 +40,7 @@ const Page = () => (
       <tbody><tr><td>غسالة</td><td>شراء 100</td></tr></tbody>
     </PermTable>
     <Card><CardHeader><CardTitle>أعلى العملاء</CardTitle></CardHeader><CardContent>محتوى الكارت</CardContent></Card>
+    {autoButtons(<div><Button>تصدير Excel</Button><Button>موظف جديد</Button></div>)}
     <PermPart page="dashboard" part="collections" group>
       <PermCard label="وعاء كاش"><div>كارت الكاش</div></PermCard>
       <PermCard label="وعاء بنك"><div>كارت البنك</div></PermCard>
@@ -48,7 +50,7 @@ const Page = () => (
 const show = (url: string) => render(<MemoryRouter initialEntries={[url]}><PermCustomizeProvider><Page /></PermCustomizeProvider></MemoryRouter>);
 
 describe("every card, tab and column tags itself on a catalogue page", () => {
-  beforeEach(() => { hidden.clear(); auth.isAdmin = false; auth.isOwner = false; });
+  beforeEach(() => { hidden.clear(); auth.isAdmin = false; auth.isOwner = false; sessionStorage.clear(); });
 
   it("ids are stable and match the database rule", () => {
     expect(autoPartId("card", "صافي الربح")).toBe(autoPartId("card", "صافي الربح"));
@@ -79,6 +81,13 @@ describe("every card, tab and column tags itself on a catalogue page", () => {
     expect(screen.getByText("غسالة")).toBeInTheDocument();
   });
 
+  it("a hidden button is gone for him", () => {
+    hidden.add(`part.dashboard.${autoPartId("btn", "تصدير Excel")}.view`);
+    show("/branch/b1/dashboard");
+    expect(screen.queryByRole("button", { name: "تصدير Excel" })).toBeNull();
+    expect(screen.getByRole("button", { name: "موظف جديد" })).toBeInTheDocument();
+  });
+
   it("hides one card of a box without hiding the box", () => {
     hidden.add(`part.dashboard.${autoPartId("card", "وعاء بنك")}.view`);
     show("/branch/b1/dashboard");
@@ -100,7 +109,10 @@ describe("every card, tab and column tags itself on a catalogue page", () => {
     expect(screen.getByRole("button", { name: /إخفاء تاب «تاب ب» عن mohayassr07/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /إخفاء عمود التليفون عن mohayassr07/ }));
     expect(screen.getByRole("button", { name: /إظهار عمود التليفون عن mohayassr07/ })).toBeInTheDocument();
-    expect(screen.getByText(/1 مخفي من 12/)).toBeInTheDocument();
+    expect(screen.getByText(/1 مخفي من 14/)).toBeInTheDocument();
+    // the page's buttons too
+    expect(screen.getByRole("button", { name: /إخفاء زرار «تصدير Excel» عن mohayassr07/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /إخفاء زرار «موظف جديد» عن mohayassr07/ })).toBeInTheDocument();
     // a box of several cards: the box has a switch and every card inside has its own
     expect(screen.getByRole("button", { name: /إخفاء كارت «وعاء كاش» عن mohayassr07/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /إخفاء كارت «وعاء بنك» عن mohayassr07/ })).toBeInTheDocument();
