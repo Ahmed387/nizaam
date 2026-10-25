@@ -10,10 +10,13 @@ import AllInventory from "./AllInventory";
 import PriceAuditLog from "./PriceAuditLog";
 import ProductAttributes from "./ProductAttributes";
 import ProductImagesBulk from "./ProductImagesBulk";
+import ProductImagesManager from "./ProductImagesManager";
+import { useState } from "react";
 
 export default function CatalogHub() {
   const [params, setParams] = useSearchParams();
   const { can, isAdmin } = useAuth();
+  const [imgReload, setImgReload] = useState(0);
   const show = {
     branches: can("admin_catalog_branches.view"),
     categories: can("admin_catalog_categories.view"),
@@ -38,7 +41,7 @@ export default function CatalogHub() {
           {show.inventory && <TabsTrigger value="inventory">مخزون كل الفروع</TabsTrigger>}
           {show.attributes && <TabsTrigger value="attributes">خصائص المنتجات</TabsTrigger>}
           {show["price-audit"] && <TabsTrigger value="price-audit">سجل الأسعار</TabsTrigger>}
-          {show.images && <TabsTrigger value="images">صور المنتجات بالجملة</TabsTrigger>}
+          {show.images && <TabsTrigger value="images">صور المنتجات</TabsTrigger>}
         </TabsList>
         {show.branches && <TabsContent value="branches" className="mt-4"><Branches embedded /></TabsContent>}
         {show.categories && <TabsContent value="categories" className="mt-4"><Categories embedded /></TabsContent>}
@@ -46,7 +49,7 @@ export default function CatalogHub() {
         {show.inventory && <TabsContent value="inventory" className="mt-4"><AllInventory embedded /></TabsContent>}
         {show.attributes && <TabsContent value="attributes" className="mt-4"><ProductAttributes embedded /></TabsContent>}
         {show["price-audit"] && <TabsContent value="price-audit" className="mt-4"><PriceAuditLog embedded /></TabsContent>}
-        {show.images && <TabsContent value="images" className="mt-4"><ProductImagesBulk /></TabsContent>}
+        {show.images && <TabsContent value="images" className="mt-4 space-y-4"><ProductImagesManager reloadKey={imgReload} /><ProductImagesBulk onDone={() => setImgReload((n) => n + 1)} /></TabsContent>}
       </Tabs>
     </AdminLayout>
   );

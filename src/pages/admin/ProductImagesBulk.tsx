@@ -32,7 +32,7 @@ const base = (n: string) => n.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "");
 const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} ميجا` : `${Math.round(n / 1024)} KB`);
 const mime = (n: string) => (/\.png$/i.test(n) ? "image/png" : /\.webp$/i.test(n) ? "image/webp" : /\.svg$/i.test(n) ? "image/svg+xml" : "image/jpeg");
 
-export default function ProductImagesBulk() {
+export default function ProductImagesBulk({ onDone }: { onDone?: () => void } = {}) {
   const { tenantId } = useAuth();
   const input = useRef<HTMLInputElement>(null);
   const [items, setItems] = useState<Item[]>([]);
@@ -117,6 +117,7 @@ export default function ProductImagesBulk() {
     // three at a time: fast enough, never a flood on the server
     await Promise.all([worker(), worker(), worker()]);
     setRunning(false);
+    onDone?.();
     toast.success("خلص الرفع — شوف التقرير تحت");
   };
 

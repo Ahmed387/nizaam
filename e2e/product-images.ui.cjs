@@ -103,7 +103,7 @@ const check = (name, ok, extra = "") => results.push(`${ok ? "✅" : "❌"} ${na
   const db = makeDb();
   const { ctx, page } = await open(browser, db, OWNER);
   await page.goto(`${BASE}/admin/catalog?tab=images`); await page.waitForLoadState("networkidle").catch(() => {}); await page.waitForTimeout(800);
-  check("تاب «صور المنتجات بالجملة» موجود", await page.getByRole("tab", { name: "صور المنتجات بالجملة" }).isVisible().catch(() => false));
+  check("تاب «صور المنتجات» موجود", await page.getByRole("tab", { name: "صور المنتجات" }).isVisible().catch(() => false));
   await page.setInputFiles('input[aria-label="اختار الصور أو ملف zip"]', process.env.ZIPS.split(","));
   await page.getByText("صور اتقرت").waitFor({ timeout: 60000 });
   const summary = await page.getByLabel("ملخص الرفع").innerText();
