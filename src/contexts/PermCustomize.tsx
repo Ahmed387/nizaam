@@ -8,6 +8,7 @@ import { AppRole, DEFAULT_ROLE_PERMISSIONS, ROLE_LABELS } from "@/lib/roles";
 import { PERMISSION_CATALOG, PagePart, pageForPath, partKey } from "@/lib/permissionCatalog";
 import { Overrides, RolePerms, effective, fromRows, setOverride, toRows } from "@/lib/permissionModel";
 import { rpcErrorText } from "@/lib/rpcError";
+import { withCompanyRole } from "@/lib/companyRoles";
 
 /**
  * «افتح الصفحة وظبطها» (owner decision 2026-10-24): any page opened with `?perm_for=<user id>` shows, on every
@@ -32,7 +33,7 @@ const partInfo = (page: string, part: string) =>
   PERMISSION_CATALOG.flatMap((s) => s.pages).find((p) => p.key === page)?.parts.find((x) => x.id === part);
 
 export function PermCustomizeProvider({ children }: { children: ReactNode }) {
-  const { isAdmin, isOwner, tenantId } = useAuth();
+  const { isAdmin, isOwner, tenantId, roleLabel } = useAuth();
   const loc = useLocation();
   const nav = useNavigate();
   const qs = new URLSearchParams(loc.search);
@@ -43,7 +44,7 @@ export function PermCustomizeProvider({ children }: { children: ReactNode }) {
   // the provider lives above the routes: follow «perm_scope» each time a page is opened from the permissions screen
   const urlScope = qs.get("perm_scope") === "branch";
   useEffect(() => { setScopeBranch(urlScope); }, [urlScope, loc.pathname]);
-  const [state, setState] = useState<{ uid: string; name: string; roles: string[]; rolePerms: RolePerms; saved: Overrides; draft: Overrides } | null>(null);
+  const [state, setState] = useState<{ uid: string; name: string; roles: string[]; roleNames: string[]; rolePerms: RolePerms; saved: Overrides; draft: Overrides } | null>(null);
   const [preview, setPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const registry = useRef(new Map<string, Meta>());
@@ -52,18 +53,22 @@ export function PermCustomizeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!allowed || !tenantId || state?.uid === target) return;
     (async () => {
-      const [prof, roles, rp, ups] = await Promise.all([
+      const [prof, roles, rp, ups, cr] = await Promise.all([
         supabase.from("profiles").select("name, username").eq("id", target!).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", target!),
         supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId),
         supabase.from("user_permissions" as any).select("permission_key, allowed, branch_id").eq("user_id", target!),
+        supabase.from("user_company_roles" as any).select("permission_templates(id, name, base_role, perms)").eq("user_id", target!).maybeSingle(),
       ]);
       const pmap: RolePerms = {};
       ((rp.data ?? []) as any[]).forEach((r) => ((pmap[r.role] = pmap[r.role] ?? {})[r.permission_key] = !!r.allowed));
       Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([r, d]) => { if (!pmap[r]) pmap[r] = { ...d }; });
-      const rs = ((roles.data ?? []) as any[]).map((r) => r.role as string).filter((r) => r !== "owner");
+      const rs0 = ((roles.data ?? []) as any[]).map((r) => r.role as string).filter((r) => r !== "owner");
+      // on a company role (migration 0115): resolve like the server — his role's differences over its ready role
+      const tpl = (cr as any)?.data?.permission_templates;
+      const eff = withCompanyRole(rs0, pmap, tpl ? { id: tpl.id, name: tpl.name, base_role: tpl.base_role, perms: tpl.perms ?? {} } : null);
       const o = fromRows((ups.data ?? []) as any[]);
-      setState({ uid: target!, name: (prof.data as any)?.name || (prof.data as any)?.username || "الموظف", roles: rs, rolePerms: pmap, saved: o, draft: o });
+      setState({ uid: target!, name: (prof.data as any)?.name || (prof.data as any)?.username || "الموظف", roles: eff.roles, rolePerms: eff.permsByRole, roleNames: tpl ? [tpl.name] : rs0, saved: o, draft: o });
     })();
   }, [allowed, target, tenantId, state?.uid]);
 
@@ -125,7 +130,7 @@ export function PermCustomizeProvider({ children }: { children: ReactNode }) {
       {active && (
         <div dir="rtl" role="region" aria-label="شريط تظبيط الصفحة" className="sticky top-0 z-[60] bg-slate-900 text-white">
           <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
-            <span className="flex items-center gap-2 font-extrabold"><Eye className="w-4 h-4" aria-hidden="true" /> بتظبط اللي يظهر لـ {state!.name} ({state!.roles.map((r) => ROLE_LABELS[r as AppRole] ?? r).join("، ") || "بدون دور"})</span>
+            <span className="flex items-center gap-2 font-extrabold"><Eye className="w-4 h-4" aria-hidden="true" /> بتظبط اللي يظهر لـ {state!.name} ({state!.roleNames.map((r) => roleLabel(r)).join("، ") || "بدون دور"})</span>
             <span className="text-slate-300">{parts.length ? `${hiddenCount} مخفي من ${parts.length} في الصفحة دي` : "الصفحة دي لسه مفيهاش بوكسات بتتظبط"}</span>
             {urlBranch && (
               <span role="radiogroup" aria-label="التغيير لمين" className="flex rounded-lg border border-slate-500 overflow-hidden">

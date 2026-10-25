@@ -117,3 +117,30 @@ describe("managers and partners can be restricted, the owner never", () => {
     expect(effective(["super_admin"], {}, { "sales.create@b1": false }, "sales.create", "b1")).toBe(true);
   });
 });
+
+import { withCompanyRole, roleName } from "./companyRoles";
+describe("company roles (migration 0115) — same order as perm_resolve", () => {
+  const tpl = { id: "t1", name: "مندوب مبيعات", base_role: "cashier", perms: { "treasury.view": false, "receipt_vouchers.create": true } };
+  const rp2 = { cashier: { ...DEFAULT_ROLE_PERMISSIONS.cashier, "treasury.view": true, "receipt_vouchers.create": false } } as Record<string, Record<string, boolean>>;
+  it("the company role wins over its ready role, for everyone on it", () => {
+    const e = withCompanyRole(["cashier"], rp2, tpl);
+    expect(checkPermission(e.roles as any, e.permsByRole, "treasury.view", {})).toBe(false);
+    expect(checkPermission(e.roles as any, e.permsByRole, "receipt_vouchers.create", {})).toBe(true);
+    // what he doesn't change comes from «كاشير»
+    expect(checkPermission(e.roles as any, e.permsByRole, "sales.create", {})).toBe(checkPermission(["cashier"], rp2, "sales.create", {}));
+    // a plain cashier is untouched
+    expect(checkPermission(["cashier"], rp2, "treasury.view", {})).toBe(true);
+  });
+  it("one employee may still differ from his company role", () => {
+    const e = withCompanyRole(["cashier"], rp2, tpl);
+    expect(checkPermission(e.roles as any, e.permsByRole, "treasury.view", { "treasury.view": true })).toBe(true);
+  });
+  it("a closed page in the company role closes its cards", () => {
+    const e = withCompanyRole(["cashier"], rp2, { ...tpl, perms: { "dashboard.view": false } });
+    expect(checkPermission(e.roles as any, e.permsByRole, "part.dashboard.sales_today.view", {})).toBe(false);
+  });
+  it("renamed ready roles", () => {
+    expect(roleName("warehouse", [{ role: "warehouse", hidden: false, label: "مسؤول المخزن" }])).toBe("مسؤول المخزن");
+    expect(roleName("cashier", [])).toBe("كاشير");
+  });
+});

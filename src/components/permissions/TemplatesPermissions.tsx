@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Save, RotateCcw, Plus, Trash2 } from "lucide-react";
+import { Loader2, Save, RotateCcw, Plus, Trash2, Eye, EyeOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +13,7 @@ import { CatalogPage } from "@/lib/permissionCatalog";
 import { Overrides, RolePerms, allowAllPage, effective, pageKeys, resetPage, setOverride } from "@/lib/permissionModel";
 import { rpcErrorText } from "@/lib/rpcError";
 import { PermissionEditor } from "./PermissionEditor";
+import { tplRole } from "@/lib/companyRoles";
 
 type Template = { id: string; name: string; base_role: string; perms: Overrides };
 type Selected = { kind: "role"; role: string } | { kind: "custom"; id: string };
@@ -21,7 +22,13 @@ type Selected = { kind: "role"; role: string } | { kind: "custom"; id: string };
 const MATRIX_KEYS = PERMISSION_GROUPS.flatMap((g) => g.actions.map((a) => `${g.key}.${a}`));
 
 export function TemplatesPermissions() {
-  const { tenantId } = useAuth();
+  const { tenantId, roleLabel, roleSettings, refresh } = useAuth();
+  const hidden = new Set(roleSettings.filter((x) => x.hidden).map((x) => x.role));
+  const [usersByTpl, setUsersByTpl] = useState<Record<string, number>>({});
+  const [renameOpen, setRenameOpen] = useState<string | null>(null);
+  const [renameTo, setRenameTo] = useState("");
+  const [delOpen, setDelOpen] = useState<string | null>(null);
+  const [moveTo, setMoveTo] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rolePerms, setRolePerms] = useState<RolePerms>({});
@@ -37,10 +44,11 @@ export function TemplatesPermissions() {
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [rp, tpl, ur] = await Promise.all([
+    const [rp, tpl, ur, ucr] = await Promise.all([
       supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId),
       supabase.from("permission_templates" as any).select("id, name, base_role, perms").order("name"),
-      supabase.from("user_roles").select("role").eq("tenant_id", tenantId),
+      supabase.from("user_roles").select("user_id, role").eq("tenant_id", tenantId),
+      supabase.from("user_company_roles" as any).select("user_id, template_id").eq("tenant_id", tenantId),
     ]);
     const map: RolePerms = {};
     MANAGED_ROLES.forEach((r) => (map[r] = { ...(DEFAULT_ROLE_PERMISSIONS[r] ?? {}) }));
@@ -52,6 +60,9 @@ export function TemplatesPermissions() {
     MANAGED_ROLES.forEach((r) => { if (!stored.has(r)) map[r] = { ...(DEFAULT_ROLE_PERMISSIONS[r] ?? {}) }; });
     const counts: Record<string, number> = {};
     ((ur.data ?? []) as any[]).forEach((x) => (counts[x.role] = (counts[x.role] ?? 0) + 1));
+    const tcounts: Record<string, number> = {};
+    (((ucr as any).data ?? []) as any[]).forEach((x) => (tcounts[x.template_id] = (tcounts[x.template_id] ?? 0) + 1));
+    setUsersByTpl(tcounts);
     const t = ((tpl.data ?? []) as any[]).map((x) => ({ ...x, perms: x.perms ?? {} })) as Template[];
     setRolePerms(map); setDraft(JSON.parse(JSON.stringify(map)));
     setTemplates(t); setTplDraft(Object.fromEntries(t.map((x) => [x.id, JSON.parse(JSON.stringify(x))])));
@@ -122,8 +133,8 @@ export function TemplatesPermissions() {
       ? await supabase.from("role_permissions" as any).delete().eq("tenant_id", tenantId).eq("role", role).in("permission_key", dropped)
       : { error: null };
     setSaving(false);
-    if (error || del.error) return toast.error(rpcErrorText((error ?? del.error) as any, "حفظ القالب"));
-    toast.success(`اتحفظ قالب «${ROLE_LABELS[role as AppRole]}» — بيتطبق على كل الموظفين اللي بالدور ده`);
+    if (error || del.error) return toast.error(rpcErrorText((error ?? del.error) as any, "حفظ الدور"));
+    toast.success(`اتحفظ دور «${roleLabel(role)}» — بيتطبق على كل الموظفين اللي عليه`);
     load();
   };
 
@@ -132,23 +143,42 @@ export function TemplatesPermissions() {
     setSaving(true);
     const { error } = await supabase.from("permission_templates" as any).update({ perms: t.perms, base_role: t.base_role, name: t.name, updated_at: new Date().toISOString() } as any).eq("id", id);
     setSaving(false);
-    if (error) return toast.error(rpcErrorText(error as any, "حفظ القالب"));
-    toast.success(`اتحفظ قالب «${t.name}»`);
+    if (error) return toast.error(rpcErrorText(error as any, "حفظ الدور"));
+    toast.success(`اتحفظ دور «${t.name}» — وصل لكل اللي عليه`);
     load();
   };
 
+  // delete a company role: its employees move first (delete_company_role, migration 0115)
   const removeCustom = async (id: string) => {
-    const { error } = await supabase.from("permission_templates" as any).delete().eq("id", id);
-    if (error) return toast.error(rpcErrorText(error as any, "حذف القالب"));
-    toast.success("اتمسح القالب — الموظفين اللي اتطبّق عليهم بيفضلوا بصلاحياتهم");
+    const n = usersByTpl[id] ?? 0;
+    const args: any = { p_template: id, p_move_to_template: null, p_move_to_role: null };
+    if (n > 0) {
+      if (!moveTo) return toast.error("اختار هتنقل موظفينه على أنهي دور");
+      if (moveTo.startsWith("tpl:")) args.p_move_to_template = moveTo.slice(4); else args.p_move_to_role = moveTo;
+    }
+    const { error } = await supabase.rpc("delete_company_role" as any, args);
+    if (error) return toast.error(rpcErrorText(error as any, "مسح الدور"));
+    toast.success(n ? `اتنقل ${n} موظف واتمسح الدور` : "اتمسح الدور");
+    setDelOpen(null); setMoveTo("");
     setSel({ kind: "role", role: MANAGED_ROLES[0] });
     load();
   };
 
+  // hide / show / rename a ready role for this company (set_role_setting, migration 0115)
+  const roleSetting = async (role: string, hide: boolean, label: string | null) => {
+    const { error } = await supabase.rpc("set_role_setting" as any, { p_role: role, p_hidden: hide, p_label: label } as any);
+    if (error) return toast.error(rpcErrorText(error as any, "إعداد الدور"));
+    toast.success(hide ? `«${roleLabel(role)}» اتخفى — محدش يقدر يتعيّن عليه` : label ? `اسمه بقى «${label}»` : "اتحفظ");
+    setRenameOpen(null);
+    await refresh();
+    load();
+  };
+  const labelOf = (role: string) => roleSettings.find((x) => x.role === role)?.label ?? null;
+
   const createCustom = async () => {
     if (!tenantId || !newName.trim()) return;
     const { data, error } = await supabase.from("permission_templates" as any).insert({ tenant_id: tenantId, name: newName.trim(), base_role: newBase, perms: {} } as any).select("id").single();
-    if (error) return toast.error(rpcErrorText(error as any, "قالب جديد"));
+    if (error) return toast.error(rpcErrorText(error as any, "دور جديد"));
     setNewOpen(false); setNewName("");
     await load();
     setSel({ kind: "custom", id: (data as any).id });
@@ -156,35 +186,48 @@ export function TemplatesPermissions() {
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
-  const title = sel.kind === "role" ? `قالب «${ROLE_LABELS[sel.role as AppRole]}»` : `قالب «${tplDraft[sel.id]?.name}»`;
+  const title = sel.kind === "role" ? `دور «${roleLabel(sel.role)}»` : `دور «${tplDraft[sel.id]?.name}»`;
 
   return (
     <div dir="rtl" className="flex flex-wrap gap-4 items-start">
-      <aside aria-label="القوالب" className="flex-[1_1_240px] max-w-[300px] rounded-xl border bg-card p-3 space-y-1">
-        <div className="text-xs font-bold text-muted-foreground px-1 pb-1">الأدوار الأساسية</div>
+      <aside aria-label="الأدوار" className="flex-[1_1_260px] max-w-[320px] rounded-xl border bg-card p-3 space-y-1">
+        <div className="text-xs font-bold text-muted-foreground px-1 pb-1">الأدوار الجاهزة</div>
         {MANAGED_ROLES.map((r) => {
           const on = sel.kind === "role" && sel.role === r;
+          const isHidden = hidden.has(r);
+          const n = usersByRole[r] ?? 0;
           return (
-            <button key={r} type="button" aria-current={on} onClick={() => setSel({ kind: "role", role: r })}
-              className={`w-full flex justify-between items-center gap-2 rounded-lg p-2.5 text-right border ${on ? "bg-primary/10 border-primary/40" : "border-transparent hover:bg-muted/50"}`}>
-              <span className="font-bold text-sm">{ROLE_LABELS[r]}</span>
-              <span className="text-xs text-muted-foreground shrink-0">{usersByRole[r] ? `${usersByRole[r]} موظف` : "مفيش"}</span>
-            </button>
+            <div key={r} className={`flex items-center gap-1 rounded-lg border ${on ? "bg-primary/10 border-primary/40" : "border-transparent hover:bg-muted/50"} ${isHidden ? "opacity-60" : ""}`}>
+              <button type="button" aria-current={on} onClick={() => setSel({ kind: "role", role: r })} className="flex-1 min-w-0 flex justify-between items-center gap-2 p-2.5 text-right">
+                <span className="font-bold text-sm truncate">{roleLabel(r)}{labelOf(r) && <span className="block text-[10px] font-normal text-muted-foreground">أصله «{ROLE_LABELS[r]}»</span>}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{isHidden ? "مخفي" : n ? `${n} موظف` : "مفيش"}</span>
+              </button>
+              <button type="button" aria-label={`غيّر اسم ${roleLabel(r)}`} title="غيّر الاسم" onClick={() => { setRenameTo(labelOf(r) ?? ""); setRenameOpen(r); }}
+                className="w-8 h-8 shrink-0 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted"><Pencil className="w-3.5 h-3.5" /></button>
+              {r !== "viewer" && (
+                <button type="button" aria-label={`${isHidden ? "إظهار" : "إخفاء"} ${roleLabel(r)}`} title={isHidden ? "إظهار" : n ? `عليه ${n} موظف — انقلهم الأول` : "إخفاء من الشركة"}
+                  onClick={() => roleSetting(r, !isHidden, labelOf(r))}
+                  className="w-8 h-8 shrink-0 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted">
+                  {isHidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              )}
+            </div>
           );
         })}
-        <div className="text-xs font-bold text-muted-foreground px-1 pt-3 pb-1">قوالبك</div>
+        <div className="text-xs font-bold text-muted-foreground px-1 pt-3 pb-1">أدوار الشركة</div>
         {templates.map((t) => {
           const on = sel.kind === "custom" && sel.id === t.id;
+          const n = usersByTpl[t.id] ?? 0;
           return (
             <button key={t.id} type="button" aria-current={on} onClick={() => setSel({ kind: "custom", id: t.id })}
               className={`w-full flex justify-between items-center gap-2 rounded-lg p-2.5 text-right border ${on ? "bg-primary/10 border-primary/40" : "border-transparent hover:bg-muted/50"}`}>
-              <span className="font-bold text-sm">{t.name}</span>
-              <span className="text-xs text-muted-foreground shrink-0">من {ROLE_LABELS[t.base_role as AppRole] ?? t.base_role}</span>
+              <span className="min-w-0"><span className="block font-bold text-sm truncate">{t.name}</span><span className="block text-[10px] text-muted-foreground">مبني على {roleLabel(t.base_role)}</span></span>
+              <span className="text-xs text-muted-foreground shrink-0">{n ? `${n} موظف` : "مفيش"}</span>
             </button>
           );
         })}
-        {!templates.length && <div className="text-xs text-muted-foreground px-1">لسه مفيش. اعمل واحد من هنا أو من «احفظه كقالب» عند أي موظف.</div>}
-        <Button variant="outline" size="sm" className="w-full mt-2 border-dashed" onClick={() => setNewOpen(true)}><Plus className="w-4 h-4 ml-1" /> قالب جديد</Button>
+        {!templates.length && <div className="text-xs text-muted-foreground px-1">لسه مفيش. اعمل واحد من هنا أو من «احفظه كدور جديد» عند أي موظف.</div>}
+        <Button variant="outline" size="sm" className="w-full mt-2 border-dashed" onClick={() => setNewOpen(true)}><Plus className="w-4 h-4 ml-1" /> دور جديد</Button>
       </aside>
 
       <main className="flex-[999_1_600px] min-w-0 space-y-3">
@@ -194,22 +237,22 @@ export function TemplatesPermissions() {
             <div className="text-xs text-muted-foreground">
               {sel.kind === "role"
                 ? "أي تغيير هنا بيتطبق على كل الموظفين اللي بالدور ده، ماعدا الحاجات اللي متعدّلة للموظف نفسه."
-                : "قالب من عندك: دور أساسي ومعاه اختلافات. لما تطبّقه على موظف بياخد الدور والاختلافات دي."}
+                : `دور من عندك مبني على «${roleLabel(tplDraft[sel.id]?.base_role ?? "")}». أي تغيير هنا بيوصل لكل الـ ${usersByTpl[sel.id] ?? 0} موظف اللي عليه على طول، ماعدا اللي متعدّل للموظف نفسه.`}
             </div>
           </div>
           {sel.kind === "role" ? (
-            <Button variant="outline" size="sm" onClick={() => setDraft((d) => ({ ...d, [sel.role]: { ...(DEFAULT_ROLE_PERMISSIONS[sel.role] ?? {}) } }))}><RotateCcw className="w-4 h-4 ml-1" /> رجّع القالب للأصل</Button>
+            <Button variant="outline" size="sm" onClick={() => setDraft((d) => ({ ...d, [sel.role]: { ...(DEFAULT_ROLE_PERMISSIONS[sel.role] ?? {}) } }))}><RotateCcw className="w-4 h-4 ml-1" /> رجّع الدور للأصل</Button>
           ) : (
             <>
               <Select value={tplDraft[sel.id]?.base_role} onValueChange={(v) => setTplDraft((d) => ({ ...d, [sel.id]: { ...d[sel.id], base_role: v } }))}>
                 <SelectTrigger className="w-44" aria-label="الدور الأساسي"><SelectValue /></SelectTrigger>
-                <SelectContent>{MANAGED_ROLES.map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}</SelectContent>
+                <SelectContent>{MANAGED_ROLES.filter((r) => !hidden.has(r)).map((r) => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}</SelectContent>
               </Select>
-              <Button variant="outline" size="sm" className="text-destructive" onClick={() => removeCustom(sel.id)}><Trash2 className="w-4 h-4 ml-1" /> امسح القالب</Button>
+              <Button variant="outline" size="sm" className="text-destructive" onClick={() => { setMoveTo(""); setDelOpen(sel.id); }}><Trash2 className="w-4 h-4 ml-1" /> امسح الدور</Button>
             </>
           )}
           <Button size="sm" disabled={saving || !dirty} onClick={() => (sel.kind === "role" ? saveRole(sel.role) : saveCustom(sel.id))}>
-            {saving ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <Save className="w-4 h-4 ml-1" />} حفظ القالب
+            {saving ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <Save className="w-4 h-4 ml-1" />} حفظ الدور
           </Button>
         </section>
         {sel.kind === "role" && (
@@ -220,28 +263,69 @@ export function TemplatesPermissions() {
         )}
         {sel.kind === "role" ? <PermissionEditor bind={roleBind(sel.role)} />
           : tplDraft[sel.id] ? <PermissionEditor bind={customBind(sel.id)} />
-          : <div className="p-6 text-sm text-muted-foreground text-center">القالب ده مش موجود — اختار قالب من القايمة.</div>}
+          : <div className="p-6 text-sm text-muted-foreground text-center">الدور ده مش موجود — اختار دور من القايمة.</div>}
       </main>
 
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
         <DialogContent dir="rtl">
           <DialogHeader>
-            <DialogTitle>قالب جديد</DialogTitle>
-            <DialogDescription>القالب بيبدأ من دور أساسي، وبعدين تقفل وتفتح فيه اللي انت عاوزه.</DialogDescription>
+            <DialogTitle>دور جديد</DialogTitle>
+            <DialogDescription>الدور بيتبني على دور جاهز، وبعدين تقفل وتفتح فيه اللي انت عاوزه. أي موظف تحطه عليه بيمشي عليه، ولما تعدّل الدور بيتعدّل عندهم كلهم.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1"><Label htmlFor="new-tpl">اسم القالب</Label><Input id="new-tpl" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={60} placeholder="مثلاً: كاشير الفترة المسائية" /></div>
+            <div className="space-y-1"><Label htmlFor="new-tpl">اسم الدور</Label><Input id="new-tpl" value={newName} onChange={(e) => setNewName(e.target.value)} maxLength={60} placeholder="مثلاً: مندوب مبيعات" /></div>
             <div className="space-y-1">
-              <Label htmlFor="new-base">بيبدأ من دور</Label>
+              <Label htmlFor="new-base">مبني على دور</Label>
               <Select value={newBase} onValueChange={setNewBase}>
                 <SelectTrigger id="new-base"><SelectValue /></SelectTrigger>
-                <SelectContent>{MANAGED_ROLES.map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}</SelectContent>
+                <SelectContent>{MANAGED_ROLES.filter((r) => !hidden.has(r)).map((r) => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setNewOpen(false)}>إلغاء</Button>
-            <Button onClick={createCustom} disabled={!newName.trim()}>اعمل القالب</Button>
+            <Button onClick={createCustom} disabled={!newName.trim()}>اعمل الدور</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!renameOpen} onOpenChange={(o) => !o && setRenameOpen(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>اسم الدور عندك</DialogTitle>
+            <DialogDescription>الاسم بيتغير عند شركتك بس. شغل الدور وصلاحياته على السيرفر زي ما هي (أصله «{renameOpen ? ROLE_LABELS[renameOpen as AppRole] : ""}»).</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1"><Label htmlFor="rename-role">الاسم الجديد</Label><Input id="rename-role" value={renameTo} onChange={(e) => setRenameTo(e.target.value)} maxLength={40} placeholder="مثلاً: مسؤول المخزن" /></div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => renameOpen && roleSetting(renameOpen, hidden.has(renameOpen), null)}>رجّع الاسم الأصلي</Button>
+            <Button variant="outline" onClick={() => setRenameOpen(null)}>إلغاء</Button>
+            <Button onClick={() => renameOpen && roleSetting(renameOpen, hidden.has(renameOpen), renameTo.trim() || null)} disabled={!renameTo.trim()}>حفظ الاسم</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!delOpen} onOpenChange={(o) => !o && setDelOpen(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>امسح دور «{delOpen ? templates.find((t) => t.id === delOpen)?.name : ""}»</DialogTitle>
+            <DialogDescription>
+              {delOpen && (usersByTpl[delOpen] ?? 0) > 0
+                ? `عليه ${usersByTpl[delOpen]} موظف. اختار هيتنقلوا على أنهي دور قبل ما يتمسح — محدش هيفضل من غير دور.`
+                : "مفيش حد عليه. هيتمسح على طول."}
+            </DialogDescription>
+          </DialogHeader>
+          {delOpen && (usersByTpl[delOpen] ?? 0) > 0 && (
+            <Select value={moveTo} onValueChange={setMoveTo}>
+              <SelectTrigger aria-label="انقلهم على"><SelectValue placeholder="انقلهم على…" /></SelectTrigger>
+              <SelectContent>
+                {templates.filter((t) => t.id !== delOpen).map((t) => <SelectItem key={t.id} value={tplRole(t.id)}>{t.name} (دور الشركة)</SelectItem>)}
+                {MANAGED_ROLES.filter((r) => !hidden.has(r)).map((r) => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDelOpen(null)}>إلغاء</Button>
+            <Button variant="destructive" onClick={() => delOpen && removeCustom(delOpen)} disabled={!!delOpen && (usersByTpl[delOpen] ?? 0) > 0 && !moveTo}>امسح الدور</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

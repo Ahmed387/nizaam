@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-const auth = { isAdmin: false, isOwner: false, tenantId: "t1", can: (k: string) => k !== "part.dashboard.till_balance.view" };
+const auth = { isAdmin: false, isOwner: false, tenantId: "t1", roleLabel: (r: string) => r, can: (k: string) => k !== "part.dashboard.till_balance.view" };
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth }));
 
 const rpc = vi.fn();
@@ -11,6 +11,7 @@ const tables: Record<string, any[]> = {
   user_roles: [{ role: "cashier" }],
   role_permissions: [],
   user_permissions: [{ permission_key: "part.dashboard.sales_month.view", allowed: false }],
+  user_company_roles: [],
 };
 function q(table: string) {
   const res = { data: tables[table], error: null };

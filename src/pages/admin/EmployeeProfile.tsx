@@ -36,7 +36,7 @@ export default function EmployeeProfile() {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const nav = useNavigate();
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, roleLabel, roleSettings } = useAuth();
 
   const [emp, setEmp] = useState<any>(null);
   const [branch, setBranch] = useState<any>(null);
@@ -589,7 +589,7 @@ export default function EmployeeProfile() {
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">الدور</div>
-                  <div className="font-semibold">{accountRoles.map((r) => ROLE_LABELS[r]).join("، ") || "—"}</div>
+                  <div className="font-semibold">{accountRoles.map((r) => roleLabel(r)).join("، ") || "—"}</div>
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground mb-1">الفروع المسموح بها</div>
@@ -803,8 +803,8 @@ export default function EmployeeProfile() {
                 <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(ROLE_LABELS) as AppRole[])
-                    .filter((r) => r !== "super_admin")
-                    .map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}
+                    .filter((r) => r !== "super_admin" && (r === acctForm.role || !roleSettings.some((x) => x.role === r && x.hidden)))
+                    .map((r) => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

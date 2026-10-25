@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-const auth = { tenantId: "t1", user: { id: "own" }, isOwner: false, tenant: { owner_user_id: "own" } };
+import { ROLE_LABELS } from "@/lib/roles";
+const auth: any = { tenantId: "t1", user: { id: "own" }, isOwner: false, tenant: { owner_user_id: "own" }, roleSettings: [], roleLabel: (r: string) => (ROLE_LABELS as any)[r] ?? r };
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), message: vi.fn() } }));
 

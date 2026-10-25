@@ -14,7 +14,7 @@ import { formatEGP, formatDate } from "@/lib/format";
 
 export default function Profile() {
   const nav = useNavigate();
-  const { user, profile, roles, branches, loading, refresh } = useAuth();
+  const { user, profile, roles, branches, loading, refresh, roleLabel } = useAuth();
 
 
   const [emp, setEmp] = useState<any>(null);
@@ -173,7 +173,7 @@ export default function Profile() {
               <div className="flex flex-wrap gap-1 mt-2">
                 {roles.map((r) => (
                   <span key={r} className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">
-                    {ROLE_LABELS[r]}
+                    {roleLabel(r)}
                   </span>
                 ))}
               </div>

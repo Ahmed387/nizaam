@@ -4,10 +4,10 @@ import { MemoryRouter } from "react-router-dom";
 
 // the signed-in user may not see: one auto card, one tab, one column
 const hidden = new Set<string>();
-const auth = { isAdmin: false, isOwner: false, tenantId: "t1", can: (k: string) => !hidden.has(k) };
+const auth = { isAdmin: false, isOwner: false, tenantId: "t1", roleLabel: (r: string) => r, can: (k: string) => !hidden.has(k) };
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => auth }));
 const tables: Record<string, any[]> = {
-  profiles: [{ name: "mohayassr07", username: "mohayassr07" }], user_roles: [{ role: "cashier" }], role_permissions: [], user_permissions: [],
+  profiles: [{ name: "mohayassr07", username: "mohayassr07" }], user_roles: [{ role: "cashier" }], role_permissions: [], user_permissions: [], user_company_roles: [],
 };
 function q(table: string) {
   const res = { data: tables[table], error: null };

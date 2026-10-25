@@ -43,7 +43,7 @@ export function AppShell({
   backLabel?: string;
   children: ReactNode;
 }) {
-  const { profile, roles, signOut } = useAuth();
+  const { profile, roles, signOut, roleLabel, companyRole } = useAuth();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -356,7 +356,7 @@ export function AppShell({
               <div className="flex-1 min-w-0">
                 <div className="text-[13px] font-bold truncate leading-tight">{profile?.name}</div>
                 <div className="text-[10.5px] text-muted-foreground truncate mt-0.5">
-                  {roles.map((r) => ROLE_LABELS[r]).join("، ")}
+                  {companyRole ? companyRole.name : roles.map((r) => roleLabel(r)).join("، ")}
                 </div>
               </div>
               <UserCog className="w-4 h-4 text-muted-foreground shrink-0" />

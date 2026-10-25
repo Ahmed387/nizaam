@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, Re
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission, branchKey } from "@/lib/roles";
+import { CompanyRole, RoleSetting, roleName, withCompanyRole } from "@/lib/companyRoles";
 
 interface Tenant {
   id: string;
@@ -43,6 +44,12 @@ interface AuthCtx {
   canInBranch: (key: string, branchId?: string | null) => boolean;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
+  /** The company role this user is on («مندوب مبيعات», migration 0115), if any. */
+  companyRole: CompanyRole | null;
+  /** Ready roles hidden / renamed in this company. */
+  roleSettings: RoleSetting[];
+  /** A role's name in this company (renamed ready role, or the usual label). */
+  roleLabel: (role: string) => string;
 }
 
 const Ctx = createContext<AuthCtx | undefined>(undefined);
@@ -59,6 +66,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ctxReady, setCtxReady] = useState(false);
   const [permsByRole, setPermsByRole] = useState<Record<string, Record<string, boolean>>>({});
   const [userPerms, setUserPerms] = useState<Record<string, boolean>>({});
+  const [companyRole, setCompanyRole] = useState<CompanyRole | null>(null);
+  const [roleSettings, setRoleSettings] = useState<RoleSetting[]>([]);
   const currentUserIdRef = useRef<string | null>(null);
 
   const loadPerms = async (tid: string | null) => {
@@ -86,8 +95,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadCtxInner = async (uid: string) => {
     // Speed (login): the user's own permission overrides don't depend on the context — fetch them alongside it.
     const overridesP = supabase.from("user_permissions" as any).select("permission_key, allowed, branch_id").eq("user_id", uid);
+    // his company role and the company's role names (migration 0115); a database without 0115 just has none
+    const companyRoleP = supabase.from("user_company_roles" as any).select("template_id, permission_templates(id, name, base_role, perms)").eq("user_id", uid).maybeSingle();
     const ctx = await fetchUserContext(uid);
-    const [, { data: overrides }] = await Promise.all([loadPerms(ctx.tenantId), overridesP]);
+    const settingsP = ctx.tenantId
+      ? supabase.from("tenant_role_settings" as any).select("role, hidden, label").eq("tenant_id", ctx.tenantId)
+      : Promise.resolve({ data: [] as any[] });
+    const [, { data: overrides }, cr, rs] = await Promise.all([loadPerms(ctx.tenantId), overridesP, companyRoleP, settingsP]);
+    const tpl = (cr as any)?.data?.permission_templates;
+    setCompanyRole(tpl ? { id: tpl.id, name: tpl.name, base_role: tpl.base_role, perms: tpl.perms ?? {} } : null);
+    setRoleSettings((((rs as any)?.data ?? []) as any[]).map((x) => ({ role: x.role, hidden: !!x.hidden, label: x.label ?? null })));
     setProfile(ctx.profile as any);
     setTenantId(ctx.tenantId);
     setTenant(ctx.tenant);
@@ -272,6 +289,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !["view", "read"].includes(action);
   };
 
+  // a person on a company role is resolved as «tpl:<id>» (its differences over his ready role) — same order as perm_resolve
+  const eff = withCompanyRole(roles, permsByRole, companyRole);
   const isFullOwner = roles.includes("owner") || roles.includes("super_admin") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id);
 
   // stable while the roles don't change, so effects that depend on it don't re-run on every auth render
@@ -300,7 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     can: (key) => {
       // the company owner is never restricted (migration 0114)
       if (isFullOwner) return true;
-      if (!checkPermission(roles, permsByRole, key, userPerms, activeBranchId())) return false;
+      if (!checkPermission(eff.roles as AppRole[], eff.permsByRole, key, userPerms, activeBranchId())) return false;
       // Hard cap: inside a branch marked "read", every write permission is dropped
       // regardless of role matrix or per-user overrides.
       return !isWriteKey(key) || !readOnlyBranch(activeBranchId());
@@ -309,7 +328,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isBranchReadOnly: (branchId) => readOnlyBranch(branchId),
     canInBranch: (key, branchId) => {
       if (isFullOwner) return true;
-      if (!checkPermission(roles, permsByRole, key, userPerms, branchId)) return false;
+      if (!checkPermission(eff.roles as AppRole[], eff.permsByRole, key, userPerms, branchId)) return false;
       return !isWriteKey(key) || !readOnlyBranch(branchId);
     },
     signOut: async () => {
@@ -318,6 +337,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh: async () => {
       if (user) await loadCtx(user.id);
     },
+    companyRole,
+    roleSettings,
+    roleLabel: (r) => roleName(r, roleSettings),
   };
 
   return (

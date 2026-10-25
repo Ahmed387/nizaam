@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AppRole, DEFAULT_ROLE_PERMISSIONS, MANAGED_ROLES, ROLE_LABELS } from "@/lib/roles";
 import { CatalogPage } from "@/lib/permissionCatalog";
 import {
@@ -17,6 +17,7 @@ import {
   resetPage, setOverride, toRows,
 } from "@/lib/permissionModel";
 import { rpcErrorText } from "@/lib/rpcError";
+import { CompanyRole, isTplRole, tplId, tplRole, withCompanyRole } from "@/lib/companyRoles";
 import { PermissionEditor } from "./PermissionEditor";
 
 /** The company owner and super admins are never managed here (always full, migration 0114). */
@@ -26,7 +27,7 @@ type Person = { id: string; name: string; username: string };
 type Template = { id: string; name: string; base_role: string; perms: Overrides };
 
 export function EmployeesPermissions() {
-  const { tenantId, user, isOwner, tenant } = useAuth();
+  const { tenantId, user, isOwner, tenant, roleLabel, roleSettings } = useAuth();
   const [params, setParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState<Person[]>([]);
@@ -36,6 +37,7 @@ export function EmployeesPermissions() {
   const [empByUser, setEmpByUser] = useState<Record<string, string>>({});
   const [rolePerms, setRolePerms] = useState<RolePerms>({});
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [companyRoleByUser, setCompanyRoleByUser] = useState<Record<string, string>>({});
   const [overrideCount, setOverrideCount] = useState<Record<string, number>>({});
 
   const [userId, setUserId] = useState<string>(params.get("user") ?? "");
@@ -57,7 +59,7 @@ export function EmployeesPermissions() {
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
-    const [profs, roles, bu, brs, emps, rp, tpl, ups] = await Promise.all([
+    const [profs, roles, bu, brs, emps, rp, tpl, ups, ucr] = await Promise.all([
       supabase.from("profiles").select("id, name, username").eq("tenant_id", tenantId).order("name"),
       supabase.from("user_roles").select("user_id, role").eq("tenant_id", tenantId),
       supabase.from("branch_users").select("user_id, branch_id, access_level"),
@@ -66,6 +68,7 @@ export function EmployeesPermissions() {
       supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tenantId),
       supabase.from("permission_templates" as any).select("id, name, base_role, perms").order("name"),
       supabase.from("user_permissions" as any).select("user_id, permission_key, allowed").eq("tenant_id", tenantId),
+      supabase.from("user_company_roles" as any).select("user_id, template_id").eq("tenant_id", tenantId),
     ]);
     const rmap: Record<string, string[]> = {};
     ((roles.data ?? []) as any[]).forEach((r) => (rmap[r.user_id] = [...(rmap[r.user_id] ?? []), r.role]));
@@ -91,12 +94,18 @@ export function EmployeesPermissions() {
     setRolePerms(pmap);
     setTemplates(((tpl.data ?? []) as any[]).map((t) => ({ ...t, perms: t.perms ?? {} })));
     setOverrideCount(ocount);
+    setCompanyRoleByUser(Object.fromEntries((((ucr as any).data ?? []) as any[]).map((x) => [x.user_id, x.template_id])));
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tenantId]);
 
   const rolesOf = (uid: string) => rolesByUser[uid] ?? [];
-  const managedRole = (uid: string) => rolesOf(uid).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? "";
+  const readyRole = (uid: string) => rolesOf(uid).find((r) => MANAGED_ROLES.includes(r as AppRole)) ?? "";
+  // «tpl:<id>» when he is on a company role (migration 0115), else his ready role
+  const managedRole = (uid: string) => (companyRoleByUser[uid] && templates.some((t) => t.id === companyRoleByUser[uid]) ? tplRole(companyRoleByUser[uid]) : readyRole(uid));
+  const tplOf = (r: string): CompanyRole | null => (isTplRole(r) ? templates.find((t) => t.id === tplId(r)) ?? null : null);
+  const roleTitle = (r: string) => (isTplRole(r) ? tplOf(r)?.name ?? "دور محذوف" : r ? roleLabel(r) : "بدون دور");
+  const hidden = new Set(roleSettings.filter((x) => x.hidden).map((x) => x.role));
   const kindOf = (uid: string): "manager" | "partner" | "staff" =>
     rolesOf(uid).includes("admin") ? "manager" : rolesOf(uid).includes("partner") ? "partner" : "staff";
 
@@ -134,20 +143,23 @@ export function EmployeesPermissions() {
   const person = people.find((p) => p.id === userId);
   const kind = userId ? kindOf(userId) : "staff";
   // the roles the resolver uses: the chosen template for staff, the fixed roles for managers / partners
-  const effRoles = kind === "staff" ? (role ? [role] : []) : rolesOf(userId).filter((r) => r !== "owner");
+  const tplNow = tplOf(role);
+  const effRoles = kind === "staff" ? (tplNow ? [role] : role ? [role] : []) : rolesOf(userId).filter((r) => r !== "owner");
+  // every company role is a pseudo role «tpl:<id>» = its ready role's map + its differences
+  const rolePermsX = useMemo(() => templates.reduce((m, t) => withCompanyRole([t.base_role], m, t).permsByRole, rolePerms), [templates, rolePerms]);
   const scopeBranches = kind === "staff" ? branches.filter((b) => b.id in links) : branches;
   const branchName = (id: string | null) => (id ? branches.find((b) => b.id === id)?.name ?? "فرع" : "كل الفروع");
-  const diff = useMemo(() => diffOverrides(effRoles, rolePerms, overrides), [effRoles.join(), rolePerms, overrides]); // eslint-disable-line react-hooks/exhaustive-deps
+  const diff = useMemo(() => diffOverrides(effRoles, rolePermsX, overrides), [effRoles.join(), rolePermsX, overrides]); // eslint-disable-line react-hooks/exhaustive-deps
   const kindLabel = kind === "manager" ? "مدير عام — كل حاجة مفتوحة لحد ما تقفل" : kind === "partner" ? "شريك — عرض بس لحد ما تقفل" : null;
 
   const bind = {
-    resetWord: "القالب",
+    resetWord: "الدور",
     scopeNote: scope ? `بتظبط فرع «${branchName(scope)}» بس — اللي مش متعدّل هنا بياخد من «كل الفروع»` : undefined,
-    get: (k: string) => effective(effRoles, rolePerms, overrides, k, scope),
+    get: (k: string) => effective(effRoles, rolePermsX, overrides, k, scope),
     changed: (k: string) => (scope ? `${k}@${scope}` : k) in overrides,
-    set: (k: string, v: boolean) => setOverrides((o) => setOverride(effRoles, rolePerms, o, k, v, scope)),
+    set: (k: string, v: boolean) => setOverrides((o) => setOverride(effRoles, rolePermsX, o, k, v, scope)),
     resetPage: (p: CatalogPage) => setOverrides((o) => resetPage(p, o, scope)),
-    allowAll: (p: CatalogPage) => setOverrides((o) => allowAllPage(effRoles, rolePerms, p, o, scope)),
+    allowAll: (p: CatalogPage) => setOverrides((o) => allowAllPage(effRoles, rolePermsX, p, o, scope)),
     customizeHref: (p: CatalogPage) => {
       if (!p.route || !userId) return null;
       const qs = `perm_for=${userId}${scope ? `&perm_scope=branch` : ""}`;
@@ -165,7 +177,18 @@ export function EmployeesPermissions() {
     try {
       if (kind === "staff") {
         const current = rolesOf(userId);
-        if (role && !current.includes(role)) {
+        const wasTpl = !!companyRoleByUser[userId];
+        if (isTplRole(role)) {
+          // company role: the server sets his ready role too, in one step (migration 0115)
+          if (companyRoleByUser[userId] !== tplId(role)) {
+            const { error } = await supabase.rpc("set_user_company_role" as any, { p_user: userId, p_template: tplId(role) } as any);
+            if (error) throw error;
+          }
+        } else if (wasTpl && role) {
+          const { error } = await supabase.rpc("set_user_company_role" as any, { p_user: userId, p_template: null } as any);
+          if (error) throw error;
+        }
+        if (role && !isTplRole(role) && !current.includes(role)) {
           const old = current.filter((r) => MANAGED_ROLES.includes(r as AppRole));
           if (old.length) {
             const { error } = await supabase.from("user_roles").delete().eq("user_id", userId).in("role", old as any);
@@ -214,22 +237,17 @@ export function EmployeesPermissions() {
   };
 
   const saveTemplate = async () => {
-    if (!tenantId || !tplName.trim() || !role) return toast.error("اكتب اسم للقالب واختار دور");
-    // templates are for every branch: branch-only differences stay with the employee
+    if (!tenantId || !tplName.trim() || !role) return toast.error("اكتب اسم للدور واختار دور يبدأ منه");
+    // a company role is for every branch: branch-only differences stay with the employee
     const base = Object.fromEntries(Object.entries(overrides).filter(([k]) => !parseKey(k).branch));
-    const { error } = await supabase.from("permission_templates" as any).insert({ tenant_id: tenantId, name: tplName.trim(), base_role: role, perms: base } as any);
-    if (error) return toast.error(rpcErrorText(error, "حفظ القالب"));
-    toast.success(`اتحفظ قالب «${tplName.trim()}»`);
+    const from = tplOf(role);
+    const { error } = await supabase.from("permission_templates" as any).insert({
+      tenant_id: tenantId, name: tplName.trim(), base_role: from ? from.base_role : role, perms: { ...(from?.perms ?? {}), ...base },
+    } as any);
+    if (error) return toast.error(rpcErrorText(error, "دور جديد"));
+    toast.success(`اتعمل دور «${tplName.trim()}» — تقدر تحط عليه موظفين من قايمة الدور`);
     setTplOpen(false); setTplName("");
     load();
-  };
-
-  const applyTemplate = (id: string) => {
-    const t = templates.find((x) => x.id === id);
-    if (!t) return;
-    setRole(t.base_role);
-    setOverrides((o) => ({ ...Object.fromEntries(Object.entries(o).filter(([k]) => parseKey(k).branch)), ...t.perms }));
-    toast.message(`اتطبّق قالب «${t.name}» — دوس حفظ عشان يتسجل`);
   };
 
   const chip = (k: string) => {
@@ -258,7 +276,7 @@ export function EmployeesPermissions() {
           const k = kindOf(u.id);
           const r = managedRole(u.id);
           const bnames = Object.keys(linksByUser[u.id] ?? {}).map((b) => branches.find((x) => x.id === b)?.name).filter(Boolean);
-          const sub = k === "manager" ? "مدير عام · كل الفروع" : k === "partner" ? "شريك · كل الفروع" : `${r ? ROLE_LABELS[r as AppRole] : "بدون دور"} · ${bnames.length ? bnames.join("، ") : "مش مربوط بفرع"}`;
+          const sub = k === "manager" ? "مدير عام · كل الفروع" : k === "partner" ? "شريك · كل الفروع" : `${roleTitle(r)} · ${bnames.length ? bnames.join("، ") : "مش مربوط بفرع"}`;
           return (
             <button key={u.id} type="button" onClick={() => pick(u.id)} aria-current={sel}
               className={`w-full flex items-center gap-2 rounded-lg p-2 text-right border ${sel ? "bg-primary/10 border-primary/40" : "border-transparent hover:bg-muted/50"}`}>
@@ -292,7 +310,7 @@ export function EmployeesPermissions() {
                   <Button asChild variant="ghost" size="sm"><Link to={`/admin/employees/${empByUser[person.id]}?tab=account`}><KeyRound className="w-4 h-4 ml-1" /> حساب الدخول</Link></Button>
                 )}
                 <Button variant="outline" size="sm" onClick={() => { setCopyFrom(""); setCopyOpen(true); }}><Copy className="w-4 h-4 ml-1" /> انسخ من موظف تاني</Button>
-                {kind === "staff" && <Button variant="outline" size="sm" onClick={() => setTplOpen(true)}><BookmarkPlus className="w-4 h-4 ml-1" /> احفظه كقالب</Button>}
+                {kind === "staff" && <Button variant="outline" size="sm" onClick={() => setTplOpen(true)}><BookmarkPlus className="w-4 h-4 ml-1" /> احفظه كدور جديد</Button>}
                 <Button size="sm" onClick={save} disabled={saving || !dirty}>{saving ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <Save className="w-4 h-4 ml-1" />} حفظ</Button>
               </div>
 
@@ -301,17 +319,23 @@ export function EmployeesPermissions() {
               ) : (
                 <div className="grid gap-3 md:grid-cols-[220px_1fr]">
                   <div className="space-y-1">
-                    <Label htmlFor="role">بيبدأ من قالب (الدور)</Label>
+                    <Label htmlFor="role">الدور</Label>
                     <Select value={role} onValueChange={setRole}>
                       <SelectTrigger id="role"><SelectValue placeholder="اختار الدور" /></SelectTrigger>
-                      <SelectContent>{MANAGED_ROLES.map((r) => <SelectItem key={r} value={r}>{ROLE_LABELS[r]}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>الأدوار الجاهزة</SelectLabel>
+                          {MANAGED_ROLES.filter((r) => !hidden.has(r) || r === role).map((r) => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}
+                        </SelectGroup>
+                        {templates.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>أدوار الشركة</SelectLabel>
+                            {templates.map((t) => <SelectItem key={t.id} value={tplRole(t.id)}>{t.name} (مبني على {roleLabel(t.base_role)})</SelectItem>)}
+                          </SelectGroup>
+                        )}
+                      </SelectContent>
                     </Select>
-                    {templates.length > 0 && (
-                      <Select value="" onValueChange={applyTemplate}>
-                        <SelectTrigger aria-label="طبّق قالب من قوالبك"><SelectValue placeholder="أو طبّق قالب من قوالبك" /></SelectTrigger>
-                        <SelectContent>{templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name} ({ROLE_LABELS[t.base_role as AppRole] ?? t.base_role})</SelectItem>)}</SelectContent>
-                      </Select>
-                    )}
+                    {tplNow && <p className="text-[11px] text-muted-foreground leading-relaxed">مربوط بدور «{tplNow.name}»: أي تعديل في الدور ده بيوصله على طول. اللي هتغيّره هنا بيبقى ليه هو بس.</p>}
                   </div>
                   <div className="space-y-1">
                     <div className="text-sm font-medium">الفروع اللي شغال فيها — دوس على الفرع يتربط، ودوس على المستوى يبدّل</div>
@@ -359,12 +383,12 @@ export function EmployeesPermissions() {
             {(diff.extra.length > 0 || diff.revoked.length > 0 || dirty) && (
               <div role="status" className="rounded-xl border border-warning/40 bg-warning/10 p-3 space-y-2 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-bold">مختلف عن {kind === "staff" ? `قالب «${ROLE_LABELS[role as AppRole] ?? (role || "بدون دور")}»` : "صلاحياته الكاملة"}:</span>
+                  <span className="font-bold">مختلف عن {kind === "staff" ? `دور «${roleTitle(role)}»` : "صلاحياته الكاملة"}:</span>
                   <button type="button" className="rounded-full px-2 py-0.5 bg-success/15 text-success text-xs font-bold" onClick={() => setShowDiff((s) => !s)}>مسموح زيادة {diff.extra.length}</button>
                   <button type="button" className="rounded-full px-2 py-0.5 bg-destructive/15 text-destructive text-xs font-bold" onClick={() => setShowDiff((s) => !s)}>ممنوع استثناءً {diff.revoked.length}</button>
                   {dirty && <span className="text-xs font-bold">· فيه تغييرات لسه مااتحفظتش</span>}
                   <span className="flex-1" />
-                  <Button size="sm" variant="outline" disabled={!diff.extra.length} onClick={() => setOverrides((o) => clearExtras(effRoles, rolePerms, o))}><RotateCcw className="w-3.5 h-3.5 ml-1" /> شيل الزيادة بس</Button>
+                  <Button size="sm" variant="outline" disabled={!diff.extra.length} onClick={() => setOverrides((o) => clearExtras(effRoles, rolePermsX, o))}><RotateCcw className="w-3.5 h-3.5 ml-1" /> شيل الزيادة بس</Button>
                   <Button size="sm" variant="outline" disabled={!Object.keys(overrides).length} onClick={() => setOverrides({})}><RotateCcw className="w-3.5 h-3.5 ml-1" /> رجّعه للقالب</Button>
                   <Button size="sm" variant="ghost" disabled={!dirty} onClick={() => openUser(userId)}><Undo2 className="w-3.5 h-3.5 ml-1" /> فضّي التغييرات</Button>
                 </div>
@@ -406,16 +430,16 @@ export function EmployeesPermissions() {
       <Dialog open={tplOpen} onOpenChange={setTplOpen}>
         <DialogContent dir="rtl">
           <DialogHeader>
-            <DialogTitle>احفظ صلاحياته كقالب</DialogTitle>
-            <DialogDescription>القالب بيتحفظ على دور «{ROLE_LABELS[role as AppRole] ?? role}» ومعاه اختلافات «كل الفروع». اختلافات فرع معين بتفضل للموظف ده بس.</DialogDescription>
+            <DialogTitle>احفظ صلاحياته كدور جديد</DialogTitle>
+            <DialogDescription>الدور الجديد بيتبني على «{roleTitle(role)}» ومعاه اختلافاته في «كل الفروع». اختلافات فرع معين بتفضل للموظف ده بس.</DialogDescription>
           </DialogHeader>
           <div className="space-y-1">
-            <Label htmlFor="tpl-name">اسم القالب</Label>
-            <Input id="tpl-name" value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="مثلاً: كاشير من غير خزنة" maxLength={60} />
+            <Label htmlFor="tpl-name">اسم الدور</Label>
+            <Input id="tpl-name" value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="مثلاً: مندوب مبيعات" maxLength={60} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTplOpen(false)}>إلغاء</Button>
-            <Button onClick={saveTemplate} disabled={!tplName.trim()}>حفظ القالب</Button>
+            <Button onClick={saveTemplate} disabled={!tplName.trim()}>اعمل الدور</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

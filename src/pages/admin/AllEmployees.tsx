@@ -8,7 +8,7 @@ import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +16,8 @@ import { searchMatch } from "@/lib/search";
 import { edgeErrorMessage } from "@/lib/edgeError";
 import { ShiftEditor, ShiftValue, emptyShift } from "@/components/ShiftEditor";
 import { useAuth } from "@/contexts/AuthContext";
+import { isTplRole, tplId, tplRole } from "@/lib/companyRoles";
+import { MANAGED_ROLES } from "@/lib/roles";
 import { formatEGP, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, FileSpreadsheet, Users, UserCheck, UserX, Wallet, Pencil, Trash2, ClipboardCheck, Eye, EyeOff, CalendarRange, UserCircle, CalendarDays, Coins } from "lucide-react";
@@ -44,7 +46,11 @@ export default function AllEmployees() {
   const nav = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") ?? "list";
-  const { can, isAdmin, isViewer, hasRole } = useAuth();
+  const { can, isAdmin, isViewer, hasRole, roleLabel, roleSettings } = useAuth();
+  // company roles (migration 0115): «مندوب مبيعات» … are picked like any role; the account gets their ready role
+  const [companyRoles, setCompanyRoles] = useState<{ id: string; name: string; base_role: string }[]>([]);
+  const [companyRoleByUser, setCompanyRoleByUser] = useState<Record<string, string>>({});
+  const hiddenRoles = new Set(roleSettings.filter((x) => x.hidden).map((x) => x.role));
   const showShifts = isAdmin || can("admin_shifts.view") || hasRole("super_admin") || hasRole("supervisor");
   const showPresence = isAdmin || isViewer || can("admin_presence.view") || hasRole("supervisor") || hasRole("super_admin");
   const [emps, setEmps] = useState<any[]>([]);
@@ -74,7 +80,8 @@ export default function AllEmployees() {
   const [allowedBranchIds, setAllowedBranchIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
-  const isSimpleRole = form.role === "worker" || form.role === "driver";
+  const baseOf = (r: string) => (isTplRole(r) ? companyRoles.find((t) => t.id === tplId(r))?.base_role ?? "" : r);
+  const isSimpleRole = baseOf(form.role) === "worker" || baseOf(form.role) === "driver";
 
 
   const load = async () => {
@@ -85,6 +92,12 @@ export default function AllEmployees() {
       supabase.from("advances").select("employee_id, remaining, monthly_deduct"),
     ]);
     setEmps(e ?? []);
+    const [{ data: tpl }, { data: ucr }] = await Promise.all([
+      supabase.from("permission_templates" as any).select("id, name, base_role").order("name"),
+      supabase.from("user_company_roles" as any).select("user_id, template_id"),
+    ]);
+    setCompanyRoles(((tpl ?? []) as any[]));
+    setCompanyRoleByUser(Object.fromEntries(((ucr ?? []) as any[]).map((x) => [x.user_id, x.template_id])));
     setBranches(filterBranches((b ?? []) as any) as any);
     const map: Record<string, number> = {};
     const inst: Record<string, number> = {};
@@ -152,7 +165,7 @@ export default function AllEmployees() {
       name: e.name ?? "", job_title: e.job_title ?? "", phone: e.phone ?? "", email: e.email ?? "", login_password: "",
       national_id: e.national_id ?? "",
       base_salary: String(e.base_salary ?? ""), hire_date: e.hire_date ?? cairoTodayDay(),
-      branch_id: e.branch_id ?? "", role: e.role ?? "", is_active: e.is_active ?? true,
+      branch_id: e.branch_id ?? "", role: e.user_id && companyRoleByUser[e.user_id] ? tplRole(companyRoleByUser[e.user_id]) : e.role ?? "", is_active: e.is_active ?? true,
     });
     setAllowedBranchIds(e.user_id ? (userBranches[e.user_id] ?? []).map((b) => b.branch_id) : (e.branch_id ? [e.branch_id] : []));
     setShift({
@@ -192,7 +205,7 @@ export default function AllEmployees() {
         hire_date: form.hire_date,
         branch_id: form.branch_id,
         allowed_branch_ids: isSimpleRole ? [] : allowedBranchIds,
-        role: form.role,
+        role: baseOf(form.role),
         is_active: form.is_active,
         has_system_access: !isSimpleRole,
         email: isSimpleRole ? null : form.email.trim().toLowerCase(),
@@ -207,6 +220,12 @@ export default function AllEmployees() {
     const errMsg = await edgeErrorMessage(error, data);
     if (errMsg) return toast.error(String(errMsg));
 
+    // company role: link him after the account exists; a ready role takes him off his company role
+    const uid = (data as any)?.user_id ?? editing?.user_id ?? null;
+    if (uid && (isTplRole(form.role) || companyRoleByUser[uid])) {
+      const { error: crErr } = await supabase.rpc("set_user_company_role" as any, { p_user: uid, p_template: isTplRole(form.role) ? tplId(form.role) : null } as any);
+      if (crErr) toast.error(`الموظف اتحفظ، بس الدور ماتربطش: ${crErr.message}`);
+    }
     toast.success(editing ? "تم التعديل" : "تمت إضافة الموظف وربط حسابه بالفروع");
     setOpen(false);
     load();
@@ -458,14 +477,16 @@ export default function AllEmployees() {
                   <Select value={form.role || "none"} onValueChange={(v) => setForm({ ...form, role: v === "none" ? "" : v })}>
                     <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الصلاحية" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="branch_manager">مدير فرع</SelectItem>
-                      <SelectItem value="accountant">محاسب</SelectItem>
-                      <SelectItem value="cashier">كاشير</SelectItem>
-                      <SelectItem value="warehouse">أمين مخازن</SelectItem>
-                      <SelectItem value="supervisor">ملاحظ (متابعة الحضور والانصراف فقط)</SelectItem>
-                      <SelectItem value="viewer">Viewer — مراقب (قراءة فقط لكل البيانات)</SelectItem>
-                      <SelectItem value="worker">عامل</SelectItem>
-                      <SelectItem value="driver">سواق</SelectItem>
+                      <SelectGroup>
+                        <SelectLabel>الأدوار الجاهزة</SelectLabel>
+                        {MANAGED_ROLES.filter((r) => !hiddenRoles.has(r) || r === form.role).map((r) => <SelectItem key={r} value={r}>{roleLabel(r)}</SelectItem>)}
+                      </SelectGroup>
+                      {companyRoles.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>أدوار الشركة</SelectLabel>
+                          {companyRoles.map((t) => <SelectItem key={t.id} value={tplRole(t.id)}>{t.name} (مبني على {roleLabel(t.base_role)})</SelectItem>)}
+                        </SelectGroup>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
