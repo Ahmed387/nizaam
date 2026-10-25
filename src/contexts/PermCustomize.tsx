@@ -312,7 +312,8 @@ export function useCurrentPermPage(): string | null {
   const inRouter = useInRouterContext();
   // eslint-disable-next-line react-hooks/rules-of-hooks -- inRouter never changes for a mounted tree
   const path = inRouter ? useLocation().pathname : null;
-  return (path ? pageForPath(path)?.key ?? null : null) ?? fromRoute;
+  const fromPath: string | null = path ? (pageForPath(path)?.key ?? null) : null;
+  return fromPath ?? fromRoute;
 }
 
 /**
