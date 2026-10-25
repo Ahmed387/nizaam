@@ -30,7 +30,9 @@ const db: Record<string, any[]> = {
   role_permissions: [],
   permission_templates: [],
   user_permissions: [{ user_id: "c1", permission_key: "part.dashboard.till_balance.view", allowed: false }],
+  partner_users: [{ user_id: "p1", partner_id: "pr-1" }],
 };
+const invoke = vi.fn().mockResolvedValue({ data: {}, error: null });
 function q(table: string) {
   let rows = db[table];
   const c: any = {
@@ -44,7 +46,7 @@ function q(table: string) {
   };
   return c;
 }
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (t: string) => q(t), rpc: (...a: unknown[]) => rpc(...a), functions: { invoke: vi.fn().mockResolvedValue({ data: {}, error: null }) } } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { from: (t: string) => q(t), rpc: (...a: unknown[]) => rpc(...a), functions: { invoke: (...a: unknown[]) => invoke(...a) } } }));
 
 import { EmployeesPermissions } from "./EmployeesPermissions";
 const show = (url = "/admin/settings?tab=user-permissions") => render(<MemoryRouter initialEntries={[url]}><EmployeesPermissions /></MemoryRouter>);
@@ -135,6 +137,17 @@ describe("Employees permissions screen", () => {
     expect(screen.queryByRole("button", { name: /mohayassr07/ })).toBeNull();
     fireEvent.click(await screen.findByRole("tab", { name: /^العمليات/ }));
     expect((await screen.findAllByRole("button", { name: /الشريك عرض بس/ }))[0]).toBeDisabled();
+  });
+
+  it("a partner's login: new password through his partner record, and a link to his partner file", async () => {
+    auth.isOwner = true;
+    show("/admin/settings?tab=user-permissions&user=p1");
+    fireEvent.click(await screen.findByRole("tab", { name: /الشركاء/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /كلمة مرور جديدة/ }));
+    fireEvent.change(screen.getByLabelText("كلمة المرور الجديدة"), { target: { value: "Nasser2026" } });
+    fireEvent.click(screen.getByRole("button", { name: "غيّر" }));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith("admin-reset-partner-password", { body: { partner_id: "pr-1", new_password: "Nasser2026" } }));
+    expect(screen.getByRole("link", { name: "ملف الشريك" }).getAttribute("href")).toBe("/admin/financial-position/partner/pr-1");
   });
 
   it("«حساب مراقبة جديد» lives in the employees list now", async () => {

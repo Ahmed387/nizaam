@@ -61,6 +61,8 @@ export function EmployeesPermissions() {
   const [rolePerms, setRolePerms] = useState<RolePerms>({});
   const [templates, setTemplates] = useState<Template[]>([]);
   const [companyRoleByUser, setCompanyRoleByUser] = useState<Record<string, string>>({});
+  // a partner's login lives with his partner record (partner_users), not with an employee file
+  const [partnerByUser, setPartnerByUser] = useState<Record<string, string>>({});
   const [overrideCount, setOverrideCount] = useState<Record<string, number>>({});
 
   const [userId, setUserId] = useState<string>(params.get("user") ?? "");
@@ -126,6 +128,8 @@ export function EmployeesPermissions() {
     setTemplates(((tpl.data ?? []) as any[]).map((t) => ({ ...t, perms: t.perms ?? {} })));
     setOverrideCount(ocount);
     setCompanyRoleByUser(Object.fromEntries((((ucr as any).data ?? []) as any[]).map((x) => [x.user_id, x.template_id])));
+    const { data: pu } = await supabase.from("partner_users" as any).select("user_id, partner_id").eq("tenant_id", tenantId);
+    setPartnerByUser(Object.fromEntries(((pu ?? []) as any[]).map((x) => [x.user_id, x.partner_id])));
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tenantId]);
@@ -318,7 +322,11 @@ export function EmployeesPermissions() {
   };
   const changeViewerPwd = async () => {
     if (!userId || !strongPwd(newPwd)) return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وفيها حرف ورقم");
-    const { data, error } = await supabase.functions.invoke("manage-viewer", { body: { action: "update_password", user_id: userId, password: newPwd } });
+    // a partner's password goes through his partner record, a monitoring account's through manage-viewer
+    const pid = kindOf(userId) === "partner" ? partnerByUser[userId] : null;
+    const { data, error } = pid
+      ? await supabase.functions.invoke("admin-reset-partner-password", { body: { partner_id: pid, new_password: newPwd } })
+      : await supabase.functions.invoke("manage-viewer", { body: { action: "update_password", user_id: userId, password: newPwd } });
     if (error || (data as any)?.error) return toast.error((await edgeErrorMessage(error, data)) ?? "فشل التغيير");
     toast.success("اتغيرت كلمة المرور");
     setPwdOpen(false); setNewPwd("");
@@ -402,6 +410,12 @@ export function EmployeesPermissions() {
                 </div>
                 {empByUser[person.id] && (
                   <Button asChild variant="ghost" size="sm"><Link to={`/admin/employees/${empByUser[person.id]}?tab=account`}><KeyRound className="w-4 h-4 ml-1" /> حساب الدخول</Link></Button>
+                )}
+                {kind === "partner" && partnerByUser[person.id] && (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => { setNewPwd(""); setPwdOpen(true); }}><KeyRound className="w-4 h-4 ml-1" /> كلمة مرور جديدة</Button>
+                    {isOwner && <Button asChild variant="ghost" size="sm"><Link to={`/admin/financial-position/partner/${partnerByUser[person.id]}`}>ملف الشريك</Link></Button>}
+                  </>
                 )}
                 {kind === "staff" && role === "viewer" && !empByUser[person.id] && (
                   <>
