@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { compressImage } from "@/lib/compressImage";
+import { shrinkProductImage } from "@/lib/imagePolicy";
 import { tenantStoragePath } from "@/lib/attachmentPath";
 
 /** مدة صلاحية الرابط الموقّع (ساعة) */
@@ -129,8 +130,11 @@ export function invalidateSigned(bucket: string, value: string | null | undefine
 
 /** رفع صورة مضغوطة لأي حاوية داخل مجلد الشركة، ويرجّع المسار المخزّن. */
 export async function uploadImageToBucket(bucket: string, file: File, folder: string): Promise<string> {
-  // ضغط مركزي: WebP بحد أقصى 800px وجودة 0.8 (مع رجوع تلقائي لـ JPEG لو غير مدعوم)
-  const blob = await compressImage(file, { maxDim: 800, quality: 0.8, mimeType: "image/webp", sizeThreshold: 80 * 1024 });
+  // صور المنتجات: سياسة واحدة صارمة لكل صورة مهما كان حجمها (800px، WebP 0.75، أقصى 200 KB — imagePolicy.ts)
+  // باقي الحاويات: ضغط مركزي WebP بحد أقصى 800px وجودة 0.8 (مع رجوع تلقائي لـ JPEG لو غير مدعوم)
+  const blob = bucket === "product-images"
+    ? await shrinkProductImage(file, file.name)
+    : await compressImage(file, { maxDim: 800, quality: 0.8, mimeType: "image/webp", sizeThreshold: 80 * 1024 });
   const ext = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
   const sub = (folder || "shared").replace(/^\/+|\/+$/g, "") || "shared";
   const path = await tenantStoragePath(`${sub}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`);
@@ -146,4 +150,11 @@ export async function removeStorageFile(bucket: string, value: string | null | u
   invalidateSigned(bucket, value);
   const { error } = await supabase.storage.from(bucket).remove([path]);
   if (error) throw error;
+}
+
+/** يرفع صورة منتج مصغّرة على مسار محدد (نفس المسار اللي المنتج مستنيه) — للرفع بالجملة. */
+export async function uploadProductImageAt(path: string, file: File): Promise<void> {
+  const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert: true, contentType: file.type });
+  if (error) throw error;
+  invalidateSigned("product-images", path);
 }

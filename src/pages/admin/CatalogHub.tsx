@@ -9,10 +9,11 @@ import PriceList from "./PriceList";
 import AllInventory from "./AllInventory";
 import PriceAuditLog from "./PriceAuditLog";
 import ProductAttributes from "./ProductAttributes";
+import ProductImagesBulk from "./ProductImagesBulk";
 
 export default function CatalogHub() {
   const [params, setParams] = useSearchParams();
-  const { can } = useAuth();
+  const { can, isAdmin } = useAuth();
   const show = {
     branches: can("admin_catalog_branches.view"),
     categories: can("admin_catalog_categories.view"),
@@ -20,6 +21,8 @@ export default function CatalogHub() {
     inventory: can("admin_catalog_inventory.view"),
     attributes: can("admin_product_attributes.view"),
     "price-audit": can("admin_reports_price_audit.view"),
+    // bulk product photos: whoever may edit products company-wide
+    images: isAdmin || can("admin_catalog_inventory.update"),
   };
   const first = (Object.keys(show) as (keyof typeof show)[]).find((k) => show[k]) ?? "branches";
   const requested = params.get("tab") as keyof typeof show | null;
@@ -35,6 +38,7 @@ export default function CatalogHub() {
           {show.inventory && <TabsTrigger value="inventory">مخزون كل الفروع</TabsTrigger>}
           {show.attributes && <TabsTrigger value="attributes">خصائص المنتجات</TabsTrigger>}
           {show["price-audit"] && <TabsTrigger value="price-audit">سجل الأسعار</TabsTrigger>}
+          {show.images && <TabsTrigger value="images">صور المنتجات بالجملة</TabsTrigger>}
         </TabsList>
         {show.branches && <TabsContent value="branches" className="mt-4"><Branches embedded /></TabsContent>}
         {show.categories && <TabsContent value="categories" className="mt-4"><Categories embedded /></TabsContent>}
@@ -42,6 +46,7 @@ export default function CatalogHub() {
         {show.inventory && <TabsContent value="inventory" className="mt-4"><AllInventory embedded /></TabsContent>}
         {show.attributes && <TabsContent value="attributes" className="mt-4"><ProductAttributes embedded /></TabsContent>}
         {show["price-audit"] && <TabsContent value="price-audit" className="mt-4"><PriceAuditLog embedded /></TabsContent>}
+        {show.images && <TabsContent value="images" className="mt-4"><ProductImagesBulk /></TabsContent>}
       </Tabs>
     </AdminLayout>
   );
