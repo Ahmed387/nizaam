@@ -33,6 +33,57 @@ export function isDirect(bucket: string, value: string | null | undefined): bool
   return /^(https?:)?\/\//i.test(v) && extractPath(bucket, v) === null;
 }
 
+// A missing file (the bucket lost its files in the 2026-10-18 move) is remembered for 30 minutes, so a list of 800
+// products doesn't ask again on every render / reload (2026-10-25: 10,600 failed requests in one day → 429 / 504 and
+// the whole app felt disconnected).
+const MISSING_TTL = 30 * 60 * 1000;
+const missing = new Map<string, number>();
+
+// Requests made in the same moment are signed together: one call for up to 100 files instead of one call per file.
+type Waiter = { path: string; resolve: (u: string | null) => void };
+const queues = new Map<string, Waiter[]>();
+const timers = new Map<string, ReturnType<typeof setTimeout>>();
+const BATCH = 100;
+
+async function flush(bucket: string) {
+  timers.delete(bucket);
+  const all = queues.get(bucket) ?? [];
+  queues.delete(bucket);
+  for (let i = 0; i < all.length; i += BATCH) {
+    const part = all.slice(i, i + BATCH);
+    const paths = Array.from(new Set(part.map((w) => w.path)));
+    const now = Date.now();
+    let byPath = new Map<string, string | null>();
+    try {
+      const { data, error } = await supabase.storage.from(bucket).createSignedUrls(paths, SIGN_TTL);
+      if (error) throw error;
+      (data ?? []).forEach((d: any) => byPath.set(d.path, d.error || !d.signedUrl ? null : d.signedUrl));
+    } catch {
+      // the whole call failed (network / limit): don't remember anything, the next render may try again
+      byPath = new Map();
+      part.forEach((w) => { inflight.delete(key(bucket, w.path)); w.resolve(null); });
+      continue;
+    }
+    part.forEach((w) => {
+      const k = key(bucket, w.path);
+      const u = byPath.get(w.path) ?? null;
+      inflight.delete(k);
+      if (u) cache.set(k, { url: u, exp: now + SIGN_TTL * 1000 });
+      else missing.set(k, now + MISSING_TTL);
+      w.resolve(u);
+    });
+  }
+}
+
+function signLater(bucket: string, path: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const q = queues.get(bucket) ?? [];
+    q.push({ path, resolve });
+    queues.set(bucket, q);
+    if (!timers.has(bucket)) timers.set(bucket, setTimeout(() => { void flush(bucket); }, 25));
+  });
+}
+
 /** رابط موقّع مؤقت لأي حاوية، مع كاش وتجديد تلقائي عند الطلب. */
 export async function getSignedUrl(
   bucket: string,
@@ -48,6 +99,10 @@ export async function getSignedUrl(
   const k = key(bucket, path);
   const now = Date.now();
 
+  // a file we know is missing: no request (even on «force» — the image's own retry), until the 30 minutes pass
+  const gone = missing.get(k);
+  if (gone && gone > now) return null;
+
   if (opts.force) {
     cache.delete(k);
     inflight.delete(k);
@@ -58,14 +113,7 @@ export async function getSignedUrl(
     if (pending) return pending;
   }
 
-  const p = (async () => {
-    const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, SIGN_TTL);
-    inflight.delete(k);
-    if (error || !data?.signedUrl) return null;
-    cache.set(k, { url: data.signedUrl, exp: now + SIGN_TTL * 1000 });
-    return data.signedUrl;
-  })();
-
+  const p = signLater(bucket, path);
   inflight.set(k, p);
   return p;
 }
@@ -76,6 +124,7 @@ export function invalidateSigned(bucket: string, value: string | null | undefine
   if (!path) return;
   cache.delete(key(bucket, path));
   inflight.delete(key(bucket, path));
+  missing.delete(key(bucket, path));
 }
 
 /** رفع صورة مضغوطة لأي حاوية داخل مجلد الشركة، ويرجّع المسار المخزّن. */

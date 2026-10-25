@@ -12,7 +12,8 @@ export function useSignedImage(value: string | null | undefined, bucket: string 
     let alive = true;
     setFailed(false);
     if (!value) { setUrl(null); return; }
-    getSignedUrl(bucket, value).then((u) => { if (alive) setUrl(u); });
+    // no link = the file isn't there: show the «no image» box instead of a loading box forever
+    getSignedUrl(bucket, value).then((u) => { if (alive) { setUrl(u); if (!u) setFailed(true); } });
     return () => { alive = false; };
   }, [value, bucket]);
 
