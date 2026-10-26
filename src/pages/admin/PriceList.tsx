@@ -751,7 +751,7 @@ export default function PriceList({ embedded }: { embedded?: boolean } = {}) {
               </div>
               <p className="text-xs text-muted-foreground">يمكنك تعديل السعر الجديد لأي صنف قبل الحفظ بالضغط على الخانة.</p>
               <div className="flex-1 overflow-auto border rounded-lg">
-                <Table>
+                <Table noFilter>
                   <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead>الحالة</TableHead>

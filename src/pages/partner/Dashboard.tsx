@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { Link } from "react-router-dom";
 import { PartnerLayout } from "@/components/layout/PartnerLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -73,7 +74,7 @@ export default function PartnerDashboard() {
                 </div>
               </CardHeader>
               <CardContent className="p-0 overflow-x-auto">
-                <table className="w-full text-sm">
+                <PermTable className="w-full text-sm">
                   <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">التاريخ</th><th className="p-2">النوع</th><th className="p-2">المبلغ</th><th className="p-2">الوصف</th></tr></thead>
                   <tbody>
                     {txs.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">لا يوجد</td></tr>}
@@ -89,7 +90,7 @@ export default function PartnerDashboard() {
                       );
                     })}
                   </tbody>
-                </table>
+                </PermTable>
               </CardContent>
             </Card>
           </>

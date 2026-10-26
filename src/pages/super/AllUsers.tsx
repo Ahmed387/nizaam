@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { supabase } from "@/integrations/supabase/client";
 import { SuperAdminLayout } from "@/components/layout/SuperAdminLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -67,7 +68,7 @@ export default function AllUsers() {
       ) : (
         <div className="card-elevated overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr>
                   <th className="text-right p-3">المستخدم</th>
@@ -120,7 +121,7 @@ export default function AllUsers() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </PermTable>
             {filtered.length === 0 && !err && <div className="text-center py-12 text-muted-foreground">لا توجد نتائج</div>}
           </div>
         </div>

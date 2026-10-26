@@ -123,7 +123,6 @@ export default function ReturnOverrides({ embedded }: { embedded?: boolean } = {
       <DataTable
         loading={loading}
         rows={filtered}
-        pageSize={50}
         empty="لا توجد تجاوزات مسجّلة — كل المرتجعات تمت داخل الفترة المسموحة ✅"
         columns={[
           { key: "created_at", header: "التاريخ", render: (r: Row) => formatDateTime(r.created_at) },

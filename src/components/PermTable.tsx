@@ -1,4 +1,5 @@
 import { forwardRef, Ref, TableHTMLAttributes, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { ExcelLayer } from "@/components/table/ExcelFilter";
 import { createPortal } from "react-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,12 +13,32 @@ import { partKey } from "@/lib/permissionCatalog";
  * (header, body cells and <col>), cells with a colspan are never touched. In «افتح الصفحة وظبطها» every header
  * gets an eye button. Off a catalogue page it is an ordinary <table>.
  */
-type Props = TableHTMLAttributes<HTMLTableElement> & { permTable?: string };
+type Props = TableHTMLAttributes<HTMLTableElement> & {
+  permTable?: string;
+  /** no Excel filter (forms, previews before saving, print, grids) */
+  noFilter?: boolean;
+  /** tells apart tables with the same columns on one page (their filters are remembered separately) */
+  filterId?: string;
+};
 
-export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable({ permTable, ...props }, ref) {
+/**
+ * Every PermTable also gets the Excel-like filter (owner 2026-10-26, src/components/table/ExcelFilter.tsx): an arrow in
+ * each column title, a bar of the active filters and a totals row — read from what the table shows, no setup.
+ */
+export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable({ permTable, noFilter, filterId, ...props }, ref) {
   const page = useCurrentPermPage();
-  if (!page) return <table ref={ref} {...props} />;
-  return <PermTableInner page={page} permTable={permTable} tableRef={ref} {...props} />;
+  const [el, setEl] = useState<HTMLTableElement | null>(null);
+  const setRef = useCallback((t: HTMLTableElement | null) => {
+    setEl(t);
+    if (typeof ref === "function") ref(t);
+    else if (ref) (ref as any).current = t;
+  }, [ref]);
+  return (
+    <>
+      {!noFilter && <ExcelLayer table={el} storageId={filterId ?? permTable} />}
+      {page ? <PermTableInner page={page} permTable={permTable} tableRef={setRef} {...props} /> : <table ref={setRef} {...props} />}
+    </>
+  );
 });
 
 type Head = { el: HTMLTableCellElement; idx: number; label: string; key: string };

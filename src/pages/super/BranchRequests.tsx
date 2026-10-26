@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SuperAdminLayout } from "@/components/layout/SuperAdminLayout";
@@ -103,7 +104,7 @@ export default function BranchRequests() {
             <section className="grid gap-2">
               <h2 className="text-base font-extrabold text-muted-foreground">طلبات قديمة</h2>
               <div className="card-elevated overflow-x-auto">
-                <table className="w-full text-sm">
+                <PermTable className="w-full text-sm">
                   <thead className="bg-muted/60 text-muted-foreground">
                     <tr><th className="text-start p-3">الشركة</th><th className="text-start p-3">الفرع</th><th className="text-start p-3">الرد</th><th className="text-start p-3">التاريخ</th></tr>
                   </thead>
@@ -117,7 +118,7 @@ export default function BranchRequests() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </PermTable>
               </div>
             </section>
           )}

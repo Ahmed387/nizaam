@@ -223,7 +223,7 @@ function BulkEditDialog({ kind, rows, canDate, onClose, onFinished }: {
               {notesOn && <> والملاحظات {notesMode === "replace" ? "هتتغير" : "هيتضاف لها"}: «{notes.trim() || "—"}».</>}
             </div>
             <div className="max-h-[45vh] overflow-auto rounded-lg border">
-              <PermTable className="w-full text-xs">
+              <PermTable noFilter className="w-full text-xs">
                 <thead className="sticky top-0 bg-muted"><tr>
                   <th className="p-2">الرقم</th><th className="p-2 text-right">الطرف</th><th className="p-2">المبلغ</th>
                   <th className="p-2">التاريخ الحالي</th><th className="p-2">الجديد</th><th className="p-2">فلوس هتتنقل معاه</th>

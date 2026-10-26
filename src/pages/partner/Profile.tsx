@@ -1,4 +1,5 @@
 import { edgeErrorMessage } from "@/lib/edgeError";
+import { PermTable } from "@/components/PermTable";
 import { useEffect, useState } from "react";
 import { PartnerLayout } from "@/components/layout/PartnerLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -84,7 +85,7 @@ export default function PartnerProfile() {
         <Card>
           <CardHeader><CardTitle>نِسب الشركاء</CardTitle></CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr className="text-right">
                   <th className="p-2">الشريك</th>
@@ -102,7 +103,7 @@ export default function PartnerProfile() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </PermTable>
             <p className="p-3 text-xs text-muted-foreground">
               نسبة التشغيل بتتاخد من صافي الربح مقابل إدارة الشغل قبل ما الباقي يتقسم بنِسب رأس المال — معروضة لكل الشركاء للشفافية.
             </p>

@@ -363,7 +363,7 @@ export default function FiscalClosing() {
                       const sharesValid = rows.length === 0 || Math.abs(sumPct - 100) < 0.5;
                       return (
                         <>
-                          <Table>
+                          <Table noFilter>
                             <TableHeader><TableRow>
                               <TableHead className="text-right">الشريك</TableHead>
                               <TableHead className="text-right">النسبة</TableHead>

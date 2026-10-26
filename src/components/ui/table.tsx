@@ -3,7 +3,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { PermTable } from "@/components/PermTable";
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
+const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement> & { permTable?: string; noFilter?: boolean; filterId?: string }>(
   ({ className, ...props }, ref) => (
     <div className="relative w-full overflow-auto">
       <PermTable ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />

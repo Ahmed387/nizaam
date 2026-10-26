@@ -1,4 +1,5 @@
 import { getCairoDayBounds } from "@/lib/cairoDate";
+import { PermTable } from "@/components/PermTable";
 import { useEffect, useMemo, useState } from "react";
 import { PartnerLayout } from "@/components/layout/PartnerLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -86,7 +87,7 @@ export default function PartnerLedger() {
 
         <Card>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-sm">
+            <PermTable className="w-full text-sm">
               <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">التاريخ</th><th className="p-2">النوع</th><th className="p-2">المبلغ</th><th className="p-2">الوصف</th><th className="p-2">الشهر</th><th className="p-2">الرصيد الجاري</th></tr></thead>
               <tbody>
                 {rows.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا يوجد</td></tr>}
@@ -101,7 +102,7 @@ export default function PartnerLedger() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </PermTable>
           </CardContent>
         </Card>
       </div>

@@ -22,7 +22,7 @@ function PreviewTable({ rows, loading, error }: { rows: Row[]; loading: boolean;
   if (error) return <div className="p-3 text-center text-xs text-destructive">تعذر تحميل الأصناف</div>;
   if (!rows.length) return <div className="p-3 text-center text-xs text-muted-foreground">لا توجد أصناف</div>;
   return (
-    <PermTable className="w-full text-xs">
+    <PermTable noFilter className="w-full text-xs">
       <thead>
         <tr className="bg-muted text-muted-foreground">
           <th className="p-1.5 text-right font-semibold">اسم الصنف</th>

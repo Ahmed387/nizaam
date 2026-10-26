@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
@@ -111,7 +112,7 @@ export default function SuperDashboard() {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <PermTable className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="text-right px-3 py-2">الشركة</th>
@@ -146,7 +147,7 @@ export default function SuperDashboard() {
                     <tr><td colSpan={4} className="text-center py-8 text-muted-foreground">لا توجد شركات</td></tr>
                   )}
                 </tbody>
-              </table>
+              </PermTable>
             </div>
           </div>
         </>

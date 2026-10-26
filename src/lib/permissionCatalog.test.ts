@@ -98,7 +98,7 @@ describe("every hand-tagged box is in the catalogue", () => {
 
 describe("every table column can be switched (owner request 2026-10-24)", () => {
   // print templates, data-entry forms, platform / partner portals and the owner-excluded archive & personal expenses
-  const EXEMPT = /(Print|ArchivePrintTemplate|HistoricalArchiveDialogs|HistoricalAnalytics|PersonalExpenses|PersonalExpensesAccessTab|DataTable|PermTable|ui\/table|NewSale|NewSaleReturn|NewPurchaseReturn|EditSaleInvoice|EditInvoiceDialog|CountingSheet|StagedPaymentsPanel|ExcelImportDialog|BulkLoginsDialog|\/super\/|\/partner\/)/;
+  const EXEMPT = /(Print|ArchivePrintTemplate|HistoricalArchiveDialogs|HistoricalAnalytics|PersonalExpenses|PersonalExpensesAccessTab|DataTable|PermTable|ui\/table|NewSale|NewSaleReturn|NewPurchaseReturn|EditSaleInvoice|EditInvoiceDialog|CountingSheet|StagedPaymentsPanel|ExcelImportDialog|BulkLoginsDialog)/;
   it("no plain <table> left outside the exempt files — use <PermTable> (or DataTable)", () => {
     const raw = sources("src").filter((f) => !EXEMPT.test(f) && /<table\b/.test(readFileSync(f, "utf8")));
     expect(raw).toEqual([]);

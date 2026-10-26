@@ -1,4 +1,6 @@
 import { Fragment, forwardRef, ReactNode, Ref, useEffect, useState, type CSSProperties } from "react";
+import { ExcelLayer, FilterBar, type ServerAdapter } from "@/components/table/ExcelFilter";
+import { isActive, type CellKind } from "@/lib/tableFilter";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentPermPage, usePermCustomize } from "@/contexts/PermCustomize";
@@ -16,6 +18,10 @@ interface DataTableProps<T> {
     width?: string;
     numeric?: boolean;
     sticky?: boolean;
+    /** Excel filter of this column: false = no arrow; a kind forces how its values are read */
+    filter?: false | CellKind;
+    /** totals row: true / false forces adding (or not) this column; by default number columns that are amounts */
+    total?: boolean;
   }[];
   rows: T[];
   loading?: boolean;
@@ -42,6 +48,11 @@ interface DataTableProps<T> {
   permPage?: string;
   /** When one page has several tables, a short id per table so their columns don't share a switch («col_<table>_<key>»). */
   permTable?: string;
+  /**
+   * Excel-like filters (owner 2026-10-26): on by default for every table. `false` turns them off (forms, previews);
+   * `server` when the table shows one page of a bigger list — the host filters in the database.
+   */
+  excel?: false | { id?: string; server?: ServerAdapter };
 }
 
 function DataTableInner<T>(
@@ -61,10 +72,14 @@ function DataTableInner<T>(
     indexColumn,
     tableClassName,
     minTableWidth,
+    permTable,
+    excel,
   }: DataTableProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
   const [page, setPage] = useState(0);
+  const [tableEl, setTableEl] = useState<HTMLTableElement | null>(null);
+  const server = excel ? excel.server : undefined;
   useEffect(() => { setPage(0); }, [rows.length]);
   const pageCount = pageSize ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1;
   const safePage = Math.min(page, pageCount - 1);
@@ -108,13 +123,23 @@ function DataTableInner<T>(
       );
     }
     if (!rows.length) {
-      return <div className="p-12 text-center text-muted-foreground">{empty}</div>;
+      return (
+        <>
+          {server && isActive(server.state) && (
+            <FilterBar state={server.state} labels={new Map(columns.map((c) => [c.key, typeof c.header === "string" ? c.header : c.key]))}
+              shown={0} total={server.total ?? 0} onChange={server.onChange} />
+          )}
+          <div className="p-12 text-center text-muted-foreground">{server && isActive(server.state) ? "مفيش صفوف بالفلاتر دي" : empty}</div>
+        </>
+      );
     }
     return (
       <>
+      {excel !== false && <ExcelLayer table={tableEl} storageId={excel?.id ?? permTable} server={server} />}
       {/* Wide tables scroll inside a viewport-high box: the horizontal bar stays on screen and the header sticks. */}
       <div className={wide ? "w-full overflow-auto lg:overflow-x-hidden max-h-[calc(100vh-8rem)]" : "w-full overflow-x-auto"} data-wide={wide ? "" : undefined}>
         <table
+          ref={setTableEl}
           className={`w-full text-sm ${wide ? "lg:text-[13px]" : "md:text-base"} border-collapse ${wide ? "table-auto max-lg:[min-width:var(--dt-min-w)]" : "table-fixed"} ${tableClassName ?? ""}`}
           style={wide ? ({ ["--dt-min-w" as any]: minTableWidth } as CSSProperties) : undefined}
         >
@@ -126,6 +151,10 @@ function DataTableInner<T>(
               {columns.map((c, idx) => (
                 <th
                   key={c.key}
+                  data-xf-col={c.key}
+                  data-xf-kind={typeof c.filter === "string" ? c.filter : undefined}
+                  data-xf-nofilter={c.filter === false || isActionsColumn(c) ? "" : undefined}
+                  data-xf-sum={c.total === undefined ? undefined : c.total ? "1" : "0"}
                   style={c.width ? { width: c.width } : isActionsColumn(c) ? { width: "10rem" } : undefined}
                   className={`${headPad} font-extrabold text-xs md:text-sm uppercase tracking-wider text-foreground ${textMode} ${idx > 0 ? "border-r border-border/60" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                 >
@@ -141,6 +170,7 @@ function DataTableInner<T>(
               return (
                 <Fragment key={rowKey}>
                   <tr
+                    data-xf-nat={2 * i}
                     onClick={() => onRowClick?.(row)}
                     aria-expanded={renderExpandedRow ? expanded : undefined}
                     className={`border-b border-border/60 transition-colors hover:bg-primary/5 group ${onRowClick ? "cursor-pointer" : ""} ${i % 2 === 1 ? "bg-surface-2/30" : "bg-card"}`}
@@ -160,7 +190,7 @@ function DataTableInner<T>(
                     ))}
                   </tr>
                   {expanded && renderExpandedRow && (
-                    <tr className="border-b border-border bg-muted/20">
+                    <tr data-xf-detail="" data-xf-nat={2 * i + 1} className="border-b border-border bg-muted/20">
                       <td colSpan={columns.length + (indexColumn ? 1 : 0)} className="p-0">
                         {renderExpandedRow(row)}
                       </td>
@@ -240,7 +270,7 @@ function PermColumnsTable<T>({ permPage, permTable, columns, ...rest }: DataTabl
       ) as any,
     };
   });
-  const table = <DataTableBase {...(rest as any)} columns={cols} ref={(rest as any).innerRef} />;
+  const table = <DataTableBase {...(rest as any)} permTable={permTable} columns={cols} ref={(rest as any).innerRef} />;
   // an empty table shows no header — in «افتح الصفحة وظبطها» list its columns as chips so they can still be set
   if (active && !c.preview && !(rest as any).loading && !((rest as any).rows ?? []).length && keys.some(Boolean)) {
     return (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PermTable } from "@/components/PermTable";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { SuperAdminLayout } from "@/components/layout/SuperAdminLayout";
@@ -197,7 +198,7 @@ export default function TenantDetail() {
       <section className="mb-5 grid gap-3">
         <h2 className="text-lg font-extrabold">الفروع ({used} من {t.max_branches ?? 3})</h2>
         <div className="card-elevated overflow-x-auto">
-          <table className="w-full text-sm">
+          <PermTable className="w-full text-sm">
             <thead className="bg-muted/60 text-muted-foreground">
               <tr>
                 <th className="text-start p-3 font-bold">الفرع</th>
@@ -242,7 +243,7 @@ export default function TenantDetail() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </PermTable>
         </div>
         <p className="text-sm text-muted-foreground">«حذف» بيشتغل بس لفرع لسه مافيهوش ولا فاتورة ولا فلوس ولا موظفين. اللي فيه شغل بيتوقف بس، وتاريخه بيفضل محفوظ.</p>
       </section>
