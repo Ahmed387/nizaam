@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   BLANK, EMPTY_STATE, cellMatches, describeFilter, detectKind, facets, isSummable, parseCell, parseDate, parseNumber,
-  periodOfFilter, singleValueOf, sortOrder, sumColumn, visibleRows, withPeriod, withSingleValue, type FilterState,
+  periodOfFilter, singleValueOf, sortOrder, sumColumn, valuesOf, visibleRows, withPeriod, withSingleValue, withValues,
+  type FilterState,
 } from "./tableFilter";
 
 describe("parsing what the person sees", () => {
@@ -118,6 +119,13 @@ describe("a bar field that is a column filter (both stay, linked)", () => {
     expect(singleValueOf({ filters: { m: { kind: "values", values: ["كاش", "بنكي"] } }, sort: null }, "m")).toBe("");
     expect(singleValueOf({ filters: { m: { kind: "values", values: [BLANK] } }, sort: null }, "m")).toBe("");
     expect(withSingleValue(s1, "m", "").filters).toEqual({});
+  });
+  it("a multi-select on top (vouchers' «التصنيف») = the values ticked in the column", () => {
+    const s1 = withValues(EMPTY_STATE, "c", ["إيجار", "كهرباء", "إيجار", ""]);
+    expect(s1.filters.c).toEqual({ kind: "values", values: ["إيجار", "كهرباء"] });
+    expect(valuesOf(s1, "c")).toEqual(["إيجار", "كهرباء"]);
+    expect(valuesOf({ filters: { c: { kind: "values", values: ["إيجار", BLANK] } }, sort: null }, "c")).toEqual(["إيجار"]);
+    expect(withValues(s1, "c", []).filters).toEqual({});
   });
   it("≥ and ≤ (the bar's «من» / «إلى»)", () => {
     expect(cellMatches(parseCell("1,000"), { kind: "number", op: "gte", a: 1000 })).toBe(true);

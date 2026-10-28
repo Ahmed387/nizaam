@@ -216,6 +216,19 @@ export function withSingleValue(s: FilterState, col: string, value: string): Fil
   else delete filters[col];
   return { ...s, filters };
 }
+/** every value ticked in a column, blanks left out (a bar's multi-select); [] when none */
+export function valuesOf(s: FilterState, col: string): string[] {
+  const f = s.filters[col];
+  return f?.kind === "values" ? f.values.filter((v) => v !== BLANK) : [];
+}
+/** the state with that column showing these values only ([] = every value) */
+export function withValues(s: FilterState, col: string, values: string[]): FilterState {
+  const filters = { ...s.filters };
+  const list = Array.from(new Set(values.filter(Boolean)));
+  if (list.length) filters[col] = { kind: "values", values: list };
+  else delete filters[col];
+  return { ...s, filters };
+}
 
 /** identifiers that look like numbers (phones, codes, document numbers) are listed as text, not summed */
 const ID_HEADER = /تليفون|هاتف|موبايل|محمول|الكود|كود|رقم|SKU|code|باركود|بطاقة|الرقم القومي/i;

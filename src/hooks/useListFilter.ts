@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ServerAdapter } from "@/components/table/ExcelFilter";
 import {
-  buildMatrix, effectiveState, facets as facetsOf, loadState, saveState, sortOrder, sumColumn, visibleRows,
+  buildMatrix, effectiveState, facets as facetsOf, isActive, loadState, saveState, sortOrder, sumColumn, visibleRows,
   type FilterState, type ListColumn,
 } from "@/lib/tableFilter";
 
@@ -9,13 +9,20 @@ import {
  * A table's Excel filters remembered on this device under `key` («زي ما سبتها», owner 2026-10-26).
  * Switching to another key (another tab of the screen) shows that key's own filters.
  */
-export function useRememberedFilter(key: string): [FilterState, (s: FilterState) => void] {
-  const [store, setStore] = useState(() => ({ key, state: loadState(key) }));
+export function useRememberedFilter(key: string, initial?: () => FilterState): [FilterState, (s: FilterState) => void] {
+  // nothing remembered (first visit, or everything was cleared last time): the screen's starting filters, if any
+  const initialRef = useRef(initial);
+  initialRef.current = initial;
+  const read = useCallback((k: string) => {
+    const s = loadState(k);
+    return !isActive(s) && initialRef.current ? initialRef.current() : s;
+  }, []);
+  const [store, setStore] = useState(() => ({ key, state: read(key) }));
   // the render that switches key reads the new key straight away (never one render with the old tab's filters)
-  const state = useMemo(() => (store.key === key ? store.state : loadState(key)), [store, key]);
+  const state = useMemo(() => (store.key === key ? store.state : read(key)), [store, key, read]);
   useEffect(() => {
-    if (store.key !== key) setStore({ key, state: loadState(key) });
-  }, [key, store.key]);
+    if (store.key !== key) setStore({ key, state: read(key) });
+  }, [key, store.key, read]);
   const set = useCallback((s: FilterState) => {
     setStore({ key, state: s });
     saveState(key, s);

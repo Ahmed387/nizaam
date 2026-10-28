@@ -86,6 +86,23 @@ describe("remembered on this device («زي ما سبتها»)", () => {
     expect(window.localStorage.getItem("xf:v1:/x:sale")).toBeNull();
   });
 
+  it("a screen's starting filters when nothing is remembered (main till: the last 30 days)", () => {
+    const start = (): FilterState => ({ filters: { d: { kind: "date", from: "2026-09-29", to: "2026-10-28" } }, sort: null });
+    const { result, unmount } = renderHook(() => useRememberedFilter("xf:v1:/main:normal", start));
+    expect(result.current[0]).toEqual(start());
+    // not written until the person changes something
+    expect(window.localStorage.getItem("xf:v1:/main:normal")).toBeNull();
+    // cleared: everything for now; the next visit starts from the 30 days again
+    act(() => result.current[1](EMPTY_STATE));
+    expect(result.current[0]).toEqual(EMPTY_STATE);
+    unmount();
+    expect(renderHook(() => useRememberedFilter("xf:v1:/main:normal", start)).result.current[0]).toEqual(start());
+    // what he left is what he finds
+    const left: FilterState = { filters: { d: { kind: "date", from: "2026-01-01" } }, sort: null };
+    window.localStorage.setItem("xf:v1:/main:normal", JSON.stringify(left));
+    expect(renderHook(() => useRememberedFilter("xf:v1:/main:normal", start)).result.current[0]).toEqual(left);
+  });
+
   it("a small value: functional updates, empty removes it, bad storage is ignored", () => {
     window.localStorage.setItem("k", "{not json");
     const read = (raw: unknown) => (raw && typeof raw === "object" && typeof (raw as any).q === "string" ? { q: (raw as any).q } : { q: "" });

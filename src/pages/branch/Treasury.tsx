@@ -97,7 +97,10 @@ const MOVE_COLS: ListColumn<any>[] = [
   { key: "recipient", label: "المستلم", kind: "text", get: (r) => r.recipient_name },
   { key: "description", label: "البيان", kind: "text", get: (r) => sanitizeOperationalDescription(r.description) },
 ];
-/** the period and ONE wallet run in the database (the running balance is per wallet then); every other filter on the whole list */
+/**
+ * the period and ONE wallet run in the database for the page (the running balance is per wallet then); every other
+ * filter on the whole list — which holds every wallet of the period, so the «طريقة الدفع» arrow lists them all
+ */
 const needsWholeTill = (s: FilterState) => !!s.sort || Object.entries(s.filters).some(([k, f]) =>
   !((k === "transaction_date" && f.kind === "date" && !f.days?.length) || (k === "payment_method" && f.kind === "values" && f.values.length === 1 && METHOD_OF_LABEL[f.values[0]])));
 
@@ -162,15 +165,15 @@ export default function Treasury() {
     setMinAmount(""); setMaxAmount(""); setTab("all");
   };
 
-  /** Applies the page's filters to any treasury query (shared by table page + period totals). */
-  const applyFilters = (q: any, forTable = false) => {
+  /** Applies the page's filters to any treasury query (shared by table page + period totals; the whole list leaves the wallet out). */
+  const applyFilters = (q: any, forTable = false, withMethod = true) => {
     let tq = q.eq("branch_id", branchId!);
     // the movements table leaves reversal rows to their own tab; period totals keep every row (true money)
     if (forTable) tq = reversalView ? tq.in("category", REVERSAL_CATEGORIES) : tq.not("category", "in", REVERSAL_IN);
     if (fromDate) tq = tq.gte("transaction_date", fromDate);
     if (toDate) tq = tq.lte("transaction_date", toDate);
     if (tab !== "all") tq = tq.eq("type", tab);
-    if (methodFilter !== "all") tq = tq.eq("payment_method", methodFilter);
+    if (withMethod && methodFilter !== "all") tq = tq.eq("payment_method", methodFilter);
     const s = safeLike(search);
     if (s) tq = tq.or(`reference_number.ilike.%${s}%,description.ilike.%${s}%,category.ilike.%${s}%`);
     const n = safeLike(notesSearch);
@@ -276,10 +279,12 @@ export default function Treasury() {
   };
   // ===== the whole list behind the 50-row pages (Excel filters, owner 2026-10-26) =====
   // A column filter (other than the period / one wallet) or a sort reads every row the bar's filters leave — enriched
-  // like the page — and pages it here; otherwise the database pages it as before.
+  // like the page — and pages it here; otherwise the database pages it as before. The wallet stays out of that read
+  // (applied in memory like any column filter) so its arrow still lists every wallet with its count, as in Excel; it
+  // is in the signature only because the running balance is per wallet.
   const wholeSig = `${branchId}|${reversalView}|${fromDate}|${toDate}|${search}|${notesSearch}|${minAmount}|${maxAmount}|${tab}|${methodFilter}`;
   const whole = useWholeList<any>(wholeSig, async (signal) => {
-    const all = await readAll<any>(() => applyFilters(supabase.from("treasury").select("*"), true)
+    const all = await readAll<any>(() => applyFilters(supabase.from("treasury").select("*"), true, false)
       .order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }), signal);
     return enrichMovements(all, signal);
   }, { auto: needsWholeTill(colState) });

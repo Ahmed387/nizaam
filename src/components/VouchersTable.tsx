@@ -36,10 +36,12 @@ import { NumberedPagination } from "@/components/NumberedPagination";
 import { useLocation } from "react-router-dom";
 import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
 import { readAll, useWholeList } from "@/hooks/useWholeList";
-import { isActive, type ListColumn } from "@/lib/tableFilter";
+import { periodOfFilter, singleValueOf, valuesOf, withPeriod, withSingleValue, withValues, type FilterState, type ListColumn } from "@/lib/tableFilter";
 import { sourceText } from "@/lib/documentListColumns";
 
 const PAGE = 50;
+/** «طريقة الدفع» as the column shows it (payMethodLabel) → the bar's value */
+const METHOD_KEY: Record<string, string> = { كاش: "cash", محفظة: "vodafone", انستاباي: "instapay", بنكي: "bank" };
 
 interface Props {
   branchId?: string;
@@ -67,15 +69,47 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   const [editFocusDate, setEditFocusDate] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const deductibleRef = useRef<string[] | null>(null);
-  const [filters, setFilters] = useState({
-    from: initialFrom ?? "",
-    to: initialTo ?? "",
-    category_ids: [] as string[],
-    payment_method: "",
-    source: "",
-    branch_id: "",
-    type: "" as "" | VoucherType,
-  });
+  // ===== Excel filters (owner 2026-10-26), remembered per screen and type. The bar's period, type, categories, wallet
+  // and branch ARE the «التاريخ» / «النوع» / «التصنيف» / «طريقة الدفع» / «الفرع» column filters (both stay, linked);
+  // the bar's «المصدر» (the voucher's own: يدوي / تلقائي) and the search stay its own. =====
+  const { pathname } = useLocation();
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:vouchers:${type ?? "all"}${onlyDeductedFromProfit ? ":ded" : ""}`);
+  // a link from a report (?startDate / ?endDate) opens on its period
+  useEffect(() => {
+    if (initialFrom || initialTo) setColState(withPeriod(colState, "voucher_date", initialFrom ?? "", initialTo ?? ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [sourceF, setSourceF] = useState("");
+  const vPeriod = periodOfFilter(colState, "voucher_date");
+  const vCats = valuesOf(colState, "category");
+  const catIdsKey = cats.filter((c) => vCats.includes(c.name)).map((c) => c.id).join(",");
+  const vMethod = METHOD_KEY[singleValueOf(colState, "payment_method")] ?? "";
+  const vBranch = branches.find((b) => b.name === singleValueOf(colState, "branch"))?.id ?? "";
+  const vType: "" | VoucherType = type ? "" : (Object.keys(VOUCHER_TYPE_LABEL) as VoucherType[]).find((k) => VOUCHER_TYPE_LABEL[k] === singleValueOf(colState, "type")) ?? "";
+  const filters = useMemo(() => ({
+    from: vPeriod.from, to: vPeriod.to,
+    category_ids: catIdsKey ? catIdsKey.split(",") : [],
+    payment_method: vMethod, source: sourceF, branch_id: vBranch, type: vType,
+  }), [vPeriod.from, vPeriod.to, catIdsKey, vMethod, sourceF, vBranch, vType]);
+  /** the bar writes the fields it changed into the columns' filters (a value ticked only in an arrow stays) */
+  const setFilters = (f: typeof filters) => {
+    let st: FilterState = colState;
+    if (f.from !== filters.from || f.to !== filters.to) st = withPeriod(st, "voucher_date", f.from, f.to);
+    if (f.category_ids.join(",") !== filters.category_ids.join(","))
+      st = withValues(st, "category", f.category_ids.map((id) => cats.find((c) => c.id === id)?.name ?? ""));
+    if (f.payment_method !== filters.payment_method) st = withSingleValue(st, "payment_method", f.payment_method ? payMethodLabel(f.payment_method) : "");
+    if (f.branch_id !== filters.branch_id) st = withSingleValue(st, "branch", branches.find((b) => b.id === f.branch_id)?.name ?? "");
+    if (!type && f.type !== filters.type) st = withSingleValue(st, "type", f.type ? VOUCHER_TYPE_LABEL[f.type] : "");
+    if (st !== colState) setColState(st);
+    if (f.source !== filters.source) setSourceF(f.source);
+  };
+  /** the period and the bar's own choices run in the database; several values, other columns or a sort on the whole list */
+  const needsWholeV = (st: FilterState) => !!st.sort || Object.entries(st.filters).some(([k, f]) => !(
+    (k === "voucher_date" && f.kind === "date" && !f.days?.length)
+    || (k === "type" && f.kind === "values" && f.values.length === 1 && Object.values(VOUCHER_TYPE_LABEL).includes(f.values[0]))
+    || (k === "payment_method" && f.kind === "values" && f.values.length === 1 && !!METHOD_KEY[f.values[0]])
+    || (k === "branch" && f.kind === "values" && f.values.length === 1 && branches.some((b) => b.name === f.values[0]))
+    || (k === "category" && f.kind === "values" && f.values.length > 0 && f.values.every((v) => cats.some((c) => c.name === v)))));
 
   const canAdd = !!branchId && (isAdmin || hasRole("branch_manager"));
 
@@ -97,18 +131,22 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   useEffect(() => { setSelected(new Map()); }, [branchId, type, filters, searchText, showCancelled]);
   const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, { ...r, __account: accountOf(r) }); return n; });
 
-  /** Same filter set for the table rows and the full-scope totals. */
-  const applyFilters = (q: any, deductibleIds: string[] | null) => {
+  /**
+   * Same filter set for the table rows and the full-scope totals. The whole list (`whole`) leaves out the type /
+   * categories / wallet / branch picked on top: they are applied in memory like any column filter, so their arrows
+   * still list every value with its count, as in Excel.
+   */
+  const applyFilters = (q: any, deductibleIds: string[] | null, whole = false) => {
     if (branchId) q = q.eq("branch_id", branchId);
     if (tenantId) q = q.eq("tenant_id", tenantId);
     if (type) q = q.eq("type", type);
-    if (filters.type) q = q.eq("type", filters.type);
+    if (!whole && filters.type) q = q.eq("type", filters.type);
     if (filters.from) q = q.gte("voucher_date", filters.from);
     if (filters.to) q = q.lte("voucher_date", filters.to);
-    if (filters.category_ids.length) q = q.in("category_id", filters.category_ids);
-    if (filters.payment_method) q = q.eq("payment_method", filters.payment_method);
+    if (!whole && filters.category_ids.length) q = q.in("category_id", filters.category_ids);
+    if (!whole && filters.payment_method) q = q.eq("payment_method", filters.payment_method);
     if (filters.source) q = q.eq("source", filters.source);
-    if (filters.branch_id) q = q.eq("branch_id", filters.branch_id);
+    if (!whole && filters.branch_id) q = q.eq("branch_id", filters.branch_id);
     if (searchText) {
       const term = searchText.replace(/[,()*%]/g, " ").trim();
       if (term) q = q.or(`voucher_number.ilike.%${term}%,party_name.ilike.%${term}%,description.ilike.%${term}%`);
@@ -125,10 +163,10 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     return (dc ?? []).map((c: any) => c.id) as string[];
   };
   /** the vouchers of the view (active / cancelled) under the bar's filters, newest first */
-  const viewQuery = (select: string, count: boolean, deductibleIds: string[] | null) => applyFilters(
+  const viewQuery = (select: string, count: boolean, deductibleIds: string[] | null, whole = false) => applyFilters(
     supabase.from("vouchers" as any).select(select, count ? { count: "exact" } : undefined).eq("status", showCancelled ? "cancelled" : "active")
       .order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).order("id"),
-    deductibleIds,
+    deductibleIds, whole,
   );
   const load = async () => {
     setLoading(true);
@@ -167,16 +205,14 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   const catMap = useMemo(() => Object.fromEntries(cats.map((c) => [c.id, c.name])), [cats]);
   const branchMap = useMemo(() => Object.fromEntries(branches.map((b) => [b.id, b.name])), [branches]);
 
-  // ===== Excel filters on every voucher the bar leaves (owner 2026-10-26), remembered per screen and type =====
-  const { pathname } = useLocation();
-  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:vouchers:${type ?? "all"}${onlyDeductedFromProfit ? ":ded" : ""}`);
-  const wholeSig = `${branchId}|${type}|${tenantId}|${JSON.stringify(filters)}|${searchText}|${onlyDeductedFromProfit}|${showCancelled}`;
+  // ===== the whole list behind the 50-row pages: every voucher of the period and the bar's own filters =====
+  const wholeSig = `${branchId}|${type}|${tenantId}|${filters.from}|${filters.to}|${filters.source}|${searchText}|${onlyDeductedFromProfit}|${showCancelled}`;
   const whole = useWholeList<any>(wholeSig, async (signal) => {
     const ded = await deductibleIdsOf();
-    const all = await readAll<any>(() => viewQuery("*", false, ded), signal);
+    const all = await readAll<any>(() => viewQuery("*", false, ded, true), signal);
     const lk = await fetchTreasuryLinks(all.map((v: any) => v.treasury_id), signal).catch(() => new Map<string, TreasuryLink>());
     return all.map((v: any) => ({ ...v, __link: v.treasury_id ? lk.get(v.treasury_id) ?? null : null }));
-  }, { auto: isActive(colState) });
+  }, { auto: needsWholeV(colState) });
   /** what each column shows */
   const listCols = useMemo<ListColumn<any>[]>(() => [
     { key: "voucher_number", label: "رقم السند", kind: "text", get: (r) => r.voucher_number },
@@ -194,7 +230,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   const { result: listRes, adapter: listAdapter, state: colEff, apply } = useListFilter({
     rows: whole.rows, columns: listCols, state: colState, onChange: setColState, ensureRows: whole.ensure,
   });
-  const wholeMode = isActive(colEff);
+  const wholeMode = needsWholeV(colEff);
   const colSig = JSON.stringify(colEff);
   useEffect(() => { setPage(1); }, [branchId, type, tenantId, filters, searchText, onlyDeductedFromProfit, showCancelled, colSig]);
   useEffect(() => { setSelected(new Map()); }, [colSig]);

@@ -188,13 +188,16 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
   };
 
   // ===== the whole log behind the 50-row pages (a column filter other than the bar's, or a sort) =====
-  const wholeSig = `${branch}|${docType}|${action}|${userId}|${from}|${to}|${dq}`;
+  // Read for the period and the search only: the branch / type / action / user picked on top are applied in memory
+  // like any column filter, so their arrows still list every value with its count, as in Excel.
+  const wholeSig = `${from}|${to}|${dq}`;
   const whole = useWholeList<Ev>(wholeSig, async (signal) => {
     if (dq) {
       // a search uses the log's own function (number / party / phone / user), 1,000 steps at a time
       const all: Ev[] = [];
       for (let off = 0; off < 200_000; off += 1000) {
-        const { data, error } = await supabase.rpc("document_log_page" as any, args(1000, off) as any).abortSignal(signal);
+        const wide = { ...args(1000, off), p_branch: null, p_doc_types: null, p_actions: null, p_user: null };
+        const { data, error } = await supabase.rpc("document_log_page" as any, wide as any).abortSignal(signal);
         if (error) throw error;
         const part = ((data as any)?.rows ?? []) as Ev[];
         all.push(...part);
@@ -202,15 +205,11 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
       }
       return all;
     }
-    // no search: the same filters straight on the log (invoker rights, same RLS), each page a fresh query
+    // no search: the period straight on the log (invoker rights, same RLS), each page a fresh query
     const evs = await readAll<any>(() => {
       let qb = supabase.from("document_events" as any).select("*, branches(name)");
-      if (branch !== ALL) qb = qb.eq("branch_id", branch);
       if (from) qb = qb.gte("at", cairoStart(from).toISOString());
       if (to) qb = qb.lt("at", cairoStart(addDaysDay(to, 1)).toISOString());
-      if (docType !== ALL) qb = qb.eq("doc_type", docType);
-      if (action !== ALL) qb = qb.eq("action", action);
-      if (userId !== ALL) qb = qb.eq("user_id", userId);
       return qb.order("at", { ascending: false }).order("id");
     }, signal);
     return evs.map((e: any) => ({ ...e, branch_name: e.branches?.name ?? null }));

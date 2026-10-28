@@ -72,16 +72,20 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
   useEffect(() => { const t = setTimeout(() => setDuser(user.replace(/[,()%*\\]/g, " ").trim()), 300); return () => clearTimeout(t); }, [user]);
   const [todayCount, setTodayCount] = useState(0);
 
-  /** the price changes of the bar's filters, newest first (every page from a fresh query) */
-  const query = (select: string, opts?: { count?: "exact"; head?: boolean }) => {
+  /**
+   * the price changes of the bar's filters, newest first (every page from a fresh query). The whole list (`whole`)
+   * leaves out the price type / branch / source picked on top: they are applied in memory like any column filter, so
+   * their arrows still list every value with its count, as in Excel.
+   */
+  const query = (select: string, opts?: { count?: "exact"; head?: boolean }, whole = false) => {
     let qb: any = supabase.from("price_audit_log").select(select, opts);
     if (from) qb = qb.gte("created_at", getCairoDayBounds(from).startIso!);
     if (to) qb = qb.lte("created_at", getCairoDayBounds(undefined, to).endIso!);
     if (productId !== "all") qb = qb.eq("entity_id", productId);
-    if (priceType !== "all") qb = qb.eq("price_type", priceType);
+    if (!whole && priceType !== "all") qb = qb.eq("price_type", priceType);
     if (duser) qb = qb.ilike("changed_by_name", `%${duser}%`);
-    if (branchId !== "all") qb = qb.eq("branch_id", branchId);
-    if (source !== "all") qb = qb.eq("source", source);
+    if (!whole && branchId !== "all") qb = qb.eq("branch_id", branchId);
+    if (!whole && source !== "all") qb = qb.eq("source", source);
     return opts?.head ? qb : qb.order("created_at", { ascending: false }).order("id");
   };
 
@@ -98,8 +102,8 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
     || (k === "price_type" && f.kind === "values" && f.values.length === 1 && keyOf(PRICE_TYPE_LABEL, f.values[0]))
     || (k === "source" && f.kind === "values" && f.values.length === 1 && keyOf(SOURCE_LABEL, f.values[0]))
     || (k === "branch" && f.kind === "values" && f.values.length === 1 && branches.some((b) => b.name === f.values[0]))));
-  const wholeSig = `${from}|${to}|${productId}|${priceType}|${duser}|${branchId}|${source}`;
-  const whole = useWholeList<any>(wholeSig, (signal) => readAllBounded(() => query("*, branches(name)"), () => query("id", { count: "exact", head: true }), 10_000, signal),
+  const wholeSig = `${from}|${to}|${productId}|${duser}`;
+  const whole = useWholeList<any>(wholeSig, (signal) => readAllBounded(() => query("*, branches(name)", undefined, true), () => query("id", { count: "exact", head: true }, true), 10_000, signal),
     { auto: linked(colState) });
   const listCols = useMemo<ListColumn<any>[]>(() => [
     { key: "created_at", label: "التاريخ", kind: "date", get: (r) => r.created_at },
@@ -133,7 +137,7 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
       .then(({ count }) => setTodayCount(count ?? 0));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [wholeSig, page, wholeMode]);
+  useEffect(() => { load(); }, [wholeSig, priceType, branchId, source, page, wholeMode]);
 
   useEffect(() => {
     loadToday();

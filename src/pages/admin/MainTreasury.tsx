@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
 import { readAll, useWholeList } from "@/hooks/useWholeList";
-import { isActive, type ListColumn } from "@/lib/tableFilter";
+import { BLANK, EMPTY_STATE, periodOfFilter, singleValueOf, withPeriod, withSingleValue, type FilterState, type ListColumn } from "@/lib/tableFilter";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
@@ -57,14 +57,18 @@ const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
   { label: "الشهر اللي فات", range: () => { const d = cairoTodayDay(); return [monthStartDay(d, -1), addDaysDay(monthStartDay(d), -1)]; } },
 ];
 const defaultFrom = () => addDaysDay(cairoTodayDay(), -29);
+const TYPE_LABEL: Record<"income" | "expense", string> = { income: "وارد ↓", expense: "صادر ↑" };
+const methodLabel = (m: string) => PAYMENT_METHOD_LABELS[m as PaymentMethod] ?? m;
+/** the page opens on the last 30 days (nothing remembered): that period IS the «التاريخ» column's filter */
+const startState = (): FilterState => withPeriod(EMPTY_STATE, "created_at", defaultFrom(), cairoTodayDay());
 
 /** what each column of «حركات الخزنة» shows, for the Excel filters on every row of the period (owner 2026-10-26) */
 const moveCols = (branchName: (id: string) => string): ListColumn<TxRow>[] => [
   { key: "created_at", label: "التاريخ", kind: "date", get: (r) => r.transaction_date ?? r.created_at },
   { key: "branch", label: "الفرع", kind: "text", get: (r) => branchName(r.branch_id) },
-  { key: "type", label: "النوع", kind: "text", get: (r) => (r.type === "income" ? "وارد ↓" : "صادر ↑") },
+  { key: "type", label: "النوع", kind: "text", get: (r) => TYPE_LABEL[r.type] },
   { key: "category", label: "التصنيف", kind: "text", get: (r) => treasuryCategoryLabel(r.category) },
-  { key: "payment_method", label: "الوعاء", kind: "text", get: (r) => PAYMENT_METHOD_LABELS[r.payment_method as PaymentMethod] ?? r.payment_method },
+  { key: "payment_method", label: "الوعاء", kind: "text", get: (r) => methodLabel(r.payment_method) },
   { key: "reference_number", label: "رقم العملية", kind: "text", get: (r) => resolveTreasuryOperationNumber(r.voucher_number, r.invoice_number, r.reference_number) },
   { key: "description", label: "الملاحظات / البيان", kind: "text", get: (r) => sanitizeOperationalDescription(r.description) },
   // in + / out −, so the total is the net movement
@@ -77,15 +81,32 @@ export default function MainTreasury() {
   const [rows, setRows] = useState<TxRow[]>([]);
   const [glBalances, setGlBalances] = useState<Record<string, ViewBal>>({});
   const [loading, setLoading] = useState(true);
-  const [from, setFrom] = useState(defaultFrom());
-  const [to, setTo] = useState(cairoTodayDay());
-  const [branchFilter, setBranchFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [notes, setNotes] = useState("");
-  const [typeF, setTypeF] = useState<"all" | "income" | "expense">("all");
   // reversal rows (cancel / void / refund of a cancelled document) are listed apart, like the branch till
   const [revF, setRevF] = useState<"normal" | "reversals">("normal");
-  const [methodF, setMethodF] = useState<string>("all");
+  // Excel filters of «حركات الخزنة» (owner 2026-10-26), remembered per view. The bar's period, branch tab, type and
+  // wallet ARE the «التاريخ» / «الفرع» / «النوع» / «الوعاء» column filters (both stay, linked); search, notes and the
+  // amount range stay the bar's own. Several values ticked in one column = «الكل» on top, filtered on the whole list.
+  const { pathname } = useLocation();
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:${revF}`, startState);
+  const { from, to } = periodOfFilter(colState, "created_at");
+  const setPeriod = (f: string, t: string) => setColState(withPeriod(colState, "created_at", f, t));
+  const setFrom = (v: string) => setPeriod(v, to);
+  const setTo = (v: string) => setPeriod(from, v);
+  const branchFilter = branches.find((b) => b.name === singleValueOf(colState, "branch"))?.id ?? "all";
+  const setBranchFilter = (id: string) => setColState(withSingleValue(colState, "branch", id === "all" ? "" : branches.find((b) => b.id === id)?.name ?? ""));
+  const typeF: "all" | "income" | "expense" = (Object.keys(TYPE_LABEL) as ("income" | "expense")[]).find((k) => TYPE_LABEL[k] === singleValueOf(colState, "type")) ?? "all";
+  const setTypeF = (v: "all" | "income" | "expense") => setColState(withSingleValue(colState, "type", v === "all" ? "" : TYPE_LABEL[v]));
+  const methodOf = (label: string) => (label ? Object.keys(PAYMENT_METHOD_LABELS).find((k) => (PAYMENT_METHOD_LABELS as Record<string, string>)[k] === label) ?? label : "all");
+  const methodF = methodOf(singleValueOf(colState, "payment_method"));
+  const setMethodF = (v: string) => setColState(withSingleValue(colState, "payment_method", v === "all" ? "" : methodLabel(v)));
+  /** the period and ONE branch / type / wallet run in the database; several values, any other column or a sort on the whole list */
+  const needsWholeMain = (st: FilterState) => !!st.sort || Object.entries(st.filters).some(([k, f]) => !(
+    (k === "created_at" && f.kind === "date" && !f.days?.length)
+    || (k === "type" && f.kind === "values" && f.values.length === 1 && Object.values(TYPE_LABEL).includes(f.values[0]))
+    || (k === "payment_method" && f.kind === "values" && f.values.length === 1 && f.values[0] !== BLANK)
+    || (k === "branch" && f.kind === "values" && f.values.length === 1 && branches.some((b) => b.name === f.values[0]))));
   const [minAmt, setMinAmt] = useState("");
   const [maxAmt, setMaxAmt] = useState("");
   const [dq, setDq] = useState({ search: "", notes: "", minAmt: "", maxAmt: "" });
@@ -106,9 +127,9 @@ export default function MainTreasury() {
   // Any filter change resets to page 1
   useEffect(() => { setPage(1); }, [from, to, branchFilter, typeF, revF, methodF, dq]);
 
+  /** back to how the page opens: the last 30 days, nothing else */
   const clearFilters = () => {
-    setFrom(defaultFrom()); setTo(cairoTodayDay()); setSearch(""); setNotes("");
-    setTypeF("all"); setMethodF("all"); setMinAmt(""); setMaxAmt("");
+    setColState(startState()); setSearch(""); setNotes(""); setMinAmt(""); setMaxAmt("");
   };
 
   const load = useCallback(async () => {
@@ -180,18 +201,22 @@ export default function MainTreasury() {
     }));
   };
 
-  /** the movements query of the bar's filters (shared by the page and the whole list) */
-  const movesQuery = (select: string, count: boolean) => {
+  /**
+   * the movements query of the bar's filters (shared by the page and the whole list). The whole list (`whole`) leaves
+   * out the branch / type / wallet picked on top: they are applied in memory like any column filter, so their arrows
+   * still list every value with its count, as in Excel.
+   */
+  const movesQuery = (select: string, count: boolean, whole = false) => {
     let q = applyCairoRange(
       supabase
         .from("treasury")
         .select(select, count ? { count: "exact" } : undefined)
-        .in("branch_id", branchFilter === "all" ? branches.map(b => b.id) : [branchFilter]),
+        .in("branch_id", whole || branchFilter === "all" ? branches.map(b => b.id) : [branchFilter]),
       "transaction_date", from, to, true,
     );
-    if (typeF !== "all") q = q.eq("type", typeF);
+    if (!whole && typeF !== "all") q = q.eq("type", typeF);
     q = revF === "reversals" ? q.in("category", REVERSAL_CATEGORIES) : q.not("category", "in", `(${REVERSAL_CATEGORIES.map((c) => `"${c}"`).join(",")})`);
-    if (methodF !== "all") q = q.eq("payment_method", methodF);
+    if (!whole && methodF !== "all") q = q.eq("payment_method", methodF);
     const s = safeLike(dq.search);
     if (s) q = q.or(`reference_number.ilike.%${s}%,description.ilike.%${s}%,category.ilike.%${s}%`);
     const n = safeLike(dq.notes);
@@ -213,21 +238,19 @@ export default function MainTreasury() {
   }, [tenantId, branches, branchFilter, from, to, typeF, revF, methodF, dq, page]);
 
   // ===== Excel filters on every movement the bar's filters leave (owner 2026-10-26) =====
-  // A column filter / sort reads the whole list (enriched like the page) and pages it here; otherwise the database
-  // pages it as before. The bar (period, branch tab, type, wallet…) stays the database filter; both combine.
-  const { pathname } = useLocation();
-  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:${revF}`);
-  const wholeSig = `${tenantId}|${branches.map((b) => b.id).join(",")}|${branchFilter}|${from}|${to}|${typeF}|${revF}|${methodF}|${JSON.stringify(dq)}`;
+  // The period and ONE branch / type / wallet run in the database for the page; any other column filter or a sort reads
+  // the whole list of the period (enriched like the page) and pages it here.
+  const wholeSig = `${tenantId}|${branches.map((b) => b.id).join(",")}|${from}|${to}|${revF}|${JSON.stringify(dq)}`;
   const whole = useWholeList<TxRow>(wholeSig, async (signal) => {
     if (!tenantId || branches.length === 0) return [];
-    const all = await readAll<TxRow>(() => movesQuery("id,branch_id,type,category,amount,description,payment_method,created_at,transaction_date,reference_id,reference_number", false), signal);
+    const all = await readAll<TxRow>(() => movesQuery("id,branch_id,type,category,amount,description,payment_method,created_at,transaction_date,reference_id,reference_number", false, true), signal);
     return enrichMoves(all, signal);
-  }, { auto: isActive(colState) });
+  }, { auto: needsWholeMain(colState) });
   const listCols = useMemo(() => moveCols((id) => branches.find((b) => b.id === id)?.name ?? "—"), [branches]);
   const { result: listRes, adapter: listAdapter, state: colEff } = useListFilter({
     rows: whole.rows, columns: listCols, state: colState, onChange: setColState, ensureRows: whole.ensure,
   });
-  const wholeMode = isActive(colEff);
+  const wholeMode = needsWholeMain(colEff);
   const colSig = JSON.stringify(colEff);
   useEffect(() => { setPage(1); }, [colSig]);
 
@@ -419,7 +442,7 @@ export default function MainTreasury() {
             </div>
             <div className="flex flex-wrap gap-2">
               {DATE_SHORTCUTS.map((sc) => (
-                <Button key={sc.label} variant="outline" size="sm" onClick={() => { const [f, t] = sc.range(); setFrom(f); setTo(t); }}>{sc.label}</Button>
+                <Button key={sc.label} variant="outline" size="sm" onClick={() => { const [f, t] = sc.range(); setPeriod(f, t); }}>{sc.label}</Button>
               ))}
               <Button variant="ghost" size="sm" onClick={clearFilters}>مسح الفلاتر</Button>
             </div>
@@ -472,7 +495,7 @@ export default function MainTreasury() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">الكل</SelectItem>
-                  {methods.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                  {methods.map(m => <SelectItem key={m} value={m}>{methodLabel(m)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
