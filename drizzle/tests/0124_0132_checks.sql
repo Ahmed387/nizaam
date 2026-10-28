@@ -1,4 +1,4 @@
--- Integration checks for 0125–0131 (owner decisions 2026-10-28). Run as ONE batch on the live database:
+-- Integration checks for 0124–0132 (owner decisions 2026-10-28). Run as ONE batch on the live database:
 -- it edits / cancels real returns inside the batch and raises at the end → ROLLBACK (nothing is kept).
 -- Sequences are NOT rolled back: the return-number sequences are put back by hand before the raise (setval is not
 -- transactional), otherwise every run burns SR / PR numbers (2026-10-28: SR00095–SR00103, PR00204–PR00206).
@@ -95,11 +95,18 @@ BEGIN
   BEGIN PERFORM edit_sale_return((SELECT id FROM returns WHERE return_number = 'SR00076'), 'x', NULL, NULL, 'cash', NULL, NULL,
           '[{"product_id":"df58cde8-96ba-4f95-a228-be85b181a605","quantity":1,"refund":280}]'); ok := false; msg := msg || 'cancelled '; EXCEPTION WHEN others THEN NULL; END;
   BEGIN PERFORM edit_sale_return((SELECT id FROM returns WHERE return_number = 'SR00059'), 'x', NULL, NULL, 'cash', NULL, NULL, '[]'); ok := false; msg := msg || 'empty '; EXCEPTION WHEN others THEN NULL; END;
-  PERFORM set_config('request.jwt.claims', json_build_object('sub', 'a3174891-df98-4baa-a806-8c4c94d29eca', 'role', 'authenticated')::text, true);
-  BEGIN PERFORM edit_sale_return((SELECT id FROM returns WHERE return_number = 'SR00073'), 'x', NULL, NULL, 'cash', NULL, NULL,
-          '[{"product_id":"df58cde8-96ba-4f95-a228-be85b181a605","quantity":1,"refund":1}]'); ok := false; msg := msg || 'cashier '; EXCEPTION WHEN others THEN NULL; END;
+  -- 0132: a read-only branch user is refused; a branch manager is refused once the owner switches «returns.update» off
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', '9aa41d69-13ef-41d8-a6ca-b6c722c95c62', 'role', 'authenticated')::text, true);
+  BEGIN PERFORM edit_sale_return((SELECT id FROM returns WHERE return_number = 'SR00072'), 'x', NULL, NULL, 'cash', NULL, NULL,
+          (SELECT jsonb_agg(jsonb_build_object('product_id', product_id, 'quantity', quantity, 'refund', refund)) FROM return_items WHERE return_id = (SELECT id FROM returns WHERE return_number = 'SR00072'))); ok := false; msg := msg || 'read-only '; EXCEPTION WHEN others THEN NULL; END;
+  INSERT INTO user_permissions(tenant_id, user_id, permission_key, allowed, branch_id)
+  VALUES ('5316fbfe-b862-4c91-b48b-1d81c8aa5a71', '598491e8-589f-4ad1-88a6-62d6e9114bde', 'returns.update', false, NULL);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', '598491e8-589f-4ad1-88a6-62d6e9114bde', 'role', 'authenticated')::text, true);
+  BEGIN PERFORM edit_sale_return((SELECT id FROM returns WHERE return_number = 'SR00072'), 'x', NULL, NULL, 'cash', NULL, NULL,
+          (SELECT jsonb_agg(jsonb_build_object('product_id', product_id, 'quantity', quantity, 'refund', refund)) FROM return_items WHERE return_id = (SELECT id FROM returns WHERE return_number = 'SR00072'))); ok := false; msg := msg || 'switched-off '; EXCEPTION WHEN others THEN NULL; END;
+  BEGIN PERFORM cancel_sale_return((SELECT id FROM returns WHERE return_number = 'SR00072'), 'x'); ok := false; msg := msg || 'manager-cancel '; EXCEPTION WHEN others THEN NULL; END;
   PERFORM set_config('request.jwt.claims', json_build_object('sub', owner, 'role', 'authenticated')::text, true);
-  IF ok THEN pass := pass+1; r := r || '✅ 9. مرفوض: مرتجع ملغي، تعديل من غير أصناف، الكاشير' || E'\n';
+  IF ok THEN pass := pass+1; r := r || '✅ 9. مرفوض: مرتجع ملغي، من غير أصناف، فرع «عرض فقط»، الصلاحية مقفولة، والإلغاء لوحده لغير المالك' || E'\n';
   ELSE fail := fail+1; r := r || '❌ 9. اتقبل: ' || msg || E'\n'; END IF;
 
   -- 10. 0131: purchase return PR00024 (كبة 5, 26/8) → 3: two pieces back in stock, same day, on the supplier's account
@@ -113,6 +120,27 @@ BEGIN
      AND v_stock_after = v_stock_before + 2 AND (SELECT status FROM purchase_returns WHERE return_number = 'PR00024') = 'cancelled' THEN
     pass := pass+1; r := r || '✅ 10. تعديل PR00024 ← ' || x.return_number || ': 3 بدل 5، قطعتين رجعوا المخزن، نفس اليوم 26/8' || E'\n';
   ELSE fail := fail+1; r := r || '❌ 10. ' || row_to_json(x)::text || ' stock ' || v_stock_before || '→' || v_stock_after || E'\n'; END IF;
+
+  -- 13. 0124: a purchase invoice is edited even with a product below zero (PO00492 تكييف 2 → 1, stock −15 → −16)
+  SELECT * INTO x FROM shipments WHERE shipment_number = 'PO00492';
+  SELECT quantity INTO v_stock_before FROM products WHERE id = (SELECT product_id FROM shipment_items WHERE shipment_id = x.id LIMIT 1);
+  PERFORM edit_shipment(x.id,
+    jsonb_build_object('received_by', x.received_by, 'admin_cost', x.admin_cost, 'discount_value', x.discount_value, 'discount_type', x.discount_type,
+      'shipping_cost', x.shipping_cost, 'other_cost_description', x.other_cost_description, 'arrival_date', x.arrival_date, 'notes', x.notes,
+      'vat_value', x.vat_value, 'other_cost', x.other_cost, 'customs_cost', x.customs_cost, 'vat_type', x.vat_type),
+    (SELECT jsonb_agg(jsonb_build_object('id', id, 'product_id', product_id, 'product_name', product_name, 'quantity', 1, 'cost_price', cost_price,
+       'discount_percent', discount_percent, 'discount_amount', discount_amount)) FROM shipment_items WHERE shipment_id = x.id));
+  SELECT quantity INTO v_stock_after FROM products WHERE id = (SELECT product_id FROM shipment_items WHERE shipment_id = x.id LIMIT 1);
+  IF v_stock_after = v_stock_before - 1 AND (SELECT total_cost FROM shipments WHERE id = x.id) = 16250 THEN
+    pass := pass+1; r := r || '✅ 13. تعديل فاتورة شراء فيها صنف بالسالب: PO00492 من 2 لـ 1 (الرصيد ' || v_stock_before || ' ← ' || v_stock_after || '، الفاتورة 16,250)' || E'\n';
+  ELSE fail := fail+1; r := r || '❌ 13. ' || v_stock_before || '→' || v_stock_after || E'\n'; END IF;
+
+  -- 14. 0132: «returns.update» on for every role but the viewer
+  IF role_permission_default('cashier', 'returns.update') AND role_permission_default('worker', 'returns.update')
+     AND NOT role_permission_default('viewer', 'returns.update') AND role_permission_default('viewer', 'sales.view')
+     AND role_permission_default('cashier', 'sales.create') AND NOT role_permission_default('cashier', 'treasury.view') THEN
+    pass := pass+1; r := r || '✅ 14. صلاحية «تعديل المرتجعات» مفتوحة للكل ما عدا المراقب، وباقي الصلاحيات زي ما هي' || E'\n';
+  ELSE fail := fail+1; r := r || '❌ 14.' || E'\n'; END IF;
 
   -- 11. everything still adds up once the deferred ledger triggers run
   SET CONSTRAINTS ALL IMMEDIATE;

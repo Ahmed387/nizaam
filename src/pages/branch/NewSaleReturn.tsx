@@ -106,7 +106,7 @@ export default function NewSaleReturn() {
   const [savedNumber, setSavedNumber] = useState("");
 
   // Return-window override
-  const { user, profile, isOwner, isSuperAdmin } = useAuth();
+  const { user, profile, isOwner, canInBranch } = useAuth();
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [overrideMeta, setOverrideMeta] = useState<{ daysSince: number; windowDays: number } | null>(null);
@@ -193,8 +193,8 @@ export default function NewSaleReturn() {
         .select("id, invoice_id, return_number, status, invoice_date, created_at, migration_batch_id, reason, notes, refund_method, refund_reference, refund_account, total_refund")
         .eq("id", editId).maybeSingle();
       if (!r) { toast.error("المرتجع مش موجود"); return; }
-      if (!canEditReturn(r as any, isOwner || isSuperAdmin)) {
-        toast.error("المرتجع ده مينفعش يتعدل (ملغي، أو قبل 2026، أو مش المالك)");
+      if (!canEditReturn(r as any, canInBranch("returns.update", branchId!))) {
+        toast.error("المرتجع ده مينفعش يتعدل (ملغي، أو قبل 2026، أو مش معاك صلاحية «تعديل المرتجعات»)");
         nav(`/branch/${branchId}/sale-returns/${editId}`);
         return;
       }

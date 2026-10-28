@@ -73,9 +73,12 @@ export function editDiff(
     .filter((r) => r.before !== r.after);
 }
 
-/** A return can be edited by the owner while it is active and dated 2026 or later (archive returns stay as they are). */
-export function canEditReturn(ret: { status?: string | null; invoice_date?: string | null; created_at?: string | null; migration_batch_id?: string | null } | null | undefined, isOwner: boolean): boolean {
-  if (!ret || !isOwner) return false;
+/**
+ * A return can be edited by whoever has «returns.update» (on for everyone by default, migration 0132) while it is
+ * active and dated 2026 or later (archive returns stay as they are).
+ */
+export function canEditReturn(ret: { status?: string | null; invoice_date?: string | null; created_at?: string | null; migration_batch_id?: string | null } | null | undefined, allowed: boolean): boolean {
+  if (!ret || !allowed) return false;
   if ((ret.status ?? "active") !== "active") return false;
   if (ret.migration_batch_id) return false;
   const d = String(ret.invoice_date ?? ret.created_at ?? "");

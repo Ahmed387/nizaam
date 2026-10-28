@@ -55,6 +55,8 @@ export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   { key: "attachments", label: "المرفقات (ملفات الفواتير والمستندات)", actions: ["view", "create", "update", "delete"] },
   // 0093: «تحويل لنقدي / لآجل» on sale and purchase invoices (moves the money on the right days)
   { key: "doc_class", label: "تحويل الفاتورة نقدي / آجل (بيع وشراء)", actions: ["update"] },
+  // 0132: «تعديل المرتجع» — on for everyone by default, the owner closes it per person / branch / role
+  { key: "returns", label: "تعديل المرتجعات (بيع وشراء)", actions: ["update"] },
 ];
 
 /** Admin sidebar pages — the owner can grant any of these to any role. */
@@ -136,6 +138,7 @@ export const SUBSECTION_PARENT: Record<string, string> = {
  */
 export const PERM_HELP: Record<string, string> = {
   // الفرع والعمليات
+  returns: "زرار «تعديل المرتجع» في مرتجع البيع والشراء: المرتجع القديم بيتلغي والجديد بيتسجّل بنفس تاريخه. مفتوح للكل — اقفله لمين ما تحب. (إلغاء المرتجع لوحده للمالك بس)",
   dashboard: "الصفحة الأولى للفرع: أرقام اليوم (مبيعات، كاش، تنبيهات) — من غيرها الموظف مش هيشوف ملخص الفرع.",
   sales: "عمل فواتير بيع جديدة للعملاء. «إنشاء» يعني يقدر يبيع، و«حذف» يعني يقدر يلغي بيع (خطر).",
   invoices: "استعراض الفواتير والمستندات المسجلة والبحث فيها. «تعديل» بيخليه يفتح فاتورة قديمة ويغيّرها.",
@@ -246,6 +249,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
     "advances.view": true, "advances.create": true, "advances.update": true,
     "attendance.view": true, "attendance.create": true, "attendance.update": true,
     "reports.view": true,
+    "returns.update": true,
   },
   cashier: {
     "dashboard.view": true, "sales.view": true, "sales.create": true,
@@ -253,6 +257,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
     "inventory.view": true, "customers.view": true, "customers.create": true,
     "receipt_vouchers.view": true, "receipt_vouchers.create": true,
     "attendance.view": true, "attendance.create": true,
+    "returns.update": true,
   },
   warehouse: {
     "dashboard.view": true, "inventory.view": true, "inventory.create": true, "inventory.update": true,
@@ -262,13 +267,15 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
     "employees.view": true, "employees.create": true, "employees.update": true,
     "advances.view": true, "advances.create": true,
     "attendance.view": true, "attendance.create": true,
+    "returns.update": true,
   },
   supervisor: {
     "employees.view": true,
     "attendance.view": true, "attendance.create": true, "attendance.update": true,
+    "returns.update": true,
   },
-  worker: {},
-  driver: {},
+  worker: { "returns.update": true },
+  driver: { "returns.update": true },
   // المراقب: يشوف كل حاجة المالك بيشوفها (عرض فقط) — من غير الإعدادات
   viewer: {
     ...Object.fromEntries(

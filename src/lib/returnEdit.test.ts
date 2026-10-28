@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canEditReturn, capsForEdit, editDiff, oldQtyByProduct } from "./returnEdit";
+import { DEFAULT_ROLE_PERMISSIONS, MANAGED_ROLES } from "./roles";
 
 describe("oldQtyByProduct", () => {
   it("sums per product and skips lines without a product", () => {
@@ -69,5 +70,13 @@ describe("canEditReturn", () => {
     expect(canEditReturn({ status: "active", invoice_date: "2025-12-30" }, true)).toBe(false);
     expect(canEditReturn({ status: "active", invoice_date: "2026-03-01", migration_batch_id: "m" }, true)).toBe(false);
     expect(canEditReturn({ status: null, invoice_date: null, created_at: "2026-10-01" }, true)).toBe(true);
+  });
+});
+
+describe("«returns.update» (0132) — on for everyone but the viewer", () => {
+  it("every managed role has it by default, the viewer (read only) does not", () => {
+    for (const role of MANAGED_ROLES) {
+      expect(!!DEFAULT_ROLE_PERMISSIONS[role]?.["returns.update"], role).toBe(role !== "viewer");
+    }
   });
 });

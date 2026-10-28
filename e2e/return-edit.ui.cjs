@@ -1,6 +1,7 @@
 // UI test of «تعديل المرتجع» (owner 2026-10-28, migration 0131): the button on the return view, the edit screen
 // pre-filled with the old lines (date + invoice locked), «قبل ← بعد», the required reason, and the ONE call to
-// edit_sale_return. A manager (not the owner) sees no button. Database faked in the browser. Run:
+// edit_sale_return. The button is for everyone (permission «returns.update», 0132): a cashier sees it; once the owner
+// switches it off for him it is gone and the edit link sends him back. Database faked in the browser. Run:
 //   npm run build && npx vite preview --host 127.0.0.1 --port 4173, then: node e2e/return-edit.ui.cjs
 const { chromium } = require("playwright");
 const OUT = process.env.OUT_DIR || __dirname;
@@ -9,7 +10,7 @@ const SB = "https://kkfiplnucefytutlwaiz.supabase.co";
 const REF = "kkfiplnucefytutlwaiz";
 const T = "5316fbfe-b862-4c91-b48b-1d81c8aa5a71";
 const OWNER = "85c76e60-3d27-4a99-8cd7-c8f8b39d914a";
-const MANAGER = "a3174891-df98-4baa-a806-8c4c94d29eca"; // a company manager (admin), not the owner
+const CASHIER = "a3174891-df98-4baa-a806-8c4c94d29eca"; // a cashier of the branch
 const B1 = "1329f6cc-0000-0000-0000-000000000001";
 const R1 = "e0000001-0000-4000-8000-000000000001";
 const INV = "a0000001-0000-4000-8000-000000000001";
@@ -25,13 +26,14 @@ function makeDb() {
     calls: [],
     profiles: [
       { id: OWNER, name: "احمد ناصر", username: "an.ayoub98", tenant_id: T, is_active: true },
-      { id: MANAGER, name: "مدير", username: "manager", tenant_id: T, is_active: true },
+      { id: CASHIER, name: "كاشير", username: "cashier", tenant_id: T, is_active: true },
     ],
     user_roles: [
       { user_id: OWNER, role: "owner", tenant_id: T }, { user_id: OWNER, role: "admin", tenant_id: T },
-      { user_id: MANAGER, role: "admin", tenant_id: T },
+      { user_id: CASHIER, role: "cashier", tenant_id: T },
     ],
-    branch_users: [],
+    branch_users: [{ user_id: CASHIER, branch_id: B1, tenant_id: T, access_level: "manage", full_access: false, branch_role: null, branch_template: null,
+      branches: { id: B1, name: "معرض سكة تلة", code: "B1", tenant_id: T, is_active: true, is_system: false, platform_paused: false } }],
     branches: [{ id: B1, name: "معرض سكة تلة", code: "B1", tenant_id: T, is_active: true, is_system: false, platform_paused: false }],
     tenants: [{ id: T, name: "A & N", slug: "an", is_suspended: false, owner_user_id: OWNER, setup_completed: true }],
     employees: [], role_permissions: [], user_permissions: [], permission_templates: [],
@@ -158,17 +160,27 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
   await shot(page, "return-edit-3-saved");
   await ctx.close();
 
-  // 6. a manager (admin, not the owner): no button, and the edit link sends him back to the return
+  // 6. a cashier: the button is there by default (للكل) and opens the edit screen
   const db2 = makeDb();
-  const c2 = await open(browser, db2, MANAGER);
+  const c2 = await open(browser, db2, CASHIER);
   await c2.page.goto(`${BASE}/branch/${B1}/sale-returns/${R1}`); await settle(c2.page);
-  check("10. المدير (مش المالك) مش شايف «تعديل المرتجع»", !(await vis(c2.page.getByRole("button", { name: /تعديل المرتجع/ }))));
+  check("10. الكاشير شايف «تعديل المرتجع» (مفتوح للكل)", await vis(c2.page.getByRole("button", { name: /تعديل المرتجع/ })));
   await c2.page.goto(`${BASE}/branch/${B1}/sale-returns/new?edit=${R1}`); await settle(c2.page); await c2.page.waitForTimeout(800);
-  check("11. المدير لو فتح رابط التعديل بيرجع لصفحة المرتجع", c2.page.url().endsWith(`/sale-returns/${R1}`) && !db2.calls.some((c) => c.rpc === "edit_sale_return"), c2.page.url());
+  check("11. الكاشير بيفتح شاشة التعديل", c2.page.url().includes(`edit=${R1}`) && await vis(c2.page.getByText(/تعديل مرتجع بيع SR00076/)), c2.page.url());
   await c2.ctx.close();
 
-  const errs = [...db.calls, ...db2.calls].filter((c) => c.pageerror);
-  check("12. مفيش أخطاء في الصفحة", errs.length === 0, errs.map((e) => e.pageerror).join(" | "));
+  // 7. the owner switched «returns.update» off for him: no button, the link sends him back
+  const db3 = makeDb();
+  db3.user_permissions = [{ user_id: CASHIER, tenant_id: T, permission_key: "returns.update", allowed: false, branch_id: null }];
+  const c3 = await open(browser, db3, CASHIER);
+  await c3.page.goto(`${BASE}/branch/${B1}/sale-returns/${R1}`); await settle(c3.page);
+  check("12. بعد ما المالك قفل الصلاحية: الزرار اختفى", !(await vis(c3.page.getByRole("button", { name: /تعديل المرتجع/ }))) && await vis(c3.page.getByText("SR00076")));
+  await c3.page.goto(`${BASE}/branch/${B1}/sale-returns/new?edit=${R1}`); await settle(c3.page); await c3.page.waitForTimeout(800);
+  check("13. ولو فتح رابط التعديل بيرجع لصفحة المرتجع", c3.page.url().endsWith(`/sale-returns/${R1}`) && !db3.calls.some((c) => c.rpc === "edit_sale_return"), c3.page.url());
+  await c3.ctx.close();
+
+  const errs = [...db.calls, ...db2.calls, ...db3.calls].filter((c) => c.pageerror);
+  check("14. مفيش أخطاء في الصفحة", errs.length === 0, errs.map((e) => e.pageerror).join(" | "));
   await browser.close();
   console.log(results.join("\n"));
   process.exit(results.some((r) => r.startsWith("❌")) ? 1 : 0);

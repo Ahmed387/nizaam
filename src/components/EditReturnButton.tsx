@@ -7,13 +7,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { canEditReturn } from "@/lib/returnEdit";
 
 /**
- * «تعديل المرتجع» — للمالك بس (migration 0131). بيفتح شاشة المرتجع بالبيانات القديمة؛ عند الحفظ السيرفر بيلغي القديم
+ * «تعديل المرتجع» — لكل اللي معاه صلاحية «returns.update» (مفتوحة للكل، المالك يقفلها من الصلاحيات — 0132). بيفتح شاشة المرتجع بالبيانات القديمة؛ عند الحفظ السيرفر بيلغي القديم
  * ويسجّل الجديد بنفس تاريخه (المرتجع القديم بيفضل في القايمة ملغي ومربوط بالجديد).
  */
 export function EditReturnButton({ kind, branchId, ret }: { kind: "sale" | "purchase"; branchId: string; ret: any }) {
-  const { isOwner, isSuperAdmin } = useAuth();
+  const { canInBranch } = useAuth();
   const nav = useNavigate();
-  if (!canEditReturn(ret, isOwner || isSuperAdmin)) return null;
+  if (!canEditReturn(ret, canInBranch("returns.update", ret?.branch_id ?? branchId))) return null;
   const path = kind === "sale" ? "sale-returns" : "purchase-returns";
   return (
     <Button

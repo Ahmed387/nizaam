@@ -61,7 +61,7 @@ export default function NewPurchaseReturn() {
   const { id: branchId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const presetShipmentId = params.get("shipment");
-  const { user, isOwner, isSuperAdmin } = useAuth();
+  const { user, canInBranch } = useAuth();
   // «تعديل المرتجع» (0131): ?edit=<return id> — saving cancels the old return and records the new one on its day
   const editId = params.get("edit");
   const [editOld, setEditOld] = useState<{ id: string; number: string; total: number; day: string; qty: Record<string, number> } | null>(null);
@@ -188,8 +188,8 @@ export default function NewPurchaseReturn() {
         .select("id, shipment_id, return_number, status, invoice_date, created_at, migration_batch_id, reason, notes, refund_method, refund_reference, refund_account, total_amount")
         .eq("id", editId).maybeSingle();
       if (!r) { toast.error("المرتجع مش موجود"); return; }
-      if (!r.shipment_id || !canEditReturn(r, isOwner || isSuperAdmin)) {
-        toast.error("المرتجع ده مينفعش يتعدل (ملغي، أو قبل 2026، أو مش المالك، أو مش مربوط بفاتورة)");
+      if (!r.shipment_id || !canEditReturn(r, canInBranch("returns.update", branchId!))) {
+        toast.error("المرتجع ده مينفعش يتعدل (ملغي، أو قبل 2026، أو مش معاك صلاحية «تعديل المرتجعات»، أو مش مربوط بفاتورة)");
         nav(`/branch/${branchId}/purchase-returns/${editId}`);
         return;
       }
