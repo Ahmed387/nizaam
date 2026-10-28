@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
 import { Loader2, TrendingUp, TrendingDown, DollarSign, Wallet, ChevronDown, ChevronLeft, FileText } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { lineProfit } from "@/lib/profitEngine";
+import { lineProfit, isArchiveInvoice, fetchReturnLines, type ReturnLine } from "@/lib/profitEngine";
 import { ReportIntro } from "@/components/ReportIntro";
 import { StatCard } from "@/components/StatCard";
 import { generateProfitReport } from "@/utils/generatePDFReport";
@@ -47,6 +47,8 @@ interface InvRow {
   profit: number;
   margin: number;
   has_return: boolean;
+  /** a row of a sale return dated in the period (0133: a return counts on its own day) */
+  is_return?: boolean;
   was_edited: boolean;
   is_migrated: boolean;
   cost_unknown: boolean;
@@ -103,7 +105,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
     const build = () => {
       let q = supabase
         .from("invoice_items")
-        .select("product_id, product_name, brand, model, color, product_type, capacity, size, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, invoice_date, status, cashier_id, is_migrated)")
+        .select("product_id, product_name, brand, model, color, product_type, capacity, size, quantity, returned_quantity, original_unit_cost, selling_price, unit_cost_at_sale, line_discount, invoice:invoices!inner(id, invoice_number, branch_id, created_at, invoice_date, status, cashier_id, is_migrated, migration_batch_id)")
         .eq("tenant_id", tenantId)
         .neq("invoice.status", "cancelled");
       if (from) q = q.gte("invoice.invoice_date", getCairoDayBounds(from).startIso!);
@@ -113,8 +115,13 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
     };
     let data: any[] = [];
     let error: any = null;
+    let retLines: ReturnLine[] = [];
     try {
-      data = await fetchAllRows<any>(build);
+      // the returns dated in the period, on their own day, with the cost that came back (0133)
+      [data, retLines] = await Promise.all([
+        fetchAllRows<any>(build),
+        fetchReturnLines(from || "2000-01-01", to || "2100-12-31", branchId || null),
+      ]);
     } catch (e) { error = e; }
     setLoading(false);
     if (error) { console.error(error); return; }
@@ -142,16 +149,13 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
     for (const r of filtered as any[]) {
       const qtyRaw = Number(r.quantity) || 0;
       const retQty = Number(r.returned_quantity) || 0;
-      const lp = lineProfit(
-        {
-          quantity: qtyRaw,
-          returned_quantity: retQty,
-          selling_price: r.selling_price,
-          line_discount: r.line_discount,
-          unit_cost_at_sale: r.unit_cost_at_sale,
-        },
-        { invoiceIsMigrated: !!r.invoice?.is_migrated }
-      );
+      // 0133 — same rule as the card: the sale at its FULL quantity on its day; what came back is a row of the
+      // return's own day (below). An archive invoice (before 2026) keeps its cost net of returns.
+      const line = { quantity: qtyRaw, returned_quantity: retQty, selling_price: r.selling_price, line_discount: r.line_discount, unit_cost_at_sale: r.unit_cost_at_sale };
+      const full = lineProfit(line, { invoiceIsMigrated: !!r.invoice?.is_migrated, fullQuantity: true });
+      const archive = isArchiveInvoice(r.invoice ?? {});
+      const archCost = archive ? lineProfit(line, { invoiceIsMigrated: !!r.invoice?.is_migrated }).cost : full.cost;
+      const lp = { ...full, cost: archCost, profit: full.costUnknown ? 0 : full.revenue - archCost };
       const netQty = lp.netQty;
       const unitSell = Number(r.selling_price) || 0;
       const origCost = Number(r.original_unit_cost ?? r.unit_cost_at_sale ?? 0);
@@ -168,7 +172,6 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       const prev = map.get(key) ?? { product_id: r.product_id, product_name: r.product_name, brand: r.brand, model: r.model, color: r.color, product_type: r.product_type, capacity: r.capacity, size: r.size, qty: 0, gross_qty: 0, returned_qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: true };
       prev.qty += netQty;
       prev.gross_qty += qtyRaw;
-      prev.returned_qty += retQty;
       prev.revenue += revenue; prev.cost += cost; prev.profit += profit;
       if (!costUnknown) prev.cost_unknown = false;
       prev.margin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
@@ -183,6 +186,31 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       if (!costUnknown) ip.cost_unknown = false;
       ip.margin = ip.revenue > 0 ? (ip.profit / ip.revenue) * 100 : 0;
       invMap.set(inv.id, ip);
+    }
+
+    // the returns of the period: off their product (qty, money, cost back) and one row each in «حسب الفاتورة»
+    let cashierInv: Set<string> | null = null;
+    if (cashierId && retLines.length) {
+      const ids = Array.from(new Set(retLines.map((l) => l.invoice_id)));
+      const { data: ci } = await supabase.from("invoices").select("id").in("id", ids).eq("cashier_id", cashierId);
+      cashierInv = new Set(((ci ?? []) as any[]).map((x) => x.id));
+    }
+    for (const l of retLines) {
+      if (hideLegacy && l.archive_invoice) continue;
+      if (cashierInv && !cashierInv.has(l.invoice_id)) continue;
+      if (categoryId && (l.product_id ? productCat[l.product_id] : null) !== categoryId) continue;
+      const key = l.product_id ?? l.product_name;
+      const prev = map.get(key) ?? { product_id: l.product_id, product_name: l.product_name, qty: 0, gross_qty: 0, returned_qty: 0, revenue: 0, cost: 0, profit: 0, margin: 0, cost_unknown: false } as Row;
+      prev.qty -= l.quantity;
+      prev.returned_qty += l.quantity;
+      prev.revenue -= l.refund; prev.cost -= l.cost; prev.profit -= l.refund - l.cost;
+      prev.margin = prev.revenue > 0 ? (prev.profit / prev.revenue) * 100 : 0;
+      map.set(key, prev);
+      const rk = `ret:${l.return_id}`;
+      const rr: InvRow = invMap.get(rk) ?? { invoice_id: l.invoice_id, invoice_number: `${l.return_number} (مرتجع ${l.invoice_number})`, created_at: `${l.return_day}T12:00:00+02:00`, revenue: 0, cost: 0, profit: 0, margin: 0, has_return: true, is_return: true, was_edited: false, is_migrated: l.archive_invoice, cost_unknown: false, original_profit: 0 };
+      rr.revenue -= l.refund; rr.cost -= l.cost; rr.profit -= l.refund - l.cost;
+      rr.original_profit = rr.profit;
+      invMap.set(rk, rr);
     }
 
     // Enrich rows with batch breakdown (weighted avg of base + shipping share per unit)
@@ -508,8 +536,10 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                   title={`الربح الأصلي: ${formatEGP(r.original_profit)} ← الربح بعد التعديل: ${formatEGP(r.profit)}`}
                 >تم التعديل</span>
               )}
-              {r.has_return && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 border border-blue-500/30">يشمل مرتجع</span>
+              {r.is_return ? (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 border border-blue-500/30" title="المرتجع بيتحسب في يومه: فلوسه بتتخصم من الإيراد وتكلفته بترجع">مرتجع في الفترة</span>
+              ) : r.has_return && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-600 border border-blue-500/30" title="الفاتورة محسوبة كاملة في يومها؛ المرتجع بيتحسب في يومه هو">عليها مرتجع</span>
               )}
             </div>
           ),

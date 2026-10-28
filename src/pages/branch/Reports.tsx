@@ -2,7 +2,7 @@ import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { invoiceProfit } from "@/lib/profitEngine";
+import { invoiceProfit, fetchReturnLines, returnEffect, type ReturnLine } from "@/lib/profitEngine";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -42,6 +42,8 @@ export default function BranchReports() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [treasury, setTreasury] = useState<any[]>([]);
+  // the returns of the period on their own day (0133)
+  const [retLines, setRetLines] = useState<ReturnLine[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [returns, setReturns] = useState<any[]>([]);
   const [branchName, setBranchName] = useState("");
@@ -92,6 +94,7 @@ export default function BranchReports() {
     setTreasury((tr.data ?? []).filter((v: any) => !EXCLUDE_KEYS.includes(v.voucher_categories?.system_key)));
     setProducts(pr.data ?? []);
     setReturns(rt.data ?? []);
+    try { setRetLines(await fetchReturnLines(from, to, branchId)); } catch (e) { console.warn("sale_return_lines", e); setRetLines([]); }
     setLoading(false);
   };
 
@@ -99,16 +102,12 @@ export default function BranchReports() {
   useRealtimeRefresh(["invoices", "invoice_items", "returns", "return_items", "products", "vouchers"], load);
 
   const activeInv = invoices.filter((i) => i.status === "active");
-  const netQty = (it: any) => Math.max(0, (Number(it.quantity) || 0) - (Number(it.returned_quantity) || 0));
-  const netLineTotal = (it: any) => {
-    const qty = Number(it.quantity) || 0;
-    return qty > 0 ? Number(it.total ?? 0) * (netQty(it) / qty) : 0;
-  };
-  // خصم الفاتورة ككل (discount_amount) بيتوزع على البنود غير المرتجعة — من غير كده
-  // المبيعات والربح بيطلعوا أعلى من الحقيقة.
+  // 0133 — same rule as the card: a sale counts at its full quantity on its day, a return on ITS day
+  // (its refund off the sales, its cost back off the cost). The bill discount is taken off the invoice.
   const netInvoiceTotal = (i: any) => invoiceProfit(i).revenue;
-  const totalSales = activeInv.reduce((s, i) => s + netInvoiceTotal(i), 0);
-  const totalCost = activeInv.reduce((s, i) => s + invoiceProfit(i).cost, 0);
+  const ret = returnEffect(retLines);
+  const totalSales = activeInv.reduce((s, i) => s + netInvoiceTotal(i), 0) - ret.revenue;
+  const totalCost = activeInv.reduce((s, i) => s + invoiceProfit(i).cost, 0) - ret.cost;
   const grossProfit = totalSales - totalCost;
   const totalExpenses = expenses.reduce((s, e) => s + Number(e.amount), 0);
   const netProfit = grossProfit - totalExpenses;
@@ -126,9 +125,14 @@ export default function BranchReports() {
     for (const it of inv.invoice_items) {
       const k = it.product_name;
       if (!productMap[k]) productMap[k] = { name: k, qty: 0, revenue: 0 };
-      productMap[k].qty += netQty(it);
-      productMap[k].revenue += netLineTotal(it);
+      productMap[k].qty += Number(it.quantity) || 0;
+      productMap[k].revenue += Number(it.total ?? 0);
     }
+  }
+  for (const l of retLines) {
+    if (!productMap[l.product_name]) productMap[l.product_name] = { name: l.product_name, qty: 0, revenue: 0 };
+    productMap[l.product_name].qty -= l.quantity;
+    productMap[l.product_name].revenue -= l.refund;
   }
   const topProducts = Object.values(productMap)
     .sort((a, b) => b.revenue - a.revenue)
@@ -160,6 +164,12 @@ export default function BranchReports() {
       dayMap[d].sales += netInvoiceTotal(inv);
       const cost = invoiceProfit(inv).cost;
       dayMap[d].profit += netInvoiceTotal(inv) - cost;
+    }
+    for (const l of retLines) {
+      const d = l.return_day;
+      if (!dayMap[d]) dayMap[d] = { date: d, sales: 0, profit: 0 };
+      dayMap[d].sales -= l.refund;
+      dayMap[d].profit -= l.refund - l.cost;
     }
     return Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
   })();

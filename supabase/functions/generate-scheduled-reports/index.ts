@@ -1,5 +1,5 @@
 import { isCronCall } from "../_shared/cron.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -58,8 +58,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    const periodEnd = new Date();
-    const periodStart = new Date(periodEnd.getTime() - 7 * 24 * 60 * 60 * 1000);
+    // 0133: the week = the last 7 full Cairo days (yesterday and the 6 before), the same days the card reads
+    const cairoDay = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
+    const addDays = (day: string, n: number) => {
+      const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
+    };
+    const toDay = addDays(cairoDay(new Date()), -1);
+    const fromDay = addDays(toDay, -6);
+    const periodStart = new Date(`${fromDay}T00:00:00+03:00`);
+    const periodEnd = new Date(`${toDay}T23:59:59+03:00`);
 
     let q = admin.from("tenants").select("id, name, is_active, is_suspended");
     if (onlyTenant) q = q.eq("id", onlyTenant);
@@ -72,70 +79,47 @@ Deno.serve(async (req) => {
     for (const t of tenants ?? []) {
       if (!t.is_active || t.is_suspended) continue;
 
-      const sinceISO = periodStart.toISOString();
-      const untilISO = periodEnd.toISOString();
+      // Same numbers as the card «لقطة البيزنس» (owner_business_snapshot, owner «نفذ» 2026-10-28): sales by the
+      // invoice's day, a return on ITS day (money and cost back), cost of goods at the moving average, expenses =
+      // payment vouchers in deductible categories by voucher day. It used to be sales − returns typed that week −
+      // expenses, with no cost of goods: 8–15/9 showed 2,872,340 «profit» (the card: 10,015).
+      const { data: snap, error: serr } = await admin.rpc("owner_business_snapshot", { p_from: fromDay, p_to: toDay, p_tenant: t.id });
+      if (serr) { results.push({ tenant_id: t.id, error: serr.message }); continue; }
+      const tot: any = (snap as any)?.total ?? {};
+      const num = (v: any) => Number(v ?? 0) || 0;
 
-      // Sales
-      const { data: invoices } = await admin
-        .from("invoices")
-        .select("id, total, branch_id, invoice_date, status")
-        .eq("tenant_id", t.id)
-        .gte("invoice_date", sinceISO)
-        .lte("invoice_date", untilISO);
-
-      const activeInvs = (invoices ?? []).filter((i: any) => i.status === "active");
-      const totalSales = activeInvs.reduce((s, i: any) => s + Number(i.total || 0), 0);
-
-      // Returns
-      const { data: returns } = await admin
-        .from("returns")
-        .select("total_refund")
-        .eq("tenant_id", t.id)
-        .eq("status", "active")
-        .gte("created_at", sinceISO)
-        .lte("created_at", untilISO);
-      const totalReturns = (returns ?? []).reduce((s, r: any) => s + Number(r.total_refund || 0), 0);
-
-      // المصروفات = سندات الصرف القابلة للخصم من الأرباح (نفس مصدر التقارير في التطبيق)
-      const { data: expenses } = await admin
-        .from("vouchers")
-        .select("amount, voucher_categories!inner(is_deductible_from_profit)")
-        .eq("tenant_id", t.id)
-        .eq("type", "payment")
-        .eq("status", "active")
-        .eq("voucher_categories.is_deductible_from_profit", true)
-        .gte("voucher_date", periodStart.toISOString().slice(0, 10))
-        .lte("voucher_date", periodEnd.toISOString().slice(0, 10));
-      const totalExpenses = (expenses ?? []).reduce((s, e: any) => s + Number(e.amount || 0), 0);
-
-      // Treasury net
+      // Treasury movement of the week (by the till day, never created_at)
       const { data: tr } = await admin
         .from("treasury")
         .select("type, amount")
         .eq("tenant_id", t.id)
-        .gte("created_at", sinceISO)
-        .lte("created_at", untilISO);
+        .gte("transaction_date", fromDay)
+        .lte("transaction_date", toDay);
       let trIncome = 0, trExpense = 0;
       for (const r of tr ?? []) {
         if (r.type === "income") trIncome += Number(r.amount || 0);
         else trExpense += Number(r.amount || 0);
       }
 
-      // Per branch breakdown
-      const branchMap: Record<string, number> = {};
-      for (const i of activeInvs) {
-        branchMap[i.branch_id] = (branchMap[i.branch_id] || 0) + Number(i.total || 0);
-      }
-      const { data: branches } = await admin
-        .from("branches")
-        .select("id, name")
-        .eq("tenant_id", t.id)
-        .eq("is_system", false);
-      const perBranch = (branches ?? []).map((b: any) => ({
-        branch_id: b.id,
-        branch_name: b.name,
-        sales: branchMap[b.id] || 0,
+      const perBranch = (((snap as any)?.branches ?? []) as any[]).map((b: any) => ({
+        branch_id: b.branch_id,
+        branch_name: b.branch,
+        sales: num(b.sales),
+        returns: num(b.returns),
+        cogs: num(b.cogs),
+        expenses: num(b.expenses),
+        net_profit: num(b.net_profit),
       }));
+
+      const { data: weekInvs } = await admin
+        .from("invoices")
+        .select("id")
+        .eq("tenant_id", t.id)
+        .eq("status", "active")
+        .gte("invoice_date", periodStart.toISOString())
+        .lte("invoice_date", periodEnd.toISOString())
+        .limit(1000);
+      const activeInvs = weekInvs ?? [];
 
       // Top products
       const { data: items } = await admin
@@ -155,23 +139,21 @@ Deno.serve(async (req) => {
         .sort((a, b) => b.total - a.total)
         .slice(0, 10);
 
-      // Counts
-      const { count: invoiceCount } = await admin
-        .from("invoices").select("id", { count: "exact", head: true })
-        .eq("tenant_id", t.id).gte("invoice_date", sinceISO).lte("invoice_date", untilISO);
-
       const summary = {
         tenant_name: t.name,
         period_start: periodStart.toISOString(),
         period_end: periodEnd.toISOString(),
+        method: "owner_business_snapshot",
         totals: {
-          sales: totalSales,
-          returns: totalReturns,
-          expenses: totalExpenses,
+          sales: num(tot.sales),
+          returns: num(tot.returns),
+          cogs: num(tot.cogs),
+          gross_profit: num(tot.gross_profit),
+          expenses: num(tot.expenses),
           treasury_income: trIncome,
           treasury_expense: trExpense,
-          net_profit: totalSales - totalReturns - totalExpenses,
-          invoice_count: invoiceCount ?? 0,
+          net_profit: num(tot.net_profit),
+          invoice_count: num(tot.invoices),
         },
         per_branch: perBranch,
         top_products: topProducts,

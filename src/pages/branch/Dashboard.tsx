@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { PermPart } from "@/contexts/PermCustomize";
 import { DataTable } from "@/components/DataTable";
-import { invoiceProfit } from "@/lib/profitEngine";
+import { invoiceProfit, fetchReturnLines, returnEffect, type ReturnLine } from "@/lib/profitEngine";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP, formatDateTime } from "@/lib/format";
@@ -69,11 +69,11 @@ export default function BranchDashboard() {
     // ONE read of the branch's active invoices with their lines, from the earliest day any card needs
     // (last month's 1st or 30 days back) to today; every card is cut from it below. It used to be six
     // overlapping reads of the same rows (today, yesterday, month, last month, 30 days ×2).
-    const INV = "id, total, vat_amount, discount_amount, is_migrated, invoice_date, payment_method, contact_id, contacts:contact_id(name), invoice_items(quantity, total, returned_quantity, net_quantity, selling_price, line_discount, unit_cost_at_sale, cost_price, product_name)";
+    const INV = "id, total, vat_amount, discount_amount, is_migrated, migration_batch_id, invoice_date, created_at, payment_method, contact_id, contacts:contact_id(name), invoice_items(quantity, total, returned_quantity, net_quantity, selling_price, line_discount, unit_cost_at_sale, cost_price, product_name)";
     const fromDay = lmStart < d30 ? lmStart : d30;
     const cairoDayOf = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
 
-    const [invRange, wallet, prods, custs, recentDocs, payToday, branchRow] = await Promise.all([
+    const [invRange, wallet, prods, custs, recentDocs, payToday, branchRow, retLines] = await Promise.all([
       allRows(() => applyCairoRange(
         supabase.from("invoices").select(INV).eq("branch_id", id).eq("status", "active").not("is_migrated", "is", true),
         "invoice_date", fromDay, td).order("id")),
@@ -87,6 +87,8 @@ export default function BranchDashboard() {
         supabase.from("invoice_payments").select("id, amount, payment_method, voided_at, reverses_payment_id").eq("branch_id", id),
         "created_at", td, td).order("id")),
       supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
+      // the returns of the same days, on their own day (0133 — the card's rule: a return counts in ITS month)
+      fetchReturnLines(fromDay, td, id).catch((e) => { console.warn("sale_return_lines", e); return [] as ReturnLine[]; }),
     ]);
     const all = (invRange.data ?? []).map((x: any) => ({ ...x, __day: cairoDayOf(x.invoice_date) }));
     const between = (f: string, t: string) => ({ data: all.filter((x: any) => x.__day >= f && x.__day <= t) });
@@ -104,10 +106,13 @@ export default function BranchDashboard() {
     };
     setMonthlyTarget(Number((branchRow.data as any)?.monthly_sales_target ?? 0));
 
-    setSalesToday(r2((invToday.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0)));
-    setSalesYesterday(r2((invYday.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0)));
-    setSalesMonth(r2((invMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0)));
-    setSalesLastMonth(r2((invLastMonth.data ?? []).reduce((s, x: any) => s + netInvoiceTotal(x), 0)));
+    // net sales of a period = what was sold on its days − what came back on its days
+    const retOf = (f: string, t: string) => returnEffect(retLines, (l) => l.return_day >= f && l.return_day <= t);
+    const salesOf = (rows: any[], f: string, t: string) => rows.reduce((s, x: any) => s + netInvoiceTotal(x), 0) - retOf(f, t).revenue;
+    setSalesToday(r2(salesOf(invToday.data ?? [], td, td)));
+    setSalesYesterday(r2(salesOf(invYday.data ?? [], yDay, yDay)));
+    setSalesMonth(r2(salesOf(invMonth.data ?? [], mStart, td)));
+    setSalesLastMonth(r2(salesOf(invLastMonth.data ?? [], lmStart, lmEnd)));
     const w = Array.isArray(wallet.data) ? (wallet.data as any[])[0] : (wallet.data as any);
     setTreasury(Number(w?.total_balance ?? 0));
     setLowStock((prods.data ?? []).filter((p: any) => Number(p.low_stock_alert || 0) > 0 && Number(p.quantity || 0) <= Number(p.low_stock_alert)));
@@ -116,9 +121,12 @@ export default function BranchDashboard() {
 
     // gross profit (sales − cost of goods at the sale's own unit cost, after returns and invoice discounts);
     // expenses are not deducted here, so this is «مجمل الربح», not net profit
-    const grossOf = (rows: any[]) => r2(rows.reduce((s, inv: any) => { const p = invoiceProfit(inv); return s + p.revenue - p.cost; }, 0));
-    setProfitToday(grossOf(invToday.data ?? []));
-    setProfitMonth(grossOf(invMonth.data ?? []));
+    const grossOf = (rows: any[], f: string, t: string) => {
+      const ret = retOf(f, t);
+      return r2(rows.reduce((s, inv: any) => { const p = invoiceProfit(inv); return s + p.revenue - p.cost; }, 0) - (ret.revenue - ret.cost));
+    };
+    setProfitToday(grossOf(invToday.data ?? [], td, td));
+    setProfitMonth(grossOf(invMonth.data ?? [], mStart, td));
 
     const payMap: Record<string, number> = {};
     (payToday.data ?? []).forEach((x: any) => {
@@ -140,16 +148,22 @@ export default function BranchDashboard() {
       const k = x.__day;
       if (k in dayMap) dayMap[k].total += netInvoiceTotal(x);
     });
+    for (const l of retLines) if (l.return_day in dayMap) dayMap[l.return_day].total -= l.refund;
     setSalesByDay(Object.values(dayMap).map((d) => ({ date: d.date, displayDate: d.displayDate, total: d.total })));
 
     const prodMap: Record<string, { name: string; qty: number; revenue: number }> = {};
     (invItemsToday.data ?? []).forEach((it: any) => {
       const qty = Number(it.quantity) || 0;
-      const netQty = Math.max(0, qty - (Number(it.returned_quantity) || 0));
+      // sold today at the full quantity; what came back today is taken off below (return on its day, 0133)
       if (!prodMap[it.product_name]) prodMap[it.product_name] = { name: it.product_name, qty: 0, revenue: 0 };
-      prodMap[it.product_name].qty += netQty;
-      prodMap[it.product_name].revenue += qty > 0 ? Number(it.total ?? 0) * (netQty / qty) : 0;
+      prodMap[it.product_name].qty += qty;
+      prodMap[it.product_name].revenue += Number(it.total ?? 0);
     });
+    for (const l of retLines) {
+      if (l.return_day !== td || !prodMap[l.product_name]) continue;
+      prodMap[l.product_name].qty -= l.quantity;
+      prodMap[l.product_name].revenue -= l.refund;
+    }
     setTopProducts(Object.values(prodMap).sort((a, b) => b.revenue - a.revenue).slice(0, 5));
 
     const custMap: Record<string, { id: string | null; name: string; total: number }> = {};
@@ -221,7 +235,7 @@ export default function BranchDashboard() {
         <PermPart page="dashboard" part="sales_today">
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="flex items-center gap-1 text-base font-bold text-foreground">مبيعات اليوم <MetricHint meaning="صافي مبيعات الفرع المسجلة اليوم وفق حدود يوم القاهرة." source="فواتير invoices النشطة غير المرحّلة وبنود invoice_items للفرع، مع الكميات المرتجعة وخصم الفاتورة." formula="إجمالي بنود البيع بعد المرتجعات − خصم الفواتير" /></span>
+            <span className="flex items-center gap-1 text-base font-bold text-foreground">مبيعات اليوم <MetricHint meaning="صافي مبيعات الفرع النهارده بتوقيت القاهرة: البيع محسوب كامل في يومه، والمرتجع بيتخصم في يومه هو (زي الكارت والدفاتر)." source="فواتير اليوم النشطة وبنودها (الكمية كاملة) وخصم الفاتورة، ومرتجعات اليوم من sale_return_lines." formula="مبيعات اليوم بالكمية كاملة − خصم الفواتير − فلوس مرتجعات اليوم" /></span>
             <DollarSign className="w-6 h-6 text-success" />
           </div>
            <FinancialAmount value={salesToday} size="lg" className="justify-start font-extrabold" />
@@ -238,7 +252,7 @@ export default function BranchDashboard() {
         <PermPart page="dashboard" part="sales_month">
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="flex items-center gap-1 text-base font-bold text-foreground">مبيعات الشهر <MetricHint meaning="صافي مبيعات الفرع من بداية الشهر الحالي حتى الآن بتوقيت القاهرة." source="فواتير invoices النشطة غير المرحّلة وبنود invoice_items للفرع خلال الشهر، مع الكميات المرتجعة وخصم الفاتورة." formula="إجمالي بنود بيع الشهر بعد المرتجعات − خصم الفواتير" /></span>
+            <span className="flex items-center gap-1 text-base font-bold text-foreground">مبيعات الشهر <MetricHint meaning="صافي مبيعات الفرع من أول الشهر لحد دلوقتي: البيع في يومه كامل، والمرتجع في يومه هو." source="فواتير الشهر النشطة وبنودها وخصم الفاتورة، ومرتجعات الشهر من sale_return_lines." formula="مبيعات الشهر بالكمية كاملة − خصم الفواتير − فلوس مرتجعات الشهر" /></span>
             <ShoppingBag className="w-6 h-6 text-primary" />
           </div>
            <FinancialAmount value={salesMonth} size="lg" className="justify-start font-extrabold" />
@@ -255,7 +269,7 @@ export default function BranchDashboard() {
         <PermPart page="dashboard" part="gross_profit_today">
         <div className="card-elevated p-5">
           <div className="flex items-center justify-between mb-2">
-            <span className="flex items-center gap-1 text-base font-bold text-foreground">مجمل ربح اليوم <MetricHint meaning="ربح البضاعة المباعة اليوم قبل المصروفات (مش صافي ربح): المبيعات بعد المرتجعات وخصم الفاتورة ناقص تكلفتها الفعلية وقت البيع." source="فواتير اليوم (بتاريخ الفاتورة) وبنودها: unit_cost_at_sale والكميات المرتجعة وخصم الفاتورة." formula="صافي إيراد المبيعات − تكلفة البضاعة المباعة (بتكلفة وقت البيع)" /></span>
+            <span className="flex items-center gap-1 text-base font-bold text-foreground">مجمل ربح اليوم <MetricHint meaning="ربح البضاعة النهارده قبل المصروفات (مش صافي ربح): البيع كامل في يومه، والمرتجع النهارده بيخصم فلوسه وبيرجّع تكلفته." source="فواتير اليوم (بتاريخ الفاتورة) وبنودها: unit_cost_at_sale وخصم الفاتورة، ومرتجعات اليوم بتكلفتها (sale_return_lines)." formula="(مبيعات اليوم − تكلفتها) − (فلوس مرتجعات اليوم − التكلفة اللي رجعت)" /></span>
             <TrendingUp className="w-6 h-6 text-success" />
           </div>
            <FinancialAmount value={canViewNetProfit ? profitToday : NET_PROFIT_MASK} currency={canViewNetProfit} size="lg" className={`justify-start font-extrabold ${canViewNetProfit ? (profitToday >= 0 ? "text-success" : "text-destructive") : "text-muted-foreground"}`} />

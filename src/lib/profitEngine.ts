@@ -5,14 +5,18 @@ import { getCairoDayBounds } from "@/lib/cairoDate";
  * Every screen that shows profitability numbers MUST use these helpers, otherwise
  * different pages will show different totals and the admin will lose trust.
  *
- * Canonical formula (matches accounting):
- *   Revenue        = Σ unit_price × net_quantity                  (net of returns)
- *   COGS / Cost    = Σ unit_cost_at_sale × net_quantity           (branch moving average at sale time, migration 0071)
+ * Canonical formula — the SAME as the card «لقطة البيزنس» and the books (migrations 0129 / 0133, owner 2026-10-28):
+ *   a sale counts on ITS day at its FULL quantity, a return counts on the RETURN's day.
+ *   Revenue        = Σ unit_price × quantity (− the bill discount)   − Σ refunds of the returns dated in the period
+ *   COGS / Cost    = Σ unit_cost_at_sale × quantity                  − Σ cost that came back with those returns
+ *                    (archive invoices before 2026 keep cost × net_quantity: their cost was net, no cost comes back)
  *   Gross Profit   = Revenue − COGS
- *   Expenses       = Σ vouchers(type=payment, status=active)
+ *   Expenses       = Σ vouchers(type=payment, status=active, deductible category)
  *   Net Profit     = Gross Profit − Expenses
+ *   Returns of the period come from `sale_return_lines(from, to, branch)` (fetchReturnLines / returnEffect).
+ *   Example SR00083: IN04796 sold 2/3 for 20,332 (cost 16,350), returned 23/5 → March +3,982, May −3,982.
  *
- *   net_quantity   = max(0, quantity − returned_quantity)
+ *   net_quantity   = max(0, quantity − returned_quantity)   (archive cost only)
  *   unit_price     = total / quantity   (per row; total is post line_discount)
  *
  * Note: "is_migrated" invoices may have unit_cost_at_sale=0 — cost is then unknown,
@@ -41,13 +45,23 @@ export interface LineProfit {
   costUnknown: boolean;
 }
 
+/** Archive invoice = dated before 2026 AND recorded before it (or migrated) — same rule as ledger_invoice_is_archive. */
+export const LEDGER_CUTOFF_DAY = "2026-01-01";
+const cairoDay = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
+export function isArchiveInvoice(inv: { invoice_date?: string | null; created_at?: string | null; is_migrated?: boolean | null; migration_batch_id?: string | null }): boolean {
+  const doc = inv.invoice_date ?? inv.created_at;
+  if (!doc) return !!inv.is_migrated;
+  if (cairoDay(doc) >= LEDGER_CUTOFF_DAY) return false;
+  return cairoDay(inv.created_at ?? doc) < LEDGER_CUTOFF_DAY || !!inv.is_migrated || !!inv.migration_batch_id;
+}
+
 export function lineProfit(
   it: InvoiceItemLike,
-  opts: { invoiceIsMigrated?: boolean } = {}
+  opts: { invoiceIsMigrated?: boolean; /** return lens (0133): count the full quantity, returns come back on their day */ fullQuantity?: boolean } = {}
 ): LineProfit {
   const qty = Number(it.quantity) || 0;
   const ret = Number(it.returned_quantity ?? 0) || 0;
-  const netQty = Math.max(0, Number(it.net_quantity ?? qty - ret));
+  const netQty = opts.fullQuantity ? qty : Math.max(0, Number(it.net_quantity ?? qty - ret));
 
   // Prefer pre-computed total (post line_discount) when available, fall back to
   // selling_price − unit line_discount.
@@ -75,6 +89,9 @@ export function lineProfit(
 
 export interface InvoiceLike {
   is_migrated?: boolean | null;
+  invoice_date?: string | null;
+  created_at?: string | null;
+  migration_batch_id?: string | null;
   discount_amount?: number | string | null;
   invoice_items?: InvoiceItemLike[] | null;
 }
@@ -101,22 +118,63 @@ export interface InvoiceProfit {
  * revenue, not what the customer paid.
  */
 export function invoiceProfit(inv: InvoiceLike): InvoiceProfit {
+  // return lens (0133): the sale counts at its FULL quantity and the whole bill discount; what comes back is taken
+  // off on the return's day (returnEffect). The cost of an archive invoice stays net (no cost comes back for it).
+  const archive = isArchiveInvoice(inv);
   const items = inv.invoice_items ?? [];
   let grossRevenue = 0; // full quantity, before invoice-level discount
-  let netRevenue = 0; // net of returns, before invoice-level discount
   let cost = 0;
   for (const it of items) {
-    const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
-    const qty = Number(it.quantity) || 0;
-    const unitRev = lp.netQty > 0 ? lp.revenue / lp.netQty : it.total != null && qty > 0 ? Number(it.total) / qty : 0;
-    grossRevenue += unitRev * qty;
-    netRevenue += lp.revenue;
-    cost += lp.cost;
+    const full = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated, fullQuantity: true });
+    grossRevenue += full.revenue;
+    cost += archive ? lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated }).cost : full.cost;
   }
   const discount = Math.max(0, Number(inv.discount_amount ?? 0) || 0);
-  const discountShare = grossRevenue > 0 ? Math.min(discount, discount * (netRevenue / grossRevenue)) : 0;
-  const revenue = Math.max(0, netRevenue - discountShare);
+  const discountShare = Math.min(discount, grossRevenue);
+  const revenue = Math.max(0, grossRevenue - discountShare);
   return { revenue, cost, profit: revenue - cost, discountShare };
+}
+
+/** One line of a sale return dated in the period (`sale_return_lines`, migration 0133). */
+export interface ReturnLine {
+  branch_id: string;
+  return_id: string;
+  return_number: string;
+  return_day: string;
+  invoice_id: string;
+  invoice_number: string;
+  invoice_day: string;
+  archive_invoice: boolean;
+  product_id: string | null;
+  product_name: string;
+  quantity: number;
+  refund: number;
+  unit_cost: number;
+  cost: number;
+}
+
+/** The returns dated in [fromDay, toDay] (Cairo days), optionally of one branch. */
+export async function fetchReturnLines(fromDay: string, toDay: string, branchId?: string | null): Promise<ReturnLine[]> {
+  const { data, error } = await (supabase.rpc as any)("sale_return_lines", { p_from: fromDay, p_to: toDay, p_branch: branchId ?? null });
+  if (error) throw error;
+  return ((data ?? []) as any[]).map((r) => ({
+    ...r,
+    quantity: Number(r.quantity ?? 0), refund: Number(r.refund ?? 0), unit_cost: Number(r.unit_cost ?? 0), cost: Number(r.cost ?? 0),
+  }));
+}
+
+export interface ReturnEffect { revenue: number; cost: number; returns: number }
+/** What the returns take off: their refunds from revenue, the cost that came back from COGS. */
+export function returnEffect(lines: ReturnLine[], keep: (l: ReturnLine) => boolean = () => true): ReturnEffect {
+  let revenue = 0, cost = 0;
+  const ids = new Set<string>();
+  for (const l of lines) {
+    if (!keep(l)) continue;
+    revenue += l.refund;
+    cost += l.cost;
+    ids.add(l.return_id);
+  }
+  return { revenue, cost, returns: ids.size };
 }
 
 export interface ProfitTotals {
@@ -182,7 +240,7 @@ export async function fetchProfitWindow(params: {
   const prevToDate = localDay(range.prevTo);
 
   const invSelect =
-    "id, branch_id, is_migrated, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)";
+    "id, branch_id, is_migrated, migration_batch_id, invoice_date, created_at, discount_amount, invoice_items(quantity, returned_quantity, net_quantity, total, selling_price, line_discount, unit_cost_at_sale, cost_price)";
 
   // ملاحظة: PostgREST بيقص عند 1000 صف — بنستخدم fetchAllRows عشان الأرقام ما تنقصش
   const buildInv = (f: string, t: string) => {
@@ -234,7 +292,7 @@ export async function fetchProfitWindow(params: {
     return q.order("id");
   };
 
-  const [invRows, prevInvRows, expRows, prevExpRows, incRows, prevIncRows, branchesRes] = await Promise.all([
+  const [invRows, prevInvRows, expRows, prevExpRows, incRows, prevIncRows, branchesRes, retLines, prevRetLines] = await Promise.all([
     // Cairo days (not UTC ISO instants): getCairoDayBounds reads the first 10 characters, so an ISO
     // instant of Cairo midnight (the previous UTC day) used to start the window one day early.
     fetchAllRows<any>(() => buildInv(fromDate, toDate)),
@@ -244,6 +302,9 @@ export async function fetchProfitWindow(params: {
     fetchAllRows<any>(() => buildInc(fromDate, toDate, true)),
     fetchAllRows<any>(() => buildInc(prevFromDate, prevToDate, false)),
     supabase.from("branches").select("id, name").eq("tenant_id", tenantId).eq("is_active", true).eq("is_system", false),
+    // the returns of each window, on their own day (0133)
+    fetchReturnLines(fromDate, toDate, branchId),
+    fetchReturnLines(prevFromDate, prevToDate, branchId),
   ]);
   const invRes = { data: invRows };
   const expRes = { data: expRows };
@@ -260,8 +321,12 @@ export async function fetchProfitWindow(params: {
     return { revenue: rev, cost };
   };
 
-  const cur = sumInv(invRows);
-  const prev = sumInv(prevInvRows);
+  const curInv = sumInv(invRows);
+  const prevInv = sumInv(prevInvRows);
+  const curRet = returnEffect(retLines);
+  const prevRet = returnEffect(prevRetLines);
+  const cur = { revenue: curInv.revenue - curRet.revenue, cost: curInv.cost - curRet.cost };
+  const prev = { revenue: prevInv.revenue - prevRet.revenue, cost: prevInv.cost - prevRet.cost };
   const expenses = expRows.reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
   const prevExpenses = prevExpRows.reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
   const otherIncomes = incRows.reduce((s: number, v: any) => s + Number(v.amount || 0), 0);
@@ -292,6 +357,12 @@ export async function fetchProfitWindow(params: {
     const ip = invoiceProfit(inv);
     byBranch[b].revenue += ip.revenue;
     byBranch[b].cost += ip.cost;
+  }
+  for (const l of retLines) {
+    if (!l.branch_id) continue;
+    if (!byBranch[l.branch_id]) byBranch[l.branch_id] = blank();
+    byBranch[l.branch_id].revenue -= l.refund;
+    byBranch[l.branch_id].cost -= l.cost;
   }
   for (const v of (expRes.data ?? []) as any[]) {
     if (!v.branch_id) continue;

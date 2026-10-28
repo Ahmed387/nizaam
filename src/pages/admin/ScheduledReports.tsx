@@ -88,13 +88,14 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
       { name: "ملخص", rows: [
         { البند: "إجمالي المبيعات", القيمة: totals.sales ?? 0 },
         { البند: "إجمالي المرتجعات", القيمة: totals.returns ?? 0 },
+        { البند: "تكلفة البضاعة المباعة", القيمة: totals.cogs ?? "مش محسوبة (تقرير قديم)" },
         { البند: "إجمالي المصروفات", القيمة: totals.expenses ?? 0 },
         { البند: "إيراد الخزنة", القيمة: totals.treasury_income ?? 0 },
         { البند: "مصروف الخزنة", القيمة: totals.treasury_expense ?? 0 },
         { البند: "صافي الربح", القيمة: totals.net_profit ?? 0 },
         { البند: "عدد الفواتير", القيمة: totals.invoice_count ?? 0 },
       ]},
-      { name: "حسب الفرع", rows: (s.per_branch ?? []).map((b: any) => ({ الفرع: b.branch_name, المبيعات: b.sales })) },
+      { name: "حسب الفرع", rows: (s.per_branch ?? []).map((b: any) => ({ الفرع: b.branch_name, المبيعات: b.sales, المرتجعات: b.returns ?? "", "تكلفة البضاعة": b.cogs ?? "", المصروفات: b.expenses ?? "", "صافي الربح": b.net_profit ?? "" })) },
       { name: "أعلى المنتجات", rows: (s.top_products ?? []).map((p: any) => ({ المنتج: p.name, الكمية: p.qty, الإجمالي: p.total })) },
     ]);
   };
@@ -131,10 +132,12 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
       <div class="kpi">
         <div>إجمالي المبيعات<b>${fmtMoney(t.sales ?? 0)}</b></div>
         <div>المرتجعات<b class="neg">${fmtMoney(t.returns ?? 0)}</b></div>
+        <div>تكلفة البضاعة<b class="neg">${t.cogs == null ? "—" : fmtMoney(t.cogs)}</b></div>
         <div>المصروفات<b class="neg">${fmtMoney(t.expenses ?? 0)}</b></div>
         <div>صافي الربح<b class="${(t.net_profit ?? 0) >= 0 ? 'pos' : 'neg'}">${fmtMoney(t.net_profit ?? 0)}</b></div>
         <div>عدد الفواتير<b>${t.invoice_count ?? 0}</b></div>
       </div>
+      ${s.method ? "" : `<p style="color:#b45309">تقرير قديم: اتحسب قبل 28/10/2026 من غير تكلفة البضاعة، والمرتجع بيوم ما اتكتب — أرقامه مش زي الكارت.</p>`}
       <h3>المبيعات حسب الفرع</h3>
       <PermTable><thead><tr><th>الفرع</th><th>المبيعات</th></tr></thead><tbody>
         ${(s.per_branch ?? []).map((b: any) => `<tr><td>${b.branch_name}</td><td>${fmtMoney(b.sales)}</td></tr>`).join("")}
@@ -259,9 +262,15 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
                     </Button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3 text-sm">
+                {!r.summary?.method && (
+                  <div className="mt-3 text-xs rounded border border-warning/40 bg-warning/10 p-2 text-warning">
+                    تقرير قديم: اتحسب قبل 28/10/2026 من غير تكلفة البضاعة، والمرتجع بيوم ما اتكتب — أرقامه مش زي الكارت. التقارير الجديدة بنفس حساب الكارت.
+                  </div>
+                )}
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-3 text-sm">
                   <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">المبيعات</div><div className="font-bold">{fmtMoney(t.sales ?? 0)}</div></div>
                   <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">المرتجعات</div><div className="font-bold text-destructive">{fmtMoney(t.returns ?? 0)}</div></div>
+                  <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">تكلفة البضاعة</div><div className="font-bold text-destructive">{t.cogs == null ? "—" : fmtMoney(t.cogs)}</div></div>
                   <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">المصروفات</div><div className="font-bold text-destructive">{fmtMoney(t.expenses ?? 0)}</div></div>
                   <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">صافي الربح</div><div className={`font-bold ${(t.net_profit ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{fmtMoney(t.net_profit ?? 0)}</div></div>
                   <div className="bg-surface-2 rounded p-2"><div className="text-xs text-muted-foreground">عدد الفواتير</div><div className="font-bold">{t.invoice_count ?? 0}</div></div>

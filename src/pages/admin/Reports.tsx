@@ -17,7 +17,7 @@ import { DataTable } from "@/components/DataTable";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { formatEGP } from "@/lib/format";
-import { lineProfit, invoiceProfit } from "@/lib/profitEngine";
+import { lineProfit, invoiceProfit, fetchReturnLines, returnEffect, type ReturnLine } from "@/lib/profitEngine";
 import { exportToExcel, printReport } from "@/lib/export";
 import { fetchSchedules, fetchClosures, countWorkingDays, type BranchSchedule, type BranchClosure } from "@/lib/branchSchedule";
 import {
@@ -56,6 +56,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const [employees, setEmployees] = useState<any[]>([]);
   const [treasury, setTreasury] = useState<any[]>([]);
   const [returns, setReturns] = useState<any[]>([]);
+  // the returns of the period on their own day, with the cost that came back (0133 — same rule as the card)
+  const [retLines, setRetLines] = useState<ReturnLine[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [allShipments, setAllShipments] = useState<any[]>([]);
   const [allSupPayments, setAllSupPayments] = useState<any[]>([]);
@@ -116,6 +118,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
     setOverdueIns(oi.data ?? []);
     setPayPlans(pp.data ?? []);
     setInvPayments(ipay.data ?? []);
+    try { setRetLines(await fetchReturnLines(from, to)); } catch (e) { console.warn("sale_return_lines", e); setRetLines([]); }
     const [sch, clo] = await Promise.all([fetchSchedules(), fetchClosures()]);
     setSchedules(sch);
     setClosures(clo);
@@ -140,6 +143,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   const scopedEmployees = employees.filter((e) => inScope(e.branch_id));
   const scopedTreasury = treasury.filter((t) => inScope(t.branch_id));
   const scopedReturns = returns.filter((r) => inScope(r.branch_id));
+  const scopedRetLines = retLines.filter((l) => inScope(l.branch_id));
   const scopedCustomers = customers.filter((c) => inScope(c.branch_id));
   const scopedPayTx = payTx.filter((t) => inScope(t.branch_id));
   const scopedOverdue = overdueIns.filter((o: any) => inScope(o.payment_plans?.branch_id));
@@ -178,13 +182,17 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   // ============ Aggregated KPIs for current scope ============
   // ⚠️ Single source of truth: src/lib/profitEngine.ts → lineProfit()
   const k = useMemo(() => {
-    const sales = activeInv.reduce((s, i) => s + invoiceProfit(i).revenue, 0);
+    // sold in the period − what came back in the period (money and cost), like the card (0133)
+    const ret = returnEffect(scopedRetLines);
     let cost = 0, netRevenue = 0;
     for (const inv of activeInv) {
       const ip = invoiceProfit(inv);
       cost += ip.cost;
       netRevenue += ip.revenue;
     }
+    netRevenue -= ret.revenue;
+    cost -= ret.cost;
+    const sales = netRevenue;
     const exp = scopedExpenses.reduce((s, e) => s + Number(e.amount), 0);
     const inventoryValue = scopedProducts.reduce((s, p) => s + Number(p.cost_price) * p.quantity, 0);
     const inventoryQty = scopedProducts.reduce((s, p) => s + p.quantity, 0);
@@ -204,7 +212,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       returnsTotal,
       invoicesCount: activeInv.length,
     };
-  }, [activeInv, scopedExpenses, scopedProducts, scopedShipments, scopedSupPayments, scopedTreasury, scopedReturns]);
+  }, [activeInv, scopedExpenses, scopedProducts, scopedShipments, scopedSupPayments, scopedTreasury, scopedReturns, scopedRetLines]);
 
   // Per-branch (used in global mode)
   // ⚠️ Uses lineProfit() — single source of truth for revenue/cost/profit
@@ -225,6 +233,9 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       cost += ip.cost;
       netRevenue += ip.revenue;
     }
+    const bRet = returnEffect(retLines, (l) => l.branch_id === b.id);
+    netRevenue -= bRet.revenue;
+    cost -= bRet.cost;
     const sales = netRevenue;
     const profit = netRevenue - cost;
     const exp = expenses.filter((e) => e.branch_id === b.id).reduce((s, e) => s + Number(e.amount), 0);
@@ -257,7 +268,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
         treasury.filter((t) => t.branch_id === b.id && t.type === "payment").reduce((s, t) => s + Number(t.amount), 0),
       cashIn, walletIn, instapayIn, bankIn, creditIn, otherIn, totalReceived,
     };
-  }), [branches, invoices, expenses, products, employees, treasury, invPayments, workingDaysByBranch]);
+  }), [branches, invoices, expenses, products, employees, treasury, invPayments, workingDaysByBranch, retLines]);
 
   // Company-wide averages based on actual working days
   const companyWorkDays = useMemo(() => {
@@ -277,18 +288,26 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
   // Top products in scope — uses lineProfit() (single source of truth)
   const topProductsAll = useMemo(() => {
     const m: Record<string, { name: string; qty: number; returned: number; netQty: number; revenue: number; profit: number }> = {};
+    // sold in the period at the full quantity; «returned» = what came back IN the period (0133)
     for (const inv of activeInv) for (const it of inv.invoice_items) {
       const key = it.product_name;
       if (!m[key]) m[key] = { name: key, qty: 0, returned: 0, netQty: 0, revenue: 0, profit: 0 };
-      const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated });
+      const lp = lineProfit(it, { invoiceIsMigrated: !!inv.is_migrated, fullQuantity: true });
       m[key].qty += Number(it.quantity) || 0;
-      m[key].returned += Number(it.returned_quantity ?? 0);
       m[key].netQty += lp.netQty;
       m[key].revenue += lp.revenue;
       m[key].profit += lp.profit;
     }
+    for (const l of scopedRetLines) {
+      const key = l.product_name;
+      if (!m[key]) m[key] = { name: key, qty: 0, returned: 0, netQty: 0, revenue: 0, profit: 0 };
+      m[key].returned += l.quantity;
+      m[key].netQty -= l.quantity;
+      m[key].revenue -= l.refund;
+      m[key].profit -= l.refund - l.cost;
+    }
     return Object.values(m);
-  }, [activeInv]);
+  }, [activeInv, scopedRetLines]);
 
   // Sales breakdown by payment method (from invoices.payment_method)
   const salesByMethod = useMemo(() => {
