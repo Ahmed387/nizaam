@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Ban, Loader2, ShieldAlert, Trash2 } from "lucide-react";
+import { Ban, Loader2, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,7 +21,7 @@ interface Props {
   total: number;
   status: string;
   onDone?: () => void;
-  /** Compact red trash icon for table action columns */
+  /** Compact red «إلغاء» icon for table action columns */
   iconOnly?: boolean;
   /** When given, the button only reports the target; the parent renders ONE hoisted <CancelReturnDialog>. */
   onRequest?: (t: CancelReturnTarget) => void;
@@ -44,8 +44,8 @@ export function CancelReturnButton({ kind, returnId, returnNumber, total, status
   return (
     <>
       {iconOnly ? (
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="حذف المرتجع — يعكس المخزون والخزنة والقيد" onClick={(e) => { e.stopPropagation(); request(); }}>
-          <Trash2 className="w-4 h-4" />
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="إلغاء المرتجع — يعكس المخزون والخزنة والقيد (المرتجع بيفضل في القايمة ملغي)" aria-label={`إلغاء المرتجع ${returnNumber}`} onClick={(e) => { e.stopPropagation(); request(); }}>
+          <Ban className="w-4 h-4" />
         </Button>
       ) : (
         <Button variant="outline" size="sm" onClick={request} className="gap-2 border-destructive/50 text-destructive hover:bg-destructive/10">
