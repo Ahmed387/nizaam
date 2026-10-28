@@ -13,6 +13,7 @@ import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { ColorChip } from "@/components/ColorPicker";
 import { VariantLine } from "@/components/VariantChips";
 import { CancelReturnButton, CancelledReturnBanner } from "@/components/CancelReturnButton";
+import { EditReturnButton, ReturnEditLinks } from "@/components/EditReturnButton";
 import { DocumentMoneyMovements } from "@/components/payments/DocumentMoneyMovements";
 import { RecordAttachments } from "@/components/RecordAttachments";
 
@@ -61,6 +62,7 @@ export default function PurchaseReturnView() {
             <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/invoices?tab=purchase_return`)} className="gap-2">
               <ArrowRight className="w-4 h-4" /> رجوع
             </Button>
+            <EditReturnButton kind="purchase" branchId={branchId!} ret={ret} />
             <CancelReturnButton
               kind="purchase"
               returnId={(ret as any).id}
@@ -76,7 +78,7 @@ export default function PurchaseReturnView() {
         }
       />
 
-      <div className="max-w-3xl mx-auto no-print"><CancelledReturnBanner ret={ret} /></div>
+      <div className="max-w-3xl mx-auto no-print"><CancelledReturnBanner ret={ret} /><ReturnEditLinks kind="purchase" branchId={branchId!} ret={ret} /></div>
 
 
 

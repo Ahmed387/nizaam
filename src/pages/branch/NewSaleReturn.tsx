@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { VariantLine } from "@/components/VariantChips";
 import type { VariantAttrs } from "@/lib/productVariant";
-import { formatEGP, formatDateTime } from "@/lib/format";
+import { formatEGP, formatDateTime, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { docSuccess, docError } from "@/lib/docToast";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
@@ -36,6 +36,7 @@ import { logAudit } from "@/lib/roles";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
+import { canEditReturn, capsForEdit, editDiff, oldQtyByProduct } from "@/lib/returnEdit";
 
 interface Line extends VariantAttrs {
   invoice_item_id: string;
@@ -62,6 +63,11 @@ export default function NewSaleReturn() {
   const { id: branchId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
   const presetInvoiceId = params.get("invoice");
+  // «تعديل المرتجع» (0131): ?edit=<return id> opens this screen with the old return; saving cancels it and records
+  // the new one on the old day (edit_sale_return).
+  const editId = params.get("edit");
+  const [editOld, setEditOld] = useState<{ id: string; number: string; total: number; day: string; qty: Record<string, number> } | null>(null);
+  const [editReason, setEditReason] = useState("");
   const nav = useNavigate();
 
   const [invoice, setInvoice] = useState<any>(null);
@@ -100,7 +106,7 @@ export default function NewSaleReturn() {
   const [savedNumber, setSavedNumber] = useState("");
 
   // Return-window override
-  const { user, profile, isOwner } = useAuth();
+  const { user, profile, isOwner, isSuperAdmin } = useAuth();
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [overrideMeta, setOverrideMeta] = useState<{ daysSince: number; windowDays: number } | null>(null);
@@ -111,7 +117,7 @@ export default function NewSaleReturn() {
     loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => x.is_enabled && x.value !== "cash")));
   }, []);
 
-  const pickInvoice = useCallback(async (invId: string) => {
+  const pickInvoice = useCallback(async (invId: string, editQty?: Record<string, number>) => {
     setPickOpen(false);
     const { data: inv } = await supabase
       .from("invoices")
@@ -166,11 +172,49 @@ export default function NewSaleReturn() {
         };
       });
 
+    if (editQty) {
+      // the old return counts as not there: its pieces are free again and pre-filled
+      const caps = capsForEdit(newLines.map((l) => ({ product_id: l.product_id, doc_qty: l.sold_qty, already_returned: l.already_returned })), editQty);
+      newLines.forEach((l, i) => Object.assign(l, caps[i]));
+    }
+
     setInvoice(inv);
     setCustomer((inv as any).contacts ?? null);
     setLines(newLines);
-    toast.success(`تم تحميل ${newLines.length} منتج من الفاتورة`);
+    if (!editQty) toast.success(`تم تحميل ${newLines.length} منتج من الفاتورة`);
   }, []);
+
+  // Edit mode: load the old return, its lines and its refund method
+  useEffect(() => {
+    if (!editId) return;
+    (async () => {
+      const { data: r } = await supabase
+        .from("returns")
+        .select("id, invoice_id, return_number, status, invoice_date, created_at, migration_batch_id, reason, notes, refund_method, refund_reference, refund_account, total_refund")
+        .eq("id", editId).maybeSingle();
+      if (!r) { toast.error("المرتجع مش موجود"); return; }
+      if (!canEditReturn(r as any, isOwner || isSuperAdmin)) {
+        toast.error("المرتجع ده مينفعش يتعدل (ملغي، أو قبل 2026، أو مش المالك)");
+        nav(`/branch/${branchId}/sale-returns/${editId}`);
+        return;
+      }
+      const { data: its } = await supabase.from("return_items").select("product_id, quantity").eq("return_id", editId);
+      const qty = oldQtyByProduct((its ?? []) as any);
+      const rr: any = r;
+      const day = String(rr.invoice_date ?? rr.created_at ?? "");
+      setEditOld({ id: rr.id, number: rr.return_number, total: Number(rr.total_refund ?? 0), day, qty });
+      if (rr.reason && COMMON_REASONS.includes(rr.reason)) setReasonPick(rr.reason);
+      else if (rr.reason) { setReasonPick("أخرى"); setReasonOther(rr.reason); }
+      setNotes(rr.notes ?? "");
+      const m = String(rr.refund_method ?? "cash");
+      if (m === "cash" || m === "balance" || m === "mixed") setRefundMode(m as RefundMode);
+      else { setRefundMode("transfer"); setTransferMethod(m); }
+      setRefundRef(rr.refund_reference ?? "");
+      setRefundAccount(rr.refund_account ?? "");
+      await pickInvoice(rr.invoice_id, qty);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
 
   // Preload from URL ?invoice=
   useEffect(() => {
@@ -214,7 +258,7 @@ export default function NewSaleReturn() {
     "sale-return",
     [user?.id, branchId],
     draftSnapshot,
-    !!invoice && lines.length > 0 && !busy,
+    !!invoice && lines.length > 0 && !busy && !editId,
   );
   const restoreDraft = async () => {
     const d = formDraft.draft?.data;
@@ -260,6 +304,8 @@ export default function NewSaleReturn() {
     for (const l of activeLines) {
       if (l.quantity > l.max_qty) return toast.error(`الكمية أكبر من المتاح للمنتج ${l.product_name} (متاح: ${l.max_qty})`);
     }
+    if (editId && !editReason.trim()) return toast.error("اكتب سبب التعديل");
+    if (editId && editOld && editDiff(editOld.qty, activeLines).length === 0 && !window.confirm("الكميات زي ما هي — تحفظ التعديل (السبب / الملاحظات / طريقة الرد) برضه؟")) return;
     if (!asDraft) {
       if (!mixedValid) return toast.error("مجموع التوزيع لازم يساوي إجمالي المرتجع");
       const needsRef = refundMode === "transfer" || (refundMode === "mixed" && transferPart > 0);
@@ -268,8 +314,9 @@ export default function NewSaleReturn() {
       if (refundMode === "balance" && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
       if (refundMode === "mixed" && balancePart > 0 && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
 
-      // Return-window policy (skipped when this call is already an approved owner override)
-      if (!(approved ?? overrideApproved)) {
+      // Return-window policy (skipped when this call is already an approved owner override, and for an edit:
+      // the return already exists and only the owner edits)
+      if (!editId && !(approved ?? overrideApproved)) {
         const policy = await evaluateReturnPolicy({
           invoiceId: invoice.id,
           invoiceDate: (invoice as any).invoice_date ?? invoice.created_at,
@@ -293,6 +340,39 @@ export default function NewSaleReturn() {
     try {
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
       const proofSince = proofClock();
+      const itemsPayload = activeLines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, refund: l.quantity * l.unit_refund }));
+      if (editId) {
+        // One transaction on the server: old return cancelled, new one on the old day (0131)
+        const { data: er, error: eErr } = await (supabase.rpc as any)("edit_sale_return", {
+          _return_id: editId,
+          _edit_reason: editReason.trim(),
+          _reason: finalReason,
+          _notes: notes.trim() || null,
+          _refund_method: refundMethodFinal,
+          _refund_reference: refundRef.trim() || null,
+          _refund_account: refundAccount.trim() || null,
+          _items: itemsPayload,
+        });
+        if (eErr || !er) throw eErr ?? new Error("فشل التعديل");
+        if (transferPart > 0) await attachPaymentProofs([{ files: refundProofs, method: transferMethod, amount: transferPart, branchId }], proofSince);
+        try { await supabase.rpc("redistribute_installments_after_return" as any, { _invoice_id: invoice.id }); } catch { /* no plan */ }
+        formDraft.clear();
+        const e: any = er;
+        const back = Number(e.cash_refund ?? 0) + Number(e.transfer_refund ?? 0);
+        docSuccess({
+          title: `تم تعديل المرتجع ${e.old_return_number} ← ${e.return_number}`,
+          docNumber: e.return_number,
+          amount: Number(e.total_refund ?? total),
+          description:
+            `قبل: ${formatEGP(Number(e.old_total ?? 0))} • بعد: ${formatEGP(Number(e.total_refund ?? 0))}` +
+            (Number(e.applied_to_debt ?? 0) > 0 ? ` • على حسابه: ${formatEGP(Number(e.applied_to_debt))}` : "") +
+            (back > 0 ? ` • مرتجع فلوس: ${formatEGP(back)}` : "") +
+            " • القديم اتلغى بنفس التاريخ",
+        });
+        setSavedNumber(e.return_number);
+        setPrintOpen(true);
+        return;
+      }
       const { data: rr, error } = await supabase.rpc("register_sale_return_full" as any, {
         _invoice_id: invoice.id,
         _reason: finalReason,
@@ -304,11 +384,7 @@ export default function NewSaleReturn() {
         _refund_cash_amount: cashPart,
         _refund_transfer_amount: transferPart,
         _refund_balance_amount: balancePart,
-        _items: activeLines.map((l) => ({
-          product_id: l.product_id,
-          quantity: l.quantity,
-          refund: l.quantity * l.unit_refund,
-        })) as any,
+        _items: itemsPayload as any,
       });
       if (error || !rr) throw error ?? new Error("فشل الحفظ");
       if (transferPart > 0) await attachPaymentProofs([{ files: refundProofs, method: transferMethod, amount: transferPart, branchId }], proofSince);
@@ -355,7 +431,7 @@ export default function NewSaleReturn() {
       setPrintOpen(true);
 
     } catch (err: any) {
-      docError({ title: "فشل حفظ مرتجع البيع", description: err.message ?? "خطأ غير متوقع" });
+      docError({ title: editId ? "فشل تعديل مرتجع البيع" : "فشل حفظ مرتجع البيع", description: err.message ?? "خطأ غير متوقع" });
     } finally {
       setBusy(false);
     }
@@ -438,9 +514,19 @@ export default function NewSaleReturn() {
 
   return (
     <BranchLayout>
-      <PageHeader title="مرتجع بيع جديد" subtitle="إرجاع بضاعة من العميل" />
+      <PageHeader
+        title={editId ? `تعديل مرتجع بيع ${editOld?.number ?? ""}` : "مرتجع بيع جديد"}
+        subtitle={editId ? "عند الحفظ: المرتجع القديم بيتلغي والجديد بيتسجّل بنفس تاريخه" : "إرجاع بضاعة من العميل"}
+      />
 
-      {formDraft.draft && !invoice && (
+      {editId && editOld && (
+        <div dir="rtl" className="mb-4 rounded-xl border-2 border-primary/40 bg-primary/5 p-4 text-sm font-medium space-y-1">
+          <div className="font-extrabold text-primary">✏️ بتعدّل المرتجع {editOld.number} — قيمته {formatEGP(editOld.total)} — بتاريخ {formatDate(editOld.day)}</div>
+          <div>اللي هيحصل لما تحفظ: المرتجع القديم هيتلغي (بيفضل في القايمة ملغي) وهيتسجّل مرتجع جديد بنفس التاريخ وبنفس الفاتورة. في اليوم ده الخزنة والمخزن والقيد هيبيّنوا الفرق بس.</div>
+        </div>
+      )}
+
+      {formDraft.draft && !invoice && !editId && (
         <DraftRestoreBar
           savedAt={formDraft.draft.savedAt}
           summary={`${formDraft.draft.data.lines?.length ?? 0} صنف`}
@@ -469,17 +555,32 @@ export default function NewSaleReturn() {
                 </div>
               </div>
               <div className="space-y-2">
-                <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ المرتجع" />
+                {editId ? (
+                  <>
+                    <Label className="text-sm font-bold text-foreground">تاريخ المرتجع</Label>
+                    <div className="h-10 px-3 rounded-md border border-border bg-muted/40 flex items-center text-sm font-semibold">
+                      {editOld ? formatDate(editOld.day) : "…"} <span className="text-[11px] text-muted-foreground mr-2">(نفس تاريخ المرتجع القديم)</span>
+                    </div>
+                  </>
+                ) : (
+                  <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ المرتجع" />
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary" /> الفاتورة الأصلية
                 </Label>
-                <ReturnDocPicker kind="sale" branchId={branchId!} open={pickOpen} onOpenChange={setPickOpen} onPick={pickInvoice}>
+                {editId ? (
+                  <div className="h-10 px-3 rounded-md border border-border bg-muted/40 flex items-center text-sm font-mono font-semibold">
+                    {invoice?.invoice_number ?? "…"}
+                  </div>
+                ) : (
+                <ReturnDocPicker kind="sale" branchId={branchId!} open={pickOpen} onOpenChange={setPickOpen} onPick={(id) => pickInvoice(id)}>
                   <Button variant="outline" className="gap-2 w-full h-10 border-primary/40 text-primary hover:bg-primary/10">
                     <FileText className="w-4 h-4" /> {invoice ? "تغيير الفاتورة" : "اختر فاتورة البيع"}
                   </Button>
                 </ReturnDocPicker>
+                )}
               </div>
             </div>
             {invoice && (
@@ -695,10 +796,24 @@ export default function NewSaleReturn() {
                 <span>رصيد العميل هيتعدل من {formatEGP(customer.balance ?? 0)} إلى {formatEGP(Number(customer.balance ?? 0) - total)}</span>
               </div>
             )}
+            {editId && editOld && (
+              <div className="space-y-2 border-t pt-3">
+                <div className="text-xs font-bold text-muted-foreground">قبل ← بعد</div>
+                {(() => {
+                  const d = editDiff(editOld.qty, lines.filter((l) => l.quantity > 0), Object.fromEntries(lines.map((l) => [l.product_id, l.product_name])));
+                  return d.length === 0
+                    ? <div className="text-xs text-muted-foreground">الكميات زي ما هي</div>
+                    : d.map((r) => <div key={r.product_id} className="text-xs flex justify-between gap-2"><span className="truncate">{r.name}</span><b>{r.before} ← {r.after}</b></div>);
+                })()}
+                <div className="flex justify-between text-sm"><span>القيمة</span><b>{formatEGP(editOld.total)} ← {formatEGP(total)}</b></div>
+                <Label className="text-xs">سبب التعديل *</Label>
+                <Textarea rows={2} value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="مثال: العميل رجّع الكنكة بس والغسالة اتسجلت بالغلط" />
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-2">
-              <Button onClick={() => submit(false)} disabled={busy || total === 0 || !invoice} className="w-full gap-2" size="lg">
+              <Button onClick={() => submit(false)} disabled={busy || total === 0 || !invoice || (!!editId && !editOld)} className="w-full gap-2" size="lg">
                 {busy && <Loader2 className="w-4 h-4 animate-spin" />}
-                حفظ مرتجع البيع
+                {editId ? "حفظ التعديل" : "حفظ مرتجع البيع"}
               </Button>
             </div>
 

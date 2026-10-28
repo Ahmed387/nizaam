@@ -12,6 +12,7 @@ import { ThermalReceiptPrint, printThermalInvoice } from "@/components/ThermalRe
 import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { VariantLine } from "@/components/VariantChips";
 import { CancelReturnButton, CancelledReturnBanner } from "@/components/CancelReturnButton";
+import { EditReturnButton, ReturnEditLinks } from "@/components/EditReturnButton";
 import { DocumentMoneyMovements } from "@/components/payments/DocumentMoneyMovements";
 import { RecordAttachments } from "@/components/RecordAttachments";
 
@@ -60,6 +61,7 @@ export default function SaleReturnView() {
             <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/invoices?tab=sale_return`)} className="gap-2">
               <ArrowRight className="w-4 h-4" /> رجوع
             </Button>
+            <EditReturnButton kind="sale" branchId={branchId!} ret={ret} />
             <CancelReturnButton
               kind="sale"
               returnId={ret.id}
@@ -75,7 +77,7 @@ export default function SaleReturnView() {
         }
       />
 
-      <div className="max-w-3xl mx-auto no-print"><CancelledReturnBanner ret={ret} /></div>
+      <div className="max-w-3xl mx-auto no-print"><CancelledReturnBanner ret={ret} /><ReturnEditLinks kind="sale" branchId={branchId!} ret={ret} /></div>
 
 
 
