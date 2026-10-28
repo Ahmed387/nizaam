@@ -2,7 +2,7 @@ import { addDaysDay, cairoTodayDay, monthStartDay } from "@/lib/cairoDate";
 import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -19,6 +19,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowRight, Download, Printer, Search, X } from "lucide-react";
 import { fetchContactStatement, type Side, type StatementLine } from "@/lib/ledger";
+import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
+import { EMPTY_STATE, type ColumnFilter, type ListColumn } from "@/lib/tableFilter";
 
 /**
  * Contact statement from the unified ledger (Step 6C). One side at a time: the customer account and the
@@ -66,8 +68,24 @@ export default function ContactStatement() {
   const [lines, setLines] = useState<StatementLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  // Excel filters on every line (owner 2026-10-26), remembered per statement and side. The period on top IS the
+  // «التاريخ» column's from / to (it goes to the ledger, which opens the period with its prior balance).
+  const { pathname } = useLocation();
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:${side}`);
+  const dateF = colState.filters.date?.kind === "date" ? (colState.filters.date as Extract<ColumnFilter, { kind: "date" }>) : undefined;
+  const fromDate = dateF?.from ?? "";
+  const toDate = dateF?.to ?? "";
+  const setPeriod = (from: string, to: string) => {
+    const next: ColumnFilter = { kind: "date" };
+    if (dateF?.days?.length) next.days = dateF.days;
+    if (from) next.from = from;
+    if (to) next.to = to;
+    const filters = { ...colState.filters };
+    if (next.days || next.from || next.to) filters.date = next; else delete filters.date;
+    setColState({ ...colState, filters });
+  };
+  const setFromDate = (v: string) => setPeriod(v, toDate);
+  const setToDate = (v: string) => setPeriod(fromDate, v);
   const [searchText, setSearchText] = useState("");
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<KindFilter>("all");
@@ -76,7 +94,8 @@ export default function ContactStatement() {
   const [page, setPage] = useState(1);
 
   useEffect(() => { const t = setTimeout(() => setSearch(searchText.trim()), 300); return () => clearTimeout(t); }, [searchText]);
-  useEffect(() => { setPage(1); }, [fromDate, toDate, search, kind, minAmount, maxAmount, side, scope]);
+  const colSigRaw = JSON.stringify(colState);
+  useEffect(() => { setPage(1); }, [fromDate, toDate, search, kind, minAmount, maxAmount, side, scope, colSigRaw]);
 
   useEffect(() => {
     if (!contactId) return;
@@ -121,19 +140,38 @@ export default function ContactStatement() {
       return true;
     });
   }, [body, search, kind, minAmount, maxAmount]);
-  const display = useMemo(() => (opening ? [opening, ...filtered] : filtered).slice().reverse(), [opening, filtered]);
-  const pageCount = Math.max(1, Math.ceil(display.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount);
-  const pageRows = display.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  const r2 = (v: number) => Math.round(v * 100) / 100;
-  const totals = useMemo(() => ({ debit: r2(filtered.reduce((s, l) => s + l.debit, 0)), credit: r2(filtered.reduce((s, l) => s + l.credit, 0)) }), [filtered]);
   const finalBalance = body.length ? body[body.length - 1].balance : (opening?.balance ?? 0);
   const isC = side === "customer";
   const balLabel = (b: number) => Math.abs(b) <= 0.005 ? "مسدد"
     : isC ? (b > 0 ? "عليه لنا" : "مقدم منه عندنا") : (b > 0 ? "علينا له" : "مقدم لينا عنده");
   const debitHdr = isC ? "مدين (فواتير عليه)" : "دائن له (فواتير شراء)";
   const creditHdr = isC ? "دائن (مقبوضات ورصيد)" : "مدين (مدفوعات ورصيد)";
+
+  // what each column shows (the running balance is the ledger's, computed before any filter)
+  const listCols = useMemo<ListColumn<StatementLine>[]>(() => [
+    { key: "date", label: "التاريخ", kind: "date", get: (l) => l.line_date },
+    { key: "type", label: "النوع", kind: "text", get: (l) => l.line_type },
+    { key: "ref", label: "المرجع", kind: "text", get: (l) => l.reference },
+    { key: "branch", label: "الفرع", kind: "text", get: (l) => l.branch_name },
+    { key: "debit", label: debitHdr, kind: "number", get: (l) => l.debit || null, sum: true, money: true },
+    { key: "credit", label: creditHdr, kind: "number", get: (l) => l.credit || null, sum: true, money: true },
+    { key: "balance", label: "الرصيد", kind: "number", get: (l) => Math.abs(l.balance) },
+  ], [debitHdr, creditHdr]);
+  // newest first; the opening line («رصيد أول المدة») is not a movement: it stays last, outside the filters
+  const bodyDesc = useMemo(() => filtered.slice().reverse(), [filtered]);
+  const { result: listRes, adapter: listAdapter, state: colEff } = useListFilter({
+    rows: loading ? null : bodyDesc, columns: listCols, state: colState, onChange: setColState, ensureRows: async () => bodyDesc,
+  });
+  const shownLines = listRes ? listRes.rows : bodyDesc;
+  const display = useMemo(() => (opening ? [...shownLines, opening] : shownLines), [opening, shownLines]);
+  const pageCount = Math.max(1, Math.ceil(display.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = display.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  /** Excel / PDF: what is shown, oldest first (or in the chosen column order) */
+  const exportLines = colEff.sort ? display : [...(opening ? [opening] : []), ...shownLines.slice().reverse()];
+
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+  const totals = useMemo(() => ({ debit: r2(shownLines.reduce((s, l) => s + l.debit, 0)), credit: r2(shownLines.reduce((s, l) => s + l.credit, 0)) }), [shownLines]);
   const scopeName = scopeBranch ? branchOpts.find((b) => b.id === scopeBranch)?.name ?? "فرع" : "كل الفروع";
   const sideName = isC ? "حساب العميل" : "حساب المورد";
 
@@ -153,7 +191,7 @@ export default function ContactStatement() {
         { البيان: "الرصيد", القيمة: finalBalance },
         { البيان: "الحالة", القيمة: balLabel(finalBalance) },
       ] },
-      { name: "كشف الحساب", rows: (opening ? [opening, ...filtered] : filtered).map((l) => ({
+      { name: "كشف الحساب", rows: exportLines.map((l) => ({
         "التاريخ": l.line_date ? formatDate(l.line_date) : "",
         "النوع": l.line_type, "المرجع": l.reference ?? "", "الفرع": l.branch_name ?? "", "التفاصيل": l.description ?? "",
         [debitHdr]: l.debit || "", [creditHdr]: l.credit || "", "الرصيد": l.balance,
@@ -162,7 +200,7 @@ export default function ContactStatement() {
   };
 
   const printPdf = () => {
-    const rowsHtml = (opening ? [opening, ...filtered] : filtered).map((l) => `
+    const rowsHtml = exportLines.map((l) => `
       <tr><td>${l.line_date ? formatDate(l.line_date) : ""}</td><td>${l.line_type}</td><td>${l.reference ?? ""}</td><td>${l.branch_name ?? ""}</td>
       <td>${l.debit ? formatEGP(l.debit) : "—"}</td><td>${l.credit ? formatEGP(l.credit) : "—"}</td><td><b>${formatEGP(l.balance)}</b></td></tr>`).join("");
     printReport(`كشف ${sideName} - ${contact?.name ?? ""}`, `
@@ -215,7 +253,7 @@ export default function ContactStatement() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <PermCard label={String(debitHdr)}><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">{debitHdr}</div><div className="text-xl font-bold mt-1">{formatEGP(totals.debit)}</div></div></PermCard>
         <PermCard label={String(creditHdr)}><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">{creditHdr}</div><div className="text-xl font-bold mt-1">{formatEGP(totals.credit)}</div></div></PermCard>
-        <PermCard label="عدد الحركات"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">عدد الحركات</div><div className="text-xl font-bold mt-1">{filtered.length}</div></div></PermCard>
+        <PermCard label="عدد الحركات"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">عدد الحركات</div><div className="text-xl font-bold mt-1">{shownLines.length}</div></div></PermCard>
         <PermCard label="الرصيد"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground">الرصيد {toDate ? `في ${formatDate(toDate)}` : "الحالي"}</div>
           <div className={`text-xl font-bold mt-1 ${Math.abs(finalBalance) <= 0.005 ? "" : finalBalance > 0 ? "text-destructive" : "text-success"}`}>{formatEGP(Math.abs(finalBalance))}</div>
@@ -226,7 +264,7 @@ export default function ContactStatement() {
       <div className="card-elevated p-4 mb-4 space-y-4">
         <div className="flex flex-wrap gap-2">
           {DATE_SHORTCUTS.map((s) => (
-            <Button key={s.label} type="button" variant="outline" size="sm" onClick={() => { const [f, t] = s.range(); setFromDate(f); setToDate(t); }}>{s.label}</Button>
+            <Button key={s.label} type="button" variant="outline" size="sm" onClick={() => { const [f, t] = s.range(); setPeriod(f, t); }}>{s.label}</Button>
           ))}
         </div>
         <div className="grid gap-3 md:grid-cols-3">
@@ -255,7 +293,7 @@ export default function ContactStatement() {
           <div><Label className="text-xs">المبلغ من</Label><Input type="number" min="0" step="0.01" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} /></div>
           <div><Label className="text-xs">المبلغ إلى</Label><Input type="number" min="0" step="0.01" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} /></div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => { setFromDate(""); setToDate(""); setSearchText(""); setKind("all"); setMinAmount(""); setMaxAmount(""); }}>
+        <Button variant="outline" size="sm" onClick={() => { setColState(EMPTY_STATE); setSearchText(""); setKind("all"); setMinAmount(""); setMaxAmount(""); }}>
           <X className="ml-2 h-4 w-4" />مسح الفلاتر
         </Button>
       </div>
@@ -269,7 +307,7 @@ export default function ContactStatement() {
       <DataTable
         loading={loading}
         rows={pageRows}
-        pageSize={PAGE_SIZE}
+        excel={{ id: "statement", server: listAdapter }}
         onRowClick={(l: StatementLine) => {
           if (l.doc_type === "invoice" && l.doc_id && l.branch_id) nav(`/branch/${l.branch_id}/sales/${l.doc_id}`);
           if (l.doc_type === "shipment" && l.doc_id && l.branch_id) nav(`/branch/${l.branch_id}/shipments/${l.doc_id}`);

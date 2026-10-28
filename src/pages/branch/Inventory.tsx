@@ -1,3 +1,4 @@
+import { readAll } from "@/hooks/useWholeList";
 import { useEffect, useState } from "react";
 import { PermTable } from "@/components/PermTable";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -1583,8 +1584,9 @@ function AdjustmentsList({ branchId }: { branchId: string }) {
   const [loading, setLoading] = useState(true);
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("stock_adjustments" as any).select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).limit(500);
-    setRows((data as any) ?? []);
+    // every adjustment of the branch, newest first (it used to show the last 500 only)
+    const data = await readAll<any>(() => supabase.from("stock_adjustments" as any).select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).catch(() => [] as any[]);
+    setRows(data);
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);

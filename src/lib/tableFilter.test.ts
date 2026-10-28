@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BLANK, EMPTY_STATE, cellMatches, describeFilter, detectKind, facets, isSummable, parseCell, parseDate, parseNumber,
-  sortOrder, sumColumn, visibleRows, type FilterState,
+  periodOfFilter, singleValueOf, sortOrder, sumColumn, visibleRows, withPeriod, withSingleValue, type FilterState,
 } from "./tableFilter";
 
 describe("parsing what the person sees", () => {
@@ -101,5 +101,28 @@ describe("filters like Excel", () => {
     expect(describeFilter("المبلغ", { kind: "number", op: "gt", a: 20000 })).toBe("المبلغ أكبر من 20,000");
     expect(describeFilter("العميل", { kind: "values", values: ["أ", "ب", "ج"] })).toBe("العميل: أ، ب و1 كمان");
     expect(visibleRows(rows, cols, EMPTY_STATE).every(Boolean)).toBe(true);
+  });
+});
+
+describe("a bar field that is a column filter (both stay, linked)", () => {
+  it("the period keeps the days picked in the menu", () => {
+    const s1 = withPeriod(EMPTY_STATE, "d", "2026-10-01", "2026-10-31");
+    expect(periodOfFilter(s1, "d")).toEqual({ from: "2026-10-01", to: "2026-10-31" });
+    const s2 = withPeriod({ filters: { d: { kind: "date", days: ["2026-10-03"] } }, sort: null }, "d", "2026-10-01", "");
+    expect(s2.filters.d).toEqual({ kind: "date", days: ["2026-10-03"], from: "2026-10-01" });
+    expect(withPeriod(s1, "d", "", "").filters).toEqual({});
+  });
+  it("a select says one value; several ticked = «الكل» on top", () => {
+    const s1 = withSingleValue(EMPTY_STATE, "m", "كاش");
+    expect(singleValueOf(s1, "m")).toBe("كاش");
+    expect(singleValueOf({ filters: { m: { kind: "values", values: ["كاش", "بنكي"] } }, sort: null }, "m")).toBe("");
+    expect(singleValueOf({ filters: { m: { kind: "values", values: [BLANK] } }, sort: null }, "m")).toBe("");
+    expect(withSingleValue(s1, "m", "").filters).toEqual({});
+  });
+  it("≥ and ≤ (the bar's «من» / «إلى»)", () => {
+    expect(cellMatches(parseCell("1,000"), { kind: "number", op: "gte", a: 1000 })).toBe(true);
+    expect(cellMatches(parseCell("999.99"), { kind: "number", op: "gte", a: 1000 })).toBe(false);
+    expect(cellMatches(parseCell("5,000"), { kind: "number", op: "lte", a: 5000 })).toBe(true);
+    expect(describeFilter("المبلغ", { kind: "number", op: "gte", a: 1000 })).toBe("المبلغ أكبر من أو يساوي 1,000");
   });
 });

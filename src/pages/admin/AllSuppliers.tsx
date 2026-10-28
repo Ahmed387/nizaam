@@ -243,11 +243,12 @@ export default function AllSuppliers() {
     setDeleteConfirm(null); load();
   };
 
+  const [view, setView] = useState<any[] | null>(null); // what the column filters leave (Excel filters), for the exports
   const exportExcel = () => {
     const sideText = (side: "c" | "s", v: number) => Math.abs(v) <= 0.005 ? "مسدد"
       : side === "c" ? (v > 0 ? "مستحق لنا على العميل" : "مقدم من العميل عندنا")
       : (v > 0 ? "مستحق للمورد علينا" : "مقدم لينا عند المورد");
-    const data = filtered.map((s) => ({
+    const data = (view ?? filtered).map((s: any) => ({
       "الاسم": s.name,
       "النوع": s.type === "customer" ? "عميل" : s.type === "supplier" ? "مورد" : "عميل ومورد",
       "المسؤول": s.contact_person ?? "—",
@@ -476,7 +477,7 @@ export default function AllSuppliers() {
         </Select>
       </div>
 
-      <DataTable loading={loading} rows={filtered}
+      <DataTable loading={loading} rows={filtered} onView={setView}
         onRowClick={(r: any) => window.open(`/admin/contacts/${r.id}`, "_blank", "noopener,noreferrer")}
         columns={[
           { key: "name", header: "الاسم", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },

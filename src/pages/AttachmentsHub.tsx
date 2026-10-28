@@ -14,6 +14,7 @@ import { formatDateTime } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { Paperclip, Eye, Download, ExternalLink, FileText, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+import { readAll } from "@/hooks/useWholeList";
 
 const BUCKET = "record-attachments";
 
@@ -97,13 +98,11 @@ export default function AttachmentsHub({ scope }: Props) {
     if (!tenantId) return;
     setLoading(true);
 
-    // 1. Fetch all attachments (RLS scopes by tenant)
-    const { data: atts, error } = await supabase
-      .from("attachments" as any)
-      .select("*")
-      .order("uploaded_at", { ascending: false })
-      .limit(2000);
-    if (error) {
+    // 1. Fetch all attachments (RLS scopes by tenant) — every one, 1,000 at a time (it used to stop at 2,000)
+    let atts: any[];
+    try {
+      atts = await readAll<any>(() => supabase.from("attachments" as any).select("*").order("uploaded_at", { ascending: false }).order("id"));
+    } catch (error: any) {
       toast.error(error.message);
       setLoading(false);
       return;
@@ -117,54 +116,60 @@ export default function AttachmentsHub({ scope }: Props) {
     });
 
     const docMap: Record<string, { number: string; branch_id: string | null; date?: string }> = {};
+    /** one lookup in pieces of 200 ids, answered as one `{ data }` */
+    const inPieces = async (ids: string[], q: (piece: string[]) => any) => {
+      const uniq = Array.from(new Set(ids));
+      const parts = await Promise.all(Array.from({ length: Math.ceil(uniq.length / 200) }, (_, i) => q(uniq.slice(i * 200, i * 200 + 200))));
+      return { data: parts.flatMap((r: any) => r.data ?? []) };
+    };
 
     const lookups: Promise<any>[] = [];
     const wrap = (p: any) => Promise.resolve(p);
     if (byType.invoice?.length) {
       lookups.push(wrap(
-        supabase.from("invoices").select("id, invoice_number, branch_id").in("id", byType.invoice)
+        inPieces(byType.invoice, (ids) => supabase.from("invoices").select("id, invoice_number, branch_id").in("id", ids))
       ).then(({ data }: any) => {
         (data ?? []).forEach((r: any) => { docMap[`invoice:${r.id}`] = { number: r.invoice_number, branch_id: r.branch_id }; });
       }));
     }
     if (byType.sale_return?.length) {
       lookups.push(wrap(
-        supabase.from("returns").select("id, return_number, branch_id").in("id", byType.sale_return)
+        inPieces(byType.sale_return, (ids) => supabase.from("returns").select("id, return_number, branch_id").in("id", ids))
       ).then(({ data }: any) => {
         (data ?? []).forEach((r: any) => { docMap[`sale_return:${r.id}`] = { number: r.return_number, branch_id: r.branch_id }; });
       }));
     }
     if (byType.purchase_return?.length) {
       lookups.push(wrap(
-        supabase.from("purchase_returns").select("id, return_number, branch_id").in("id", byType.purchase_return)
+        inPieces(byType.purchase_return, (ids) => supabase.from("purchase_returns").select("id, return_number, branch_id").in("id", ids))
       ).then(({ data }: any) => {
         (data ?? []).forEach((r: any) => { docMap[`purchase_return:${r.id}`] = { number: r.return_number, branch_id: r.branch_id }; });
       }));
     }
     if (byType.shipment?.length) {
       lookups.push(wrap(
-        supabase.from("shipments").select("id, shipment_number, branch_id").in("id", byType.shipment)
+        inPieces(byType.shipment, (ids) => supabase.from("shipments").select("id, shipment_number, branch_id").in("id", ids))
       ).then(({ data }: any) => {
         (data ?? []).forEach((r: any) => { docMap[`shipment:${r.id}`] = { number: r.shipment_number, branch_id: r.branch_id }; });
       }));
     }
     if (byType.stock_transfer?.length) {
       lookups.push(wrap(
-        supabase.from("stock_transfers").select("id, from_branch_id").in("id", byType.stock_transfer)
+        inPieces(byType.stock_transfer, (ids) => supabase.from("stock_transfers").select("id, from_branch_id").in("id", ids))
       ).then(({ data }: any) => {
         (data ?? []).forEach((r: any) => { docMap[`stock_transfer:${r.id}`] = { number: String(r.id).slice(0, 8), branch_id: r.from_branch_id }; });
       }));
     }
     if (byType.stock_adjustment?.length) {
       lookups.push(wrap(
-        supabase.from("stock_adjustments").select("id, adjustment_number, branch_id").in("id", byType.stock_adjustment)
+        inPieces(byType.stock_adjustment, (ids) => supabase.from("stock_adjustments").select("id, adjustment_number, branch_id").in("id", ids))
       ).then(({ data }: any) => {
         (data ?? []).forEach((r: any) => { docMap[`stock_adjustment:${r.id}`] = { number: r.adjustment_number, branch_id: r.branch_id }; });
       }));
     }
     if (byType.voucher?.length) {
       lookups.push(wrap(
-        supabase.from("vouchers" as any).select("id, voucher_number, branch_id").in("id", byType.voucher)
+        inPieces(byType.voucher, (ids) => supabase.from("vouchers" as any).select("id, voucher_number, branch_id").in("id", ids))
       ).then(({ data }: any) => {
         (data ?? []).forEach((r: any) => { docMap[`voucher:${r.id}`] = { number: r.voucher_number, branch_id: r.branch_id }; });
       }));

@@ -32,6 +32,14 @@ import { fetchAllRows } from "@/lib/fetchAll";
 import { fetchTreasuryLinks, payMethodLabel, type TreasuryLink } from "@/lib/treasuryLinks";
 import { AccountCell, SourceCell } from "@/components/documents/MoneyCells";
 import { BulkActionsBar } from "@/components/documents/BulkActionsBar";
+import { NumberedPagination } from "@/components/NumberedPagination";
+import { useLocation } from "react-router-dom";
+import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
+import { readAll, useWholeList } from "@/hooks/useWholeList";
+import { isActive, type ListColumn } from "@/lib/tableFilter";
+import { sourceText } from "@/lib/documentListColumns";
+
+const PAGE = 50;
 
 interface Props {
   branchId?: string;
@@ -78,7 +86,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   useEffect(() => { const t = setTimeout(() => setSearchText(searchInput.trim()), 300); return () => clearTimeout(t); }, [searchInput]);
   const [agg, setAgg] = useState({ totalIn: 0, totalOut: 0, countIn: 0, countOut: 0 });
   const [links, setLinks] = useState<Map<string, TreasuryLink>>(new Map());
-  const linkOf = (r: any) => (r.treasury_id ? links.get(r.treasury_id) : undefined) ?? null;
+  // a row of the whole list carries its own link; a row of the page reads the page's links
+  const linkOf = (r: any) => r.__link ?? (r.treasury_id ? links.get(r.treasury_id) : undefined) ?? null;
+  // one page of 50 from the database; the Excel filters read the whole list (owner 2026-10-26)
+  const [page, setPage] = useState(1);
+  const [count, setCount] = useState(0);
   const accountOf = (r: any) => linkOf(r)?.account_name ?? r.party_name ?? null;
   // selection (owner request 2026-10-16) — one voucher type per table
   const [selected, setSelected] = useState<Map<string, any>>(new Map());
@@ -107,25 +119,31 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     return q;
   };
 
+  const deductibleIdsOf = async () => {
+    if (!onlyDeductedFromProfit) return null;
+    const { data: dc } = await supabase.from("voucher_categories").select("id").eq("is_deductible_from_profit", true);
+    return (dc ?? []).map((c: any) => c.id) as string[];
+  };
+  /** the vouchers of the view (active / cancelled) under the bar's filters, newest first */
+  const viewQuery = (select: string, count: boolean, deductibleIds: string[] | null) => applyFilters(
+    supabase.from("vouchers" as any).select(select, count ? { count: "exact" } : undefined).eq("status", showCancelled ? "cancelled" : "active")
+      .order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).order("id"),
+    deductibleIds,
+  );
   const load = async () => {
     setLoading(true);
-    let deductibleIds: string[] | null = null;
-    if (onlyDeductedFromProfit) {
-      const { data: dc } = await supabase.from("voucher_categories").select("id").eq("is_deductible_from_profit", true);
-      deductibleIds = (dc ?? []).map((c: any) => c.id);
-    }
+    const deductibleIds = await deductibleIdsOf();
     deductibleRef.current = deductibleIds;
-    const rowsQ = applyFilters(
-      supabase.from("vouchers" as any).select("*").eq("status", showCancelled ? "cancelled" : "active").order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).limit(500),
-      deductibleIds,
-    );
+    const start = (page - 1) * PAGE;
+    const rowsQ = viewQuery("*", true, deductibleIds).range(start, start + PAGE - 1);
     // Totals cover every matching active voucher, not just the 500 displayed rows.
     const totalsP = fetchAllRows<{ type: string; amount: number }>(() =>
       applyFilters(supabase.from("vouchers" as any).select("type,amount").eq("status", "active").order("id"), deductibleIds),
     );
-    const [{ data, error }, totals] = await Promise.all([rowsQ, totalsP.catch((e) => { toast.error(e.message); return []; })]);
+    const [{ data, error, count: n }, totals] = await Promise.all([rowsQ, totalsP.catch((e) => { toast.error(e.message); return []; })]);
     if (error) toast.error(error.message);
     const list = (data ?? []) as unknown as Voucher[];
+    setCount(n ?? list.length);
     // «اسم الحساب» / «المصدر»: an automatic voucher takes the customer / supplier of its document (0099)
     const lk = await fetchTreasuryLinks(list.map((v: any) => v.treasury_id)).catch(() => new Map<string, TreasuryLink>());
     setLinks(lk);
@@ -146,15 +164,60 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     }
   }, [type, adminAllBranches]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters, searchText, onlyDeductedFromProfit, showCancelled]);
-
-  useRealtimeRefresh(["vouchers", "voucher_categories"], () => { load(); });
-
   const catMap = useMemo(() => Object.fromEntries(cats.map((c) => [c.id, c.name])), [cats]);
   const branchMap = useMemo(() => Object.fromEntries(branches.map((b) => [b.id, b.name])), [branches]);
-  const attCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r) => r.id), [rows]));
 
-  const summary = useMemo(() => ({ ...agg, net: agg.totalIn - agg.totalOut }), [agg]);
+  // ===== Excel filters on every voucher the bar leaves (owner 2026-10-26), remembered per screen and type =====
+  const { pathname } = useLocation();
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:vouchers:${type ?? "all"}${onlyDeductedFromProfit ? ":ded" : ""}`);
+  const wholeSig = `${branchId}|${type}|${tenantId}|${JSON.stringify(filters)}|${searchText}|${onlyDeductedFromProfit}|${showCancelled}`;
+  const whole = useWholeList<any>(wholeSig, async (signal) => {
+    const ded = await deductibleIdsOf();
+    const all = await readAll<any>(() => viewQuery("*", false, ded), signal);
+    const lk = await fetchTreasuryLinks(all.map((v: any) => v.treasury_id), signal).catch(() => new Map<string, TreasuryLink>());
+    return all.map((v: any) => ({ ...v, __link: v.treasury_id ? lk.get(v.treasury_id) ?? null : null }));
+  }, { auto: isActive(colState) });
+  /** what each column shows */
+  const listCols = useMemo<ListColumn<any>[]>(() => [
+    { key: "voucher_number", label: "رقم السند", kind: "text", get: (r) => r.voucher_number },
+    { key: "account", label: "اسم الحساب", kind: "text", get: (r) => r.__link?.account_name ?? r.party_name },
+    { key: "amount", label: "المبلغ", kind: "number", get: (r) => Number(r.amount) || 0, sum: !!(type || onlyDeductedFromProfit), money: true },
+    ...(!type ? [{ key: "type", label: "النوع", kind: "text" as const, get: (r: any) => VOUCHER_TYPE_LABEL[r.type as VoucherType] }] : []),
+    { key: "category", label: "التصنيف", kind: "text", get: (r) => catMap[r.category_id] },
+    { key: "payment_method", label: "طريقة الدفع", kind: "text", get: (r) => payMethodLabel(r.payment_method) },
+    { key: "voucher_date", label: "التاريخ", kind: "date", get: (r) => r.voucher_date },
+    { key: "status", label: "الحالة", kind: "text", get: (r) => (r.status === "active" ? "نشط" : "ملغي") },
+    { key: "source", label: "المصدر", kind: "text", get: (r) => sourceText(r.__link, r.source) },
+    { key: "description", label: "البيان / الوصف", kind: "text", get: (r) => r.description },
+    ...(adminAllBranches ? [{ key: "branch", label: "الفرع", kind: "text" as const, get: (r: any) => branchMap[r.branch_id] }] : []),
+  ], [type, onlyDeductedFromProfit, adminAllBranches, catMap, branchMap]);
+  const { result: listRes, adapter: listAdapter, state: colEff, apply } = useListFilter({
+    rows: whole.rows, columns: listCols, state: colState, onChange: setColState, ensureRows: whole.ensure,
+  });
+  const wholeMode = isActive(colEff);
+  const colSig = JSON.stringify(colEff);
+  useEffect(() => { setPage(1); }, [branchId, type, tenantId, filters, searchText, onlyDeductedFromProfit, showCancelled, colSig]);
+  useEffect(() => { setSelected(new Map()); }, [colSig]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, type, tenantId, filters, searchText, onlyDeductedFromProfit, showCancelled, wholeMode ? 0 : page]);
+  useRealtimeRefresh(["vouchers", "voucher_categories"], () => { load(); whole.refresh(); });
+  /** the rows shown: a page of the filtered whole list, or the database page */
+  const pageRows = wholeMode ? (listRes ? listRes.rows.slice((page - 1) * PAGE, page * PAGE) : []) : rows;
+  const shownCount = wholeMode ? (listRes ? listRes.rows.length : 0) : count;
+  const tableAdapter = useMemo(() => ({ ...listAdapter, shown: listAdapter.shown ?? count }), [listAdapter, count]);
+  const attCounts = useAttachmentCounts("voucher", pageRows.map((r: any) => r.id));
+
+  // the cards: every active voucher of the bar's filters — and of the column filters when one is on
+  const summary = useMemo(() => {
+    if (wholeMode && listRes && !showCancelled) {
+      const a = { totalIn: 0, totalOut: 0, countIn: 0, countOut: 0 };
+      for (const t of listRes.colRows) {
+        const amt = Math.abs(Number(t.amount) || 0);
+        if (t.type === "receipt") { a.totalIn += amt; a.countIn++; } else if (t.type === "payment") { a.totalOut += amt; a.countOut++; }
+      }
+      return { ...a, net: a.totalIn - a.totalOut };
+    }
+    return { ...agg, net: agg.totalIn - agg.totalOut };
+  }, [agg, wholeMode, listRes, showCancelled]);
   const viewType: VoucherType | "" = type ?? (onlyDeductedFromProfit ? "payment" : filters.type);
   const bulkKind = viewType === "receipt" ? "income" as const : viewType === "payment" ? "expense" as const : null;
 
@@ -186,10 +249,10 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     w.document.close();
   };
 
-  // Exports fetch every voucher matching the active filters (not only the 500 loaded rows).
-  const fetchAllFiltered = () => fetchAllRows<Voucher>(() =>
+  // Exports fetch every voucher matching the bar's filters (not only the page), then the column filters, in the order shown.
+  const fetchAllFiltered = async () => apply(await fetchAllRows<Voucher>(() =>
     applyFilters(supabase.from("vouchers" as any).select("*").order("voucher_date", { ascending: false }).order("created_at", { ascending: false }).order("id"), deductibleRef.current),
-  );
+  ));
   const runExport = async (fn: (list: Voucher[]) => void) => {
     if (isExporting) return;
     setIsExporting(true);
@@ -225,9 +288,6 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
           ))}
           {showCancelled && <span className="text-xs text-muted-foreground">سندات اتلغت وأثرها على الخزنة اتعكس — للمراجعة بس، والكروت فوق محسوبة على النشطة فقط.</span>}
         </div>
-      )}
-      {rows.length >= 500 && (
-        <div className="text-xs text-warning">الجدول بيعرض أول 500 سند بس — الكروت محسوبة على كل السندات. ضيّق الفلاتر (التاريخ / الفرع / البحث) لعرض الباقي.</div>
       )}
       {viewType ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -410,21 +470,22 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       </div>
 
 
-      {bulkKind && (branchId || rows[0]?.branch_id) && (
+      {bulkKind && (branchId || pageRows[0]?.branch_id) && (
         <BulkActionsBar
           kind={bulkKind}
-          branchId={(branchId ?? rows[0]?.branch_id)!}
+          branchId={(branchId ?? pageRows[0]?.branch_id)!}
           rows={Array.from(selected.values())}
-          totalCount={rows.length}
-          onSelectPage={() => setSelected(new Map(rows.map((r: any) => [r.id, { ...r, __account: accountOf(r) }])))}
+          totalCount={shownCount}
+          onSelectPage={() => setSelected(new Map(pageRows.map((r: any) => [r.id, { ...r, __account: accountOf(r) }])))}
           onClear={() => setSelected(new Map())}
           onDone={() => { setSelected(new Map()); load(); }}
         />
       )}
       <DataTable
-        loading={loading}
-        rows={rows}
-        indexColumn
+        loading={wholeMode ? !listRes : loading}
+        rows={pageRows}
+        excel={{ id: `vouchers-${type ?? "all"}`, server: tableAdapter }}
+        indexColumn={{ offset: (page - 1) * PAGE }}
         onRowClick={(r: Voucher) => setViewTarget(r)}
         columns={[
           // owner order 2026-10-16: ✓ · رقم السند · اسم الحساب · المبلغ · التصنيف · طريقة الدفع · التاريخ · الحالة · المصدر · … · الإجراءات
@@ -489,6 +550,9 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
           } },
         ]}
       />
+      {shownCount > PAGE && (
+        <NumberedPagination page={page} pageCount={Math.max(1, Math.ceil(shownCount / PAGE))} disabled={loading} onChange={setPage} />
+      )}
 
 
       {canAdd && type && (

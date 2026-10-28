@@ -1,3 +1,4 @@
+import { useTableViews } from "@/hooks/useListFilter";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PermTable } from "@/components/PermTable";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
@@ -53,6 +54,8 @@ const STATE_LABEL: Record<string, { t: string; c: string }> = {
 };
 
 export default function ContactFile() {
+  // what each table shows after its Excel filters: the Excel sheets / print export that
+  const [views, onView] = useTableViews<"docs" | "money" | "returns">();
   const params = useParams<{ id: string; supplierId: string; contactId: string }>();
   const routeBranchId = params.id;
   const contactId = params.supplierId || params.contactId;
@@ -248,21 +251,21 @@ export default function ContactFile() {
     }
     exportToExcel(`ملف_${c.name}_${scopeName}`, [
       { name: "ملخص", rows: summary },
-      { name: `مستندات ${sideName}`, rows: docs.filter((d) => d.doc_type !== "movement").map((d) => ({
+      { name: `مستندات ${sideName}`, rows: (views.docs ?? docs.filter((d) => d.doc_type !== "movement")).map((d: any) => ({
         الرقم: d.doc_number, التاريخ: formatDate(d.doc_date), الفرع: d.branch_name, الحالة: STATE_LABEL[d.state]?.t ?? d.state,
         الإجمالي: d.total, "مدفوع فلوس": d.paid_money ?? "", "مدفوع بمرتجعات": d.paid_by_returns ?? "", المتبقي: d.remaining ?? "",
       })) },
-      { name: `فلوس ${sideName}`, rows: money.map((m) => ({
+      { name: `فلوس ${sideName}`, rows: (views.money ?? money).map((m: any) => ({
         التاريخ: formatDate(m.movement_date), النوع: m.kind_label, الفرع: m.branch_name, الطريقة: methodLabel(m.method),
         المبلغ: m.amount, "اتخصم منه": m.allocated, "متبقي مقدم": m.unallocated, المرجع: m.reference ?? "", الحالة: m.status === "active" ? "سارية" : "ملغاة",
       })) },
-      { name: `مرتجعات ${sideName}`, rows: returnsRows.map((r) => ({ الرقم: r.number, التاريخ: formatDate(r.date), الفرع: r.branch, المستند: r.doc ?? "", الإجمالي: r.total, "نقدي/تحويل": r.cash, "على الحساب": r.credit, الحالة: r.status })) },
+      { name: `مرتجعات ${sideName}`, rows: (views.returns ?? returnsRows).map((r: any) => ({ الرقم: r.number, التاريخ: formatDate(r.date), الفرع: r.branch, المستند: r.doc ?? "", الإجمالي: r.total, "نقدي/تحويل": r.cash, "على الحساب": r.credit, الحالة: r.status })) },
     ]);
   };
 
   const printFile = () => {
     if (!ov || !c || !sideData) return;
-    const rows = shownDocs.map((d) => `<tr><td>${d.doc_number ?? ""}</td><td>${formatDate(d.doc_date)}</td><td>${d.branch_name ?? ""}</td><td>${STATE_LABEL[d.state]?.t ?? d.state}</td><td>${formatEGP(d.total)}</td><td>${d.remaining == null ? "—" : formatEGP(d.remaining)}</td></tr>`).join("");
+    const rows = (views.docs ?? shownDocs).map((d: any) => `<tr><td>${d.doc_number ?? ""}</td><td>${formatDate(d.doc_date)}</td><td>${d.branch_name ?? ""}</td><td>${STATE_LABEL[d.state]?.t ?? d.state}</td><td>${formatEGP(d.total)}</td><td>${d.remaining == null ? "—" : formatEGP(d.remaining)}</td></tr>`).join("");
     printReport(`ملف ${c.name} — ${sideName}`, `
       <h1>${c.name} — ${sideName}</h1>
       <div class="meta">النطاق: ${scopeName}</div>
@@ -414,6 +417,7 @@ export default function ContactFile() {
                       </div>
                     )}
                     <DataTable
+                      onView={onView("docs")}
                       rows={shownDocs}
                       empty="لا توجد مستندات"
                       onRowClick={(r: ContactDocument) => nav(docPath(r))}
@@ -442,6 +446,7 @@ export default function ContactFile() {
 
                   <TabsContent value="money" className="mt-3">
                     <DataTable
+                      onView={onView("money")}
                       rows={money}
                       empty="لا توجد حركات فلوس"
                       columns={[
@@ -469,6 +474,7 @@ export default function ContactFile() {
 
                   <TabsContent value="returns" className="mt-3">
                     <DataTable
+                      onView={onView("returns")}
                       rows={returnsRows}
                       empty="لا توجد مرتجعات"
                       onRowClick={(r: any) => nav(sd === "customer" ? `/branch/${r.branch_id}/sale-returns/${r.id}` : `/branch/${r.branch_id}/purchase-returns/${r.id}`)}

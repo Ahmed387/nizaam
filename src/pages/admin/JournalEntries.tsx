@@ -1,13 +1,17 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable } from "@/components/DataTable";
+import { NumberedPagination } from "@/components/NumberedPagination";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
+import { readAllBounded, useWholeList } from "@/hooks/useWholeList";
+import { periodOfFilter, withPeriod, type ListColumn } from "@/lib/tableFilter";
 import { format } from "date-fns";
 
 type Entry = {
@@ -15,26 +19,79 @@ type Entry = {
   source_type: string | null; status: string; total_debit: number; total_credit: number;
 };
 
+const PAGE = 50;
+/** a month can hold 40,000+ entries: the column filters keep at most this many in memory (narrow the period first) */
+const MAX_WHOLE = 10_000;
+const STATUS_LABEL: Record<string, string> = { posted: "مرحّل", reversed: "معكوس" };
+const safeLike = (s: string) => s.replace(/[,()%*\\]/g, " ").trim();
+
+/** what each column shows, for the Excel filters (owner 2026-10-26) */
+const COLS: ListColumn<Entry>[] = [
+  { key: "entry_number", label: "رقم القيد", kind: "text", get: (r) => r.entry_number },
+  { key: "entry_date", label: "التاريخ", kind: "date", get: (r) => r.entry_date },
+  { key: "description", label: "الوصف", kind: "text", get: (r) => r.description },
+  { key: "source_type", label: "المصدر", kind: "text", get: (r) => r.source_type },
+  { key: "total_debit", label: "مدين", kind: "number", get: (r) => Number(r.total_debit) || 0, sum: true },
+  { key: "total_credit", label: "دائن", kind: "number", get: (r) => Number(r.total_credit) || 0, sum: true },
+  { key: "status", label: "الحالة", kind: "text", get: (r) => STATUS_LABEL[r.status] ?? r.status },
+];
+
 export default function JournalEntries() {
   const { tenantId } = useAuth();
-  const [rows, setRows] = useState<Entry[]>([]);
-  const [from, setFrom] = useState<string>("");
-  const [to, setTo] = useState<string>("");
+  const nav = useNavigate();
+  const { pathname } = useLocation();
+  // Excel filters, remembered; the period on top IS the «التاريخ» column's from / to (both stay, linked)
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}`);
+  const { from, to } = periodOfFilter(colState, "entry_date");
+  const setFrom = (v: string) => setColState(withPeriod(colState, "entry_date", v, to));
+  const setTo = (v: string) => setColState(withPeriod(colState, "entry_date", from, v));
   const [q, setQ] = useState("");
+  const [dq, setDq] = useState("");
+  useEffect(() => { const t = setTimeout(() => setDq(safeLike(q)), 300); return () => clearTimeout(t); }, [q]);
+
+  /** the entries of the bar's filters (period + search), newest first — every page from a fresh query */
+  const query = (select: string, opts?: { count?: "exact"; head?: boolean }) => {
+    let qb: any = supabase.from("journal_entries" as any).select(select, opts).eq("tenant_id", tenantId!);
+    if (from) qb = qb.gte("entry_date", from);
+    if (to) qb = qb.lte("entry_date", to);
+    if (dq) qb = qb.or(`entry_number.ilike.%${dq}%,description.ilike.%${dq}%,source_type.ilike.%${dq}%`);
+    return opts?.head ? qb : qb.order("entry_date", { ascending: false }).order("entry_number", { ascending: false }).order("id");
+  };
+
+  // one page of 50 from the database (it used to show the latest 500 only)
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<Entry[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const req = useRef(0);
+
+  // the whole list of the period, when a column filter / sort is on (at most MAX_WHOLE entries)
+  const wholeSig = `${tenantId}|${from}|${to}|${dq}`;
+  const whole = useWholeList<Entry>(wholeSig, (signal) => readAllBounded<Entry>(() => query("*"), () => query("id", { count: "exact", head: true }), MAX_WHOLE, signal),
+    { auto: Object.keys(colState.filters).some((k) => k !== "entry_date" || !!(colState.filters[k] as any).days?.length) || !!colState.sort });
+  const { result: listRes, adapter, state: colEff } = useListFilter({ rows: whole.rows, columns: COLS, state: colState, onChange: setColState, ensureRows: whole.ensure });
+  // the period alone runs in the database; any other column filter or a sort reads the whole list
+  const wholeMode = !!colEff.sort || Object.entries(colEff.filters).some(([k, f]) => !(k === "entry_date" && f.kind === "date" && !f.days?.length));
+  const colSig = JSON.stringify(colEff);
+  useEffect(() => { setPage(1); }, [from, to, dq, colSig]);
 
   useEffect(() => {
-    if (!tenantId) return;
-    let query = supabase.from("journal_entries" as any).select("*")
-      .eq("tenant_id", tenantId).order("entry_date", { ascending: false }).order("entry_number", { ascending: false }).limit(500);
-    if (from) query = query.gte("entry_date", from);
-    if (to) query = query.lte("entry_date", to);
-    query.then(({ data }) => setRows((data ?? []) as any));
-  }, [tenantId, from, to]);
+    if (!tenantId || wholeMode) return;
+    const id = ++req.current;
+    setLoading(true);
+    const start = (page - 1) * PAGE;
+    query("*", { count: "exact" }).range(start, start + PAGE - 1).then(({ data, count }: any) => {
+      if (id !== req.current) return;
+      setRows((data ?? []) as Entry[]);
+      setTotal(count ?? 0);
+      setLoading(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId, from, to, dq, page, wholeMode]);
 
-  const filtered = q ? rows.filter(r =>
-    r.entry_number.includes(q) || (r.description ?? "").includes(q) || (r.source_type ?? "").includes(q)
-  ) : rows;
-
+  const shown = wholeMode ? (listRes ? listRes.rows.slice((page - 1) * PAGE, page * PAGE) : []) : rows;
+  const shownCount = wholeMode ? (listRes ? listRes.rows.length : 0) : total;
+  const tableAdapter = useMemo(() => ({ ...adapter, shown: adapter.shown ?? total }), [adapter, total]);
   const fmt = (n: number) => Number(n).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
@@ -54,40 +111,39 @@ export default function JournalEntries() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>القيود ({filtered.length})</CardTitle></CardHeader>
+          <CardHeader><CardTitle>القيود ({shownCount.toLocaleString("en-US")})</CardTitle></CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">رقم القيد</TableHead>
-                  <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">الوصف</TableHead>
-                  <TableHead className="text-right">المصدر</TableHead>
-                  <TableHead className="text-right">مدين</TableHead>
-                  <TableHead className="text-right">دائن</TableHead>
-                  <TableHead className="text-right">الحالة</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map(r => (
-                  <TableRow key={r.id} className="hover:bg-muted/50 cursor-pointer">
-                    <TableCell className="font-mono">
-                      <Link to={`/admin/accounting/journal/${r.id}`} className="text-primary hover:underline">{r.entry_number}</Link>
-                    </TableCell>
-                    <TableCell>{format(new Date(r.entry_date), "yyyy-MM-dd")}</TableCell>
-                    <TableCell>{r.description}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{r.source_type}</TableCell>
-                    <TableCell className="font-mono">{fmt(r.total_debit)}</TableCell>
-                    <TableCell className="font-mono">{fmt(r.total_credit)}</TableCell>
-                    <TableCell>
-                      <Badge variant={r.status === "posted" ? "default" : r.status === "reversed" ? "destructive" : "secondary"}>
-                        {r.status === "posted" ? "مرحّل" : r.status === "reversed" ? "معكوس" : r.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            {wholeMode && whole.tooMany && (
+              <div className="mb-3 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning" role="alert">{whole.tooMany.message}</div>
+            )}
+            <DataTable
+              loading={wholeMode ? !listRes && !whole.tooMany : loading}
+              rows={shown}
+              excel={{ id: "journal", server: tableAdapter }}
+              getRowKey={(r: Entry) => r.id}
+              onRowClick={(r: Entry) => nav(`/admin/accounting/journal/${r.id}`)}
+              empty="مفيش قيود بالفلاتر دي"
+              columns={[
+                { key: "entry_number", header: "رقم القيد", align: "right", render: (r: Entry) => (
+                  <Link to={`/admin/accounting/journal/${r.id}`} className="font-mono text-primary hover:underline" onClick={(e) => e.stopPropagation()}>{r.entry_number}</Link>
+                ) },
+                { key: "entry_date", header: "التاريخ", align: "right", render: (r: Entry) => format(new Date(r.entry_date), "yyyy-MM-dd") },
+                { key: "description", header: "الوصف", align: "right", render: (r: Entry) => r.description ?? "—" },
+                { key: "source_type", header: "المصدر", align: "right", render: (r: Entry) => <span className="text-xs text-muted-foreground">{r.source_type ?? "—"}</span> },
+                { key: "total_debit", header: "مدين", align: "right", numeric: true, render: (r: Entry) => <span className="font-mono">{fmt(r.total_debit)}</span> },
+                { key: "total_credit", header: "دائن", align: "right", numeric: true, render: (r: Entry) => <span className="font-mono">{fmt(r.total_credit)}</span> },
+                { key: "status", header: "الحالة", align: "right", render: (r: Entry) => (
+                  <Badge variant={r.status === "posted" ? "default" : r.status === "reversed" ? "destructive" : "secondary"}>
+                    {STATUS_LABEL[r.status] ?? r.status}
+                  </Badge>
+                ) },
+              ]}
+            />
+            {shownCount > PAGE && (
+              <div className="mt-3 flex justify-center">
+                <NumberedPagination page={page} pageCount={Math.max(1, Math.ceil(shownCount / PAGE))} onChange={setPage} disabled={loading} />
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

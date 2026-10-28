@@ -18,19 +18,22 @@ import {
  * Two modes:
  *  - page (default): the values are the TEXT the person sees in each cell, read from the table after every render;
  *    rows are hidden / reordered in the DOM (React keeps owning them; the order is re-applied after each commit).
- *  - server: the host table shows one page of a bigger list; the host filters in the database (`server` adapter),
- *    gives the value lists with their counts and the totals of the whole filtered list.
+ *  - server: the host table shows one page of a bigger list; the host filters the WHOLE list (in the database, or in
+ *    memory with `useListFilter`), gives the value lists with their counts and the totals of the whole filtered list.
  * Filters are remembered per table on this device (localStorage, never required).
  */
 
-export type ServerColumn = { kind: CellKind; label?: string; sum?: boolean };
+export type ServerColumn = { kind: CellKind; label?: string; sum?: boolean; money?: boolean };
 export type ServerAdapter = {
   columns: Record<string, ServerColumn>;
   state: FilterState;
   onChange: (s: FilterState) => void;
   facets: (col: string, s: FilterState) => Promise<Facet[]>;
-  totals?: Record<string, number | null | undefined>;
+  /** totals of the whole filtered list: a number, or the cell's text when a plain sum is not what the column shows */
+  totals?: Record<string, number | string | null | undefined>;
+  /** rows left by the filters (all pages) */
   shown?: number;
+  /** rows before the column filters; unknown = not shown */
   total?: number;
 };
 
@@ -146,26 +149,32 @@ function measure(table: HTMLTableElement, wantCells: boolean): Measure {
   return { cols, heads, rows, loose, indexCol };
 }
 
-const fmtTotal = (n: number, money: boolean) => `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}${money ? " ج.م" : ""}`;
+const fmtTotal = (n: number | string, money: boolean) =>
+  typeof n === "string" ? n : `${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}${money ? " ج.م" : ""}`;
 
 type Snap = {
   key: string;
   cols: { id: string; label: string; kind: CellKind; filterable: boolean; sum: boolean; money: boolean; index: number }[];
   shown: number;
-  total: number;
-  totals: Record<string, number>;
+  total: number | undefined;
+  totals: Record<string, number | string>;
   headCount: number;
   /** the table has its own footer (its own totals): ours shows only while filtering */
   ownFooter: boolean;
 };
 
-export function ExcelLayer({ table, storageId, server, disabled, minRows = 2 }: {
+export function ExcelLayer({ table, storageId, server, disabled, minRows = 2, onVisibleChange }: {
   table: HTMLTableElement | null;
   /** distinguishes tables with the same columns on one page */
   storageId?: string;
   server?: ServerAdapter;
   disabled?: boolean;
   minRows?: number;
+  /**
+   * page mode: after every render, the `data-xf-nat` of the rows still shown, in the order shown (null = no column
+   * filter / sort) — lets the host export / print what the filters leave
+   */
+  onVisibleChange?: (nat: number[] | null) => void;
 }) {
   const [own, setOwn] = useState<FilterState>(EMPTY_STATE);
   const state = server ? server.state : own;
@@ -174,6 +183,8 @@ export function ExcelLayer({ table, storageId, server, disabled, minRows = 2 }: 
   const [openCol, setOpenCol] = useState<string | null>(null);
   const measureRef = useRef<Measure | null>(null);
   const tfootRef = useRef<HTMLTableSectionElement | null>(null);
+  /** one <span> of ours per column: its arrow is portaled into it, never into the <th> React owns */
+  const slotsRef = useRef(new Map<string, HTMLSpanElement>());
   const wasActive = useRef(false);
 
   const setState = useCallback((s: FilterState) => {
@@ -201,12 +212,12 @@ export function ExcelLayer({ table, storageId, server, disabled, minRows = 2 }: 
       }
     }
     let shown = m.rows.length;
-    const totals: Record<string, number> = {};
+    const totals: Record<string, number | string> = {};
     if (server) {
       for (const c of m.cols) {
         const sc = server.columns[c.th.dataset.xfCol ?? ""];
         c.filterable = !!sc;
-        if (sc) { c.id = c.th.dataset.xfCol as string; c.kind = sc.kind; c.sum = !!sc.sum; c.label = sc.label ?? c.label; }
+        if (sc) { c.id = c.th.dataset.xfCol as string; c.kind = sc.kind; c.sum = !!sc.sum; c.money = !!sc.money; c.label = sc.label ?? c.label; }
         const t = server.totals?.[c.id];
         if (c.sum && t !== null && t !== undefined) totals[c.id] = t;
       }
@@ -266,16 +277,20 @@ export function ExcelLayer({ table, storageId, server, disabled, minRows = 2 }: 
           }
         }
         wasActive.current = true;
-      } else if (wasActive.current) {
-        undo(table);
-        wasActive.current = false;
+        onVisibleChange?.((sc >= 0 ? order : m.rows.map((_, i) => i)).filter((i) => vis[i]).map((i) => Number(m.rows[i].tr.dataset.xfNat)));
+      } else {
+        if (wasActive.current) {
+          undo(table);
+          wasActive.current = false;
+        }
+        onVisibleChange?.(null);
       }
     }
     const next: Snap = {
       key: keyRef.current ?? key,
       cols: m.cols.map((c) => ({ id: c.id, label: c.label, kind: c.kind, filterable: c.filterable, sum: c.sum, money: c.money, index: c.index })),
       shown,
-      total: server?.total ?? m.rows.length,
+      total: server ? server.total : m.rows.length,
       totals,
       headCount: m.heads.length,
       ownFooter: Array.from(table.querySelectorAll(":scope > tfoot")).some((tf) => (tf as HTMLElement).dataset.xfTotals === undefined && tf.textContent?.trim()),
@@ -295,18 +310,45 @@ export function ExcelLayer({ table, storageId, server, disabled, minRows = 2 }: 
     }
     if (tfootRef.current.parentElement !== table || table.lastElementChild !== tfootRef.current) table.appendChild(tfootRef.current);
   });
+  // every arrow sits in its own <span> at the end of the column title. React rewrites a title whose only child is its
+  // text (e.g. «الرصيد بعد الحركة» ↔ «رصيد الوعاء بعد الحركة») by setting the <th>'s text, which drops every other
+  // child: an arrow portaled straight into the <th> was lost, and removing it later threw «removeChild» (white page).
+  // The span is put back after every commit, the arrow inside it never moves.
+  useLayoutEffect(() => {
+    if (!table || disabled) return;
+    const want = new Map<string, HTMLTableCellElement>();
+    measureRef.current?.cols.forEach((c) => { if (c.filterable) want.set(c.id, c.th); });
+    for (const [id, slot] of slotsRef.current) {
+      const th = want.get(id);
+      if (!th || !slot.hasChildNodes()) { if (slot.parentNode) slot.remove(); }
+      else if (slot.parentNode !== th || th.lastChild !== slot) th.appendChild(slot);
+    }
+  });
   useEffect(() => {
     const t = table;
     return () => {
       if (!t) return;
-      tfootRef.current?.remove();
+      // only what is still in THIS table: the layer may already have moved them into the next one
+      if (tfootRef.current && t.contains(tfootRef.current)) tfootRef.current.remove();
+      slotsRef.current.forEach((s) => { if (t.contains(s)) s.remove(); });
       undo(t);
     };
   }, [table]);
+  const slotFor = (id: string) => {
+    let s = slotsRef.current.get(id);
+    if (!s) {
+      s = document.createElement("span");
+      s.dataset.xfUi = "";
+      s.dataset.xfSlot = id;
+      s.style.display = "contents";
+      slotsRef.current.set(id, s);
+    }
+    return s;
+  };
 
   const active = isActive(state);
   const anySum = !!snap && snap.cols.some((c) => c.sum);
-  const showUi = !!snap && !disabled && (snap.total >= minRows || active || !!server);
+  const showUi = !!snap && !disabled && ((snap.total ?? 0) >= minRows || active || !!server);
 
   const apply = (col: string, f: ColumnFilter | null) => {
     const filters = { ...state.filters };
@@ -325,6 +367,8 @@ export function ExcelLayer({ table, storageId, server, disabled, minRows = 2 }: 
 
   if (!table || disabled || !snap) return null;
   const labelById = new Map(snap.cols.map((c) => [c.id, c.label]));
+  // a filter on a column this person can't see (hidden by permissions) still gets its chip, so it can be removed
+  if (server) for (const [k, sc] of Object.entries(server.columns)) if (!labelById.has(k) && sc.label) labelById.set(k, sc.label);
 
   return (
     <>
@@ -345,7 +389,7 @@ export function ExcelLayer({ table, storageId, server, disabled, minRows = 2 }: 
             onApply={(f) => { apply(c.id, f); setOpenCol(null); }}
             onSort={(d) => { setSort(c.id, d); setOpenCol(null); }}
           />,
-          th,
+          slotFor(c.id),
           `xf-${c.id}`,
         );
       })}
@@ -370,7 +414,8 @@ export function FilterBar({ state, labels, shown, total, onChange }: {
   state: FilterState;
   labels: Map<string, string>;
   shown: number;
-  total: number;
+  /** rows before the filters; left out when unknown or the same as `shown` */
+  total?: number;
   onChange: (s: FilterState) => void;
 }) {
   const chips = Object.entries(state.filters).filter(([id]) => labels.has(id));
@@ -390,7 +435,7 @@ export function FilterBar({ state, labels, shown, total, onChange }: {
           <button type="button" onClick={() => onChange({ ...state, sort: null })} aria-label="شيل الترتيب" className="rounded-full p-0.5 hover:bg-muted"><X className="w-3 h-3" aria-hidden="true" /></button>
         </span>
       )}
-      <span className="text-muted-foreground tabular-nums">ظاهر {shown.toLocaleString("en-US")} من {total.toLocaleString("en-US")}</span>
+      <span className="text-muted-foreground tabular-nums">ظاهر {shown.toLocaleString("en-US")}{total !== undefined && total !== shown ? ` من ${total.toLocaleString("en-US")}` : ""}</span>
       <button type="button" onClick={() => onChange(EMPTY_STATE)} className="mr-auto rounded-md border border-border bg-background px-2.5 py-1 text-xs font-bold hover:bg-muted min-h-[32px]">مسح الكل</button>
     </div>
   );
@@ -576,6 +621,8 @@ const OPS: { op: NumberOp; label: string }[] = [
   { op: "gt", label: "أكبر من" },
   { op: "lt", label: "أصغر من" },
   { op: "between", label: "بين" },
+  { op: "gte", label: "أكبر من أو يساوي" },
+  { op: "lte", label: "أصغر من أو يساوي" },
 ];
 
 function NumberPane({ list, filter, onApply, onCancel, hasFilter }: { list: Facet[]; filter?: Extract<ColumnFilter, { kind: "number" }>; onApply: (f: ColumnFilter | null) => void; onCancel: () => void; hasFilter: boolean }) {
@@ -590,10 +637,10 @@ function NumberPane({ list, filter, onApply, onCancel, hasFilter }: { list: Face
   return (
     <>
       <div className="px-4 py-3 space-y-2">
-        <div className="grid grid-cols-4 gap-1" role="radiogroup" aria-label="الشرط">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1" role="radiogroup" aria-label="الشرط">
           {OPS.map((o) => (
             <button key={o.op} type="button" role="radio" aria-checked={op === o.op} onClick={() => setOp(o.op)}
-              className={`rounded-md border px-1 py-2 text-xs font-bold min-h-[36px] ${op === o.op ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}>{o.label}</button>
+              className={`rounded-md border px-1 py-2 text-xs font-bold min-h-[36px] leading-tight ${o.op === "gte" || o.op === "lte" ? "sm:col-span-2" : ""} ${op === o.op ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}>{o.label}</button>
           ))}
         </div>
         <div className="flex items-center gap-2">

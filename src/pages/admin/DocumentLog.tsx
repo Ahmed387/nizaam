@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PermTable } from "@/components/PermTable";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
+import { readAll, useWholeList } from "@/hooks/useWholeList";
+import { EMPTY_STATE, periodOfFilter, singleValueOf, withPeriod, withSingleValue, type FilterState, type ListColumn } from "@/lib/tableFilter";
+import { addDaysDay, cairoStart } from "@/lib/cairoDate";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
 import { DataTable } from "@/components/DataTable";
@@ -77,19 +81,55 @@ function fmtVal(field: string, v: any): string {
   return String(v);
 }
 
+const keyOf = (map: Record<string, string>, label: string) => Object.keys(map).find((k) => map[k] === label);
+/**
+ * What each column shows, for the Excel filters on the whole log (owner 2026-10-26). The money columns of an invoice
+ * (التصنيف, المدفوع / المتبقي, كاش…) are read from the ledger as of each step's day for the rows on screen only, so
+ * they have no arrow.
+ */
+const LOG_COLS = (branchName: (e: Ev) => string | null): ListColumn<Ev>[] => [
+  { key: "at", label: "وقت العملية الفعلي", kind: "date", get: (e) => e.at },
+  { key: "user", label: "المستخدم", kind: "text", get: (e) => e.user_name },
+  { key: "action", label: "العملية", kind: "text", get: (e) => ACTION_LABEL[e.action] ?? e.action },
+  { key: "type", label: "النوع", kind: "text", get: (e) => DOC_LABEL[e.doc_type] },
+  { key: "number", label: "الرقم", kind: "text", get: (e) => e.snapshot?.number },
+  { key: "doc_date", label: "تاريخ المستند", kind: "date", get: (e) => e.snapshot?.date },
+  { key: "party", label: "العميل / المورد", kind: "text", get: (e) => e.snapshot?.party_name ?? (e.doc_type === "sale" || e.doc_type === "sale_return" ? "نقدي" : null) },
+  { key: "amount", label: "المبلغ", kind: "number", get: (e) => n(e.snapshot?.amount) },
+  { key: "status", label: "الحالة", kind: "text", get: (e) => (e.snapshot?.status === "cancelled" ? "ملغي" : "نشط") },
+  { key: "recipient", label: "المستلم", kind: "text", get: (e) => e.snapshot?.recipient },
+  { key: "notes", label: "الملاحظات", kind: "text", get: (e) => e.snapshot?.notes },
+  { key: "branch", label: "الفرع", kind: "text", get: branchName },
+];
+/** the bar's filters (one action / type / user / branch, the period) run in the database; anything else on the whole log */
+const LINKED_ONE = new Set(["user", "action", "type", "branch"]);
+const needsWholeLog = (s: FilterState) => !!s.sort || Object.entries(s.filters).some(([k, f]) =>
+  !((k === "at" && f.kind === "date" && !f.days?.length) || (LINKED_ONE.has(k) && f.kind === "values" && f.values.length === 1)));
+
 export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
   const { branches, isAdmin } = useAuth();
   const nav = useNavigate();
   const [q, setQ] = useState(""); const [dq, setDq] = useState("");
-  const [branch, setBranch] = useState(ALL);
-  const [docType, setDocType] = useState(ALL);
-  const [action, setAction] = useState(ALL);
-  const [userId, setUserId] = useState(ALL);
-  const [from, setFrom] = useState(""); const [to, setTo] = useState("");
+  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
+  // Excel filters (owner 2026-10-26), remembered. The bar's branch / type / action / user / period ARE those
+  // columns' filters (both stay, linked): one value runs in the database, several values on the whole log.
+  const { pathname } = useLocation();
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:doclog`);
+  const branchNameOf = (id: string | null | undefined) => branches.find((b) => b.id === id)?.name ?? null;
+  const branch = branches.find((b) => b.name === singleValueOf(colState, "branch"))?.id ?? ALL;
+  const setBranch = (v: string) => setColState(withSingleValue(colState, "branch", v === ALL ? "" : branchNameOf(v) ?? ""));
+  const docType = keyOf(DOC_LABEL, singleValueOf(colState, "type")) ?? ALL;
+  const setDocType = (v: string) => setColState(withSingleValue(colState, "type", v === ALL ? "" : DOC_LABEL[v as DocType] ?? ""));
+  const action = keyOf(ACTION_LABEL, singleValueOf(colState, "action")) ?? ALL;
+  const setAction = (v: string) => setColState(withSingleValue(colState, "action", v === ALL ? "" : ACTION_LABEL[v] ?? ""));
+  const userId = users.find((u) => u.name === singleValueOf(colState, "user"))?.id ?? ALL;
+  const setUserId = (v: string) => setColState(withSingleValue(colState, "user", v === ALL ? "" : users.find((u) => u.id === v)?.name ?? ""));
+  const { from, to } = periodOfFilter(colState, "at");
+  const setFrom = (v: string) => setColState(withPeriod(colState, "at", v, to));
+  const setTo = (v: string) => setColState(withPeriod(colState, "at", from, v));
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<Ev[]>([]);
   const [total, setTotal] = useState(0);
-  const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [pay, setPay] = useState<Map<string, DocumentAsOf>>(new Map());
   const [cls, setCls] = useState<Map<string, string>>(new Map());
@@ -97,7 +137,8 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
   const req = useRef(0);
 
   useEffect(() => { const t = setTimeout(() => setDq(q.trim()), 300); return () => clearTimeout(t); }, [q]);
-  useEffect(() => { setPage(1); }, [dq, branch, docType, action, userId, from, to]);
+  const colStateSig = JSON.stringify(colState);
+  useEffect(() => { setPage(1); }, [dq, branch, docType, action, userId, from, to, colStateSig]);
 
   const args = (limit: number, offset: number) => ({
     p_branch: branch === ALL ? null : branch, p_from: from || null, p_to: to || null,
@@ -116,7 +157,10 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
     setRows(evs); setTotal(Number(res.total) || 0);
     setUsers(((res.users ?? []) as any[]).filter((u) => u.id).sort((a, b) => String(a.name).localeCompare(String(b.name), "ar")));
     setLoading(false);
-    // invoices: paid / remaining / how it was paid as of the step's day; «التصنيف» from the settlement row
+    await readMoney(evs, () => id === req.current);
+  };
+  /** invoices on screen: paid / remaining / how it was paid as of the step's day; «التصنيف» from the settlement row */
+  const readMoney = async (evs: Ev[], live: () => boolean) => {
     const groups = new Map<string, { t: "invoice" | "shipment"; day: string; ids: string[] }>();
     for (const e of evs) {
       if (e.doc_type !== "sale" && e.doc_type !== "purchase") continue;
@@ -139,12 +183,68 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
     ]);
     for (const r of ((a as any).data ?? []) as any[]) c.set(r.invoice_id, r.class);
     for (const r of ((b as any).data ?? []) as any[]) c.set(r.shipment_id, r.class);
-    if (id !== req.current) return;
+    if (!live()) return;
     setPay(p); setCls(c);
   };
+
+  // ===== the whole log behind the 50-row pages (a column filter other than the bar's, or a sort) =====
+  const wholeSig = `${branch}|${docType}|${action}|${userId}|${from}|${to}|${dq}`;
+  const whole = useWholeList<Ev>(wholeSig, async (signal) => {
+    if (dq) {
+      // a search uses the log's own function (number / party / phone / user), 1,000 steps at a time
+      const all: Ev[] = [];
+      for (let off = 0; off < 200_000; off += 1000) {
+        const { data, error } = await supabase.rpc("document_log_page" as any, args(1000, off) as any).abortSignal(signal);
+        if (error) throw error;
+        const part = ((data as any)?.rows ?? []) as Ev[];
+        all.push(...part);
+        if (part.length < 1000) break;
+      }
+      return all;
+    }
+    // no search: the same filters straight on the log (invoker rights, same RLS), each page a fresh query
+    const evs = await readAll<any>(() => {
+      let qb = supabase.from("document_events" as any).select("*, branches(name)");
+      if (branch !== ALL) qb = qb.eq("branch_id", branch);
+      if (from) qb = qb.gte("at", cairoStart(from).toISOString());
+      if (to) qb = qb.lt("at", cairoStart(addDaysDay(to, 1)).toISOString());
+      if (docType !== ALL) qb = qb.eq("doc_type", docType);
+      if (action !== ALL) qb = qb.eq("action", action);
+      if (userId !== ALL) qb = qb.eq("user_id", userId);
+      return qb.order("at", { ascending: false }).order("id");
+    }, signal);
+    return evs.map((e: any) => ({ ...e, branch_name: e.branches?.name ?? null }));
+  }, { auto: needsWholeLog(colState) || (!!singleValueOf(colState, "user") && !users.some((u) => u.name === singleValueOf(colState, "user"))) });
+  const listCols = useMemo(() => LOG_COLS((e) => e.branch_name ?? branchNameOf(e.branch_id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [branches]);
+  const { result: listRes, adapter: listAdapter, state: colEff, apply } = useListFilter({
+    rows: whole.rows, columns: listCols, state: colState, onChange: setColState, ensureRows: whole.ensure,
+  });
+  // a remembered user the list of users doesn't know yet is matched by name on the whole log
+  const wholeMode = needsWholeLog(colEff) || (!!singleValueOf(colEff, "user") && userId === ALL);
+  // the users of the bar's select also come from the whole log when the page starts there
+  useEffect(() => {
+    if (users.length || !whole.rows?.length) return;
+    const m = new Map<string, string>();
+    whole.rows.forEach((e) => { if (e.user_id && e.user_name) m.set(e.user_id, e.user_name); });
+    setUsers(Array.from(m, ([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "ar")));
+  }, [whole.rows, users.length]);
+  const shownRows = wholeMode ? (listRes ? listRes.rows.slice((page - 1) * PAGE, page * PAGE) : []) : rows;
+  const shownTotal = wholeMode ? (listRes ? listRes.rows.length : 0) : total;
+  const tableAdapter = useMemo(() => ({ ...listAdapter, shown: listAdapter.shown ?? total }), [listAdapter, total]);
+  // the money of the invoices on screen (whole log: the page shown)
+  const shownKey = wholeMode ? shownRows.map((e) => e.id).join(",") : "";
+  useEffect(() => {
+    if (!wholeMode || !shownRows.length) return;
+    let alive = true;
+    readMoney(shownRows, () => alive);
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownKey]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [page, dq, branch, docType, action, userId, from, to]);
-  useRealtimeRefresh(["invoices", "shipments", "returns", "purchase_returns", "vouchers", "invoice_payments", "payment_transactions"], load);
+  useEffect(() => { if (!wholeMode) load(); }, [page, dq, branch, docType, action, userId, from, to, wholeMode]);
+  useRealtimeRefresh(["invoices", "shipments", "returns", "purchase_returns", "vouchers", "invoice_payments", "payment_transactions"], () => { whole.refresh(); if (!wholeMode) load(); });
 
   const dayOf = (e: Ev) => new Date(e.at).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
   /** The money columns of a row: invoices from the ledger as of the step's day, returns / vouchers from their own fields. */
@@ -221,14 +321,16 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
   const exportAll = async () => {
     const t = toast.loading("جاري تجهيز السجل...");
     try {
-      const all: Ev[] = [];
+      const read: Ev[] = [];
       for (let off = 0; off < 200_000; off += 1000) {
         const { data, error } = await supabase.rpc("document_log_page" as any, args(1000, off) as any);
         if (error) throw error;
         const part = ((data as any)?.rows ?? []) as Ev[];
-        all.push(...part);
+        read.push(...part);
         if (part.length < 1000) break;
       }
+      // what the column filters leave too, in the order shown
+      const all = apply(read);
       exportToExcel("سجل-المستندات", [{
         name: "سجل المستندات",
         rows: all.map((e) => ({
@@ -243,14 +345,14 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
     } catch (e: any) { toast.dismiss(t); toast.error(rpcErrorText(e)); }
   };
 
-  const hasFilters = !!(q || from || to) || [branch, docType, action, userId].some((v) => v !== ALL);
-  const clear = () => { setQ(""); setFrom(""); setTo(""); setBranch(ALL); setDocType(ALL); setAction(ALL); setUserId(ALL); };
+  const hasFilters = !!q || Object.keys(colEff.filters).length > 0 || !!colEff.sort;
+  const clear = () => { setQ(""); setColState(EMPTY_STATE); };
 
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader
         title="سجل المستندات"
-        subtitle={`${total.toLocaleString("en-US")} عملية — كل خطوة على فواتير البيع والشراء والمرتجعات وسندات القبض والصرف، باللي عملها ووقتها الفعلي. اضغط على أي صف تشوف قبل وبعد.`}
+        subtitle={`${shownTotal.toLocaleString("en-US")} عملية — كل خطوة على فواتير البيع والشراء والمرتجعات وسندات القبض والصرف، باللي عملها ووقتها الفعلي. اضغط على أي صف تشوف قبل وبعد.`}
         actions={<Button variant="outline" onClick={exportAll}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>}
       />
 
@@ -298,8 +400,9 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
       </div>
 
       <DataTable
-        loading={loading}
-        rows={rows}
+        loading={wholeMode ? !listRes : loading}
+        rows={shownRows}
+        excel={{ id: "doclog", server: tableAdapter }}
         columns={columns as any}
         indexColumn={{ offset: (page - 1) * PAGE }}
         getRowKey={(e: Ev) => e.id}
@@ -307,7 +410,7 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
         minTableWidth="2300px"
         empty="مفيش عمليات بالفلاتر دي"
       />
-      <NumberedPagination page={page} pageCount={Math.max(1, Math.ceil(total / PAGE))} disabled={loading} onChange={setPage} />
+      <NumberedPagination page={page} pageCount={Math.max(1, Math.ceil(shownTotal / PAGE))} disabled={loading} onChange={setPage} />
 
       <Dialog open={!!open} onOpenChange={(o) => { if (!o) setOpen(null); }}>
         <DialogContent className="max-w-xl">

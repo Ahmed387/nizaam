@@ -72,6 +72,7 @@ export function IntegrityAuditPanel() {
     if (r.contact_id) return nav(`/admin/contacts/${r.contact_id}`);
   };
 
+  const [view, setView] = useState<any[] | null>(null); // what the column filters leave (Excel filters), for the exports
   return (
     <div className="rounded-2xl border p-4 space-y-3" id="integrity">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -83,7 +84,7 @@ export function IntegrityAuditPanel() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => exportToExcel("فحص_سلامة_البيانات", [{ name: "النتائج", rows: rows.map((r) => ({
+          <Button size="sm" variant="outline" onClick={() => exportToExcel("فحص_سلامة_البيانات", [{ name: "النتائج", rows: (view ?? shown).map((r: any) => ({
             الكود: r.check_code, الدرجة: SEV[r.severity]?.t ?? r.severity, المجال: AREA_LABEL[r.area] ?? r.area, البند: r.title, التفاصيل: r.details ?? "",
             الجهة: r.contact_name ?? "", الفرع: r.branch_name ?? "", المستند: r.doc_number ?? "", المبلغ: r.amount ?? "",
           })) }])} disabled={!rows.length}><Download className="w-4 h-4 ml-1" /> Excel</Button>
@@ -116,6 +117,7 @@ export function IntegrityAuditPanel() {
         <DataTable
           loading={loading}
           rows={shown}
+          onView={setView}
           onRowClick={open}
           empty="مفيش ملاحظات في الفلتر ده"
           columns={[

@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, ReactNode, Ref, useEffect, useState, type CSSProperties } from "react";
+import { Fragment, forwardRef, ReactNode, Ref, useEffect, useRef, useState, type CSSProperties } from "react";
 import { ExcelLayer, FilterBar, type ServerAdapter } from "@/components/table/ExcelFilter";
 import { isActive, type CellKind } from "@/lib/tableFilter";
 import { Loader2, Eye, EyeOff } from "lucide-react";
@@ -53,6 +53,11 @@ interface DataTableProps<T> {
    * `server` when the table shows one page of a bigger list — the host filters in the database.
    */
   excel?: false | { id?: string; server?: ServerAdapter };
+  /**
+   * The rows the column filters leave, in the order shown (null = no column filter / sort): Excel / PDF / print of the
+   * screen read them, so they export what the person sees (owner 2026-10-26).
+   */
+  onView?: (rows: T[] | null) => void;
 }
 
 function DataTableInner<T>(
@@ -74,6 +79,7 @@ function DataTableInner<T>(
     minTableWidth,
     permTable,
     excel,
+    onView,
   }: DataTableProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
@@ -84,6 +90,16 @@ function DataTableInner<T>(
   const pageCount = pageSize ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1;
   const safePage = Math.min(page, pageCount - 1);
   const visibleRows = pageSize ? rows.slice(safePage * pageSize, (safePage + 1) * pageSize) : rows;
+  // tell the host what the column filters leave (only when it changed, or the rows were reloaded)
+  const viewRef = useRef<{ sig: string; rows: T[] | null }>({ sig: "", rows: null });
+  const reportView = (nat: number[] | null) => {
+    if (!onView) return;
+    const sig = nat ? nat.join(",") : "-";
+    if (viewRef.current.sig === sig && viewRef.current.rows === rows) return;
+    viewRef.current = { sig, rows };
+    onView(nat ? nat.filter((x) => x % 2 === 0).map((x) => visibleRows[x / 2]).filter((r): r is T => r !== undefined) : null);
+  };
+  useEffect(() => { if (!rows.length) reportView(null); });
   const indexOffset = typeof indexColumn === "object" ? (indexColumn.offset ?? 0) : 0;
   const indexWidth = typeof indexColumn === "object" ? (indexColumn.width ?? "4rem") : "4rem";
   const alignClass = (a?: Align) =>
@@ -126,8 +142,11 @@ function DataTableInner<T>(
       return (
         <>
           {server && isActive(server.state) && (
-            <FilterBar state={server.state} labels={new Map(columns.map((c) => [c.key, typeof c.header === "string" ? c.header : c.key]))}
-              shown={0} total={server.total ?? 0} onChange={server.onChange} />
+            <FilterBar state={server.state} labels={new Map([
+              ...Object.entries(server.columns).map(([k, sc]) => [k, sc.label ?? k] as [string, string]),
+              ...columns.filter((c) => !server.columns[c.key]?.label).map((c) => [c.key, typeof c.header === "string" ? c.header : c.key] as [string, string]),
+            ])}
+              shown={0} total={server.total} onChange={server.onChange} />
           )}
           <div className="p-12 text-center text-muted-foreground">{server && isActive(server.state) ? "مفيش صفوف بالفلاتر دي" : empty}</div>
         </>
@@ -135,7 +154,7 @@ function DataTableInner<T>(
     }
     return (
       <>
-      {excel !== false && <ExcelLayer table={tableEl} storageId={excel?.id ?? permTable} server={server} />}
+      {excel !== false && <ExcelLayer table={tableEl} storageId={excel?.id ?? permTable} server={server} onVisibleChange={server ? undefined : reportView} />}
       {/* Wide tables scroll inside a viewport-high box: the horizontal bar stays on screen and the header sticks. */}
       <div className={wide ? "w-full overflow-auto lg:overflow-x-hidden max-h-[calc(100vh-8rem)]" : "w-full overflow-x-auto"} data-wide={wide ? "" : undefined}>
         <table

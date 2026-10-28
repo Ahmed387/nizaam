@@ -91,12 +91,14 @@ export default function Shipments() {
     return true;
   }), [rows, fSupplier, fStatus, fFrom, fTo, search]);
 
+  const [view, setView] = useState<any[] | null>(null); // what the column filters leave (Excel filters), for the exports
   const handleExportPdf = async () => {
     if (!branchId) return;
-    if (filtered.length === 0) { toast.error("لا توجد فواتير شراء لتصديرها"); return; }
+    const list = view ?? filtered;
+    if (list.length === 0) { toast.error("لا توجد فواتير شراء لتصديرها"); return; }
     await generateShipmentsReport({
       branchId, branchName,
-      shipments: filtered,
+      shipments: list,
       filters: { from: fFrom || undefined, to: fTo || undefined },
       userName: profile?.name ?? "—",
     });
@@ -166,6 +168,7 @@ export default function Shipments() {
             <DataTable
               loading={loading}
               rows={filtered}
+              onView={setView}
               empty="لا توجد فواتير شراء بعد"
               onRowClick={(r: any) => nav(`/branch/${branchId}/shipments/${r.id}`)}
         columns={[

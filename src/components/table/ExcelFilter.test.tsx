@@ -136,6 +136,43 @@ describe("Excel filter on the shared table (DataTable)", () => {
     expect(numbers(table)).toEqual(["IN04540", "IN04560", "IN04600"]);
   });
 
+  it("tells the screen which rows are left, in the order shown, so its Excel / PDF export them (onView)", async () => {
+    const seen: (string[] | null)[] = [];
+    const { container } = render(<DataTable columns={COLS as any} rows={SALES} getRowKey={(r: any) => r.id}
+      onView={(v: any[] | null) => seen.push(v ? v.map((r) => r.invoice_number) : null)} />);
+    const table = container.querySelector("table") as HTMLElement;
+    expect(seen.at(-1)).toBeNull();
+    await pickValues("العميل", ["جارحي"]);
+    expect(seen.at(-1)).toEqual(["IN04540", "IN04560"]);
+    // sorted biggest first: the export follows the order on screen
+    await act(async () => { fireEvent.click(arrow(/فلتر وترتيب عمود المبلغ/)); });
+    await act(async () => { fireEvent.click(await screen.findByRole("button", { name: /من الأكبر للأصغر/ })); });
+    expect(seen.at(-1)).toEqual(["IN04560", "IN04540"]);
+    expect(numbers(table)).toEqual(["IN04560", "IN04540"]);
+    // nothing filtered any more: the screen exports its own list again
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "مسح الكل" })); });
+    expect(seen.at(-1)).toBeNull();
+    // no endless re-renders: one report per change
+    expect(seen.length).toBeLessThan(8);
+  });
+
+  it("keeps the arrow when a column title changes its words (treasury: «الرصيد بعد الحركة» ↔ «رصيد الوعاء بعد الحركة»)", async () => {
+    // React rewrites a title that is only text by setting the <th>'s text: an arrow put straight into the <th> was
+    // dropped, and taking it out later threw «removeChild» — a white page when the filters were cleared
+    const cols = (title: string) => [...COLS.slice(0, 2), { key: "bal", header: title, numeric: true, render: (r: any) => formatEGP(r.total) }];
+    const { container, rerender, unmount } = render(<DataTable columns={cols("الرصيد بعد الحركة") as any} rows={SALES} getRowKey={(r: any) => r.id} />);
+    expect(arrow(/فلتر وترتيب عمود الرصيد بعد الحركة/)).toBeInTheDocument();
+    rerender(<DataTable columns={cols("رصيد الوعاء بعد الحركة") as any} rows={SALES} getRowKey={(r: any) => r.id} />);
+    const th = container.querySelector('th[data-xf-col="bal"]') as HTMLElement;
+    expect(th.textContent).toContain("رصيد الوعاء بعد الحركة");
+    expect(within(th).getByRole("button", { name: /فلتر وترتيب عمود رصيد الوعاء بعد الحركة/ })).toBeInTheDocument();
+    // a filter on that column, then back to the first title, then clear and leave the page: nothing throws
+    await act(async () => { rerender(<DataTable columns={cols("الرصيد بعد الحركة") as any} rows={SALES.slice(0, 3)} getRowKey={(r: any) => r.id} />); });
+    expect(within(th).getByRole("button", { name: /فلتر وترتيب عمود الرصيد بعد الحركة/ })).toBeInTheDocument();
+    expect(th.querySelectorAll("button[data-xf-ui]")).toHaveLength(1);
+    expect(() => unmount()).not.toThrow();
+  });
+
   it("can be switched off for forms", () => {
     render(<DataTable columns={COLS as any} rows={SALES} excel={false} />);
     expect(screen.queryByRole("button", { name: /فلتر وترتيب عمود/ })).toBeNull();

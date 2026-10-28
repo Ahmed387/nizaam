@@ -1,3 +1,4 @@
+import { useTableViews } from "@/hooks/useListFilter";
 import { useEffect, useState } from "react";
 import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
@@ -23,6 +24,8 @@ const ok = (v: number) => Math.abs(v) <= 0.05;
 
 export function GlReconciliationPanel() {
   const nav = useNavigate();
+  // what each table shows after its Excel filters: the Excel sheets export that
+  const [views, onView] = useTableViews<"branches" | "opening">();
   const [gl, setGl] = useState<GlReconciliation | null>(null);
   const [opening, setOpening] = useState<OpeningReconRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,8 +73,8 @@ export function GlReconciliationPanel() {
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" disabled={!gl} onClick={() => gl && exportToExcel("مطابقة_القيود", [
-            { name: "الفروع", rows: gl.branches.map((b) => ({ الفرع: b.branch, الخزنة: b.till, "النقدية في القيود": b.gl_cash, الفرق: b.difference, "حساب جاري الفروع 1910": b.inter_branch_1910 })) },
-            { name: "الأرصدة الافتتاحية", rows: opening.map((r) => ({ الجهة: r.contact_name, الحساب: r.side === "customer" ? "عميل" : "مورد",
+            { name: "الفروع", rows: (views.branches ?? gl.branches).map((b: any) => ({ الفرع: b.branch, الخزنة: b.till, "النقدية في القيود": b.gl_cash, الفرق: b.difference, "حساب جاري الفروع 1910": b.inter_branch_1910 })) },
+            { name: "الأرصدة الافتتاحية", rows: (views.opening ?? opening).map((r: any) => ({ الجهة: r.contact_name, الحساب: r.side === "customer" ? "عميل" : "مورد",
               "الرصيد الافتتاحي": r.opening_in_contact, "في الدفتر": r.opening_in_ledger, "الرصيد المسبق القديم": r.old_prepaid_credit ?? "",
               "المقدم الحالي": r.ledger_advance_now, الحالة: r.status })) },
           ])}><Download className="w-4 h-4 ml-1" /> Excel</Button>
@@ -109,6 +112,7 @@ export function GlReconciliationPanel() {
           </div>
 
           <DataTable
+            onView={onView("branches")}
             rows={gl.branches}
             empty="مفيش حركة"
             onRowClick={(r: any) => nav(`/admin/branches/${r.branch_id}`)}
@@ -151,6 +155,7 @@ export function GlReconciliationPanel() {
             {showOpening && (
               <div className="p-2">
                 <DataTable
+                  onView={onView("opening")}
                   rows={opening}
                   empty="مفيش أرصدة افتتاحية"
                   onRowClick={(r: OpeningReconRow) => nav(`/admin/contacts/${r.contact_id}`)}

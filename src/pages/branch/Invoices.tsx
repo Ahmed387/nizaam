@@ -6,7 +6,7 @@ import { applyCairoRange, cairoTodayDay } from "@/lib/cairoDate";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { NumberedPagination } from "@/components/NumberedPagination";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PermGate } from "@/components/ProtectedRoute";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -43,7 +43,7 @@ import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from 
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 import { fetchDocumentPayView } from "@/lib/ledger";
-import { methodsForFilter, SETTLE_COLS, type SalePayState } from "@/hooks/useSalesInvoices";
+import { SETTLE_COLS, type SalePayState } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
 import { TransferDetails } from "@/components/documents/TransferDetails";
@@ -51,6 +51,11 @@ import { MetricCardWithHint } from "@/components/MetricCardWithHint";
 import { useDocumentMetrics } from "@/hooks/useDocumentMetrics";
 import { enrichSettled, isDocKind, matchesDocCard, type DocCardKey } from "@/lib/documentMetrics";
 import { ConvertClassDialog, type ClassTarget } from "@/components/documents/ConvertClassDialog";
+import { useListFilter, useRemembered, useRememberedFilter } from "@/hooks/useListFilter";
+import { useWholeList } from "@/hooks/useWholeList";
+import { EMPTY_STATE, isActive } from "@/lib/tableFilter";
+import { barFromColumns, columnsFromBar, linkedFields, needsWholeList, periodOf, type LinkCtx } from "@/lib/documentFilterLinks";
+import { documentListColumns, returnSplit } from "@/lib/documentListColumns";
 import { BulkActionsBar } from "@/components/documents/BulkActionsBar";
 import { AccountCell, SourceCell, PrintDocButton } from "@/components/documents/MoneyCells";
 import { fetchTreasuryLinks, payMethodLabel, SRC_LABEL, srcPath } from "@/lib/treasuryLinks";
@@ -86,9 +91,41 @@ const FILTERS: Record<TabKey, { search?: boolean; date?: boolean; status?: boole
 
 type Filters = DocumentFilters;
 
-/** Payment filter of the sale / purchase screens → the column of invoice_settlement / shipment_settlement. */
-const SETTLE_PAY_COL: Record<string, string> = { cash: "cash", instapay: "instapay", wallet: "wallet", bank: "bank", account: "from_account", return: "from_return" };
 const EMPTY_FILTERS: Filters = EMPTY_DOCUMENT_FILTERS;
+const readBar = (raw: unknown): Filters => {
+  const out: Filters = { ...EMPTY_FILTERS };
+  if (raw && typeof raw === "object") {
+    for (const k of Object.keys(EMPTY_FILTERS) as (keyof Filters)[]) {
+      const v = (raw as Record<string, unknown>)[k];
+      if (typeof v === "string") out[k] = v;
+    }
+  }
+  return out;
+};
+const barEmpty = (f: Filters) => (Object.keys(EMPTY_FILTERS) as (keyof Filters)[]).every((k) => !f[k]);
+
+type TransferValue = { unit: number; sent: number; received: number; rejected: number };
+/** The transfer cards from the transfers they cover (every page) and each transfer's value at the sender's average. */
+function transferSummary(all: any[], vals: Record<string, TransferValue>) {
+  const r2v = (x: number) => Math.round(x * 100) / 100;
+  const sumV = (items: any[], f: (v: TransferValue) => number) => r2v(items.reduce((s2, row) => s2 + (vals[row.id] ? f(vals[row.id]) : 0), 0));
+  const summarize = (items: any[]) => ({ count: items.length, quantity: items.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0) });
+  const total = summarize(all);
+  const confirmed = summarize(all.filter((row) => row.status === "confirmed"));
+  const unresolved = summarize(all.filter((row) => row.status === "rejected" || row.status === "pending"));
+  return {
+    totalCount: total.count,
+    totalQuantity: total.quantity,
+    confirmedCount: confirmed.count,
+    confirmedQuantity: confirmed.quantity,
+    unresolvedCount: unresolved.count,
+    unresolvedQuantity: unresolved.quantity,
+    totalValue: sumV(all, (v) => v.sent),
+    acceptedValue: sumV(all.filter((row) => row.status === "confirmed"), (v) => v.received),
+    rejectedValue: sumV(all.filter((row) => row.status === "rejected"), (v) => v.rejected),
+    pendingValue: sumV(all.filter((row) => row.status === "pending"), (v) => v.sent),
+  };
+}
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -124,18 +161,25 @@ export default function Invoices() {
     setParams(next);
   };
   useEffect(() => { setExpandedInvoiceId(null); }, [tab, branchId]);
+  // each tab keeps its own filters (remembered on this device), so switching tabs clears nothing
   const setTab = (k: string) => {
     const next = new URLSearchParams();
     next.set("tab", k);
     setParams(next);
-    setFilters(EMPTY_FILTERS);
-    setDraftFilters(EMPTY_FILTERS);
   };
 
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [draftFilters, setDraftFilters] = useState<Filters>(EMPTY_FILTERS);
+  // Filters «زي ما سبتها» (owner 2026-10-26), per tab on this device: the bar's own fields (search, المستلم,
+  // الملاحظات — and the quotes' period) and the Excel filters of the columns. The bar's other fields ARE column
+  // filters (lib/documentFilterLinks): the period runs in the database, every other column filter on the whole list.
+  const { pathname } = useLocation();
+  const storeKey = `${pathname}:${tab}`;
+  const [filters, setFilters] = useRemembered<Filters>(`xfbar:v1:${storeKey}`, readBar, barEmpty);
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${storeKey}`);
+  const [draftFilters, setDraftFilters] = useState<Filters>(filters);
+  // a return tab's search waits for «بحث»: it starts from what that tab remembers
+  useEffect(() => { setDraftFilters(filters); }, [storeKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [suggestOpen, setSuggestOpen] = useState(false);
 
@@ -161,24 +205,31 @@ export default function Invoices() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const tableTopRef = useRef<HTMLDivElement>(null);
-  // 300ms debounce on the text search; other filters apply instantly.
-  const [debounced, setDebounced] = useState({ q: filters.q, recipient: filters.recipient, notes: filters.notes });
-  useEffect(() => { const t = setTimeout(() => setDebounced({ q: filters.q, recipient: filters.recipient, notes: filters.notes }), 300); return () => clearTimeout(t); }, [filters.q, filters.recipient, filters.notes]);
-  const queryFilters = useMemo(() => ({ ...filters, ...debounced }),
+  // 300ms debounce on the text search; other filters apply instantly (a switched tab reads its own text at once).
+  const [debouncedRaw, setDebounced] = useState({ key: storeKey, q: filters.q, recipient: filters.recipient, notes: filters.notes });
+  useEffect(() => { const t = setTimeout(() => setDebounced({ key: storeKey, q: filters.q, recipient: filters.recipient, notes: filters.notes }), 300); return () => clearTimeout(t); }, [storeKey, filters.q, filters.recipient, filters.notes]);
+  const debounced = debouncedRaw.key === storeKey ? { q: debouncedRaw.q, recipient: debouncedRaw.recipient, notes: debouncedRaw.notes } : { q: filters.q, recipient: filters.recipient, notes: filters.notes };
+  // What the database filters on: the bar's own fields and the period (the date column's from / to — a past period is
+  // read as of its last day). Every other filter runs on the whole list in memory (below).
+  const period = periodOf(tab, colState);
+  const dbBar: Filters = { ...EMPTY_FILTERS, q: filters.q, recipient: filters.recipient, notes: filters.notes, from: period ? period.from : filters.from, to: period ? period.to : filters.to };
+  const queryFilters = useMemo(() => ({ ...dbBar, ...debounced }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [JSON.stringify({ ...filters, q: "", recipient: "", notes: "" }), JSON.stringify(debounced)]);
-  useEffect(() => { setPage(1); }, [tab, branchId, queryFilters]);
+    [JSON.stringify({ ...dbBar, q: "", recipient: "", notes: "" }), JSON.stringify(debounced)]);
   // Paid / open of a past period is shown as of the period's last day (the ledger rule replayed to that day).
   const statusAsOf = queryFilters.to && queryFilters.to < cairoTodayDay() ? queryFilters.to : null;
 
-  /** Applies every active filter directly to the Supabase query (database-level). */
+  /**
+   * The database part of the filters: the search, the period, «المستلم» / «الملاحظات» (text inside), the tab and the
+   * active / cancelled view. Every other filter (amount, التصنيف, حالة السداد, طريقة الدفع, the customer, the status,
+   * the branches…) is a column filter on the whole list (Excel filters, 2026-10-26).
+   */
   const buildQuery = useCallback(async (select: string, withCount: boolean) => {
     const f = queryFilters;
     const q = f.q.trim().replace(/[,()%*]/g, " ").trim();
     const opts = withCount ? { count: "exact" as const } : undefined;
     const looksLikeDocumentNumber = /\d/.test(q) || /^(IN|SH|RT|PR|RV|PV|QT)/i.test(q);
     const contactSearch = `name.ilike.%${q}%,phone.ilike.%${q}%`;
-    const inList = (ids: string[]) => `(${(ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]).join(",")})`;
     /** dateOnly = true for SQL `date` columns; timestamps get Cairo 00:00 → 23:59:59.999. */
     const dateRange = (qb: any, col: string, dateOnly: boolean) => applyCairoRange(qb, col, f.from, f.to, dateOnly);
     const clean = (v: string) => v.trim().replace(/[,()%*]/g, " ").trim();
@@ -188,28 +239,17 @@ export default function Invoices() {
       if (nc && notesCol) qb = qb.ilike(notesCol, `%${nc}%`);
       return qb;
     };
-    const amountRange = (qb: any, col: string) => {
-      if (f.amountMin) qb = qb.gte(col, Number(f.amountMin));
-      if (f.amountMax) qb = qb.lte(col, Number(f.amountMax));
-      return qb;
-    };
     let qb: any;
     if (tab === "sale" || tab === "purchase") {
-      // How each document was settled (0083) comes embedded one-to-one; its filters run in the database.
-      const settleOn = Boolean(f.settleClass || f.payState || f.payment);
-      const embed = `settle:${tab === "sale" ? "invoice_settlement" : "shipment_settlement"}${settleOn ? "!inner" : ""}(${SETTLE_COLS})`;
+      // How each document was settled (0083) comes embedded one-to-one.
+      const embed = `settle:${tab === "sale" ? "invoice_settlement" : "shipment_settlement"}(${SETTLE_COLS})`;
       const projection = q && !looksLikeDocumentNumber ? `${select}, ${embed}, search_contact:contact_id!inner(id)` : `${select}, ${embed}`;
       qb = supabase.from(tab === "sale" ? "invoices" : "shipments").select(projection, opts).eq("branch_id", branchId!);
       if (q) qb = looksLikeDocumentNumber
         ? (tab === "sale" ? qb.ilike("invoice_number", `%${q}%`) : qb.or(`shipment_number.ilike.%${q}%,received_by.ilike.%${q}%`))
         : qb.or(contactSearch, { referencedTable: "search_contact" });
       qb = dateRange(qb, "invoice_date", false);
-      qb = amountRange(qb, tab === "sale" ? "total" : "total_cost");
       qb = tab === "sale" ? textCols(qb, "recipient_name", "notes") : textCols(qb, "received_by", "notes");
-      if (f.status) qb = qb.eq("status", f.status);
-      if (f.settleClass) qb = qb.eq("settle.class", f.settleClass);
-      if (f.payState) qb = qb.eq("settle.state", f.payState);
-      if (f.payment && SETTLE_PAY_COL[f.payment]) qb = qb.gt(`settle.${SETTLE_PAY_COL[f.payment]}`, 0);
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "sale_return") {
       const projection = q && !looksLikeDocumentNumber ? `${select}, search_invoice:invoice_id!inner(search_contact:contact_id!inner(id))` : select;
@@ -217,12 +257,7 @@ export default function Invoices() {
       if (q) qb = looksLikeDocumentNumber
         ? qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%`)
         : qb.or(contactSearch, { referencedTable: "search_invoice.search_contact" });
-      if (f.partyId) {
-        const invs = await fetchAllRows<any>(() => supabase.from("invoices").select("id").eq("branch_id", branchId!).eq("contact_id", f.partyId).order("id"));
-        qb = qb.in("invoice_id", (invs ?? []).map((i: any) => i.id).concat(["00000000-0000-0000-0000-000000000000"]));
-      }
-      if (f.status) qb = qb.eq("status", f.status);
-      qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_refund"); qb = textCols(qb, "recipient_name", "notes");
+      qb = dateRange(qb, "invoice_date", false); qb = textCols(qb, "recipient_name", "notes");
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "purchase_return") {
       const projection = q && !looksLikeDocumentNumber ? `${select}, search_contact:contact_id!inner(id)` : select;
@@ -230,26 +265,17 @@ export default function Invoices() {
       if (q) qb = looksLikeDocumentNumber
         ? qb.or(`return_number.ilike.%${q}%,reason.ilike.%${q}%`)
         : qb.or(contactSearch, { referencedTable: "search_contact" });
-      if (f.partyId) qb = qb.eq("contact_id", f.partyId);
-      if (f.status) qb = qb.eq("status", f.status);
-      qb = dateRange(qb, "invoice_date", false); qb = amountRange(qb, "total_amount"); qb = textCols(qb, "recipient_name", "notes");
+      qb = dateRange(qb, "invoice_date", false); qb = textCols(qb, "recipient_name", "notes");
       qb = qb.order("invoice_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "income" || tab === "expense") {
       qb = supabase.from("vouchers" as any).select(select, opts).eq("branch_id", branchId!)
         .eq("type", tab === "income" ? "receipt" : "payment");
-      // Cancelled vouchers stay visible (badge + their own card); every money card counts active only.
-      if (f.status) qb = qb.eq("status", f.status);
       if (q) qb = qb.or(`voucher_number.ilike.%${q}%,description.ilike.%${q}%,party_name.ilike.%${q}%`);
-      qb = dateRange(qb, "voucher_date", true); qb = amountRange(qb, "amount"); qb = textCols(qb, "recipient_name", "description");
-      if (f.payment) qb = qb.in("payment_method", methodsForFilter(f.payment));
-      if (f.categoryId) qb = qb.eq("category_id", f.categoryId);
+      qb = dateRange(qb, "voucher_date", true); qb = textCols(qb, "recipient_name", "description");
       qb = qb.order("voucher_date", { ascending: false }).order("created_at", { ascending: false });
     } else if (tab === "transfer") {
       qb = supabase.from("stock_transfers").select(select, opts).or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`);
       qb = dateRange(qb, "transfer_date", true); qb = textCols(qb, "recipient_name", "notes");
-      if (f.status) qb = qb.eq("status", f.status);
-      if (f.fromBranch) qb = qb.eq("from_branch_id", f.fromBranch);
-      if (f.toBranch) qb = qb.eq("to_branch_id", f.toBranch);
       qb = qb.order("transfer_date", { ascending: false }).order("created_at", { ascending: false });
     } else {
       const projection = q && !looksLikeDocumentNumber ? `${select}, search_contact:contact_id!inner(id)` : select;
@@ -257,8 +283,7 @@ export default function Invoices() {
       if (q) qb = looksLikeDocumentNumber
         ? qb.or(`quote_number.ilike.%${q}%,customer_name.ilike.%${q}%`)
         : qb.or(contactSearch, { referencedTable: "search_contact" });
-      qb = dateRange(qb, "created_at", false); qb = amountRange(qb, "total");
-      if (f.status) qb = qb.eq("status", f.status);
+      qb = dateRange(qb, "created_at", false);
       qb = qb.order("created_at", { ascending: false });
     }
     // Active view never shows cancelled documents; the «الملغاة» view shows only them.
@@ -279,8 +304,50 @@ export default function Invoices() {
     quote: "*, contacts:contact_id(name)",
   };
 
+  /**
+   * What the table shows beyond the row itself: a voucher's account / source (and, `split`, what it paid — the page
+   * reads it for every row; the whole list leaves it to the row's details); a sale / purchase's paid / remaining from
+   * the ledger (as of the period's last day for a past period), «التصنيف» and the payment columns from its settlement row.
+   */
+  const enrichRows = useCallback(async (input: any[], signal: AbortSignal, split: boolean): Promise<any[]> => {
+    let data = input;
+    if (tab === "income" || tab === "expense") {
+      // what each voucher paid (0097): invoices it settled and what is still on account
+      const sp = new Map<string, any>();
+      const [spRows, links] = await Promise.all([
+        split && data.length
+          ? supabase.rpc("voucher_money_split" as any, { p_ids: data.map((v: any) => v.id) } as any).abortSignal(signal).then((r: any) => (r.data ?? []) as any[])
+          : Promise.resolve([] as any[]),
+        // «اسم الحساب» / «المصدر»: an automatic voucher takes the customer / supplier of its document (0099)
+        fetchTreasuryLinks(data.map((v: any) => v.treasury_id), signal).catch(() => new Map()),
+      ]);
+      for (const x of spRows) sp.set(x.voucher_id, x);
+      data = data.map((v: any) => {
+        const x = sp.get(v.id);
+        const l: any = v.treasury_id ? links.get(v.treasury_id) : null;
+        return {
+          ...v,
+          __enteredAt: v.created_at,
+          created_at: v.voucher_date ?? v.created_at,
+          category: v.voucher_categories?.name ?? "—",
+          description: v.description ?? v.voucher_number,
+          ...(split ? { __splitLoaded: true, __inLedger: !!x?.in_ledger, __alloc: Number(x?.allocated) || 0, __onAcc: Number(x?.on_account) || 0, __docs: x?.docs ?? null } : {}),
+          __link: l ?? null, __account: l?.account_name ?? v.party_name ?? null,
+        };
+      });
+    }
+    if ((tab === "sale" || tab === "purchase") && data.length) {
+      // a past period: status AND the method columns as of its last day (0091); later money is a note on the row
+      const pv = await fetchDocumentPayView(tab === "sale" ? "invoice" : "shipment", data.filter((x: any) => x.status !== "cancelled").map((x: any) => x.id), statusAsOf, signal)
+        .catch(() => ({ status: new Map(), asOf: new Map() }));
+      data = data.map((x: any) => enrichSettled(x, tab === "sale" ? x.total : x.total_cost, pv.status.get(x.id), pv.asOf.get(x.id)));
+    }
+    return data;
+  }, [tab, statusAsOf]);
+
   const reqRef = useRef<{ id: number; ctrl: AbortController | null }>({ id: 0, ctrl: null });
-  const load = useCallback(async () => {
+  /** One page from the database (the screen with no column filter: fast first page, as before). */
+  const loadPage = useCallback(async () => {
     if (!branchId) return;
     // Cancel any in-flight request; only the latest one may update state.
     reqRef.current.ctrl?.abort();
@@ -304,42 +371,8 @@ export default function Invoices() {
     if (r.error && !/abort/i.test(r.error.message ?? "")) toast.error(r.error.message);
     let data: any[] = r.data ?? [];
     const joinedDupes = false;
-    if (tab === "income" || tab === "expense") {
-      // what each voucher paid (0097): invoices it settled and what is still on account
-      const split = new Map<string, any>();
-      if (data.length) {
-        const { data: sp } = await supabase.rpc("voucher_money_split" as any, { p_ids: data.map((v: any) => v.id) } as any).abortSignal(ctrl.signal);
-        for (const x of (sp ?? []) as any[]) split.set(x.voucher_id, x);
-        if (stale()) return;
-      }
-      data = data.map((v: any) => {
-        const x = split.get(v.id);
-        return {
-          ...v,
-          __enteredAt: v.created_at,
-          created_at: v.voucher_date ?? v.created_at,
-          category: v.voucher_categories?.name ?? "—",
-          description: v.description ?? v.voucher_number,
-          __inLedger: !!x?.in_ledger, __alloc: Number(x?.allocated) || 0, __onAcc: Number(x?.on_account) || 0, __docs: x?.docs ?? null,
-        };
-      });
-      // «اسم الحساب» / «المصدر»: an automatic voucher takes the customer / supplier of its document (0099)
-      const links = await fetchTreasuryLinks(data.map((v: any) => v.treasury_id), ctrl.signal).catch(() => new Map());
-      if (stale()) return;
-      data = data.map((v: any) => {
-        const l: any = v.treasury_id ? links.get(v.treasury_id) : null;
-        return { ...v, __link: l ?? null, __account: l?.account_name ?? v.party_name ?? null };
-      });
-    }
-    if ((tab === "sale" || tab === "purchase") && data.length) {
-      // Paid / remaining from the unified ledger (as of the period's last day for a past period);
-      // «التصنيف» and the payment columns from the document's settlement row (0083).
-      // a past period: status AND the method columns as of its last day (0091); later money is a note on the row
-      const pv = await fetchDocumentPayView(tab === "sale" ? "invoice" : "shipment", data.map((x: any) => x.id), statusAsOf, ctrl.signal)
-        .catch(() => ({ status: new Map(), asOf: new Map() }));
-      if (stale()) return;
-      data = data.map((x: any) => enrichSettled(x, tab === "sale" ? x.total : x.total_cost, pv.status.get(x.id), pv.asOf.get(x.id)));
-    }
+    data = await enrichRows(data, ctrl.signal, true);
+    if (stale()) return;
     setRows(data);
     if (joinedDupes) {
       // Exact distinct-invoice count for the joined query (r.count would count join rows).
@@ -352,14 +385,34 @@ export default function Invoices() {
     }
     setLoading(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, branchId, page, buildQuery]);
+  }, [tab, branchId, page, buildQuery, enrichRows]);
+
+  // ===== The whole list (Excel filters, owner 2026-10-26) =====
+  // Every row the database filters leave, enriched like the page. Column filters, sorting, the value lists with their
+  // counts, the totals row, the cards, Excel / PDF and «تحديد الكل» all read it, so they always cover every page.
+  // Read in the background for every view (the cards and the totals row need it) while the first page comes from the
+  // database; kept until the database filters change (a refresh swaps it in place, the table never blinks).
+  const listBase = `${tab}|${view}|${branchId}|${JSON.stringify(queryFilters)}|${statusAsOf ?? ""}`;
+  const { rows: allRows, ensure: ensureList, refresh: refreshList } = useWholeList<any>(listBase, async (signal) => {
+    const raw: any[] = [];
+    // a fresh query for every 1,000 rows (one shared query object would read the same page again and again)
+    for (let from = 0; from < 200_000; from += 1000) {
+      const { qb } = await buildQuery(SELECTS[tab], false);
+      const { data, error } = await qb.order("id").range(from, from + 999).abortSignal(signal);
+      if (error) throw error;
+      raw.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    const seen = new Set<string>();
+    const unique = raw.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)));
+    return enrichRows(unique, signal, false);
+  }, { auto: true });
 
   const [metricsTick, setMetricsTick] = useState(0);
   const docKind = isDocKind(tab) ? tab : null;
-  const { metrics: docMetrics, loading: docMetricsLoading } = useDocumentMetrics(docKind, buildQuery, { branchId, from: queryFilters.from, to: queryFilters.to }, metricsTick);
-  const [transferMetrics, setTransferMetrics] = useState({ totalCount: 0, totalQuantity: 0, confirmedCount: 0, confirmedQuantity: 0, unresolvedCount: 0, unresolvedQuantity: 0, totalValue: 0, acceptedValue: 0, rejectedValue: 0, pendingValue: 0 });
   // value of each transfer at the sender's moving average (0080), shared by the cards, the column and the details row
-  const [transferValues, setTransferValues] = useState<Record<string, { unit: number; sent: number; received: number; rejected: number }>>({});
+  const [transferValues, setTransferValues] = useState<Record<string, TransferValue>>({});
+  const [transferBase, setTransferBase] = useState<any[] | null>(null);
   const [transferMetricsLoading, setTransferMetricsLoading] = useState(false);
   useEffect(() => {
     if (tab !== "transfer" || !branchId) return;
@@ -377,7 +430,7 @@ export default function Invoices() {
         if (batch.length < pageSize) break;
       }
       if (!active) return;
-      const vals: Record<string, { unit: number; sent: number; received: number; rejected: number }> = {};
+      const vals: Record<string, TransferValue> = {};
       const ids = all.map((r) => r.id);
       const chunks: string[][] = [];
       for (let i = 0; i < ids.length; i += 1000) chunks.push(ids.slice(i, i + 1000));
@@ -387,24 +440,7 @@ export default function Invoices() {
       }));
       if (!active) return;
       setTransferValues(vals);
-      const r2v = (x: number) => Math.round(x * 100) / 100;
-      const sumV = (items: any[], f: (v: { sent: number; received: number; rejected: number }) => number) => r2v(items.reduce((s2, row) => s2 + (vals[row.id] ? f(vals[row.id]) : 0), 0));
-      const summarize = (items: any[]) => ({ count: items.length, quantity: items.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0) });
-      const total = summarize(all);
-      const confirmed = summarize(all.filter((row) => row.status === "confirmed"));
-      const unresolved = summarize(all.filter((row) => row.status === "rejected" || row.status === "pending"));
-      setTransferMetrics({
-        totalCount: total.count,
-        totalQuantity: total.quantity,
-        confirmedCount: confirmed.count,
-        confirmedQuantity: confirmed.quantity,
-        unresolvedCount: unresolved.count,
-        unresolvedQuantity: unresolved.quantity,
-        totalValue: sumV(all, (v) => v.sent),
-        acceptedValue: sumV(all.filter((row) => row.status === "confirmed"), (v) => v.received),
-        rejectedValue: sumV(all.filter((row) => row.status === "rejected"), (v) => v.rejected),
-        pendingValue: sumV(all.filter((row) => row.status === "pending"), (v) => v.sent),
-      });
+      setTransferBase(all);
     })().catch((error) => {
       if (active) toast.error(error?.message ?? "تعذر تحميل ملخص التحويلات");
     }).finally(() => {
@@ -412,16 +448,36 @@ export default function Invoices() {
     });
     return () => { active = false; };
   }, [tab, branchId, buildQuery, metricsTick]);
-  useEffect(() => { load(); }, [load]);
-  useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers"], () => setMetricsTick((t) => t + 1));
-  useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers", "quotes", "stock_adjustments"], load);
 
   const branchName = (bid?: string) => branches.find((b) => b.id === bid)?.name ?? bid ?? "—";
 
-  // Filtering now happens in the database; the current page is what we show.
-  const enrichedRows = rows;
   const [cardFilter, setCardFilter] = useState<DocCardKey | null>(null);
   useEffect(() => { setCardFilter(null); }, [tab, branchId, view]);
+
+  // ===== Excel filters (owner 2026-10-26): an arrow on every column, on the WHOLE list, linked to the bar on top =====
+  const listCols = useMemo(() => documentListColumns(tab, view, { branchName, transferValue: (id) => transferValues[id]?.sent }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tab, view, branches, transferValues]);
+  // a clicked card narrows the whole list too (not only the page on screen)
+  const cardPred = useMemo(() => (docKind && cardFilter ? (r: any) => matchesDocCard(docKind, r, cardFilter) : null), [docKind, cardFilter]);
+  const { result: list, adapter: listAdapter, state: colEff, apply: applyList } = useListFilter({
+    rows: allRows, columns: listCols, state: colState, onChange: setColState, ensureRows: ensureList, extra: cardPred,
+  });
+  const colSig = JSON.stringify(colEff);
+  // a column filter (other than the period), a sort or a clicked card: the table shows pages of the whole list;
+  // otherwise one page at a time from the database, as before (fast first page)
+  const wholeList = needsWholeList(tab, colEff) || !!cardFilter;
+  useEffect(() => { setPage(1); }, [tab, branchId, queryFilters, colSig, cardFilter]);
+  useEffect(() => { if (!wholeList) loadPage(); }, [wholeList, loadPage]);
+  /** re-read after a change: the whole list (in place) and, without column filters, the page */
+  const load = useCallback(() => { refreshList(); if (!wholeList) loadPage(); }, [wholeList, loadPage, refreshList]);
+  useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers"], () => setMetricsTick((t) => t + 1));
+  useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "returns", "purchase_returns", "vouchers", "stock_transfers", "quotes", "stock_adjustments"], load);
+
+  // the cards: the rows the column filters leave (every page), read from the same list as the table
+  const { metrics: docMetrics, loading: docMetricsLoading } = useDocumentMetrics(docKind, buildQuery, { branchId, from: queryFilters.from, to: queryFilters.to }, metricsTick, list ? list.colRows : null);
+  const transferMetrics = useMemo(() => transferSummary(list ? list.colRows : transferBase ?? [], transferValues), [list, transferBase, transferValues]);
+
   // «تحويل لنقدي / لآجل» (0093): one invoice from its badge, or a selection of the page
   const canConvert = (tab === "sale" || tab === "purchase") && can("doc_class.update");
   // Selection + bulk actions on every document tab (open as tabs, print, export, edit, cancel, convert).
@@ -429,10 +485,15 @@ export default function Invoices() {
   const bulkKind: BulkKind | null = (["sale", "purchase", "sale_return", "purchase_return", "income", "expense"] as const).includes(tab as any) ? tab as BulkKind : null;
   const [selected, setSelected] = useState<Map<string, any>>(new Map());
   const [convert, setConvert] = useState<{ ids: string[]; target: ClassTarget } | null>(null);
-  useEffect(() => { setSelected(new Map()); }, [tab, branchId, view, queryFilters]);
+  useEffect(() => { setSelected(new Map()); }, [tab, branchId, view, queryFilters, colSig, cardFilter]);
   const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, r); return n; });
-  const filteredRows = useMemo(() => docKind && cardFilter ? enrichedRows.filter((r: any) => matchesDocCard(docKind, r, cardFilter)) : enrichedRows, [enrichedRows, cardFilter, docKind]);
-  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  // what the table shows: a page of the filtered whole list, or the database page
+  const filteredRows = wholeList ? (list ? list.rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : []) : rows;
+  const shownCount = wholeList ? (list ? list.rows.length : 0) : totalCount;
+  const tableLoading = wholeList ? !list : loading;
+  // before the whole list arrives, «ظاهر» is the database count
+  const tableAdapter = useMemo(() => ({ ...listAdapter, shown: listAdapter.shown ?? totalCount }), [listAdapter, totalCount]);
+  const pageCount = Math.max(1, Math.ceil(shownCount / PAGE_SIZE));
 
   const attRecordType = useMemo<RecordType | null>(() => {
     switch (tab) {
@@ -488,28 +549,13 @@ export default function Invoices() {
   const statusCell = (r: any) => r.status === "cancelled"
     ? <span className="font-semibold text-destructive" title={r.cancel_reason ?? undefined}>ملغي</span>
     : <span>نشط</span>;
-  /** Which method column a payment method belongs to (same four columns as the sale table). */
-  const methodBucket = (m?: string | null): "cash" | "instapay" | "wallet" | "bank" => {
-    const v = String(m ?? "cash").toLowerCase();
-    if (v.includes("insta")) return "instapay";
-    if (v.includes("vodafone") || v.includes("wallet") || v.includes("etisalat") || v.includes("orange")) return "wallet";
-    if (v.includes("bank") || v.includes("transfer") || v.includes("visa")) return "bank";
-    return "cash";
-  };
   const methodCols = (pick: (r: any) => Record<string, number>) => ([
     { key: "__m_cash", header: "كاش", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(pick(r).cash) },
     { key: "__m_instapay", header: "انستاباي", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(pick(r).instapay) },
     { key: "__m_wallet", header: "محفظة", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(pick(r).wallet) },
     { key: "__m_bank", header: "بنكي", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(pick(r).bank) },
   ]);
-  /** A return's refund: money given back (cash / transfer by method) and what went to his account. */
-  const returnSplit = (r: any) => {
-    const cash = Number(r.refund_cash_amount) || 0, transfer = Number(r.refund_transfer_amount) || 0;
-    const b: Record<string, number> = { cash: 0, instapay: 0, wallet: 0, bank: 0 };
-    b.cash += cash;
-    if (transfer > 0) { const k = methodBucket(r.refund_method); b[k === "cash" ? "bank" : k] += transfer; }
-    return { out: cash + transfer, account: Number(r.refund_balance_amount) || 0, buckets: b };
-  };
+  // a return's refund split (returnSplit) is shared with the Excel filters: lib/documentListColumns
   const returnColumns = (k: "sale_return" | "purchase_return") => [
     { key: "__class", header: "التصنيف", align: "center", className: "min-w-[90px]", render: (r: any) => {
       if (r.status === "cancelled") return <span className="text-muted-foreground">—</span>;
@@ -885,34 +931,41 @@ export default function Invoices() {
 
   const [isExporting, setIsExporting] = useState(false);
   // Excel exports every document matching the active filters — not just the visible page.
+  // Excel / PDF export what the filters leave — every page, the column filters too, in the order shown — read like
+  // the table (the whole list; it used to read the database again 1,000 rows at a time and could stop at 1,000).
+  const rowsToExport = async (): Promise<any[]> => (list ? list.rows : applyList(await ensureList()));
+  const listColByKey = useMemo(() => new Map(listCols.map((c) => [c.key, c])), [listCols]);
+  /** a cell for Excel / PDF: its text; a cell drawn with badges / buttons gives what its column filter reads */
+  const cellValue = (c: any, r: any) => {
+    let v: any;
+    try { v = c.render ? c.render(r) : r[c.key]; } catch { v = r[c.key]; }
+    if (v && typeof v === "object") {
+      let g: unknown;
+      try { g = listColByKey.get(c.key)?.get(r); } catch { g = undefined; }
+      v = g ?? r[c.key] ?? "";
+    }
+    return v ?? "";
+  };
+
   const handleExportExcel = async () => {
     if (isExporting) return;
     setIsExporting(true);
     const t = toast.loading("جاري تصدير كافة البيانات...");
     let all: any[];
     try {
-      const { qb } = await buildQuery(SELECTS[tab], false);
-      all = await fetchAllRows<any>(() => qb.order("id"));
+      all = await rowsToExport();
     } catch (e: any) {
       toast.error(e?.message ?? "تعذر التصدير", { id: t });
       setIsExporting(false);
       return;
     }
     const settled = tab === "sale" || tab === "purchase";
-    // same reading as the table: a past period as of its last day (0091)
-    let pv: { status: Map<string, any>; asOf: Map<string, any> } = { status: new Map(), asOf: new Map() };
-    if (settled) {
-      try {
-        pv = await fetchDocumentPayView(tab === "sale" ? "invoice" : "shipment", all.filter((x) => x.status !== "cancelled").map((x) => x.id), statusAsOf);
-      } catch { /* the settlement row stays the fallback */ }
-    }
     const BUCKET_KEY: Record<string, string> = { __b_cash: "cash", __b_instapay: "instapay", __b_wallet: "wallet", __b_bank: "bank", __b_account: "account", __b_other: "other" };
-    const exportRows = all.map((raw) => {
-      const r = settled ? enrichSettled(raw, tab === "sale" ? raw.total : raw.total_cost, pv.status.get(raw.id), pv.asOf.get(raw.id)) : raw;
+    // the rows are already read like the table (a past period as of its last day, 0091)
+    const exportRows = all.map((r) => {
       const out: any = {};
       for (const c of cfg.columns as any[]) {
         if (c.key === "actions") continue;
-        let v: any;
         if (settled && BUCKET_KEY[c.key]) { out[c.header] = Number(r.__byBucket?.[BUCKET_KEY[c.key]]) || 0; continue; }
         if (settled && c.key === "__class") { out[c.header] = r.status === "cancelled" ? "" : r.__class === "cash" ? "نقدي" : "آجل"; continue; }
         if (settled && c.key === "__pay_state") { out[c.header] = r.status === "cancelled" ? "" : r.__payState === "paid" ? "مدفوعة بالكامل" : r.__payState === "partial" ? "سداد جزئي" : "لم يتم الدفع"; continue; }
@@ -921,9 +974,9 @@ export default function Invoices() {
           if (statusAsOf) { out["اتدفع بعد الفترة"] = r.__after ?? 0; out["من يوم"] = r.__afterFrom ?? ""; }
           continue;
         }
-        try { v = c.render ? c.render(r) : r[c.key]; } catch { v = r[c.key]; }
-        if (v && typeof v === "object") v = r[c.key] ?? "";
-        out[c.header] = v ?? "";
+        // «اترد له / على حسابه»: what went back (what went to his account has its own column)
+        if (c.key === "__refund_split") { out[tab === "sale_return" ? "اترد له" : "رجعلنا"] = r.status === "cancelled" ? 0 : returnSplit(r).out; continue; }
+        out[c.header] = cellValue(c, r);
       }
       return out;
     });
@@ -937,8 +990,7 @@ export default function Invoices() {
     setIsExporting(true);
     const t = toast.loading("جاري تصدير كافة البيانات...");
     try {
-      const { qb } = await buildQuery(SELECTS[tab], false);
-      const all = await fetchAllRows<any>(() => qb.order("id"));
+      const all = await rowsToExport();
       await exportPdfRows(all);
       toast.success(`تم تجهيز ${all.length} مستند`, { id: t });
     } catch (e: any) {
@@ -953,35 +1005,30 @@ export default function Invoices() {
     const userName = profile?.name ?? user?.email ?? "—";
     if (tab === "sale") {
       const { generateSalesReport } = await import("@/utils/generatePDFReport");
-      await generateSalesReport({ branchId: branchId!, branchName, invoices: filteredRows, filters: { from: filters.from, to: filters.to }, userName });
+      await generateSalesReport({ branchId: branchId!, branchName, invoices: filteredRows, filters: { from: queryFilters.from, to: queryFilters.to }, userName });
       return;
     }
     if (tab === "sale_return") {
       const { generateSaleReturnsReport } = await import("@/utils/generatePDFReport");
-      await generateSaleReturnsReport({ branchName, returns: filteredRows, filters: { from: filters.from, to: filters.to }, userName });
+      await generateSaleReturnsReport({ branchName, returns: filteredRows, filters: { from: queryFilters.from, to: queryFilters.to }, userName });
       return;
     }
     if (tab === "purchase_return") {
       const { generatePurchaseReturnsReport } = await import("@/utils/generatePDFReport");
-      await generatePurchaseReturnsReport({ branchName, returns: filteredRows, filters: { from: filters.from, to: filters.to }, userName });
+      await generatePurchaseReturnsReport({ branchName, returns: filteredRows, filters: { from: queryFilters.from, to: queryFilters.to }, userName });
       return;
     }
     if (tab === "transfer") {
       const { generateStockTransfersReport } = await import("@/utils/generatePDFReport");
       const branchNames: Record<string, string> = {};
       branches.forEach((b: any) => { branchNames[b.id] = b.name; });
-      await generateStockTransfersReport({ branchId: branchId!, branchName, transfers: filteredRows, branchNames, filters: { from: filters.from, to: filters.to }, userName });
+      await generateStockTransfersReport({ branchId: branchId!, branchName, transfers: filteredRows, branchNames, filters: { from: queryFilters.from, to: queryFilters.to }, userName });
       return;
     }
 
     const cols = cfg.columns as any[];
     const head = `<tr>${cols.map((c) => `<th>${c.header}</th>`).join("")}</tr>`;
-    const body = filteredRows.map((r) => `<tr>${cols.map((c) => {
-      let v: any;
-      try { v = c.render ? c.render(r) : r[c.key]; } catch { v = r[c.key]; }
-      if (v && typeof v === "object") v = r[c.key] ?? "";
-      return `<td>${v ?? ""}</td>`;
-    }).join("")}</tr>`).join("");
+    const body = filteredRows.map((r) => `<tr>${cols.map((c) => `<td>${cellValue(c, r)}</td>`).join("")}</tr>`).join("");
     printReport(currentTabLabel, `<PermTable><thead>${head}</thead><tbody>${body}</tbody></PermTable>`);
   };
 
@@ -1023,31 +1070,65 @@ export default function Invoices() {
   const classOptions = [{ value: "cash", label: "نقدي (اتدفعت كلها وقت البيع)" }, { value: "credit", label: "آجل" }];
   const payStateOptions = [{ value: "paid", label: "مدفوعة بالكامل" }, { value: "partial", label: "سداد جزئي" }, { value: "unpaid", label: "لم يتم الدفع" }];
 
-  const hasAnyFilter =
-    filters.q || filters.from || filters.to || filters.status ||
-    filters.amountMin || filters.amountMax || filters.payment || filters.settleClass || filters.payState ||
-    filters.categoryId || filters.fromBranch || filters.toBranch || filters.partyId || filters.recipient || filters.notes;
-
-  // For return tabs: the text search stays draft until بحث/Enter; the status dropdown applies to the
-  // table instantly (database-level, so pagination and the metric cards stay in step with the rows).
-  const inputF = isReturnTab ? draftFilters : filters;
-  const setInputF = (next: Filters) => {
-    if (!isReturnTab) return setFilters(next);
-    setDraftFilters(next);
-    if (next.status !== draftFilters.status) setFilters((f) => ({ ...f, status: next.status }));
+  // ----- The bar on top and the column arrows are one set of filters (lib/documentFilterLinks): the bar's period,
+  // amount, التصنيف, حالة السداد, طريقة الدفع, نوع السند, العميل / المورد, الحالة and الفروع are read from the column
+  // filters and written to them; its search / المستلم / الملاحظات are its own.
+  const partyNames = useRef(new Map<string, string>());
+  const partyOf = (r: any): [string | undefined, string | undefined] =>
+    tab === "sale_return" ? [r.invoices?.contact_id, r.invoices?.contacts?.name] : [r.contact_id, r.contacts?.name];
+  const linkCtx: LinkCtx = {
+    categories,
+    branches: branches.map((b) => ({ id: b.id, name: b.name })),
+    partyName: (pid) => partyNames.current.get(pid) ?? (allRows ?? []).map(partyOf).find(([i]) => i === pid)?.[1],
+    partyId: (name) => {
+      for (const [i, nm] of partyNames.current) if (nm === name) return i;
+      return (allRows ?? []).map(partyOf).find(([, nm]) => nm === name)?.[0];
+    },
   };
+  const linked = linkedFields(tab);
+  /** the bar's own fields only (a linked field lives in its column's filter) */
+  const ownOf = (f: Filters): Filters => {
+    const o = { ...f };
+    linked.forEach((k) => { o[k] = ""; });
+    return o;
+  };
+  const barLinked = barFromColumns(tab, colEff.filters, linkCtx);
+  // the amount as typed («1.» while typing 1.5) stays in the box while it says the same number as the column filter
+  const [amountRaw, setAmountRaw] = useState({ min: "", max: "" });
+  const sameNum = (raw: string, v: string | undefined) => raw.trim() !== "" && !!v && Number(raw.replace(/,/g, "")) === Number(v);
+  const inputF: Filters = {
+    ...(isReturnTab ? draftFilters : filters),
+    ...barLinked,
+    ...(linked.has("amountMin") ? {
+      amountMin: sameNum(amountRaw.min, barLinked.amountMin) ? amountRaw.min : barLinked.amountMin ?? "",
+      amountMax: sameNum(amountRaw.max, barLinked.amountMax) ? amountRaw.max : barLinked.amountMax ?? "",
+    } : {}),
+  };
+  // For return tabs the text search stays draft until بحث/Enter; every linked field applies at once (on every page).
+  const setInputF = (next: Filters) => {
+    const own = ownOf(next);
+    if (isReturnTab) setDraftFilters(own); else setFilters(own);
+    if (next.amountMin !== inputF.amountMin || next.amountMax !== inputF.amountMax) setAmountRaw({ min: next.amountMin, max: next.amountMax });
+    const nf = columnsFromBar(tab, colEff.filters, inputF, next, linkCtx);
+    if (nf !== colEff.filters) setColState({ ...colEff, filters: nf });
+  };
+  const anyOwn = (f: Filters) => Object.values(ownOf(f)).some(Boolean);
+  const hasAnyFilter = anyOwn(filters) || (isReturnTab && anyOwn(draftFilters)) || isActive(colEff);
 
   const applySearch = () => {
-    setFilters(draftFilters);
+    setFilters(ownOf(draftFilters));
     setSuggestOpen(false);
   };
   const clearAll = () => {
     setFilters(EMPTY_FILTERS);
     setDraftFilters(EMPTY_FILTERS);
+    setColState(EMPTY_STATE);
+    setAmountRaw({ min: "", max: "" });
     setSuggestOpen(false);
   };
 
-  // Autocomplete suggestions for return tabs (uses already-loaded rows)
+  // Autocomplete suggestions for return tabs (the whole list once it is read, else the page)
+  const suggestRows = allRows ?? rows;
   const suggestions = useMemo(() => {
     if (!isReturnTab) return [];
     const q = draftFilters.q.trim().toLowerCase();
@@ -1056,8 +1137,8 @@ export default function Invoices() {
       if (tab === "sale_return") return [r.invoices?.invoice_number, r.invoices?.contacts?.name, r.invoices?.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
       return [r.return_number, r.contacts?.name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
     };
-    return rows.filter((r) => searchMatch(q, text(r))).slice(0, 20);
-  }, [isReturnTab, tab, draftFilters.q, rows]);
+    return suggestRows.filter((r) => searchMatch(q, text(r))).slice(0, 20);
+  }, [isReturnTab, tab, draftFilters.q, suggestRows]);
 
 
   return (
@@ -1120,7 +1201,7 @@ export default function Invoices() {
 
       <PermPart page="invoices" part="filters"><UnifiedDocumentFilters
         title={currentTabLabel}
-        shown={{ from: totalCount ? (page - 1) * PAGE_SIZE + 1 : 0, to: Math.min(page * PAGE_SIZE, totalCount), total: totalCount }}
+        shown={{ from: shownCount ? (page - 1) * PAGE_SIZE + 1 : 0, to: Math.min(page * PAGE_SIZE, shownCount), total: shownCount }}
         value={inputF}
         onChange={setInputF}
         onReset={() => { clearAll(); setCardFilter(null); }}
@@ -1166,8 +1247,8 @@ export default function Invoices() {
         </>}
         statusOptions={active.status ? statusOptions : undefined}
         paymentOptions={active.payment ? paymentOptions : undefined}
-        classOptions={active.settle ? classOptions : undefined}
-        payStateOptions={active.settle ? payStateOptions : undefined}
+        classOptions={active.settle && view !== "cancelled" ? classOptions : undefined}
+        payStateOptions={active.settle && view !== "cancelled" ? payStateOptions : undefined}
         customField={active.category ? (
           <UnifiedDocumentFilters.Field label="نوع السند / التصنيف">
             <UnifiedDocumentFilters.Select value={inputF.categoryId} options={categories.map((c) => ({ value: c.id, label: c.name }))} onChange={(v) => setInputF({ ...inputF, categoryId: v })} />
@@ -1185,7 +1266,7 @@ export default function Invoices() {
                 branchId={branchId}
                 kind={active.party === "customer" ? "customer" : "supplier"}
                 value={inputF.partyId}
-                onChange={(id) => setInputF({ ...inputF, partyId: id })}
+                onChange={(id, c) => { if (id && c?.name) partyNames.current.set(id, c.name); setInputF({ ...inputF, partyId: id }); }}
                 placeholder="الكل"
                 emptyLabel="الكل"
                 triggerClassName="h-9"
@@ -1236,7 +1317,7 @@ export default function Invoices() {
       /></PermPart>
 
       {tab === "transfer" && (
-        <div className={`mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 transition-opacity ${transferMetricsLoading ? "opacity-60" : ""}`} aria-label="ملخص تحويلات المخازن">
+        <div className={`mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 transition-opacity ${transferMetricsLoading || !list ? "opacity-60" : ""}`} aria-label="ملخص تحويلات المخازن">
           <MetricCardWithHint
             label="إجمالي قيمة التحويلات"
             value={transferMetrics.totalValue}
@@ -1308,18 +1389,12 @@ export default function Invoices() {
           kind={bulkKind}
           branchId={branchId}
           rows={Array.from(selected.values())}
-          totalCount={totalCount}
+          totalCount={shownCount}
           onSelectPage={() => setSelected((prev) => { const n = new Map(prev); filteredRows.forEach((r: any) => n.set(r.id, r)); return n; })}
           onSelectAll={async () => {
-            if (totalCount > 2000) throw new Error(`النتائج ${totalCount.toLocaleString("en-US")} — ضيّق الفلتر لـ 2,000 أو أقل عشان تحددهم كلهم`);
-            const all: any[] = [];
-            for (let from = 0; from < totalCount; from += 1000) {
-              const { qb } = await buildQuery(SELECTS[tab], false);
-              const { data, error } = await qb.order("id").range(from, from + 999);
-              if (error) throw error;
-              all.push(...(data ?? []));
-              if ((data ?? []).length < 1000) break;
-            }
+            if (shownCount > 2000) throw new Error(`النتائج ${shownCount.toLocaleString("en-US")} — ضيّق الفلتر لـ 2,000 أو أقل عشان تحددهم كلهم`);
+            // every row the filters leave (all pages, the column filters too)
+            const all = list ? list.rows : applyList(await ensureList());
             setSelected(new Map(all.map((r: any) => [r.id, r])));
           }}
           onClear={() => setSelected(new Map())}
@@ -1341,8 +1416,9 @@ export default function Invoices() {
       <DataTable
         permPage="invoices"
         permTable={tab}
-        loading={loading}
+        loading={tableLoading}
         rows={filteredRows}
+        excel={{ id: tab, server: tableAdapter }}
         indexColumn={{ offset: (page - 1) * PAGE_SIZE }}
         onRowClick={cfg.onClick}
         empty="لا توجد سجلات"
@@ -1465,6 +1541,18 @@ function SalePayBadge({ state, remaining }: { state: SalePayState; remaining: nu
 function VoucherDetailsRow({ v, income, branchId }: { v: any; income: boolean; branchId: string }) {
   const nav = useNavigate();
   const l = v.__link;
+  // what it paid (0097): a page read from the database brings it with the rows; a row of the whole list (Excel
+  // filters) reads it here, when it is opened
+  const [sp, setSp] = useState<any>(null);
+  useEffect(() => {
+    if (v.__splitLoaded) return;
+    let live = true;
+    supabase.rpc("voucher_money_split" as any, { p_ids: [v.id] } as any).then(({ data }: any) => { if (live) setSp(((data ?? []) as any[])[0] ?? {}); });
+    return () => { live = false; };
+  }, [v.id, v.__splitLoaded]);
+  const m = v.__splitLoaded
+    ? { inLedger: !!v.__inLedger, alloc: Number(v.__alloc) || 0, onAcc: Number(v.__onAcc) || 0, docs: v.__docs ?? null }
+    : { inLedger: !!sp?.in_ledger, alloc: Number(sp?.allocated) || 0, onAcc: Number(sp?.on_account) || 0, docs: sp?.docs ?? null };
   const path = l ? srcPath(branchId, l) : null;
   const Item = ({ k, children }: { k: string; children: ReactNode }) => (
     <div className="flex gap-2"><span className="text-muted-foreground whitespace-nowrap">{k}:</span><span className="font-semibold">{children}</span></div>
@@ -1478,10 +1566,10 @@ function VoucherDetailsRow({ v, income, branchId }: { v: any; income: boolean; b
           : v.source === "manual" ? "سند يدوي" : "سند تلقائي"}
       </Item>
       <Item k="طريقة الدفع">{payMethodLabel(v.payment_method)}{v.reference_number ? ` • رقم العملية ${v.reference_number}` : ""}</Item>
-      {v.__inLedger && v.status !== "cancelled" && (
+      {m.inLedger && v.status !== "cancelled" && (
         <>
-          <Item k={income ? "اتخصم من فواتير" : "اتدفع على فواتير"}>{formatEGP(v.__alloc ?? 0)}{v.__docs ? ` (${v.__docs})` : ""}</Item>
-          <Item k={income ? "فضل مقدم تحت حسابه" : "فضل مقدم لينا عنده"}>{formatEGP(v.__onAcc ?? 0)}</Item>
+          <Item k={income ? "اتخصم من فواتير" : "اتدفع على فواتير"}>{formatEGP(m.alloc)}{m.docs ? ` (${m.docs})` : ""}</Item>
+          <Item k={income ? "فضل مقدم تحت حسابه" : "فضل مقدم لينا عنده"}>{formatEGP(m.onAcc)}</Item>
         </>
       )}
       {Number(v.fee_amount) > 0 && <Item k="العمولة">{formatEGP(v.fee_amount)}</Item>}

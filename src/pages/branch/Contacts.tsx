@@ -1,6 +1,9 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { PermTable } from "@/components/PermTable";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
+import { useWholeList } from "@/hooks/useWholeList";
+import { isActive, type ListColumn } from "@/lib/tableFilter";
 import { PermPart } from "@/contexts/PermCustomize";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -31,7 +34,7 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { saveContact, deleteContact } from "@/lib/contactWrites";
-import { fetchContactsPage, type BalanceFilter, type ContactPageTotals } from "@/lib/ledger";
+import { fetchAllContactsPage, fetchContactsPage, type BalanceFilter, type ContactPageTotals } from "@/lib/ledger";
 import { Search, Layers } from "lucide-react";
 import { openDocs, OPEN_DOCS_MAX } from "@/lib/openDocs";
 import { printStatements } from "@/lib/bulkPrint";
@@ -43,6 +46,32 @@ const TYPE_LABELS: Record<ContactType, string> = {
   supplier: "مورد",
   both: "عميل ومورد",
 };
+
+/** What we are owed and what we owe, from the two separate accounts (never netted against each other). */
+const owes = (r: any) => {
+  const c = Number(r.customer_balance ?? 0), su = Number(r.supplier_balance ?? 0);
+  return {
+    us: { fromCustomer: Math.max(c, 0), supplierAdvance: Math.max(-su, 0) },
+    them: { toSupplier: Math.max(su, 0), customerAdvance: Math.max(-c, 0) },
+  };
+};
+const positive = (v: number) => (v > 0.005 ? v : null);
+/**
+ * What each column shows, for the Excel filters on every contact (owner 2026-10-26). A side's balance is signed
+ * (+ he owes us / we owe him, − an advance), so «أكبر من 0» = عليه لنا; «لينا عنده» / «علينا له» add up.
+ */
+const CONTACT_COLS: ListColumn<any>[] = [
+  { key: "name", label: "الاسم", kind: "text", get: (r) => r.name },
+  { key: "type", label: "النوع", kind: "text", get: (r) => TYPE_LABELS[r.type as ContactType] ?? r.type },
+  { key: "phone", label: "التليفون", kind: "text", get: (r) => r.phone },
+  { key: "email", label: "الإيميل", kind: "text", get: (r) => r.email },
+  { key: "address", label: "العنوان", kind: "text", get: (r) => r.address },
+  { key: "notes", label: "الملاحظات", kind: "text", get: (r) => r.notes },
+  { key: "customer_balance", label: "حساب العميل", kind: "number", get: (r) => (r.type === "supplier" ? null : Number(r.customer_balance ?? 0)) },
+  { key: "supplier_balance", label: "حساب المورد", kind: "number", get: (r) => (r.type === "customer" ? null : Number(r.supplier_balance ?? 0)) },
+  { key: "__owed_us", label: "لينا عنده", kind: "number", get: (r) => { const o = owes(r).us; return positive(o.fromCustomer + o.supplierAdvance); }, sum: true, money: true },
+  { key: "__we_owe", label: "علينا له", kind: "number", get: (r) => { const o = owes(r).them; return positive(o.toSupplier + o.customerAdvance); }, sum: true, money: true },
+];
 
 export default function Contacts() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -115,25 +144,34 @@ export default function Contacts() {
       if (id === reqRef.current) setLoading(false);
     }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [branchId, page, debouncedSearch, filter, balanceFilters]);
+  // ===== Excel filters on every contact the bar leaves (owner 2026-10-26), remembered per tab =====
+  // A column filter / sort reads the whole list (contacts_page, 1,000 at a time) and pages it here; otherwise the
+  // database pages it as before. The tabs, the search and the balance chips stay the database filters; both combine.
+  const { pathname } = useLocation();
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:${filter}`);
+  const wholeSig = `${branchId}|${filter}|${debouncedSearch}|${balanceFilters.join(",")}`;
+  const whole = useWholeList<any>(wholeSig, async () => (await fetchAllContactsPage({
+    branchId: branchId!, type: filter, query: debouncedSearch || null, balance: balanceFilters,
+  })).rows, { auto: isActive(colState) });
+  const { result: listRes, adapter: listAdapter, state: colEff, apply } = useListFilter({
+    rows: whole.rows, columns: CONTACT_COLS, state: colState, onChange: setColState, ensureRows: whole.ensure,
+  });
+  const wholeMode = isActive(colEff);
+  const colSig = JSON.stringify(colEff);
+  useEffect(() => { setPage(0); }, [colSig]);
+  useEffect(() => { if (!wholeMode) load(); /* eslint-disable-next-line */ }, [branchId, wholeMode ? 0 : page, debouncedSearch, filter, balanceFilters, wholeMode]);
 
   // Realtime: refresh on contact changes AND on any transaction that affects balance (triggers will update contacts row)
-  useRealtimeRefresh(["contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers", "payment_transactions", "customer_credit_log"], load);
+  useRealtimeRefresh(["contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers", "payment_transactions", "customer_credit_log"], () => { whole.refresh(); if (!wholeMode) load(); });
 
-  const filtered = rows;
+  const filtered = wholeMode ? (listRes ? listRes.rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE) : []) : rows;
+  const shownTotal = wholeMode ? (listRes ? listRes.rows.length : 0) : total;
+  const tableAdapter = useMemo(() => ({ ...listAdapter, shown: listAdapter.shown ?? total }), [listAdapter, total]);
 
   // Selection (owner request 2026-10-16): open as tabs, print statements, export — kept across pages
   const [selected, setSelected] = useState<Map<string, any>>(new Map());
-  useEffect(() => { setSelected(new Map()); }, [debouncedSearch, filter, balanceFilters, branchId]);
+  useEffect(() => { setSelected(new Map()); }, [debouncedSearch, filter, balanceFilters, branchId, colSig]);
   const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, r); return n; });
-  /** What we are owed and what we owe, from the two separate accounts (never netted against each other). */
-  const owes = (r: any) => {
-    const c = Number(r.customer_balance ?? 0), su = Number(r.supplier_balance ?? 0);
-    return {
-      us: { fromCustomer: Math.max(c, 0), supplierAdvance: Math.max(-su, 0) },
-      them: { toSupplier: Math.max(su, 0), customerAdvance: Math.max(-c, 0) },
-    };
-  };
   const selRows = Array.from(selected.values());
   const exportSelected = () => exportToExcel("جهات-محددة", [{
     name: "الجهات",
@@ -153,12 +191,14 @@ export default function Contacts() {
   const sideText = (side: "c" | "s", v: number) => Math.abs(v) <= 0.005 ? "مسدد"
     : side === "c" ? (v > 0 ? "لنا عليه" : "مقدم منه") : (v > 0 ? "علينا له" : "مقدم لينا عنده");
   const exportRows = async () => {
-    const all: any[] = [];
+    const read: any[] = [];
     for (let off = 0; ; off += 1000) {
       const p = await fetchPage(1000, off);
-      all.push(...p.rows);
+      read.push(...p.rows);
       if (p.rows.length < 1000) break;
     }
+    // what the column filters leave too, in the order shown
+    const all = apply(read);
     // a side is exported when the contact has that role OR still carries a balance on it (a contact whose
     // type changed keeps its old side's balance — it must never disappear from the export)
     const hasSide = (r: any, sd: "c" | "s") => {
@@ -327,7 +367,7 @@ export default function Contacts() {
     load();
   };
 
-  const drawerContact = useMemo(() => rows.find((r) => r.id === expandedId) ?? null, [rows, expandedId]);
+  const drawerContact = useMemo(() => filtered.find((r: any) => r.id === expandedId) ?? rows.find((r) => r.id === expandedId) ?? null, [filtered, rows, expandedId]);
 
   const promoteToBoth = async (r: any, asWhat: "customer" | "supplier") => {
     if (r.type === "both") return;
@@ -504,9 +544,9 @@ export default function Contacts() {
         )}
       </div>
       <DataTable
-        loading={loading}
+        loading={wholeMode ? !listRes : loading}
         rows={filtered}
-        pageSize={PAGE_SIZE}
+        excel={{ id: `contacts-${filter}`, server: tableAdapter }}
         indexColumn={{ offset: page * PAGE_SIZE }}
         onRowClick={(r: any) => setExpandedId(r.id)}
         getRowKey={(r: any) => r.id}
@@ -690,14 +730,14 @@ export default function Contacts() {
           },
         ]}
       />
-      {total > PAGE_SIZE && (
+      {shownTotal > PAGE_SIZE && (
         <div className="mt-3 flex items-center justify-between gap-2 text-sm">
           <span className="text-muted-foreground tabular-nums">
-            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} من {total}
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, shownTotal)} من {shownTotal}
           </span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={page === 0 || loading} onClick={() => setPage((p) => p - 1)}>السابق</Button>
-            <Button variant="outline" size="sm" disabled={(page + 1) * PAGE_SIZE >= total || loading} onClick={() => setPage((p) => p + 1)}>التالي</Button>
+            <Button variant="outline" size="sm" disabled={(page + 1) * PAGE_SIZE >= shownTotal || loading} onClick={() => setPage((p) => p + 1)}>التالي</Button>
           </div>
         </div>
       )}

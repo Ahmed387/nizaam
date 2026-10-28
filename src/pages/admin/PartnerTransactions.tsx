@@ -1,3 +1,4 @@
+import { readAll } from "@/hooks/useWholeList";
 import { useEffect, useState } from "react";
 import { PermTable } from "@/components/PermTable";
 import { useSearchParams } from "react-router-dom";
@@ -36,10 +37,11 @@ export default function PartnerTransactions({ embedded }: { embedded?: boolean }
   };
   const loadRecent = async () => {
     if (!tenantId) return;
-    const { data } = await supabase.from("partner_transactions" as any)
+    // every movement, newest first (it used to show the last 20 only)
+    const data = await readAll<any>(() => supabase.from("partner_transactions" as any)
       .select("*, equity_partners(name)").eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false }).limit(20);
-    setRecent((data ?? []) as any[]);
+      .order("created_at", { ascending: false }).order("id")).catch((e) => { toast.error(e?.message ?? "تعذر تحميل الحركات"); return [] as any[]; });
+    setRecent(data);
   };
   useEffect(() => { loadPartners(); loadRecent(); }, [tenantId]);
 

@@ -17,7 +17,10 @@ const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
 ];
 import { useEffect, useState, useMemo, type ReactNode } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useParams, useSearchParams } from "react-router-dom";
+import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
+import { readAll, useWholeList } from "@/hooks/useWholeList";
+import { EMPTY_STATE, periodOfFilter, singleValueOf, withPeriod, withSingleValue, type FilterState, type ListColumn } from "@/lib/tableFilter";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
@@ -49,7 +52,7 @@ import { FinancialAmount } from "@/components/FinancialAmount";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { TreasuryMetricsGrid, type PeriodTransaction, type TreasuryChannel } from "@/components/treasury/TreasuryMetricsGrid";
-import { fetchTreasuryLinks, payMethodLabel, type TreasuryLink } from "@/lib/treasuryLinks";
+import { fetchTreasuryLinks, payMethodLabel, SRC_LABEL, type TreasuryLink } from "@/lib/treasuryLinks";
 import { AccountCell, SourceCell, PrintDocButton } from "@/components/documents/MoneyCells";
 import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
 import { openDocs, OPEN_DOCS_MAX } from "@/lib/openDocs";
@@ -68,6 +71,35 @@ interface WalletBalances {
 }
 
 const REVERSAL_IN = `(${REVERSAL_CATEGORIES.map((c) => `"${c}"`).join(",")})`;
+
+/** «طريقة الدفع» of a till row in words → its wallet */
+const METHOD_OF_LABEL: Record<string, PaymentMethod> = { كاش: "cash", محفظة: "vodafone", انستاباي: "instapay", بنكي: "bank" };
+/** «المصدر» of a till row in words, as its cell shows it */
+function treasurySourceText(r: any): string {
+  const l = r.__link;
+  if (l?.cancelled_voucher_number) return `إلغاء سند ${l.cancelled_voucher_number}`;
+  if (l?.src_type && l?.src_id) return `${SRC_LABEL[l.src_type] ?? ""} ${l.src_number ?? ""}`.trim();
+  if (!r.voucher_id && !l?.src_type) return treasuryCategoryLabel(r.category);
+  return r.voucher_source === "manual" ? "يدوي" : "تلقائي";
+}
+/** what each column of «حركات الخزنة» shows, for the Excel filters on every row (owner 2026-10-26) */
+const MOVE_COLS: ListColumn<any>[] = [
+  { key: "reference_number", label: "رقم السند", kind: "text", get: (r) => resolveTreasuryOperationNumber(r.voucher_number, r.invoice_number, r.reference_number) },
+  { key: "account", label: "اسم الحساب", kind: "text", get: (r) => r.__account },
+  // in + / out −, so the total is the net movement
+  { key: "amount", label: "المبلغ", kind: "number", get: (r) => (r.type === "income" ? 1 : -1) * (Number(r.amount) || 0), sum: true, money: true },
+  { key: "category", label: "التصنيف", kind: "text", get: (r) => `${treasuryCategoryLabel(r.category)}${r.is_fee ? " (عمولة)" : ""}` },
+  { key: "payment_method", label: "طريقة الدفع", kind: "text", get: (r) => payMethodLabel(r.payment_method) },
+  { key: "transaction_date", label: "التاريخ", kind: "date", get: (r) => r.transaction_date },
+  { key: "status", label: "الحالة", kind: "text", get: (r) => (r.voucher_status === "cancelled" ? "سند ملغي" : "نشط") },
+  { key: "source", label: "المصدر", kind: "text", get: treasurySourceText },
+  { key: "balance_after", label: "الرصيد بعد الحركة", kind: "number", get: (r) => r.balance_after },
+  { key: "recipient", label: "المستلم", kind: "text", get: (r) => r.recipient_name },
+  { key: "description", label: "البيان", kind: "text", get: (r) => sanitizeOperationalDescription(r.description) },
+];
+/** the period and ONE wallet run in the database (the running balance is per wallet then); every other filter on the whole list */
+const needsWholeTill = (s: FilterState) => !!s.sort || Object.entries(s.filters).some(([k, f]) =>
+  !((k === "transaction_date" && f.kind === "date" && !f.days?.length) || (k === "payment_method" && f.kind === "values" && f.values.length === 1 && METHOD_OF_LABEL[f.values[0]])));
 
 export default function Treasury() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -90,7 +122,12 @@ export default function Treasury() {
   const [lowThreshold, setLowThreshold] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"all" | "income" | "expense">("all");
-  const [methodFilter, setMethodFilter] = useState<"all" | PaymentMethod>("all");
+  // Excel filters of «حركات الخزنة» (owner 2026-10-26), remembered per tab. The bar's period and wallet ARE the
+  // «التاريخ» / «طريقة الدفع» column filters (both stay, linked).
+  const { pathname } = useLocation();
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:${reversalView ? "reversals" : "movements"}`);
+  const methodFilter: "all" | PaymentMethod = METHOD_OF_LABEL[singleValueOf(colState, "payment_method")] ?? "all";
+  const setMethodFilter = (m: "all" | PaymentMethod) => setColState(withSingleValue(colState, "payment_method", m === "all" ? "" : payMethodLabel(m)));
   const [openTransfer, setOpenTransfer] = useState(false);
   const [openReject, setOpenReject] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -102,8 +139,10 @@ export default function Treasury() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Map<string, any>>(new Map());
   const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, r); return n; });
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const { from: fromDate, to: toDate } = periodOfFilter(colState, "transaction_date");
+  const setPeriod = (f: string, t: string) => setColState(withPeriod(colState, "transaction_date", f, t));
+  const setFromDate = (v: string) => setPeriod(v, toDate);
+  const setToDate = (v: string) => setPeriod(fromDate, v);
   const [searchText, setSearchText] = useState("");
   const [notesText, setNotesText] = useState("");
   const [minAmount, setMinAmount] = useState("");
@@ -116,10 +155,11 @@ export default function Treasury() {
   const [periodLoading, setPeriodLoading] = useState(true);
   useEffect(() => { const t = setTimeout(() => setSearch(searchText.trim()), 300); return () => clearTimeout(t); }, [searchText]);
   useEffect(() => { const t = setTimeout(() => setNotesSearch(notesText.trim()), 300); return () => clearTimeout(t); }, [notesText]);
-  useEffect(() => { setPage(1); setSelected(new Map()); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, reversalView]);
+  const colStateSig = JSON.stringify(colState);
+  useEffect(() => { setPage(1); setSelected(new Map()); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, reversalView, colStateSig]);
   const resetFilters = () => {
-    setFromDate(""); setToDate(""); setSearchText(""); setNotesText("");
-    setMinAmount(""); setMaxAmount(""); setTab("all"); setMethodFilter("all");
+    setColState(EMPTY_STATE); setSearchText(""); setNotesText("");
+    setMinAmount(""); setMaxAmount(""); setTab("all");
   };
 
   /** Applies the page's filters to any treasury query (shared by table page + period totals). */
@@ -151,38 +191,31 @@ export default function Treasury() {
   };
   useEffect(() => { if (branchId) loadPeriod(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter]);
 
-  const load = async () => {
-    setLoading(true);
-    const tq = applyFilters(supabase.from("treasury").select("*", { count: "exact" }), true);
-    const offset = (page - 1) * PAGE_SIZE;
-    const [tr, tt, wb, br] = await Promise.all([
-      tq.order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
-      fetchAllRows<any>(() => supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }).order("id")).then((data) => ({ data, error: null })),
-      supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
-      supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
-    ]);
-    const movements = (tr.data ?? []) as TreasuryMovement[];
+  /** what the table shows beyond the till row: its voucher / invoice, the till after it (0097) and its account / source (0099) */
+  const enrichMovements = async (movements: any[], signal?: AbortSignal): Promise<any[]> => {
     const movementIds = movements.map((row) => row.id);
-    const referenceIds = movements.map((row) => row.reference_id).filter((id): id is string => Boolean(id));
-    const [{ data: vouchers }, { data: invoices }] = await Promise.all([
-      movementIds.length
-        ? supabase.from("vouchers").select("id,treasury_id,voucher_number,status,party_name,recipient_name,description").in("treasury_id", movementIds)
-        : Promise.resolve({ data: [] as { id: string; treasury_id: string | null; voucher_number: string; status: string }[] }),
-      referenceIds.length
-        ? supabase.from("invoices").select("id,invoice_number").in("id", referenceIds)
-        : Promise.resolve({ data: [] as { id: string; invoice_number: string }[] }),
+    const referenceIds = Array.from(new Set(movements.map((row) => row.reference_id).filter((id): id is string => Boolean(id))));
+    const chunks = <T,>(a: T[], n = 200) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+    const inChunks = async (ids: string[], q: (c: string[]) => any) => (await Promise.all(chunks(ids).map(async (c) => {
+      let b = q(c);
+      if (signal) b = b.abortSignal(signal);
+      return ((await b).data ?? []) as any[];
+    }))).flat();
+    const [vouchers, invoices] = await Promise.all([
+      inChunks(movementIds, (c) => supabase.from("vouchers").select("id,treasury_id,voucher_number,status,party_name,recipient_name,description").in("treasury_id", c)),
+      inChunks(referenceIds, (c) => supabase.from("invoices").select("id,invoice_number").in("id", c)),
     ]);
-    const voucherByMovement = new Map((vouchers ?? []).map((voucher) => [voucher.treasury_id, voucher.voucher_number]));
-    const voucherRowByMovement = new Map((vouchers ?? []).map((voucher: any) => [voucher.treasury_id, voucher]));
-    const invoiceByReference = new Map((invoices ?? []).map((invoice) => [invoice.id, invoice.invoice_number]));
+    const voucherByMovement = new Map(vouchers.map((voucher) => [voucher.treasury_id, voucher.voucher_number]));
+    const voucherRowByMovement = new Map(vouchers.map((voucher: any) => [voucher.treasury_id, voucher]));
+    const invoiceByReference = new Map(invoices.map((invoice) => [invoice.id, invoice.invoice_number]));
     // the till after each row (0097), in the table's own order
-    const { data: bal } = movementIds.length
-      ? await supabase.rpc("treasury_balance_after" as any, { p_branch: branchId, p_ids: movementIds, p_method: methodFilter === "all" ? null : methodFilter } as any)
-      : { data: [] as any[] };
+    let balQ: any = movementIds.length ? supabase.rpc("treasury_balance_after" as any, { p_branch: branchId, p_ids: movementIds, p_method: methodFilter === "all" ? null : methodFilter } as any) : null;
+    if (balQ && signal) balQ = balQ.abortSignal(signal);
+    const { data: bal } = balQ ? await balQ : { data: [] as any[] };
     const balanceAfter = new Map(((bal ?? []) as any[]).map((b) => [b.id, Number(b.balance_after)]));
     // «اسم الحساب» / «المصدر» of every row (0099)
-    const links = await fetchTreasuryLinks(movementIds).catch(() => new Map<string, TreasuryLink>());
-    setRows(movements.map((row) => ({
+    const links = await fetchTreasuryLinks(movementIds, signal).catch(() => new Map<string, TreasuryLink>());
+    return movements.map((row) => ({
       ...row,
       party_name: (voucherRowByMovement.get(row.id) as any)?.party_name ?? null,
       __link: links.get(row.id) ?? null,
@@ -195,7 +228,21 @@ export default function Treasury() {
       voucher_status: (voucherRowByMovement.get(row.id) as any)?.status ?? null,
       voucher_description: (voucherRowByMovement.get(row.id) as any)?.description ?? null,
       invoice_number: row.reference_id ? invoiceByReference.get(row.reference_id) ?? null : null,
-    })));
+    }));
+  };
+
+  const load = async () => {
+    setLoading(true);
+    const tq = applyFilters(supabase.from("treasury").select("*", { count: "exact" }), true);
+    const offset = (page - 1) * PAGE_SIZE;
+    const [tr, tt, wb, br] = await Promise.all([
+      tq.order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
+      fetchAllRows<any>(() => supabase.from("treasury_transfers").select("*, from_branch:branches!from_branch_id(name), to_branch:branches!to_branch_id(name)").or(`from_branch_id.eq.${branchId},to_branch_id.eq.${branchId}`).order("created_at", { ascending: false }).order("id")).then((data) => ({ data, error: null })),
+      supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
+      supabase.from("branches").select("low_balance_threshold, tenant_id, name").eq("id", branchId!).maybeSingle(),
+    ]);
+    const movements = (tr.data ?? []) as TreasuryMovement[];
+    setRows(await enrichMovements(movements));
     setTotalCount(tr.count ?? 0);
     setTransfers(tt.data ?? []);
     const balances = (wb.data && wb.data[0]) ? (wb.data[0] as any) : null;
@@ -227,11 +274,28 @@ export default function Treasury() {
       }
     }
   };
-  useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, page, reversalView]);
-  useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], () => { load(); loadPeriod(); });
+  // ===== the whole list behind the 50-row pages (Excel filters, owner 2026-10-26) =====
+  // A column filter (other than the period / one wallet) or a sort reads every row the bar's filters leave — enriched
+  // like the page — and pages it here; otherwise the database pages it as before.
+  const wholeSig = `${branchId}|${reversalView}|${fromDate}|${toDate}|${search}|${notesSearch}|${minAmount}|${maxAmount}|${tab}|${methodFilter}`;
+  const whole = useWholeList<any>(wholeSig, async (signal) => {
+    const all = await readAll<any>(() => applyFilters(supabase.from("treasury").select("*"), true)
+      .order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }), signal);
+    return enrichMovements(all, signal);
+  }, { auto: needsWholeTill(colState) });
+  const { result: listRes, adapter: listAdapter, state: colEff } = useListFilter({
+    rows: whole.rows, columns: MOVE_COLS, state: colState, onChange: setColState, ensureRows: whole.ensure,
+  });
+  const wholeMode = needsWholeTill(colEff);
+  useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, wholeMode ? 0 : page, reversalView]);
+  useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], () => { load(); loadPeriod(); whole.refresh(); });
 
-  const filtered = rows;
-  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const filtered = wholeMode ? (listRes ? listRes.rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : []) : rows;
+  const shownCount = wholeMode ? (listRes ? listRes.rows.length : 0) : totalCount;
+  const pageCount = Math.max(1, Math.ceil(shownCount / PAGE_SIZE));
+  const tableAdapter = useMemo(() => ({ ...listAdapter, shown: listAdapter.shown ?? totalCount }), [listAdapter, totalCount]);
+  /** in / out of what the table covers: the page, or every filtered row */
+  const footerRows = wholeMode && listRes ? listRes.rows : filtered;
 
 
   const transfer = async () => {
@@ -488,7 +552,7 @@ export default function Treasury() {
               <h3 className="font-bold text-sm">
                 فلاتر حركات الخزينة{" "}
                 <span className="text-muted-foreground font-normal">
-                  (يعرض {totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} - {Math.min(page * PAGE_SIZE, totalCount)} من أصل {totalCount} حركة)
+                  (يعرض {shownCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} - {Math.min(page * PAGE_SIZE, shownCount)} من أصل {shownCount} حركة)
                 </span>
               </h3>
               <Button size="sm" variant="ghost" onClick={resetFilters}>مسح الفلاتر</Button>
@@ -496,7 +560,7 @@ export default function Treasury() {
             <div className="flex flex-wrap gap-2 items-center text-xs">
               <span className="text-muted-foreground">اختصارات:</span>
               {DATE_SHORTCUTS.map((s) => (
-                <Button key={s.label} size="sm" variant="outline" className="h-7 rounded-full" onClick={() => { const [f, t] = s.range(); setFromDate(f); setToDate(t); }}>
+                <Button key={s.label} size="sm" variant="outline" className="h-7 rounded-full" onClick={() => { const [f, t] = s.range(); setPeriod(f, t); }}>
                   {s.label}
                 </Button>
               ))}
@@ -541,14 +605,15 @@ export default function Treasury() {
           <TooltipProvider delayDuration={200}>
           <PermPart page="treasury" part="selection_bar"><TreasurySelectionBar rows={Array.from(selected.values())} branchId={branchId!} onSelectPage={() => setSelected(new Map(filtered.map((r: any) => [r.id, r])))}
                                 onClear={() => setSelected(new Map())} /></PermPart>
-          <DataTable permPage="treasury" permTable="moves" loading={loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} minTableWidth="1500px"
+          <DataTable permPage="treasury" permTable="moves" loading={wholeMode ? !listRes : loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} minTableWidth="1500px"
+            excel={{ id: reversalView ? "reversals" : "movements", server: tableAdapter }}
             getRowKey={(r: any) => r.id}
             isRowExpanded={(r: any) => expandedId === r.id}
             renderExpandedRow={(r: any) => <MovementDetailsRow r={r} branchId={branchId!} />}
             footer={filtered.length ? (
               <div className="flex flex-wrap items-center justify-end gap-4 px-3 py-2 text-sm">
-                <span>داخل في الصفحة: <b className="text-success tabular-nums">{formatEGP(filtered.filter((r: any) => r.type === "income").reduce((x: number, r: any) => x + Number(r.amount || 0), 0))}</b></span>
-                <span>خارج في الصفحة: <b className="text-destructive tabular-nums">{formatEGP(filtered.filter((r: any) => r.type !== "income").reduce((x: number, r: any) => x + Number(r.amount || 0), 0))}</b></span>
+                <span>داخل {wholeMode ? "في كل الصفحات" : "في الصفحة"}: <b className="text-success tabular-nums">{formatEGP(footerRows.filter((r: any) => r.type === "income").reduce((x: number, r: any) => x + Number(r.amount || 0), 0))}</b></span>
+                <span>خارج {wholeMode ? "في كل الصفحات" : "في الصفحة"}: <b className="text-destructive tabular-nums">{formatEGP(footerRows.filter((r: any) => r.type !== "income").reduce((x: number, r: any) => x + Number(r.amount || 0), 0))}</b></span>
               </div>
             ) : undefined}
             columns={[

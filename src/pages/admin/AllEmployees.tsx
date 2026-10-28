@@ -250,8 +250,9 @@ export default function AllEmployees() {
   };
 
 
+  const [view, setView] = useState<any[] | null>(null); // what the column filters leave (Excel filters), for the exports
   const exportExcel = () => {
-    const data = filtered.map((e) => ({
+    const data = (view ?? filtered).map((e: any) => ({
       "الاسم": e.name,
       "الوظيفة": e.job_title,
       "الفرع": e.branch_name,
@@ -349,6 +350,7 @@ export default function AllEmployees() {
       </div>
 
       <DataTable
+        onView={setView}
         loading={loading}
         rows={filtered}
         empty="لا يوجد موظفين"

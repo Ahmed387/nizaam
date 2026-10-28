@@ -1,5 +1,10 @@
 import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { NumberedPagination } from "@/components/NumberedPagination";
+import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
+import { readAllBounded, useWholeList } from "@/hooks/useWholeList";
+import { periodOfFilter, singleValueOf, withPeriod, withSingleValue, type FilterState, type ListColumn } from "@/lib/tableFilter";
 import * as XLSX from "xlsx";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -43,68 +48,124 @@ const ROLE_LABEL: Record<string, string> = {
 
 export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {}) {
   const { tenant, profile } = useAuth();
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<any[]>([]);
   const { filterBranches } = useBranchScope();
   const [products, setProducts] = useState<any[]>([]);
 
-  // filters
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  // Excel filters (owner 2026-10-26), remembered. The bar's period / price type / branch / source ARE those
+  // columns' filters (both stay, linked); the product and the user stay the bar's own.
+  const { pathname } = useLocation();
+  const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:prices`);
+  const { from, to } = periodOfFilter(colState, "created_at");
+  const setFrom = (v: string) => setColState(withPeriod(colState, "created_at", v, to));
+  const setTo = (v: string) => setColState(withPeriod(colState, "created_at", from, v));
+  const keyOf = (map: Record<string, string>, label: string) => Object.keys(map).find((k) => map[k] === label);
+  const priceType = keyOf(PRICE_TYPE_LABEL, singleValueOf(colState, "price_type")) ?? "all";
+  const setPriceType = (v: string) => setColState(withSingleValue(colState, "price_type", v === "all" ? "" : PRICE_TYPE_LABEL[v] ?? ""));
+  const source = keyOf(SOURCE_LABEL, singleValueOf(colState, "source")) ?? "all";
+  const setSource = (v: string) => setColState(withSingleValue(colState, "source", v === "all" ? "" : SOURCE_LABEL[v] ?? ""));
+  const branchId = branches.find((b) => b.name === singleValueOf(colState, "branch"))?.id ?? "all";
+  const setBranchId = (v: string) => setColState(withSingleValue(colState, "branch", v === "all" ? "" : branches.find((b) => b.id === v)?.name ?? ""));
   const [productId, setProductId] = useState("all");
-  const [priceType, setPriceType] = useState("all");
   const [user, setUser] = useState("");
-  const [branchId, setBranchId] = useState("all");
-  const [source, setSource] = useState("all");
+  const [duser, setDuser] = useState("");
+  useEffect(() => { const t = setTimeout(() => setDuser(user.replace(/[,()%*\\]/g, " ").trim()), 300); return () => clearTimeout(t); }, [user]);
   const [todayCount, setTodayCount] = useState(0);
 
-  const load = async () => {
-    setLoading(true);
-    const { data } = await supabase
-      .from("price_audit_log")
-      .select("*, branches(name)")
-      .order("created_at", { ascending: false })
-      .limit(1000);
-    setRows(data ?? []);
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    setTodayCount((data ?? []).filter((r: any) => new Date(r.created_at) >= today).length);
-    setLoading(false);
+  /** the price changes of the bar's filters, newest first (every page from a fresh query) */
+  const query = (select: string, opts?: { count?: "exact"; head?: boolean }) => {
+    let qb: any = supabase.from("price_audit_log").select(select, opts);
+    if (from) qb = qb.gte("created_at", getCairoDayBounds(from).startIso!);
+    if (to) qb = qb.lte("created_at", getCairoDayBounds(undefined, to).endIso!);
+    if (productId !== "all") qb = qb.eq("entity_id", productId);
+    if (priceType !== "all") qb = qb.eq("price_type", priceType);
+    if (duser) qb = qb.ilike("changed_by_name", `%${duser}%`);
+    if (branchId !== "all") qb = qb.eq("branch_id", branchId);
+    if (source !== "all") qb = qb.eq("source", source);
+    return opts?.head ? qb : qb.order("created_at", { ascending: false }).order("id");
   };
 
+  // one page of 50 from the database (it used to read the latest 1,000 only)
+  const PAGE = 50;
+  const [page, setPage] = useState(1);
+  const [rows, setRows] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const req = useRef(0);
+  /** a remembered branch the list of branches doesn't know yet is matched by name on the whole list */
+  const linked = (st: FilterState) => !!st.sort || Object.entries(st.filters).some(([k, f]) => !(
+    (k === "created_at" && f.kind === "date" && !f.days?.length)
+    || (k === "price_type" && f.kind === "values" && f.values.length === 1 && keyOf(PRICE_TYPE_LABEL, f.values[0]))
+    || (k === "source" && f.kind === "values" && f.values.length === 1 && keyOf(SOURCE_LABEL, f.values[0]))
+    || (k === "branch" && f.kind === "values" && f.values.length === 1 && branches.some((b) => b.name === f.values[0]))));
+  const wholeSig = `${from}|${to}|${productId}|${priceType}|${duser}|${branchId}|${source}`;
+  const whole = useWholeList<any>(wholeSig, (signal) => readAllBounded(() => query("*, branches(name)"), () => query("id", { count: "exact", head: true }), 10_000, signal),
+    { auto: linked(colState) });
+  const listCols = useMemo<ListColumn<any>[]>(() => [
+    { key: "created_at", label: "التاريخ", kind: "date", get: (r) => r.created_at },
+    { key: "entity_name", label: "المنتج", kind: "text", get: (r) => r.entity_name },
+    { key: "price_type", label: "نوع السعر", kind: "text", get: (r) => PRICE_TYPE_LABEL[r.price_type] ?? r.price_type },
+    { key: "old_value", label: "القديم", kind: "number", get: (r) => (r.old_value == null ? null : Number(r.old_value)) },
+    { key: "new_value", label: "الجديد", kind: "number", get: (r) => Number(r.new_value) },
+    { key: "diff", label: "التغيير", kind: "number", get: (r) => (r.old_value == null ? null : Number(r.new_value) - Number(r.old_value)) },
+    { key: "changed_by_name", label: "بواسطة", kind: "text", get: (r) => r.changed_by_name },
+    { key: "branch", label: "الفرع", kind: "text", get: (r) => r.branches?.name },
+    { key: "change_reason", label: "السبب", kind: "text", get: (r) => r.change_reason },
+    { key: "source", label: "المصدر", kind: "text", get: (r) => SOURCE_LABEL[r.source] ?? r.source },
+  ], []);
+  const { result: listRes, adapter, state: colEff, apply } = useListFilter({ rows: whole.rows, columns: listCols, state: colState, onChange: setColState, ensureRows: whole.ensure });
+  const wholeMode = linked(colEff);
+  const colSig = JSON.stringify(colEff);
+  useEffect(() => { setPage(1); }, [wholeSig, colSig]);
+
+  const load = () => {
+    if (wholeMode) return;
+    const id = ++req.current;
+    setLoading(true);
+    const start = (page - 1) * PAGE;
+    query("*, branches(name)", { count: "exact" }).range(start, start + PAGE - 1).then(({ data, count }: any) => {
+      if (id !== req.current) return;
+      setRows(data ?? []); setTotal(count ?? 0); setLoading(false);
+    });
+  };
+  const loadToday = () => {
+    supabase.from("price_audit_log").select("id", { count: "exact", head: true }).gte("created_at", getCairoDayBounds(cairoTodayDay()).startIso!)
+      .then(({ count }) => setTodayCount(count ?? 0));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [wholeSig, page, wholeMode]);
+
   useEffect(() => {
-    load();
+    loadToday();
     supabase.from("branches").select("id,name").eq("is_system", false).then(({ data }) => setBranches(filterBranches((data ?? [])) as any) as any);
     fetchAllRows<any>(() => supabase.from("products").select("id,name").order("id")).then((data) => setProducts(data ?? [])).catch(() => setProducts([]));
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const liveRef = useRef<() => void>(() => {});
+  liveRef.current = () => { load(); whole.refresh(); loadToday(); };
+  useEffect(() => {
     const ch = supabase
       .channel("price-audit-realtime")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "price_audit_log" }, (payload: any) => {
-        setRows((prev) => [payload.new, ...prev]);
-        const created = new Date(payload.new.created_at);
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        if (created >= today) setTodayCount((c) => c + 1);
+        liveRef.current();
         toast.info(`تعديل سعر جديد: ${payload.new.entity_name ?? ""}`);
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const filtered = useMemo(() => {
-    return rows.filter((r) => {
-      if (from && new Date(r.created_at) < new Date(from)) return false;
-      if (to && new Date(r.created_at) > new Date(getCairoDayBounds(undefined, to).endIso!)) return false;
-      if (productId !== "all" && r.entity_id !== productId) return false;
-      if (priceType !== "all" && r.price_type !== priceType) return false;
-      if (user && !(r.changed_by_name ?? "").toLowerCase().includes(user.toLowerCase())) return false;
-      if (branchId !== "all" && r.branch_id !== branchId) return false;
-      if (source !== "all" && r.source !== source) return false;
-      return true;
-    });
-  }, [rows, from, to, productId, priceType, user, branchId, source]);
+  const shown = wholeMode ? (listRes ? listRes.rows.slice((page - 1) * PAGE, page * PAGE) : []) : rows;
+  const shownCount = wholeMode ? (listRes ? listRes.rows.length : 0) : total;
+  const tableAdapter = useMemo(() => ({ ...adapter, shown: adapter.shown ?? total }), [adapter, total]);
 
-  const exportExcel = () => {
-    const data = rows.map((r) => ({
+  const exportExcel = async () => {
+    const t = toast.loading("جاري تجهيز السجل...");
+    let all: any[];
+    // every change of the bar's filters (not one page), then the column filters, in the order shown
+    try { all = apply(await fetchAllRows<any>(() => query("*, branches(name)"))); }
+    catch (e: any) { toast.dismiss(t); return toast.error(e?.message ?? "تعذر التصدير"); }
+    toast.dismiss(t);
+    const data = all.map((r) => ({
       "التاريخ": formatDateTime(r.created_at),
       "النوع": PRICE_TYPE_LABEL[r.price_type] ?? r.price_type,
       "المنتج/الكيان": r.entity_name ?? "",
@@ -143,7 +204,7 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
     <ConditionalLayout variant="admin" embedded={embedded}>
       <PageHeader
         title="سجل تعديلات الأسعار"
-        subtitle={`${filtered.length} سجل معروض — ${todayCount} تعديل اليوم`}
+        subtitle={`${shownCount.toLocaleString("en-US")} سجل — ${todayCount} تعديل اليوم`}
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
@@ -185,9 +246,13 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
         </Select>
       </div>
 
+      {wholeMode && whole.tooMany && (
+        <div className="mb-3 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm text-warning" role="alert">{whole.tooMany.message}</div>
+      )}
       <DataTable
-        loading={loading}
-        rows={filtered}
+        loading={wholeMode ? !listRes && !whole.tooMany : loading}
+        rows={shown}
+        excel={{ id: "prices", server: tableAdapter }}
         columns={[
           { key: "created_at", header: "التاريخ", render: (r: any) => <span className={`px-2 py-1 rounded ${rowClass(r)}`}>{formatDateTime(r.created_at)}</span> },
           { key: "entity_name", header: "المنتج", render: (r: any) => <span className="font-semibold">{r.entity_name ?? "—"}</span> },
@@ -221,6 +286,11 @@ export default function PriceAuditLog({ embedded }: { embedded?: boolean } = {})
           { key: "source", header: "المصدر", render: (r: any) => <span className="px-2 py-0.5 rounded text-xs bg-muted">{SOURCE_LABEL[r.source] ?? r.source}</span> },
         ]}
       />
+      {shownCount > PAGE && (
+        <div className="mt-3 flex justify-center">
+          <NumberedPagination page={page} pageCount={Math.max(1, Math.ceil(shownCount / PAGE))} onChange={setPage} disabled={loading} />
+        </div>
+      )}
 
     </ConditionalLayout>
   );

@@ -60,6 +60,25 @@ export function inCairoRange(iso: string | null | undefined, from?: string | nul
   return true;
 }
 
+const cairoDayFmt = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+/**
+ * The Cairo day (YYYY-MM-DD) of an instant («2026-10-01T22:30:00Z» → «2026-10-02»); a plain day stays as it is.
+ * "" when the value is not a date.
+ */
+const dayOfCache = new Map<string, string>();
+export function cairoDayOf(v: string | Date): string {
+  if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const key = typeof v === "string" ? v : "";
+  if (key) { const hit = dayOfCache.get(key); if (hit !== undefined) return hit; }
+  const d = v instanceof Date ? v : new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = cairoDayFmt.formatToParts(d);
+  const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  const day = `${g("year")}-${g("month")}-${g("day")}`;
+  if (key) { if (dayOfCache.size > 20000) dayOfCache.clear(); dayOfCache.set(key, day); }
+  return day;
+}
+
 /** Today's day (YYYY-MM-DD) in Cairo, independent of the device clock's timezone. */
 export const cairoTodayDay = (): string => dayStr(new Date());
 

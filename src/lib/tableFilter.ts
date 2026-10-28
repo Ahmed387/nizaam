@@ -5,8 +5,12 @@
  * OTHER columns' filters (like Excel). A totals row adds the number columns of the rows that are still shown.
  *
  * The values are the text the person SEES in each cell (like Excel), read from the table itself, so a table needs no
- * per-column setup. This file is pure (no React / DOM): parsing, matching, facets, sorting and totals.
+ * per-column setup. A screen that shows one page of a longer list keeps the whole list in memory instead and says
+ * what each column shows (`ListColumn`, «data mode»): the same matching, facets, sorting and totals run on all of it.
+ * This file is pure (no React / DOM): parsing, matching, facets, sorting and totals.
  */
+
+import { cairoDayOf } from "@/lib/cairoDate";
 
 export type CellKind = "text" | "number" | "date";
 
@@ -22,7 +26,7 @@ export type Cell = {
   ts?: number;
 };
 
-export type NumberOp = "eq" | "gt" | "lt" | "between";
+export type NumberOp = "eq" | "gt" | "gte" | "lt" | "lte" | "between";
 export type ColumnFilter =
   | { kind: "values"; values: string[] }
   | { kind: "number"; op: NumberOp; a: number; b?: number }
@@ -39,11 +43,14 @@ export const BLANK_LABEL = "(فاضي)";
 const ARABIC_DIGITS = /[٠-٩۰-۹]/g;
 const toLatin = (s: string) =>
   s.replace(ARABIC_DIGITS, (d) => String((d.charCodeAt(0) & 0xf) % 10));
-const MARKS = /[‎‏‪-‮⁦-⁩ ]/g;
+const MARKS = /[\u200e\u200f\u202a-\u202e\u2066-\u2069\u00a0]/g;
 
 export const normText = (s: string | null | undefined) => String(s ?? "").replace(MARKS, " ").replace(/\s+/g, " ").trim();
 
 const BLANKS = new Set(["", "—", "-", "–", "−"]);
+// one formatter for every cell (toLocaleString would build a new one per number: slow on a list of thousands)
+const NUM_FMT = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
+const fmtNum = (n: number) => NUM_FMT.format(n);
 
 /** «1,234.50 ج.م» → 1234.5 ; «(1,200)» / «−1,200» → -1200 ; «12.5%» → 12.5 ; anything else → undefined */
 export function parseNumber(raw: string): number | undefined {
@@ -116,6 +123,100 @@ export function parseCell(raw: string | null | undefined): Cell {
   return { text, blank: false };
 }
 
+/**
+ * A cell from a value the program knows (a list kept in memory and filtered there — «data mode» — instead of the
+ * text read from the page): text as shown, a number, or a date (a plain YYYY-MM-DD day or an instant, read as its
+ * Cairo day). null / undefined / "" / "—" are blank.
+ */
+export function cellOf(kind: CellKind, v: unknown): Cell {
+  if (v === null || v === undefined) return { text: "", blank: true };
+  if (kind === "number") {
+    const num = typeof v === "number" ? v : parseNumber(String(v));
+    if (num === undefined || !Number.isFinite(num)) return parseCell(String(v));
+    return { text: fmtNum(num), blank: false, num };
+  }
+  if (kind === "date") {
+    const raw = v instanceof Date ? v.toISOString() : String(v);
+    if (!raw.trim()) return { text: "", blank: true };
+    const day = cairoDayOf(raw);
+    if (!day) return parseCell(raw);
+    const ts = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? Date.parse(`${raw}T00:00:00Z`) : Date.parse(raw);
+    return { text: dayLabel(day), blank: false, day, ts: Number.isFinite(ts) ? ts : undefined };
+  }
+  // text: the words as shown (no number / date guessing — the column already says what it is)
+  const text = normText(String(v));
+  return BLANKS.has(text) ? { text: "", blank: true } : { text, blank: false };
+}
+
+/** One column of a list filtered in memory: what its cell shows, read from the row (not from the page). */
+export type ListColumn<T> = {
+  key: string;
+  kind: CellKind;
+  /** the column's name in its menu and in the chips */
+  label: string;
+  /** the value the cell shows: text, a number, or a date / timestamp; null, "" or "—" = blank */
+  get: (row: T) => unknown;
+  /** added up in the totals row */
+  sum?: boolean;
+  /** an amount of money (the total shows «ج.م») */
+  money?: boolean;
+  /** the totals cell when a plain sum is not what the column shows (e.g. «مدفوع X · متبقي Y») */
+  total?: (rows: T[]) => string;
+};
+
+export function buildMatrix<T>(rows: T[], columns: ListColumn<T>[]): Cell[][] {
+  return rows.map((r) => columns.map((c) => {
+    let v: unknown;
+    try { v = c.get(r); } catch { v = null; }
+    return cellOf(c.kind, v);
+  }));
+}
+
+/** only the filters (and sort) of columns the table has right now — a hidden column's filter waits until it is back */
+export function effectiveState(s: FilterState, keys: string[]): FilterState {
+  const has = new Set(keys);
+  const filters: Record<string, ColumnFilter> = {};
+  let changed = false;
+  for (const [k, f] of Object.entries(s.filters)) {
+    if (has.has(k)) filters[k] = f;
+    else changed = true;
+  }
+  const sort = s.sort && has.has(s.sort.col) ? s.sort : null;
+  if (!changed && sort === s.sort) return s;
+  return { filters, sort };
+}
+
+// ---------- a field of a screen's filter bar that IS a column filter (both stay, linked — owner 2026-10-26)
+/** the period (from / to) of a date column's filter; "" when none */
+export function periodOfFilter(s: FilterState, col: string): { from: string; to: string } {
+  const f = s.filters[col];
+  return f?.kind === "date" ? { from: f.from ?? "", to: f.to ?? "" } : { from: "", to: "" };
+}
+/** the state with that column's period set (days picked in its menu stay) */
+export function withPeriod(s: FilterState, col: string, from: string, to: string): FilterState {
+  const prev = s.filters[col]?.kind === "date" ? (s.filters[col] as Extract<ColumnFilter, { kind: "date" }>) : undefined;
+  const next: ColumnFilter = { kind: "date" };
+  if (prev?.days?.length) next.days = prev.days;
+  if (from) next.from = from;
+  if (to) next.to = to;
+  const filters = { ...s.filters };
+  if (next.days || next.from || next.to) filters[col] = next;
+  else delete filters[col];
+  return { ...s, filters };
+}
+/** the one value ticked in a column (a bar select can say one value only); "" when none or several */
+export function singleValueOf(s: FilterState, col: string): string {
+  const f = s.filters[col];
+  return f?.kind === "values" && f.values.length === 1 && f.values[0] !== BLANK ? f.values[0] : "";
+}
+/** the state with that column showing one value only ("" = every value) */
+export function withSingleValue(s: FilterState, col: string, value: string): FilterState {
+  const filters = { ...s.filters };
+  if (value) filters[col] = { kind: "values", values: [value] };
+  else delete filters[col];
+  return { ...s, filters };
+}
+
 /** identifiers that look like numbers (phones, codes, document numbers) are listed as text, not summed */
 const ID_HEADER = /تليفون|هاتف|موبايل|محمول|الكود|كود|رقم|SKU|code|باركود|بطاقة|الرقم القومي/i;
 
@@ -145,7 +246,9 @@ export function cellMatches(c: Cell, f: ColumnFilter): boolean {
     const eps = 1e-9;
     if (f.op === "eq") return Math.abs(n - f.a) < 0.005 + eps;
     if (f.op === "gt") return n > f.a + eps;
+    if (f.op === "gte") return n >= f.a - eps;
     if (f.op === "lt") return n < f.a - eps;
+    if (f.op === "lte") return n <= f.a + eps;
     const lo = Math.min(f.a, f.b ?? f.a), hi = Math.max(f.a, f.b ?? f.a);
     return n >= lo - eps && n <= hi + eps;
   }
@@ -222,8 +325,6 @@ export function sumColumn(rows: Cell[][], ci: number, visible: boolean[]): numbe
   return Math.round(s * 100) / 100;
 }
 
-const fmtNum = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
-
 /** short Arabic text of a filter for the chips bar */
 export function describeFilter(label: string, f: ColumnFilter): string {
   if (f.kind === "values") {
@@ -233,7 +334,9 @@ export function describeFilter(label: string, f: ColumnFilter): string {
   if (f.kind === "number") {
     if (f.op === "eq") return `${label} = ${fmtNum(f.a)}`;
     if (f.op === "gt") return `${label} أكبر من ${fmtNum(f.a)}`;
+    if (f.op === "gte") return `${label} أكبر من أو يساوي ${fmtNum(f.a)}`;
     if (f.op === "lt") return `${label} أصغر من ${fmtNum(f.a)}`;
+    if (f.op === "lte") return `${label} أصغر من أو يساوي ${fmtNum(f.a)}`;
     return `${label} بين ${fmtNum(Math.min(f.a, f.b ?? f.a))} و ${fmtNum(Math.max(f.a, f.b ?? f.a))}`;
   }
   const parts: string[] = [];

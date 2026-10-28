@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { useTableViews } from "@/hooks/useListFilter";
 import { useNavigate, useParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -31,6 +32,8 @@ import {
 import { EmployeeLink } from "@/components/employees/EmployeeLink";
 
 export default function BranchProfile() {
+  // what each table shows after its Excel filters: the Excel sheets export that
+  const [views, onView] = useTableViews<"employees" | "products" | "invoices" | "shipments" | "expenses" | "treasury">();
   const [till, setTill] = useState(0);
   const [batchValue, setBatchValue] = useState(0);
   const [position, setPosition] = useState<LedgerPosition | null>(null);
@@ -149,29 +152,29 @@ export default function BranchProfile() {
     ];
     exportToExcel(`فرع ${branch.name}`, [
       { name: "ملخص", rows: summary },
-      { name: "الموظفين", rows: employees.map((e) => ({
+      { name: "الموظفين", rows: (views.employees ?? employees).map((e: any) => ({
         الاسم: e.name, الوظيفة: e.job_title, التليفون: e.phone ?? "—",
         "تاريخ التعيين": e.hire_date, "الراتب الأساسي": Number(e.base_salary ?? 0),
         الحالة: e.is_active ? "نشط" : "موقوف",
       })) },
-      { name: "المخزون", rows: products.map((p) => ({
+      { name: "المخزون", rows: (views.products ?? products).map((p: any) => ({
         الصنف: p.name, SKU: p.sku, "الكمية": p.quantity,
         "حد التنبيه": p.low_stock_alert, "سعر التكلفة": Number(p.cost_price),
         "سعر البيع": Number(p.selling_price),
       })) },
-      { name: "المبيعات", rows: invoices.map((i) => ({
+      { name: "المبيعات", rows: (views.invoices ?? invoices).map((i: any) => ({
         "رقم الفاتورة": i.invoice_number, التاريخ: formatDateTime(i.created_at),
         الكاشير: i.profiles?.name ?? "—", الإجمالي: Number(i.total),
         "طريقة الدفع": i.payment_method, الحالة: i.status,
       })) },
-      { name: "فواتير الشراء", rows: shipments.map((s) => ({
+      { name: "فواتير الشراء", rows: (views.shipments ?? shipments).map((s: any) => ({
         التاريخ: s.arrival_date, المورد: s.contacts?.name ?? "—",
         المستلم: s.received_by, "تكلفة فاتورة الشراء": Number(s.total_cost),
       })) },
-      { name: "المصاريف", rows: expenses.map((x) => ({
+      { name: "المصاريف", rows: (views.expenses ?? expenses).map((x: any) => ({
         التاريخ: x.date, النوع: x.type, الوصف: x.description ?? "—", المبلغ: Number(x.amount),
       })) },
-      { name: "الخزنة", rows: treasury.map((t) => ({
+      { name: "الخزنة", rows: (views.treasury ?? treasury).map((t: any) => ({
         التاريخ: formatDateTime(t.created_at), النوع: t.type === "income" ? "إيداع" : "سحب",
         التصنيف: t.category, الوصف: t.description ?? "—", المبلغ: Number(t.amount),
       })) },
@@ -247,6 +250,7 @@ export default function BranchProfile() {
 
         <TabsContent value="employees" className="mt-4">
           <DataTable
+            onView={onView("employees")}
             rows={employees}
             empty="لا يوجد موظفين"
             columns={[
@@ -264,6 +268,7 @@ export default function BranchProfile() {
 
         <TabsContent value="inventory" className="mt-4">
           <DataTable
+            onView={onView("products")}
             rows={products}
             empty="لا يوجد منتجات"
             columns={[
@@ -282,6 +287,7 @@ export default function BranchProfile() {
 
         <TabsContent value="sales" className="mt-4">
           <DataTable
+            onView={onView("invoices")}
             rows={invoices}
             empty="لا توجد فواتير"
             onRowClick={(r: any) => nav(`/branch/${branchId}/sales/${r.id}`)}
@@ -302,6 +308,7 @@ export default function BranchProfile() {
 
         <TabsContent value="shipments" className="mt-4">
           <DataTable
+            onView={onView("shipments")}
             rows={shipments}
             empty="لا توجد فواتير شراء"
             onRowClick={(r: any) => nav(`/branch/${branchId}/shipments/${r.id}`)}
@@ -317,6 +324,7 @@ export default function BranchProfile() {
 
         <TabsContent value="expenses" className="mt-4">
           <DataTable
+            onView={onView("expenses")}
             rows={expenses}
             empty="لا توجد مصاريف"
             columns={[
@@ -330,6 +338,7 @@ export default function BranchProfile() {
 
         <TabsContent value="treasury" className="mt-4">
           <DataTable
+            onView={onView("treasury")}
             rows={treasury}
             empty="لا توجد حركات"
             columns={[

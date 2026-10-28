@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { readAll } from "@/hooks/useWholeList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,13 +41,15 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
     const [{ data: dataFrom, error: e1 }, { data: dataTo, error: e2 }, { data: shipItems, error: e3 }] = await Promise.all([
       (supabase.rpc as any)("historical_stock_at", { _branch_id: branchId, _as_of: fromIso }),
       (supabase.rpc as any)("historical_stock_at", { _branch_id: branchId, _as_of: toIso }),
-      supabase
+      // every purchase line of the branch up to the end date (it stopped at 2,000, and an order on the embedded
+      // shipment does not order the lines — the newest per product is picked below by its date)
+      readAll<any>(() => supabase
         .from("shipment_items")
-        .select("product_id, cost_price, shipments!inner(branch_id, created_at, contacts(name))")
+        .select("id, product_id, cost_price, shipments!inner(branch_id, created_at, contacts(name))")
         .eq("shipments.branch_id", branchId)
         .lte("shipments.created_at", toIso)
-        .order("created_at", { referencedTable: "shipments", ascending: false })
-        .limit(2000),
+        .order("id"))
+        .then((data) => ({ data, error: null as any }), (error) => ({ data: [] as any[], error })),
     ]);
     setLoading(false);
     if (e1 || e2 || e3) return toast.error((e1 || e2 || e3)!.message);
@@ -58,7 +61,8 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
     const lastShip = new Map<string, { supplier: string | null; cost: number; at: string }>();
     (shipItems ?? []).forEach((it: any) => {
       if (!it.product_id || !it.shipments) return;
-      if (lastShip.has(it.product_id)) return; // already newest due to order desc
+      const prev = lastShip.get(it.product_id);
+      if (prev && prev.at >= it.shipments.created_at) return;
       lastShip.set(it.product_id, {
         supplier: it.shipments?.contacts?.name ?? null,
         cost: Number(it.cost_price),
@@ -84,6 +88,7 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
     setRan(true);
   };
 
+  const [view, setView] = useState<any[] | null>(null); // what the column filters leave (Excel filters), for the exports
   const filtered = rows.filter((r) => !search || searchMatch(search, r.name, r.sku));
 
   const exportCsv = () => {
@@ -99,8 +104,8 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
       "سعر آخر شراء",
       "تاريخ آخر شراء",
     ].join(",");
-    const body = filtered
-      .map((r) =>
+    const body = (view ?? filtered)
+      .map((r: any) =>
         [
           r.sku,
           `"${(r.name ?? "").replace(/"/g, '""')}"`,
@@ -187,6 +192,7 @@ export function HistoricalStockPanel({ branchId }: { branchId: string }) {
             <DataTable
               loading={loading}
               rows={filtered}
+              onView={setView}
               empty="لا توجد منتجات في هذه الفترة"
             columns={[
               {

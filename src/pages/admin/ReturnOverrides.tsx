@@ -68,8 +68,9 @@ export default function ReturnOverrides({ embedded }: { embedded?: boolean } = {
     return { total: filtered.length, thisMonth, maxDays };
   }, [filtered]);
 
+  const [view, setView] = useState<any[] | null>(null); // what the column filters leave (Excel filters), for the exports
   const exportExcel = () => {
-    const data = filtered.map((r) => ({
+    const data = (view ?? filtered).map((r: any) => ({
       "التاريخ": formatDateTime(r.created_at),
       "المالك المُتجاوِز": r.user_name ?? "—",
       "الفرع": r.branches?.name ?? "—",
@@ -121,6 +122,7 @@ export default function ReturnOverrides({ embedded }: { embedded?: boolean } = {
       </div>
 
       <DataTable
+        onView={setView}
         loading={loading}
         rows={filtered}
         empty="لا توجد تجاوزات مسجّلة — كل المرتجعات تمت داخل الفترة المسموحة ✅"

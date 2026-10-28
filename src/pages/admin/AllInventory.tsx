@@ -235,9 +235,10 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     load();
   };
 
+  const [view, setView] = useState<any[] | null>(null); // what the column filters leave (Excel filters), for the exports
   /** تصدير المنتجات المعروضة (المفلترة) إلى Excel */
   const exportExcel = () => {
-    const data = filtered.map((r) => ({
+    const data = (view ?? filtered).map((r: any) => ({
       "الكود (SKU)": r.sku,
       "اسم المنتج": r.name,
       "الفرع": r.branch_name,
@@ -366,7 +367,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
         </div>
       )}
 
-      <DataTable loading={loading} rows={filtered} indexColumn
+      <DataTable loading={loading} rows={filtered} indexColumn onView={setView}
         columns={[
           {
             key: "select",
