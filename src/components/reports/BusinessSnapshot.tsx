@@ -15,10 +15,14 @@ type Row = {
   collected: number; open_credit: number;
   gross_profit: number; expenses: number; net_profit: number; stock_value: number; stock_qty: number; stock_items: number;
   sold_ahead_of_stock: number;
+  // 0135: the profit lines come from the books (same as the income statement and the distribution)
+  operating_profit?: number; other_income?: number; count_diff?: number;
 };
 type Snapshot = { from: string; to: string; branches: Row[]; total: Omit<Row, "branch_id" | "branch" | "stock_items" | "sold_ahead_of_stock"> };
 
-/** «هل بنكسب ولا بنخسر؟» + «بضاعة كل فرع تساوي كام؟» — one RPC (owner_business_snapshot), per branch and in total. */
+/** «هل بنكسب ولا بنخسر؟» + «بضاعة كل فرع تساوي كام؟» — one RPC (owner_business_snapshot), per branch and in total.
+ *  Since migration 0135 its profit lines are the books (profit_statement_core): the same net profit as the income
+ *  statement and the distribution, with «إيرادات أخرى» and «فروقات الجرد» as their own lines. */
 export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: boolean; defaultFrom?: string }) {
   const today = cairoTodayDay();
   const [from, setFrom] = useState(defaultFrom ?? `${today.slice(0, 7)}-01`);
@@ -45,7 +49,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
         <div className="flex flex-wrap items-end gap-3">
           <div><Label className="text-xs">من</Label><Input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="h-9 w-40" /></div>
           <div><Label className="text-xs">إلى</Label><Input type="date" value={to} min={from} max={today} onChange={(e) => setTo(e.target.value)} className="h-9 w-40" /></div>
-          <span className="text-xs text-muted-foreground">الأرقام بتاريخ المستند. المبيعات النشطة بس (الملغاة مش داخلة).</span>
+          <span className="text-xs text-muted-foreground">الأرقام بتاريخ المستند ومن الدفاتر (نفس قائمة الدخل والتوزيع). المبيعات بدون الضريبة والملغاة مش داخلة.</span>
         </div>
       )}
       {err && <div className="text-sm text-destructive">{err}</div>}
@@ -63,7 +67,8 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
         </div>
         <div className="text-xs text-muted-foreground leading-6">
           صافي المبيعات {formatEGP(t?.net_sales ?? 0)} − تكلفة البضاعة المباعة {formatEGP(t?.cogs ?? 0)} = مجمل ربح {formatEGP(t?.gross_profit ?? 0)}<br />
-          − مصروفات التشغيل {formatEGP(t?.expenses ?? 0)} = <b className="text-foreground">صافي {formatEGP(t?.net_profit ?? 0)}</b>
+          − مصروفات التشغيل {formatEGP(t?.expenses ?? 0)} = ربح التشغيل {formatEGP(t?.operating_profit ?? (t?.gross_profit ?? 0) - (t?.expenses ?? 0))}<br />
+          + إيرادات أخرى {formatEGP(t?.other_income ?? 0)} + فروقات الجرد {formatEGP(t?.count_diff ?? 0)} = <b className="text-foreground">صافي {formatEGP(t?.net_profit ?? 0)}</b>
         </div>
       </div></PermCard>
 
@@ -80,11 +85,17 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
         <Kpi icon={<Boxes />} label="قيمة البضاعة دلوقتي (بالتكلفة)" value={t?.stock_value} hint={`${(t?.stock_qty ?? 0).toLocaleString("en-US")} قطعة في كل الفروع`} />
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Kpi icon={<Scale />} label="ربح التشغيل" value={t?.operating_profit} hint="مجمل الربح − المصروفات" />
+        <Kpi icon={<HandCoins />} label="إيرادات أخرى" value={t?.other_income} hint="سندات قبض إيرادات وعمولة التحويل اللي دفعها العميل" />
+        <Kpi icon={<Boxes />} label="فروقات الجرد" value={t?.count_diff} hint="زيادة الجرد − العجز (سطر لوحده تحت الربح)" />
+      </div>
+
       <div className="card-elevated overflow-x-auto">
         <PermTable className="w-full text-sm">
           <thead className="bg-surface-2">
             <tr className="text-xs">
-              {["الفرع", "صافي المبيعات", "المحصّل فعلاً", "الآجل الباقي", "تكلفة المباع", "مجمل الربح", "المصروفات", "صافي الربح", "قيمة البضاعة الآن", "عدد القطع"].map((h) => (
+              {["الفرع", "صافي المبيعات", "المحصّل فعلاً", "الآجل الباقي", "تكلفة المباع", "مجمل الربح", "المصروفات", "إيرادات أخرى", "فروقات الجرد", "صافي الربح", "قيمة البضاعة الآن", "عدد القطع"].map((h) => (
                 <th key={h} className="px-3 py-2.5 font-extrabold text-center">{h}</th>
               ))}
             </tr>
@@ -99,6 +110,8 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
                 <td className="px-3 py-2">{formatEGP(b.cogs)}</td>
                 <td className="px-3 py-2">{formatEGP(b.gross_profit)}</td>
                 <td className="px-3 py-2">{formatEGP(b.expenses)}</td>
+                <td className="px-3 py-2">{formatEGP(b.other_income ?? 0)}</td>
+                <td className="px-3 py-2">{formatEGP(b.count_diff ?? 0)}</td>
                 <td className={`px-3 py-2 font-extrabold ${b.net_profit >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(b.net_profit)}</td>
                 <td className="px-3 py-2 font-bold">{formatEGP(b.stock_value)}
                   {b.sold_ahead_of_stock > 0 && <div className="text-[10px] text-warning">بعد خصم {formatEGP(b.sold_ahead_of_stock)} مباع بالسالب</div>}
@@ -111,7 +124,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
       </div>
       {!compact && (
         <p className="text-xs text-muted-foreground">
-          تكلفة المباع = متوسط تكلفة الصنف في الفرع وقت بيعه × الكمية بعد المرتجع — نفس قيد تكلفة المبيعات في الحسابات.
+          الربح هنا من الدفاتر: نفس رقم قائمة الدخل وتوزيع الأرباح بالظبط. تكلفة المباع = متوسط تكلفة الصنف في الفرع وقت بيعه، والمرتجع بيرجّع تكلفته في شهره.
           قيمة البضاعة = الكمية الموجودة × متوسط التكلفة. سداد الموردين وتحويلات الفروع وسلف الموظفين مش مصروفات ومش محسوبة هنا.
         </p>
       )}
