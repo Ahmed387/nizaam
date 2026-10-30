@@ -20,6 +20,8 @@ interface FeeRow {
   fee_value: number;
   is_enabled: boolean;
   is_builtin: boolean;
+  /** 0139: «virtual» = a book vessel (e.g. «خصومات / عروض الشركات»): no transfer number, no fee, may go below zero */
+  kind?: "wallet" | "virtual";
 }
 
 const BUILTIN_META: Record<string, { label: string; Icon: any }> = {
@@ -37,11 +39,11 @@ export function PaymentFeesTab() {
   const [saving, setSaving] = useState<string | null>(null);
   const [rows, setRows] = useState<FeeRow[]>([]);
   const [addOpen, setAddOpen] = useState(false);
-  const [newM, setNewM] = useState({ label: "", key: "", fee_type: "fixed" as "fixed" | "percentage", fee_value: 0 });
+  const [newM, setNewM] = useState({ label: "", key: "", fee_type: "fixed" as "fixed" | "percentage", fee_value: 0, kind: "wallet" as "wallet" | "virtual" });
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("transfer_fees").select("payment_method,label,fee_type,fee_value,is_enabled");
+    const { data } = await supabase.from("transfer_fees").select("payment_method,label,fee_type,fee_value,is_enabled,kind" as any);
     const existing: FeeRow[] = [];
     for (const m of ["vodafone", "instapay", "bank"]) {
       const row: any = data?.find((d: any) => d.payment_method === m);
@@ -76,6 +78,7 @@ export function PaymentFeesTab() {
           fee_type: row.fee_type,
           fee_value: row.fee_value,
           is_enabled: row.is_enabled,
+          kind: row.is_builtin ? "wallet" : (row.kind ?? "wallet"),
           updated_by: user!.id,
           updated_at: new Date().toISOString(),
         } as any,
@@ -100,21 +103,21 @@ export function PaymentFeesTab() {
     const key = slugify(newM.key || newM.label);
     if (rows.some((r) => r.payment_method === key)) return toast.error("المفتاح موجود بالفعل");
     const { error } = await supabase.from("transfer_fees").insert({
-      payment_method: key, label, fee_type: newM.fee_type, fee_value: newM.fee_value, is_enabled: true,
-      updated_by: user!.id,
+      payment_method: key, label, fee_type: newM.fee_type, fee_value: newM.kind === "virtual" ? 0 : newM.fee_value, is_enabled: true,
+      kind: newM.kind, updated_by: user!.id,
     } as any);
     if (error) return toast.error(error.message);
     toast.success("تمت إضافة طريقة الدفع");
     setAddOpen(false);
-    setNewM({ label: "", key: "", fee_type: "fixed", fee_value: 0 });
+    setNewM({ label: "", key: "", fee_type: "fixed", fee_value: 0, kind: "wallet" });
     await loadTransferFees(true);
     load();
   };
 
   const removeCustom = async (key: string) => {
-    if (!(await confirmAlert({ title: "حذف طريقة الدفع دي؟", description: "الخطوة دي مش هتترجع تاني — متأكد؟", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
+    if (!(await confirmAlert({ title: "حذف طريقة الدفع دي؟", description: "بتتمسح بس لو مفيش عليها ولا حركة. لو عليها حركات عطّلها بدل ما تمسحها.", confirmLabel: "أيوه، امسح", cancelLabel: "لأ، سيبها", tone: "danger" }))) return;
     const { error } = await supabase.from("transfer_fees").delete().eq("payment_method", key);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(error.message.includes("حركات") ? error.message : `ماتمسحتش: ${error.message}`);
     toast.success("تم الحذف");
     await loadTransferFees(true);
     load();
@@ -170,7 +173,16 @@ export function PaymentFeesTab() {
                 </Button>
               )}
             </div>
-            {f.is_enabled && (
+            {!f.is_builtin && (
+              <div className="flex items-center justify-between gap-3 mb-3 rounded-md border border-border/60 p-2.5">
+                <div className="text-sm">
+                  <div className="font-semibold">وعاء دفتري (مش فلوس حقيقية)</div>
+                  <div className="text-xs text-muted-foreground">زي «خصومات / عروض الشركات»: من غير رقم تحويل ولا عمولة، وممكن رصيده يبقى بالسالب.</div>
+                </div>
+                <Switch checked={f.kind === "virtual"} onCheckedChange={(v) => updateRow(f.payment_method, { kind: v ? "virtual" : "wallet", ...(v ? { fee_value: 0 } : {}) })} />
+              </div>
+            )}
+            {f.is_enabled && f.kind !== "virtual" && (
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                   <Label>نوع العمولة</Label>
@@ -210,7 +222,14 @@ export function PaymentFeesTab() {
               <Label>المفتاح (اختياري — حروف إنجليزية)</Label>
               <Input dir="ltr" className="text-right" value={newM.key} onChange={(e) => setNewM({ ...newM, key: e.target.value })} placeholder="visa" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border/60 p-2.5">
+              <div className="text-sm">
+                <div className="font-semibold">وعاء دفتري (مش فلوس حقيقية)</div>
+                <div className="text-xs text-muted-foreground">من غير رقم تحويل ولا عمولة، وممكن رصيده يبقى بالسالب.</div>
+              </div>
+              <Switch checked={newM.kind === "virtual"} onCheckedChange={(v) => setNewM({ ...newM, kind: v ? "virtual" : "wallet" })} />
+            </div>
+            {newM.kind !== "virtual" && <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>نوع العمولة</Label>
                 <Select value={newM.fee_type} onValueChange={(v) => setNewM({ ...newM, fee_type: v as any })}>
@@ -226,7 +245,7 @@ export function PaymentFeesTab() {
                 <Input type="number" step="0.01" min={0} value={newM.fee_value}
                   onChange={(e) => setNewM({ ...newM, fee_value: Number(e.target.value) })} className="mt-1.5" />
               </div>
-            </div>
+            </div>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>إلغاء</Button>

@@ -24,6 +24,7 @@ import { EMPTY_STATE, periodOfFilter, singleValueOf, withPeriod, withSingleValue
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
+import { VesselTransferButton, VesselTransfersTable } from "@/components/treasury/VesselTransfers";
 import { REVERSAL_CATEGORIES } from "@/lib/treasuryReversals";
 import { DataTable } from "@/components/DataTable";
 import { MetricHint } from "@/components/ui/MetricHint";
@@ -113,7 +114,7 @@ export default function Treasury() {
   // a tab hidden for this person (permissions 0114) falls back to the first one he can see
   const initialTab = tabOn(`tab_${askedTab}`) ? askedTab : (TABS.find((t) => tabOn(`tab_${t}`)) ?? askedTab);
   const reversalView = initialTab === "reversals";
-  const { user, profile, branches, isAdmin, hasRole } = useAuth();
+  const { user, profile, branches, isAdmin, hasRole, canInBranch } = useAuth();
   const canTransfer = isAdmin || hasRole("branch_manager");
   const canSeeBalances = isAdmin || hasRole("branch_manager") || hasRole("viewer");
 
@@ -482,6 +483,9 @@ export default function Treasury() {
                 <FileSpreadsheet className="w-4 h-4 ml-1" /> {exporting ? "جارٍ التصدير..." : "تصدير كشف الخزينة Excel"}
               </Button></PermPart>
             )}
+            {branchId && canInBranch("vessel_transfers.create", branchId) && (
+              <VesselTransferButton branchId={branchId} onDone={() => window.dispatchEvent(new Event("treasury:refresh"))} />
+            )}
             {canTransfer && otherBranches.length > 0 && (
               <PermPart page="treasury" part="transfer_button"><Button className="btn-gradient" onClick={() => setOpenTransfer(true)}>
                 <ArrowLeftRight className="w-4 h-4 ml-1" /> تحويل لفرع
@@ -533,6 +537,7 @@ export default function Treasury() {
           <TabsTrigger value="receipts">سندات القبض</TabsTrigger>
           <TabsTrigger value="payments">سندات الصرف</TabsTrigger>
           <TabsTrigger value="transfers">تحويلات بين الفروع ({transfers.length})</TabsTrigger>
+          <TabsTrigger value="vessel_transfers">تحويلات بين الأوعية</TabsTrigger>
         </TabsList>
 
         <TabsContent value="receipts" className="mt-4">
@@ -733,6 +738,9 @@ export default function Treasury() {
                 </div>
               )},
             ]} />
+        </TabsContent>
+        <TabsContent value="vessel_transfers" className="mt-4">
+          {branchId && <VesselTransfersTable branchId={branchId} canCancel={canInBranch("vessel_transfers.create", branchId)} />}
         </TabsContent>
       </Tabs>
 

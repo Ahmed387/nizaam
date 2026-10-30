@@ -196,7 +196,7 @@ const SECTION_OF: Record<string, SectionId> = {
   customers: "ops", suppliers: "ops", employees: "ops", advances: "ops", attendance: "ops", attachments: "ops",
   doc_class: "ops", returns: "ops", admin_catalog: "ops", admin_product_attributes: "ops", admin_contacts: "ops",
   admin_employees: "ops", admin_presence: "ops", admin_shifts: "ops",
-  treasury: "money", receipt_vouchers: "money", payment_vouchers: "money", reports: "money",
+  treasury: "money", vessel_transfers: "money", receipt_vouchers: "money", payment_vouchers: "money", reports: "money",
   admin_main_treasury: "money", admin_finance: "money", admin_financial_position: "money",
   admin_reports_hub: "money", admin_monthly_profit: "money", admin_historical_analytics: "money", net_profit: "money",
   admin_system_health: "admin", admin_approvals: "admin", admin_settings: "admin",

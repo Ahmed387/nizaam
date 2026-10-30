@@ -17,6 +17,8 @@ export interface TransferFee {
   fee_type: "percentage" | "fixed";
   fee_value: number;
   is_enabled?: boolean;
+  /** 0139: «virtual» = a book vessel (no transfer number, no fee, may go below zero) */
+  kind?: "wallet" | "virtual" | null;
 }
 
 export interface PaymentMethodOption {
@@ -26,6 +28,7 @@ export interface PaymentMethodOption {
   is_enabled: boolean;
   fee_type?: "percentage" | "fixed";
   fee_value?: number;
+  kind?: "wallet" | "virtual";
 }
 
 let _feesCache: TransferFee[] | null = null;
@@ -34,8 +37,8 @@ let _feesCacheAt = 0;
 export async function loadTransferFees(force = false): Promise<TransferFee[]> {
   const now = Date.now();
   if (!force && _feesCache && now - _feesCacheAt < 60_000) return _feesCache;
-  const { data } = await supabase.from("transfer_fees").select("payment_method,label,fee_type,fee_value,is_enabled");
-  _feesCache = (data ?? []) as TransferFee[];
+  const { data } = await supabase.from("transfer_fees").select("payment_method,label,fee_type,fee_value,is_enabled,kind" as any);
+  _feesCache = ((data ?? []) as unknown) as TransferFee[];
   _feesCacheAt = now;
   return _feesCache;
 }
@@ -67,7 +70,8 @@ export async function loadAllPaymentMethods(force = false): Promise<PaymentMetho
       is_builtin: false,
       is_enabled: f.is_enabled !== false,
       fee_type: f.fee_type,
-      fee_value: Number(f.fee_value) || 0,
+      fee_value: f.kind === "virtual" ? 0 : Number(f.fee_value) || 0,
+      kind: f.kind === "virtual" ? "virtual" : "wallet",
     });
   }
   return list;
@@ -82,14 +86,27 @@ export async function loadEnabledPaymentMethods(force = false): Promise<string[]
 export function calculateFee(method: string, amount: number, fees: TransferFee[]): number {
   if (method === "cash") return 0;
   const f = fees.find((x) => x.payment_method === method);
-  if (!f) return 0;
+  if (!f || f.kind === "virtual") return 0;
   const v = Number(f.fee_value) || 0;
   if (f.fee_type === "percentage") return Math.round((amount * v) / 100 * 100) / 100;
   return v;
 }
 
-export function methodRequiresReference(method: string): boolean {
-  return method !== "cash";
+/** A book vessel (0139) is not a transfer: no number, no accounts, no fee. */
+export function isVirtualMethod(method: string, fees: TransferFee[] | null = _feesCache): boolean {
+  return !!fees?.some((f) => f.payment_method === method && f.kind === "virtual");
+}
+
+export function methodRequiresReference(method: string, fees: TransferFee[] | null = _feesCache): boolean {
+  return method !== "cash" && !isVirtualMethod(method, fees);
+}
+
+/** The fee of a transfer between two vessels of one branch (same rule as `transfer_between_vessels`). */
+export function vesselTransferFee(amount: number, mode: "none" | "fixed" | "percent", value: number): number {
+  const a = Number(amount) || 0, v = Number(value) || 0;
+  if (mode === "fixed") return Math.round(v * 100) / 100;
+  if (mode === "percent") return Math.round(a * v) / 100;
+  return 0;
 }
 
 /**

@@ -8,6 +8,8 @@ import {
   TransferFee,
   calculateFee,
   loadTransferFees,
+  loadAllPaymentMethods,
+  type PaymentMethodOption,
   methodAccountLabel,
   methodReceiverLabel,
   methodSenderLabel,
@@ -59,12 +61,15 @@ export function PaymentMethodPicker({
   disabled = false,
 }: Props) {
   const [fees, setFees] = useState<TransferFee[]>([]);
+  // 0139: every enabled vessel of the company (built-ins + PayMob, «خصومات / عروض الشركات», …), not only the four built-ins
+  const [options, setOptions] = useState<PaymentMethodOption[] | null>(null);
 
   useEffect(() => {
     loadTransferFees().then(setFees);
+    loadAllPaymentMethods().then((m) => setOptions(m.filter((o) => o.is_enabled))).catch(() => setOptions(null));
   }, []);
 
-  const enabledOptions = PAYMENT_METHOD_OPTIONS.filter((o) => {
+  const enabledOptions: { value: string; label: string }[] = options ?? PAYMENT_METHOD_OPTIONS.filter((o) => {
     if (o.value === "cash") return true;
     const f = fees.find((x) => x.payment_method === (o.value as any));
     return f ? f.is_enabled !== false : true;
@@ -84,7 +89,7 @@ export function PaymentMethodPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value.method, amount, fees, feeOnCustomer]);
 
-  const requiresRef = methodRequiresReference(value.method);
+  const requiresRef = methodRequiresReference(value.method, fees);
 
   return (
     <div className="space-y-3 p-3 rounded-lg bg-muted/30 border">

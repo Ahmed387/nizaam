@@ -46,6 +46,8 @@ export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   { key: "customers", label: "العملاء", actions: ["view", "create", "update", "delete"] },
   { key: "suppliers", label: "الموردين", actions: ["view", "create", "update", "delete"] },
   { key: "treasury", label: "الخزنة", actions: ["view"] },
+  // 0139: «تحويل بين الأوعية» inside one branch (cash ↔ wallet ↔ bank …), optional fee = expense
+  { key: "vessel_transfers", label: "التحويل بين أوعية الفرع (كاش / محافظ / بنك)", actions: ["create"] },
   { key: "receipt_vouchers", label: "سندات القبض", actions: ["view", "create", "delete"] },
   { key: "payment_vouchers", label: "سندات الصرف", actions: ["view", "create", "delete"] },
   { key: "employees", label: "الموظفين", actions: ["view", "create", "update", "delete"] },
