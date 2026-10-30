@@ -25,6 +25,7 @@ import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
 import { VesselTransferButton, VesselTransfersTable } from "@/components/treasury/VesselTransfers";
+import { receiveSplit } from "@/lib/treasuryTransfer";
 import { REVERSAL_CATEGORIES } from "@/lib/treasuryReversals";
 import { DataTable } from "@/components/DataTable";
 import { MetricHint } from "@/components/ui/MetricHint";
@@ -135,7 +136,11 @@ export default function Treasury() {
   const [openTransfer, setOpenTransfer] = useState(false);
   const [openReject, setOpenReject] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [tForm, setTForm] = useState({ to: "", amount: "", reason: "" });
+  const [tForm, setTForm] = useState({ to: "", amount: "", reason: "", date: cairoTodayDay() });
+  // 0140: receive part / all of a money transfer (the rest goes back to the sender)
+  const [receiveRow, setReceiveRow] = useState<any | null>(null);
+  const [receiveAmount, setReceiveAmount] = useState("");
+  const [receiveNote, setReceiveNote] = useState("");
   const [tPayment, setTPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
   const [tFeeCharged, setTFeeCharged] = useState(true);
   const [viewTransfer, setViewTransfer] = useState<any | null>(null);
@@ -329,6 +334,7 @@ export default function Treasury() {
       p_reference_number: tPayment.reference_number || null,
       p_transfer_to_account: tPayment.transfer_to_account || null,
       p_fee_actually_charged: tPayment.fee_amount > 0 ? tFeeCharged : true,
+      p_date: isAdmin && tForm.date ? tForm.date : null,
     } as any);
     if (error) return toast.error(error.message);
 
@@ -358,17 +364,24 @@ export default function Treasury() {
 
     toast.success(`تم تحويل ${formatEGP(amt)} لـ ${toBr?.name ?? "الفرع"}`);
     setOpenTransfer(false);
-    setTForm({ to: "", amount: "", reason: "" });
+    setTForm({ to: "", amount: "", reason: "", date: cairoTodayDay() });
     setTPayment(emptyPaymentValue("cash"));
     setTFeeCharged(true);
     load();
   };
 
 
-  const acknowledge = async (t: any) => {
-    const { error } = await supabase.rpc("acknowledge_treasury_transfer", { p_transfer_id: t.id });
+  const acknowledge = (t: any) => { setReceiveRow(t); setReceiveAmount(String(Number(t.amount))); setReceiveNote(""); };
+  const confirmReceive = async () => {
+    if (!receiveRow) return;
+    const split = receiveSplit(Number(receiveRow.amount), receiveAmount, receiveNote);
+    if (split.error) return toast.error(split.error);
+    const got = split.received;
+    const { error } = await supabase.rpc("receive_treasury_transfer" as any, { p_transfer_id: receiveRow.id, p_received: got, p_note: receiveNote.trim() || null } as any);
     if (error) return toast.error(error.message);
-    toast.success("تم تأكيد الاستلام"); load();
+    const back = Number(receiveRow.amount) - got;
+    toast.success(back > 0 ? `اتستلم ${formatEGP(got)} — ورجع ${formatEGP(back)} للفرع المرسل` : "تم تأكيد الاستلام");
+    setReceiveRow(null); load();
   };
 
   const reject = async () => {
@@ -722,7 +735,9 @@ export default function Treasury() {
                 r.rejected_at
                   ? <span className="text-xs px-2 py-1 rounded bg-destructive/15 text-destructive font-bold">✗ مرفوض</span>
                   : r.acknowledged_at
-                  ? <span className="text-xs px-2 py-1 rounded bg-success/15 text-success font-bold">✓ مؤكد {formatDateTime(r.acknowledged_at)}</span>
+                  ? <span className="text-xs px-2 py-1 rounded bg-success/15 text-success font-bold">
+                      ✓ {Number(r.returned_amount) > 0 ? `اتستلم ${formatEGP(r.received_amount)} ورجع ${formatEGP(r.returned_amount)}` : "مؤكد"} {formatDateTime(r.acknowledged_at)}
+                    </span>
                   : r.to_branch_id === branchId && canAck
                     ? (
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -771,6 +786,7 @@ export default function Treasury() {
               </select>
             </div>
             <div><Label>المبلغ *</Label><Input type="number" value={tForm.amount} onChange={(e) => setTForm({...tForm, amount: e.target.value})} className="mt-1.5" /></div>
+            {isAdmin && <div><Label>تاريخ التحويل</Label><Input type="date" value={tForm.date} max={cairoTodayDay()} onChange={(e) => setTForm({ ...tForm, date: e.target.value })} className="mt-1.5" /></div>}
             <div><Label>السبب</Label><Textarea value={tForm.reason} onChange={(e) => setTForm({...tForm, reason: e.target.value})} className="mt-1.5" rows={2} /></div>
             <PaymentMethodPicker amount={Number(tForm.amount) || 0} value={tPayment} onChange={setTPayment} label="طريقة التنفيذ" />
             {tPayment.fee_amount > 0 && (
@@ -799,6 +815,26 @@ export default function Treasury() {
         </DialogContent>
       </Dialog>
 
+
+      <Dialog open={!!receiveRow} onOpenChange={(v) => !v && setReceiveRow(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>استلام تحويل {receiveRow && formatEGP(receiveRow.amount)}</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground leading-6">اكتب اللي وصلك فعلاً. لو أقل، الفرق بيرجع لخزنة الفرع المرسل في نفس يوم التحويل.</p>
+            <div><Label>المبلغ اللي وصل</Label><Input type="number" min={0} step="0.01" value={receiveAmount} onChange={(e) => setReceiveAmount(e.target.value)} className="mt-1.5" /></div>
+            {receiveRow && Number(receiveAmount) < Number(receiveRow.amount) && (
+              <>
+                <div className="rounded-md border border-warning/30 bg-warning/10 p-2">هيرجع <b>{formatEGP(Number(receiveRow.amount) - (Number(receiveAmount) || 0))}</b> للفرع المرسل.</div>
+                <div><Label>سبب الفرق *</Label><Textarea rows={2} value={receiveNote} onChange={(e) => setReceiveNote(e.target.value)} className="mt-1.5" /></div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceiveRow(null)}>رجوع</Button>
+            <Button onClick={confirmReceive}>تأكيد الاستلام</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!openReject} onOpenChange={(v) => !v && setOpenReject(null)}>
         <DialogContent>
