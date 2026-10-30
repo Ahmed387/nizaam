@@ -238,6 +238,40 @@ export function CancelSalaryDialog({ salary, onClose, onDone }: { salary: any; o
   );
 }
 
+/** إلغاء سلفة موظف (migration 0138): الصرف بيتلغي في يومه (السند «ملغي» + حركة عكسية في الخزنة + القيد يتعكس).
+ *  السلفة اللي اتخصم منها من مرتب مش بتتلغي — الغي المرتب الأول. مفيش تعديل ولا حذف: إلغاء + سلفة جديدة. */
+export function CancelAdvanceDialog({ advance, onClose, onDone }: { advance: any; onClose: () => void; onDone: () => void }) {
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (!reason.trim()) return toast.error("اكتب سبب الإلغاء");
+    setSaving(true);
+    const { error } = await supabase.rpc("cancel_employee_advance" as any, { p_advance_id: advance.id, p_reason: reason.trim() } as any);
+    setSaving(false);
+    if (error) return toast.error(rpcErrorText(error, "إلغاء السلفة"));
+    toast.success("اتلغت السلفة — الفلوس رجعت الخزنة في يوم الصرف");
+    onDone();
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>إلغاء سلفة {formatEGP(n(advance.amount))}</DialogTitle></DialogHeader>
+        <div className="space-y-3 text-sm">
+          <p className="text-muted-foreground leading-6">
+            هيرجع {formatEGP(n(advance.amount))} للخزنة بحركة عكسية في نفس يوم الصرف، وسند الصرف هيبقى «ملغي».
+            السلفة بتفضل في السجل «ملغية». لو المبلغ غلط: الغي واعمل سلفة جديدة.
+          </p>
+          <div><Label>سبب الإلغاء *</Label><Textarea rows={2} value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1.5" /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>رجوع</Button>
+          <Button variant="destructive" onClick={submit} disabled={saving}>{saving ? "..." : "إلغاء السلفة"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /** تسجيل بونص أو جزاء على موظف — مفيش فلوس بتتحرك دلوقتي؛ بيتضاف / يتخصم من مرتب الشهر لما يتصرف. */
 export function AdjustmentDialog({ employee, kind: initialKind = "bonus", onClose, onDone }: {
   employee: { id: string; name: string }; kind?: "bonus" | "penalty"; onClose: () => void; onDone: () => void;

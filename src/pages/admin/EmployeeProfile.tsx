@@ -23,10 +23,11 @@ import { ROLE_LABELS, AppRole } from "@/lib/roles";
 import { formatEGP, formatDate, monthKey } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, EyeOff, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
-import { PaySalaryDialog, CancelSalaryDialog, AdjustmentDialog, cancelAdjustment, fetchSalaryPreview, type SalaryPreview } from "@/components/payroll/SalaryDialogs";
+import { PaySalaryDialog, CancelSalaryDialog, CancelAdvanceDialog, AdjustmentDialog, cancelAdjustment, fetchSalaryPreview, type SalaryPreview } from "@/components/payroll/SalaryDialogs";
 import { EmployeeAttendanceTab } from "@/components/attendance/EmployeeAttendanceTab";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { canCancelAdvance } from "@/lib/payrollRules";
 import { ImageField } from "@/components/ImageField";
 import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 
@@ -62,6 +63,7 @@ export default function EmployeeProfile() {
   const [salOpen, setSalOpen] = useState(false);
   const [advForm, setAdvForm] = useState({ amount: "", monthly_deduct: "", reason: "" });
   const [cancelSal, setCancelSal] = useState<any | null>(null);
+  const [cancelAdv, setCancelAdv] = useState<any | null>(null);
   const [preview, setPreview] = useState<SalaryPreview | null>(null);
   const loadPreview = () => { if (id) fetchSalaryPreview(id, monthKey()).then(setPreview).catch(() => setPreview(null)); };
   useEffect(() => { loadPreview(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
@@ -541,6 +543,11 @@ export default function EmployeeProfile() {
               { key: "monthly_deduct", header: "خصم شهري", render: (r: any) => formatEGP(r.monthly_deduct) },
               { key: "remaining", header: "المتبقي", render: (r: any) => <b className={Number(r.remaining) > 0 ? "text-warning" : "text-success"}>{formatEGP(r.remaining)}</b> },
               { key: "reason", header: "السبب", render: (r: any) => r.reason ?? "—" },
+              { key: "status", header: "الحالة", render: (r: any) => r.status === "cancelled"
+                  ? <span className="text-xs text-destructive" title={r.cancel_reason ?? ""}>ملغية{r.cancel_reason ? ` — ${r.cancel_reason}` : ""}</span>
+                  : <span className="text-xs text-success">سارية</span> },
+              { key: "actions", header: "", render: (r: any) => canCancelAdvance(r, isAdmin)
+                  ? <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setCancelAdv(r)}>إلغاء السلفة</Button> : null },
             ]}
           />
         </TabsContent>
@@ -763,6 +770,9 @@ export default function EmployeeProfile() {
       {adjOpen && emp && (
         <AdjustmentDialog employee={emp} kind={adjOpen} onClose={() => setAdjOpen(null)}
           onDone={() => { setAdjOpen(null); loadAdjustments(); loadPreview(); }} />
+      )}
+      {cancelAdv && (
+        <CancelAdvanceDialog advance={cancelAdv} onClose={() => setCancelAdv(null)} onDone={() => { setCancelAdv(null); load(); loadPreview(); }} />
       )}
       {cancelSal && (
         <CancelSalaryDialog salary={cancelSal} onClose={() => setCancelSal(null)} onDone={() => { setCancelSal(null); load(); loadPreview(); loadAdjustments(); }} />
