@@ -1,6 +1,6 @@
 import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { focusSection } from "@/lib/sectionFocus";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -29,7 +29,9 @@ import { getContactsByIds, searchContacts } from "@/lib/contactLookup";
 import { ShipmentLineProductCell } from "@/components/ShipmentLineProductCell";
 
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { createApprovalRequest } from "@/lib/approvalRequests";
+import { useDocEditQuestions } from "@/components/docEdit/DocEditQuestions";
+import { activeReturnsOf, lineDiff, returnEditEffect, submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
+import { fetchDocumentStatus } from "@/lib/ledger";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { ProductImage } from "@/components/ProductImage";
 import { ImageField } from "@/components/ImageField";
@@ -224,6 +226,9 @@ export default function NewShipment() {
   }, [profile]);
 
   const [editReason, setEditReason] = useState("");
+  // 0141: the lines as they were (for «قبل ← بعد»), the total, and the questions before the edit is sent
+  const origEdit = useRef<{ lines: { product_id: string | null; name: string; qty: number; price: number }[]; total: number; paid: number; number: string } | null>(null);
+  const { ask: askEdit, dialog: editQuestionsDialog } = useDocEditQuestions();
   const [loadedEdit, setLoadedEdit] = useState(false);
   const __me = useCurrentUserName();
   useEffect(() => { if (!isEdit && __me && receivedBy !== __me) setReceivedBy(__me); }, [__me, receivedBy]);
@@ -270,6 +275,11 @@ export default function NewShipment() {
         capacity: r.capacity ?? "",
         size: r.size ?? "",
       })));
+      origEdit.current = {
+        lines: (it ?? []).map((r: any) => ({ product_id: r.product_id, name: r.product_name, qty: Number(r.quantity), price: Number(r.cost_price) })),
+        total: Number((s as any).total_cost ?? 0), paid: 0,
+        number: (s as any).shipment_number ?? shipmentId.slice(0, 8),
+      };
       setLoadedEdit(true);
       // Count related batches for the edit-confirmation modal
       const { count } = await supabase
@@ -476,34 +486,44 @@ export default function NewShipment() {
 
     setBusy(true);
     try {
-      if (isAdmin) {
-        const { data, error } = await (supabase as any).rpc("edit_shipment", {
-          p_shipment_id: shipmentId,
-          p_header: header,
-          p_items: items,
-        });
-        if (error) throw error;
-        toast.success("تم حفظ التعديلات");
-        if ((data as any)?.plan_overpaid) {
-          toast.warning("تنبيه: المبلغ المدفوع أكبر من الإجمالي الجديد — راجع خطة الدفع");
-        }
-        nav(`/branch/${branchId}/shipments/${shipmentId}`);
-      } else if (isManager) {
-        if (!editReason.trim()) { setBusy(false); return toast.error("اكتب سبب التعديل"); }
-        const ok = await createApprovalRequest({
-          tenantId: tenantId!, branchId: branchId ?? null,
-          entityType: "shipment", entityId: shipmentId,
-          entityLabel: `تعديل فاتورة شراء #${shipmentId.slice(0, 8)}`,
-          action: "update",
-          payload: { header, items },
-          reason: editReason,
-          requestedBy: user!.id, requestedByName: profile?.name ?? "—",
-        });
-        if (!ok) return;
-        nav(`/branch/${branchId}/shipments/${shipmentId}`);
-      } else {
-        toast.error("غير مصرح");
+      // 0141: one door — the owner's edit runs now, anybody else's goes to the owner with «قبل ← بعد»
+      const orig = origEdit.current;
+      const diff = lineDiff(orig?.lines ?? [], lines.map((l) => ({ product_id: l.product_id, name: l.product_name, qty: Number(l.quantity), price: Number(l.cost_price) })));
+      const rets = await activeReturnsOf("purchase", shipmentId);
+      let returnAction: "cancel" | "keep" | undefined;
+      if (rets.ids.length && isOwner) {
+        const pids = Object.keys(rets.qtyByProduct);
+        const { data: stockRows } = pids.length
+          ? await supabase.from("products").select("id, quantity").in("id", pids)
+          : { data: [] as any[] };
+        const stock = Object.fromEntries(((stockRows ?? []) as any[]).map((r) => [r.id, Number(r.quantity ?? 0)]));
+        const oldQ: Record<string, number> = {}; const newQ: Record<string, number> = {}; const names: Record<string, string> = {};
+        for (const l of orig?.lines ?? []) if (l.product_id) { oldQ[l.product_id] = (oldQ[l.product_id] ?? 0) + l.qty; names[l.product_id] = l.name; }
+        for (const l of lines) if (l.product_id) { newQ[l.product_id] = (newQ[l.product_id] ?? 0) + Number(l.quantity); names[l.product_id] = l.product_name; }
+        // money already settled on it (cash paid, not counting what the return covered)
+        const st = (await fetchDocumentStatus("shipment", [shipmentId])).get(shipmentId);
+        const effects = returnEditEffect("purchase",
+          pids.map((pid) => ({ name: names[pid] ?? "صنف", oldQty: oldQ[pid] ?? 0, newQty: newQ[pid] ?? 0, returnedQty: rets.qtyByProduct[pid], stock: stock[pid] ?? null })),
+          { newTotal: grandTotal, paid: Number(st?.paid_money ?? 0) + Number(st?.paid_from_other_branches ?? 0), returned: rets.value });
+        const a = await askEdit({ returns: { numbers: rets.numbers, effects,
+          onEditReturn: () => nav(`/branch/${branchId}/purchase-returns/new?edit=${rets.ids[0]}`) } });
+        if (!a) { setBusy(false); return; }
+        returnAction = a.returnAction;
       }
+      if (!isOwner && !editReason.trim()) { setBusy(false); return toast.error("اكتب سبب التعديل"); }
+      const label = `فاتورة شراء ${orig?.number ?? ""}`.trim();
+      const res = await submitDocumentEdit({
+        entity: "shipment", entityId: shipmentId, label, reason: editReason || null,
+        payload: { rpc: "edit_shipment", args: { p_shipment_id: shipmentId, p_header: header, p_items: items }, diff,
+          ...(rets.ids.length ? { return_ids: rets.ids } : {}), ...(returnAction ? { return_action: returnAction } : {}) },
+      });
+      if (res.mode === "requested") {
+        toast.success(submitMessage(res, label));
+      } else {
+        toast.success("تم حفظ التعديلات");
+        if ((res.result as any)?.plan_overpaid) toast.warning("تنبيه: المبلغ المدفوع أكبر من الإجمالي الجديد — راجع خطة الدفع");
+      }
+      nav(`/branch/${branchId}/shipments/${shipmentId}`);
     } catch (err: any) {
       toast.error(err.message ?? "خطأ في حفظ التعديلات");
     } finally {
@@ -675,9 +695,10 @@ export default function NewShipment() {
 
   return (
     <BranchLayout>
+      {editQuestionsDialog}
       <PageHeader
         title={isEdit ? "تعديل فاتورة الشراء" : "فاتورة شراء جديدة"}
-        subtitle={isEdit ? (isAdmin ? "تعديل مباشر" : "سيُرسل التعديل للمدير للموافقة") : "استلام بضاعة من مورد"}
+        subtitle={isEdit ? (isOwner ? "تعديل مباشر" : "التعديل هيتبعت للمالك يوافق عليه") : "استلام بضاعة من مورد"}
       />
 
       {!isEdit && formDraft.draft && lines.length === 0 && (
@@ -1147,7 +1168,7 @@ export default function NewShipment() {
       ) : null}
 
       {/* Edit reason (manager only) */}
-      {isEdit && isManager && !isAdmin && (
+      {isEdit && !isOwner && (
         <div className="card-elevated p-4">
           <Label className="text-sm font-bold">سبب التعديل *</Label>
           <Textarea

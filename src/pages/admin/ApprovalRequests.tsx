@@ -12,6 +12,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { CheckCircle2, XCircle, Clock } from "lucide-react";
+import { ENTITY_LABELS, stepsOf, type DocEditPayload, type ReturnAction } from "@/lib/documentEdit";
 
 interface Req {
   id: string;
@@ -28,11 +29,10 @@ interface Req {
   decided_at: string | null;
 }
 
-const ENTITY_LABEL: Record<string, string> = {
-  contact: "جهة تواصل",
-  invoice: "فاتورة",
-  shipment: "فاتورة شراء",
-};
+const ENTITY_LABEL: Record<string, string> = { contact: "جهة تواصل", ...ENTITY_LABELS };
+
+/** The «قبل ← بعد» lines of a document edit request (0141), else nothing. */
+const diffOf = (r: Req): string[] => (Array.isArray(r.payload?.diff) ? r.payload.diff : []);
 
 /** Invoices and purchase invoices are never deleted: an approved "delete" request cancels them (reversal kept). */
 const actionLabel = (r: { action: string; entity_type?: string }) =>
@@ -47,6 +47,8 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
   const [decision, setDecision] = useState<{ req: Req; type: "approve" | "reject" } | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  // 0141: a document with returns — the owner answers on approval
+  const [retAction, setRetAction] = useState<ReturnAction | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -67,10 +69,14 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
   const decide = async () => {
     if (!decision) return;
     setBusy(true);
+    const p = decision.req.payload as DocEditPayload | null;
+    const needsReturnAnswer = decision.type === "approve" && !!p?.return_ids?.length && !p?.return_action;
+    if (needsReturnAnswer && !retAction) { setBusy(false); return toast.error("اختار: تلغي المرتجع ولا تسيبه"); }
     const { error } = await supabase.from("approval_requests" as any).update({
       status: decision.type === "approve" ? "approved" : "rejected",
       admin_id: user?.id,
       admin_note: note || null,
+      ...(needsReturnAnswer ? { payload: { ...p, return_action: retAction } } : {}),
     }).eq("id", decision.req.id);
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -82,7 +88,7 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
 
   return (
     <Wrapper>
-      <PageHeader title="طلبات الموافقة" subtitle="طلبات الحذف والتعديل من مدراء الفروع" />
+      <PageHeader title="طلبات الموافقة" subtitle="طلبات الحذف والتعديل من الموظفين — تعديل المستندات بيتنفذ لما المالك يوافق" />
 
       <div className="flex gap-2 mb-4">
         <Button variant={tab === "pending" ? "default" : "outline"} onClick={() => setTab("pending")}>
@@ -102,7 +108,17 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
           </span>
         )},
         { key: "entity_type", header: "النوع", render: (r: Req) => <span className="text-sm">{ENTITY_LABEL[r.entity_type] ?? r.entity_type}</span> },
-        { key: "entity_label", header: "العنصر", render: (r: Req) => <span className="font-semibold">{r.entity_label}</span> },
+        { key: "entity_label", header: "العنصر", render: (r: Req) => (
+          <div>
+            <span className="font-semibold">{r.entity_label}</span>
+            {diffOf(r).length > 0 && (
+              <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                {diffOf(r).slice(0, 4).map((d) => <li key={d}>• {d}</li>)}
+                {diffOf(r).length > 4 && <li>و {diffOf(r).length - 4} تغيير كمان…</li>}
+              </ul>
+            )}
+          </div>
+        ) },
         { key: "reason", header: "السبب", render: (r: Req) => <span className="text-xs text-muted-foreground">{r.reason ?? "—"}</span> },
         { key: "status", header: "الحالة", render: (r: Req) => {
           if (r.status === "pending") return <span className="px-2 py-1 rounded text-xs bg-warning/10 text-warning">معلّق</span>;
@@ -111,7 +127,7 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
         }},
         { key: "actions", header: "إجراءات", render: (r: Req) => r.status === "pending" ? (
           <div className="flex gap-1">
-            <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground" onClick={() => { setDecision({ req: r, type: "approve" }); setNote(""); }}>
+            <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground" onClick={() => { setDecision({ req: r, type: "approve" }); setNote(""); setRetAction(null); }}>
               <CheckCircle2 className="w-3.5 h-3.5 ml-1" /> موافقة
             </Button>
             <Button size="sm" variant="outline" className="text-destructive border-destructive/30" onClick={() => { setDecision({ req: r, type: "reject" }); setNote(""); }}>
@@ -131,10 +147,32 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
               {decision?.req.requested_by_name} يطلب {decision ? actionLabel(decision.req) : ""} <b>{decision?.req.entity_label}</b>
               {decision?.req.reason && <div className="mt-2 text-sm">السبب: {decision.req.reason}</div>}
               {decision?.req.action === "update" && decision?.req.payload && (
-                <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">{JSON.stringify(decision.req.payload, null, 2)}</pre>
+                diffOf(decision.req).length > 0 || stepsOf(decision.req.payload).length > 0 ? (
+                  <span className="mt-2 block rounded-lg border bg-muted/40 p-3 text-sm text-foreground">
+                    <span className="mb-1 block font-semibold">قبل ← بعد</span>
+                    {diffOf(decision.req).length > 0
+                      ? diffOf(decision.req).map((d) => <span key={d} className="block">• {d}</span>)
+                      : <span className="block text-muted-foreground">تعديل بيانات المستند</span>}
+                    {decision.req.payload?.excess?.action === "refund" && (
+                      <span className="mt-1 block">• الفرق {Number(decision.req.payload.excess.amount).toLocaleString("en-US")} ج.م هيرجع للعميل دلوقتي</span>
+                    )}
+                  </span>
+                ) : (
+                  <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto">{JSON.stringify(decision.req.payload, null, 2)}</pre>
+                )
               )}
             </DialogDescription>
           </DialogHeader>
+          {decision?.type === "approve" && !!(decision.req.payload as DocEditPayload | null)?.return_ids?.length && !(decision.req.payload as DocEditPayload).return_action && (
+            <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2">
+              <div className="text-sm font-semibold">المستند ده عليه مرتجع. هتلغي المرتجع ولا هتسيبه؟</div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant={retAction === "cancel" ? "default" : "outline"} onClick={() => setRetAction("cancel")}>الغي المرتجع وكمّل</Button>
+                <Button size="sm" variant={retAction === "keep" ? "default" : "outline"} onClick={() => setRetAction("keep")}>سيب المرتجع وكمّل</Button>
+              </div>
+              <p className="text-xs text-muted-foreground">لو سبته والكمية بقت أقل من المرتجع، المخزن ممكن ينزل تحت الصفر.</p>
+            </div>
+          )}
           <div>
             <Label>ملاحظة (اختياري)</Label>
             <Textarea value={note} onChange={(e) => setNote(e.target.value)} className="mt-1.5" placeholder="ملاحظتك تظهر لمدير الفرع في الإشعار" />

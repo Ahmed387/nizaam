@@ -37,6 +37,7 @@ import { cairoTodayDay } from "@/lib/cairoDate";
 import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 import { canEditReturn, capsForEdit, editDiff, oldQtyByProduct } from "@/lib/returnEdit";
+import { submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
 
 interface Line extends VariantAttrs {
   invoice_item_id: string;
@@ -343,17 +344,24 @@ export default function NewSaleReturn() {
       const itemsPayload = activeLines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, refund: l.quantity * l.unit_refund }));
       if (editId) {
         // One transaction on the server: old return cancelled, new one on the old day (0131)
-        const { data: er, error: eErr } = await (supabase.rpc as any)("edit_sale_return", {
-          _return_id: editId,
-          _edit_reason: editReason.trim(),
-          _reason: finalReason,
-          _notes: notes.trim() || null,
-          _refund_method: refundMethodFinal,
-          _refund_reference: refundRef.trim() || null,
-          _refund_account: refundAccount.trim() || null,
-          _items: itemsPayload,
+        // 0141: the owner's edit runs now; anybody else's goes to the owner as «طلب موافقة» with «قبل ← بعد»
+        const label = `مرتجع بيع ${editOld?.number ?? ""}`.trim();
+        const sub = await submitDocumentEdit({
+          entity: "sale_return", entityId: editId, label, reason: editReason.trim(),
+          payload: { rpc: "edit_sale_return", args: {
+            _return_id: editId, _edit_reason: editReason.trim(), _reason: finalReason, _notes: notes.trim() || null,
+            _refund_method: refundMethodFinal, _refund_reference: refundRef.trim() || null, _refund_account: refundAccount.trim() || null,
+            _items: itemsPayload },
+            diff: editOld ? editDiff(editOld.qty, activeLines).map((d) => `كمية «${d.name}»: ${d.before} ← ${d.after}`) : [] },
         });
-        if (eErr || !er) throw eErr ?? new Error("فشل التعديل");
+        if (sub.mode === "requested") {
+          formDraft.clear();
+          toast.success(submitMessage(sub, label));
+          nav(-1);
+          return;
+        }
+        const er = sub.result;
+        if (!er) throw new Error("فشل التعديل");
         if (transferPart > 0) await attachPaymentProofs([{ files: refundProofs, method: transferMethod, amount: transferPart, branchId }], proofSince);
         try { await supabase.rpc("redistribute_installments_after_return" as any, { _invoice_id: invoice.id }); } catch { /* no plan */ }
         formDraft.clear();

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
 import { Trash2, Plus } from "lucide-react";
 import { ContactLookup } from "@/components/ContactLookup";
+import { submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
 
 
 
@@ -121,16 +122,17 @@ export function EditInvoiceDialog({
     const clean = items.filter((it) => it.product_name.trim() && it.quantity > 0);
     if (clean.length === 0) return toast.error("لازم يكون فيه منتج واحد على الأقل");
     setSaving(true);
-    const { error } = await supabase.rpc("edit_invoice" as any, {
-      _invoice_id: invoice.id,
-      _customer_id: customerId,
-      _items: clean as any,
-      _vat_rate: null,
-      _discount_amount: null,
-    });
+    // 0141: the owner's edit runs now, anybody else's goes to the owner as «طلب موافقة»
+    const label = `فاتورة ${invoice?.invoice_number ?? ""}`.trim();
+    try {
+      const res = await submitDocumentEdit({ entity: "invoice", entityId: invoice.id, label,
+        payload: { rpc: "edit_invoice", args: { _invoice_id: invoice.id, _customer_id: customerId, _items: clean, _vat_rate: null, _discount_amount: null } } });
+      toast.success(res.mode === "requested" ? submitMessage(res, label) : "تم تعديل الفاتورة وتحديث المخزون والإجماليات");
+    } catch (e: any) {
+      setSaving(false);
+      return toast.error(e?.message ?? "تعذر حفظ التعديل");
+    }
     setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم تعديل الفاتورة وتحديث المخزون والإجماليات");
     onOpenChange(false);
     onSaved();
   };

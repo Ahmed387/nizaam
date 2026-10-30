@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export type ApprovalEntityType = "contact" | "invoice" | "shipment";
+export type ApprovalEntityType = "contact" | "invoice" | "shipment" | "sale_return" | "purchase_return" | "voucher";
 export type ApprovalAction = "delete" | "update";
 
 export interface CreateApprovalRequestInput {

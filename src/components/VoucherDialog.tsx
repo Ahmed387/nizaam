@@ -14,6 +14,7 @@ import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./Pa
 import { validateTransferPayment, PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
+import { submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
 import { fetchSideBalance, sideBalanceLabel, type Side } from "@/lib/ledger";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
@@ -240,23 +241,30 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
       let voucherId: string | null = null;
 
       if (isEdit && editingVoucher) {
-        const { data: res, error } = await supabase.rpc("edit_voucher" as any, {
-          p_voucher_id: editingVoucher.id,
-          p_category_id: form.category_id,
-          p_amount: amt,
-          p_payment_method: pm.method,
-          p_voucher_date: form.voucher_date,
-          p_party_type: form.party_type || null,
-          p_party_id: form.party_id || null,
-          p_party_name: form.party_name.trim() || null,
-          p_description: form.description.trim() || null,
-          p_reference_number: pm.reference_number ?? null,
-          p_transferred_to: pm.transfer_to_account ?? null,
-          p_transferred_from: pm.transfer_from_account ?? null,
-          p_fee_amount: pm.fee_amount ?? 0,
-          p_edit_reason: editReason.trim(),
+        // 0141: the owner's edit runs now; anybody else's goes to the owner as «طلب موافقة» with «قبل ← بعد»
+        const ev: any = editingVoucher;
+        const before: [string, unknown, unknown][] = [
+          ["المبلغ", ev.amount, amt], ["التاريخ", ev.voucher_date, form.voucher_date],
+          ["الوعاء", ev.payment_method, pm.method], ["البيان", ev.description ?? "", form.description.trim()],
+          ["الطرف", ev.party_name ?? "", form.party_name.trim()],
+        ];
+        const diff = before.filter(([, a, b]) => String(a ?? "") !== String(b ?? "")).map(([k, a, b]) => `${k}: ${a || "—"} ← ${b || "—"}`);
+        const label = `سند ${ev.voucher_number ?? ""}`.trim();
+        const sub = await submitDocumentEdit({
+          entity: "voucher", entityId: ev.id, label, reason: editReason.trim(),
+          payload: { rpc: "edit_voucher", diff, args: {
+            p_voucher_id: ev.id, p_category_id: form.category_id, p_amount: amt, p_payment_method: pm.method,
+            p_voucher_date: form.voucher_date, p_party_type: form.party_type || null, p_party_id: form.party_id || null,
+            p_party_name: form.party_name.trim() || null, p_description: form.description.trim() || null,
+            p_reference_number: pm.reference_number ?? null, p_transferred_to: pm.transfer_to_account ?? null,
+            p_transferred_from: pm.transfer_from_account ?? null, p_fee_amount: pm.fee_amount ?? 0, p_edit_reason: editReason.trim() } },
         });
-        if (error) throw error;
+        if (sub.mode === "requested") {
+          toast.success(submitMessage(sub, label));
+          onOpenChange(false);
+          return;
+        }
+        const res = sub.result;
         const result = res as any;
         voucherId = result?.new_voucher_id ?? null;
         const changes = (result?.changes ?? {}) as Record<string, { old: any; new: any }>;

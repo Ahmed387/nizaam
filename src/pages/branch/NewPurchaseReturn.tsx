@@ -34,6 +34,7 @@ import { cairoTodayDay } from "@/lib/cairoDate";
 import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 import { canEditReturn, capsForEdit, editDiff, oldQtyByProduct } from "@/lib/returnEdit";
+import { submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
 
 interface Line extends VariantAttrs {
   shipment_item_id?: string;
@@ -329,10 +330,21 @@ export default function NewPurchaseReturn() {
         // One transaction on the server: old return cancelled, new one on the old day (0131). The server keeps the
         // old recipient and the same purchase invoice; the date comes from the old return.
         const { shipment_id: _s, invoice_date: _d, recipient_name: _r, ...rest } = header;
-        const { data: er, error: eErr } = await (supabase.rpc as any)("edit_purchase_return", {
-          _return_id: editId, _edit_reason: editReason.trim(), p_header: rest, p_items: itemsPayload,
+        // 0141: the owner's edit runs now; anybody else's goes to the owner as «طلب موافقة» with «قبل ← بعد»
+        const label = `مرتجع شراء ${editOld?.number ?? ""}`.trim();
+        const sub = await submitDocumentEdit({
+          entity: "purchase_return", entityId: editId, label, reason: editReason.trim(),
+          payload: { rpc: "edit_purchase_return", args: { _return_id: editId, _edit_reason: editReason.trim(), p_header: rest, p_items: itemsPayload },
+            diff: editOld ? editDiff(editOld.qty, activeLines as any).map((d) => `كمية «${d.name}»: ${d.before} ← ${d.after}`) : [] },
         });
-        if (eErr || !er) throw eErr ?? new Error("فشل التعديل");
+        if (sub.mode === "requested") {
+          formDraft.clear();
+          toast.success(submitMessage(sub, label));
+          nav(-1);
+          return;
+        }
+        const er: any = sub.result;
+        if (!er) throw new Error("فشل التعديل");
         if (transferPart > 0) await attachPaymentProofs([{ files: refundProofs, method: transferMethod, amount: transferPart, alt: Number(er.refund_transfer_amount ?? 0), branchId }], proofSince);
         formDraft.clear();
         const back = Number(er.refund_cash_amount ?? 0) + Number(er.refund_transfer_amount ?? 0);

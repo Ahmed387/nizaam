@@ -33,6 +33,8 @@ import { formatDateTime } from "@/lib/format";
 import { StagedOp, applyStagedPayments, stagedOpLabel, stagedPaidDelta } from "@/lib/stagedPayments";
 import { computeInvoiceTotals } from "@/lib/invoiceCalc";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { useDocEditQuestions } from "@/components/docEdit/DocEditQuestions";
+import { activeReturnsOf, chainSteps, excessAfterEdit, returnEditEffect, submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
 
 type Item = {
   id?: string;
@@ -108,7 +110,9 @@ export default function EditSaleInvoice() {
     setDraftDismissed(true);
     formDraft.dismiss();
   };
-  const { isAdmin } = useAuth();
+  const { isAdmin, isOwner } = useAuth();
+  // 0141: the questions before the edit is sent (returns on the invoice / money paid above the new total)
+  const { ask, dialog: questionsDialog } = useDocEditQuestions();
   const toggleSection = (k: keyof typeof openSections) => setOpenSections((s) => focusSection(s, k));
 
   const initialSnapshotRef = useRef<Snapshot | null>(null);
@@ -480,35 +484,58 @@ export default function EditSaleInvoice() {
       setStagedOps([]);
     }
 
-    // 2) Apply invoice-level edit only if needed
-    if (hasInvoiceLevelChanges()) {
-      const { error } = await supabase.rpc("edit_invoice" as any, {
-        _invoice_id: invoiceId,
-        _customer_id: customerId,
-        _items: clean as any,
-        _vat_rate: Number(vatRate) || 0,
-        _discount_amount: invDiscount,
-      });
-      if (error) {
-        setSaving(false);
-        toast.error(error.message);
-        return;
-      }
-    }
-
-    // 3) Persist invoice date/time through the sovereign accounting path.
+    // 2+3) The lines and the date go through the owner's door in ONE edit (0141): the owner's runs now, anybody
+    // else's becomes «طلب موافقة» with the «قبل ← بعد» lines above.
     const snap = initialSnapshotRef.current;
     const oldIso = snap?.invoiceDate ? new Date(snap.invoiceDate).toISOString() : null;
     const newIso = invoiceDate ? new Date(invoiceDate).toISOString() : null;
-    if (oldIso !== newIso && newIso) {
-      const { error } = await supabase.rpc("update_invoice_date_sovereign", {
-        p_invoice_id: invoiceId!,
-        p_new_date: newIso,
-        p_reason: "تعديل تاريخ الفاتورة من شاشة تعديل فاتورة البيع",
-      });
-      if (error) {
+    const linesChanged = hasInvoiceLevelChanges();
+    const steps = [
+      linesChanged && { rpc: "edit_invoice" as const, args: { _invoice_id: invoiceId, _customer_id: customerId, _items: clean, _vat_rate: Number(vatRate) || 0, _discount_amount: invDiscount } },
+      oldIso !== newIso && !!newIso && { rpc: "update_invoice_date_sovereign" as const, args: { p_invoice_id: invoiceId, p_new_date: newIso, p_reason: "تعديل تاريخ الفاتورة من شاشة تعديل فاتورة البيع" } },
+    ];
+    if (steps.some(Boolean)) {
+      let retIds: string[] = [];
+      let answers: Awaited<ReturnType<typeof ask>> = {};
+      if (linesChanged) {
+        const rets = await activeReturnsOf("sale", invoiceId!);
+        retIds = rets.ids;
+        const oldQ: Record<string, number> = {}; const newQ: Record<string, number> = {}; const names: Record<string, string> = {};
+        for (const it of snap?.items ?? []) if (it.product_id) { oldQ[it.product_id] = (oldQ[it.product_id] ?? 0) + Number(it.quantity); names[it.product_id] = it.product_name; }
+        for (const it of clean) if (it.product_id) { newQ[it.product_id] = (newQ[it.product_id] ?? 0) + Number(it.quantity); names[it.product_id] = it.product_name; }
+        const effects = returnEditEffect("sale",
+          Object.keys(rets.qtyByProduct).map((pid) => ({ name: names[pid] ?? "صنف", oldQty: oldQ[pid] ?? 0, newQty: newQ[pid] ?? 0, returnedQty: rets.qtyByProduct[pid] })),
+          { newTotal: total, paid: paidPreview, returned: rets.value });
+        const excess = customerId ? excessAfterEdit(total, paidPreview) : 0;
+        const lastMethod = [...payments].reverse().find((x: any) => !x.voided_at)?.payment_method ?? "cash";
+        const a = await ask({
+          // a request carries the return ids — the owner answers on «طلبات الموافقة»
+          returns: isOwner && rets.ids.length ? { numbers: rets.numbers, effects,
+            onEditReturn: () => nav(`/branch/${branchId}/sale-returns/new?edit=${rets.ids[0]}`) } : undefined,
+          excess: excess > 0 ? { amount: excess, defaultMethod: lastMethod } : undefined,
+        });
+        if (!a) { setSaving(false); return; }
+        answers = a;
+      }
+      const payload = chainSteps(steps, {
+        diff: fullDiff,
+        ...(retIds.length ? { return_ids: retIds } : {}),
+        ...(answers.returnAction ? { return_action: answers.returnAction } : {}),
+        ...(answers.excess?.action === "refund" ? { excess: answers.excess } : {}),
+      })!;
+      try {
+        const label = `فاتورة ${invoice?.invoice_number ?? ""}`.trim();
+        const res = await submitDocumentEdit({ entity: "invoice", entityId: invoiceId!, label, payload });
+        if (res.mode === "requested") {
+          setSaving(false);
+          formDraft.clear();
+          toast.success(submitMessage(res, label));
+          setTimeout(() => nav(`/branch/${branchId}/sales/${invoiceId}`), 400);
+          return;
+        }
+      } catch (e: any) {
         setSaving(false);
-        toast.error(error.message);
+        toast.error(e?.message ?? "تعذر حفظ التعديل");
         return;
       }
     }
@@ -611,6 +638,7 @@ export default function EditSaleInvoice() {
 
   return (
     <BranchLayout>
+      {questionsDialog}
       <div dir="rtl" className="text-right space-y-4">
         <PageHeader
           title={`تعديل الفاتورة ${invoice.invoice_number ?? ""}`}

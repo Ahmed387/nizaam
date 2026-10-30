@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
+import { submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
 
 type InvoiceTable = "invoices" | "shipments" | "returns" | "purchase_returns";
 
@@ -50,27 +51,33 @@ export function EditableInvoiceDate({ table, recordId, value, fallback, compact,
     setBusy(true);
     // datetime-local → treat as local time, send as ISO.
     const isoValue = new Date(draft).toISOString();
-    const { error } = table === "invoices"
-      ? await supabase.rpc("update_invoice_date_sovereign", {
-          p_invoice_id: recordId,
-          p_new_date: isoValue,
-          p_reason: "تعديل تاريخ الفاتورة من شاشة المستندات",
-        })
-      : table === "returns" || table === "purchase_returns"
-      ? await supabase.rpc("update_return_sovereign" as any, {
-          p_kind: table === "returns" ? "sale_return" : "purchase_return",
-          p_return_id: recordId,
-          p_date: new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo" }).format(new Date(draft)),
-          p_notes: null,
-        })
-      : await (supabase.rpc as any)("update_shipment_date", {
-          p_shipment_id: recordId,
-          p_new_date: isoValue,
-          p_reason: "تعديل تاريخ فاتورة الشراء من شاشة المستندات",
+    // 0141: an invoice / purchase invoice date goes through the owner's door (anybody else → «طلب موافقة»)
+    if (table === "invoices" || table === "shipments") {
+      const label = table === "invoices" ? "تاريخ فاتورة البيع" : "تاريخ فاتورة الشراء";
+      try {
+        const res = await submitDocumentEdit({
+          entity: table === "invoices" ? "invoice" : "shipment", entityId: recordId, label,
+          payload: table === "invoices"
+            ? { rpc: "update_invoice_date_sovereign", args: { p_invoice_id: recordId, p_new_date: isoValue, p_reason: "تعديل تاريخ الفاتورة من شاشة المستندات" },
+                diff: [`التاريخ: ${display ? formatDateTime(display) : "—"} ← ${formatDateTime(isoValue)}`] }
+            : { rpc: "update_shipment_date", args: { p_shipment_id: recordId, p_new_date: isoValue, p_reason: "تعديل تاريخ فاتورة الشراء من شاشة المستندات" },
+                diff: [`التاريخ: ${display ? formatDateTime(display) : "—"} ← ${formatDateTime(isoValue)}`] },
         });
-    setBusy(false);
-    if (error) {
-      return toast.error(error.message);
+        setBusy(false);
+        if (res.mode === "requested") { toast.success(submitMessage(res, label)); setOpen(false); return; }
+      } catch (e: any) {
+        setBusy(false);
+        return toast.error(e?.message ?? "تعذر تعديل التاريخ");
+      }
+    } else {
+      const { error } = await supabase.rpc("update_return_sovereign" as any, {
+        p_kind: table === "returns" ? "sale_return" : "purchase_return",
+        p_return_id: recordId,
+        p_date: new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo" }).format(new Date(draft)),
+        p_notes: null,
+      });
+      setBusy(false);
+      if (error) return toast.error(error.message);
     }
     toast.success("تم تحديث تاريخ ووقت الفاتورة");
     setOpen(false);
