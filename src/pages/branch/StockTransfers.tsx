@@ -23,6 +23,7 @@ import { logAudit } from "@/lib/roles";
 import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
+import { matchProducts, similarCodes } from "@/lib/codeSuggest";
 import { toast } from "sonner";
 import { Plus, Check, X, ArrowLeftRight, Trash2, ChevronsUpDown, Inbox, Search, CalendarIcon, PackageCheck, AlertTriangle } from "lucide-react";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
@@ -926,10 +927,28 @@ function ProductCombobox({
   excludeIds?: string[];
 }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
   const selected = products.find((p) => p.id === value);
   const available = products.filter((p) => !excludeIds.includes(p.id));
+  // 0143: the same search as the sale screen + codes one or two letters away («أكواد قريبة»)
+  const hits = matchProducts(q, available);
+  const near = similarCodes(q, available, new Set(hits.map((p) => p.id)));
+  const item = (p: any, hint?: string) => (
+    <CommandItem key={p.id} value={p.id} onSelect={() => { onChange(p.id); setOpen(false); setQ(""); }} className="group">
+      <Check className={`w-4 h-4 ml-2 ${value === p.id ? "opacity-100" : "opacity-0"}`} />
+      <div className="flex-1 flex items-center justify-between gap-2">
+        <div>
+          <div className="text-sm">{p.name}</div>
+          <div className="text-xs text-muted-foreground">{p.sku}{p.legacy_code ? ` • ${p.legacy_code}` : ""}{hint ? ` — ${hint}` : ""}</div>
+        </div>
+        <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-md bg-muted/80 text-foreground border border-border/50 group-data-[selected=true]:bg-white/20 group-data-[selected=true]:text-white group-data-[selected=true]:border-white/30">
+          متاح: {p.quantity}
+        </span>
+      </div>
+    </CommandItem>
+  );
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQ(""); }}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -945,37 +964,20 @@ function ProductCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="p-0 w-[min(420px,calc(100vw-2rem))]" align="start">
-        <Command
-          filter={(val, search) => {
-            const q = search.trim().toLowerCase();
-            if (!q) return 1;
-            return val.toLowerCase().includes(q) ? 1 : 0;
-          }}
-        >
-          <CommandInput placeholder="بحث بالاسم أو الكود…" />
+        <Command shouldFilter={false}>
+          <CommandInput placeholder="بحث بالاسم أو الكود… (أي كلمة، بأي ترتيب)" value={q} onValueChange={setQ} />
           <CommandList>
-            <CommandEmpty>لا توجد نتائج</CommandEmpty>
-            <CommandGroup>
-              {available.map((p) => (
-                <CommandItem
-                  key={p.id}
-                  value={`${p.name} ${p.sku ?? ""} ${p.legacy_code ?? ""}`}
-                  onSelect={() => { onChange(p.id); setOpen(false); }}
-                  className="group"
-                >
-                  <Check className={`w-4 h-4 ml-2 ${value === p.id ? "opacity-100" : "opacity-0"}`} />
-                  <div className="flex-1 flex items-center justify-between gap-2">
-                    <div>
-                      <div className="text-sm">{p.name}</div>
-                      <div className="text-xs text-muted-foreground">{p.sku}{p.legacy_code ? ` • ${p.legacy_code}` : ""}</div>
-                    </div>
-                    <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-md bg-muted/80 text-foreground border border-border/50 group-data-[selected=true]:bg-white/20 group-data-[selected=true]:text-white group-data-[selected=true]:border-white/30">
-                      متاح: {p.quantity}
-                    </span>
-                  </div>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+            {hits.length === 0 && near.length === 0 && <CommandEmpty>لا توجد نتائج</CommandEmpty>}
+            {hits.length > 0 && (
+              <CommandGroup heading={q.trim() ? `النتائج (${hits.length})` : undefined}>
+                {hits.map((p) => item(p))}
+              </CommandGroup>
+            )}
+            {near.length > 0 && (
+              <CommandGroup heading="أكواد قريبة من اللي كتبته">
+                {near.map((n) => item(n.item, n.distance === 1 ? "فرق حرف" : "فرق حرفين"))}
+              </CommandGroup>
+            )}
           </CommandList>
         </Command>
       </PopoverContent>
