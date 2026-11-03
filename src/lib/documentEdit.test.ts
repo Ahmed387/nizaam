@@ -57,3 +57,20 @@ describe("lineDiff", () => {
     ]);
   });
 });
+
+import { restoreMoneyLeft, restorePayload } from "./documentEdit";
+describe("restore from «الملغاة» (0142)", () => {
+  it("money that left: cash given back or voided payments; credit / nothing = 0", () => {
+    expect(restoreMoneyLeft({ refund_method: "cash", refund_amount: 1250 })).toBe(1250);
+    expect(restoreMoneyLeft({ refund_method: "void", total_paid_before_cancel: 1285 })).toBe(1285);
+    expect(restoreMoneyLeft({ refund_method: "credit", refund_amount: 1050 })).toBe(0);
+    expect(restoreMoneyLeft({ refund_method: "none" })).toBe(0);
+  });
+  it("the request carries the owner's answer", () => {
+    const p = restorePayload("invoice", "i1", { action: "collect", method: "cash" }, 1250);
+    expect(p.rpc).toBe("restore_invoice");
+    expect((p.args as any).p_money).toEqual({ action: "collect", method: "cash" });
+    expect(p.diff?.[1]).toContain("هيدفع");
+    expect(restorePayload("voucher", "v1", null).args).toEqual({ p_voucher_id: "v1" });
+  });
+});

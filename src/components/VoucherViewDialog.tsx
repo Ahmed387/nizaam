@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { RestoreCancelledButton } from "@/components/docEdit/RestoreCancelledButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Voucher, VOUCHER_TYPE_LABEL } from "@/lib/vouchers";
@@ -110,6 +111,10 @@ export function VoucherViewDialog({
         </div>
 
         <DialogFooter className="px-6 pb-6 gap-2">
+          {voucher.status === "cancelled" && (
+            <RestoreCancelledButton kind="voucher" onDone={() => onOpenChange(false)}
+              doc={{ id: (voucher as any).id, number: (voucher as any).voucher_number, source_type: (voucher as any).source_type, type: (voucher as any).type }} />
+          )}
           {canEdit && voucher.status === "active" && onEdit && (
             <Button
               variant="default"

@@ -12,6 +12,7 @@ import { formatEGP, formatDateTime } from "@/lib/format";
 import { sideBalanceLabel, fetchDocumentStatus, fetchContactStatement, type DocumentStatus } from "@/lib/ledger";
 import { Printer, X, FileDown, Pencil, Wallet, CheckCircle2, Clock, CircleDashed } from "lucide-react";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
+import { RestoreCancelledButton } from "@/components/docEdit/RestoreCancelledButton";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 import { CancelInvoiceDialog } from "@/components/CancelInvoiceDialog";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -459,6 +460,11 @@ export default function InvoiceView() {
         {inv.status === "cancelled" && (
           <div className="mt-4 p-3 bg-destructive/15 border border-destructive/30 rounded-lg text-destructive">
             <div className="font-bold text-center">❌ فاتورة ملغاة — السبب: {inv.cancel_reason}</div>
+            <div className="mt-2 flex justify-center print:hidden">
+              <RestoreCancelledButton kind="invoice" onDone={() => window.location.reload()}
+                doc={{ id: inv.id, number: inv.invoice_number, refund_method: inv.refund_method, refund_amount: Number(inv.refund_amount ?? 0),
+                       total_paid_before_cancel: Number(inv.total_paid_before_cancel ?? 0), contact_id: inv.contact_id }} />
+            </div>
             {(inv.refund_amount > 0) && (
               <div className="text-xs text-center mt-1">
                 تم رد {formatEGP(inv.refund_amount)} عن طريق {inv.refund_method === "cash" ? "الكاش" : "رصيد العميل"}
