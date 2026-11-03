@@ -2,6 +2,7 @@ import { useTableViews } from "@/hooks/useListFilter";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PermTable } from "@/components/PermTable";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
+import { InternalBranchTag } from "@/components/contact/InternalBranchTag";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -358,6 +359,8 @@ export default function ContactFile() {
       )}
 
       {loading && !ov && <div className="p-8 text-center text-muted-foreground">جاري التحميل...</div>}
+
+      {contactId && <InternalBranchTag contactId={contactId} />}
 
       {ov && (
         <ContactBalanceHeader customer={ov.customer} supplier={ov.supplier}

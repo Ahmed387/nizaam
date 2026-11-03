@@ -316,8 +316,9 @@ export async function fetchDocumentPaidByMethod(docType: "invoice" | "shipment",
 export interface LedgerPosition {
   branch_id: string | null;
   ledger_date: string;
-  customers: { open: number; open_contacts: number; advances: number; advance_contacts: number; overdue: number; walkin_open: number } | null;
-  suppliers: { open: number; open_contacts: number; advances: number; advance_contacts: number; overdue: number } | null;
+  /** internal_open (0144): the part of `open` owed by accounts tagged «فرع داخلي» (our own branches) */
+  customers: { open: number; open_contacts: number; advances: number; advance_contacts: number; overdue: number; walkin_open: number; internal_open?: number } | null;
+  suppliers: { open: number; open_contacts: number; advances: number; advance_contacts: number; overdue: number; internal_open?: number } | null;
   cross_branch: { paid_here_for_other_branches: number; paid_elsewhere_for_this_branch: number; total: number; count: number };
 }
 export async function fetchLedgerPosition(branchId?: string | null): Promise<LedgerPosition> {

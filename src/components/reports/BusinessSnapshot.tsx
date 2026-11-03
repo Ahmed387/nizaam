@@ -17,6 +17,8 @@ type Row = {
   sold_ahead_of_stock: number;
   // 0135: the profit lines come from the books (same as the income statement and the distribution)
   operating_profit?: number; other_income?: number; count_diff?: number;
+  // 0144: sold to / still owed by our own branches («فرع داخلي»)
+  internal_sales?: number; internal_open?: number;
 };
 type Snapshot = { from: string; to: string; branches: Row[]; total: Omit<Row, "branch_id" | "branch" | "stock_items" | "sold_ahead_of_stock"> };
 
@@ -74,9 +76,9 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
 
       {/* Money: sold vs really received vs still owed */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Kpi icon={<Receipt />} label="المبيعات (صافي)" value={t?.net_sales} hint={`${t?.invoices ?? 0} فاتورة − مرتجعات ${formatEGP(t?.returns ?? 0)}`} />
+        <Kpi icon={<Receipt />} label="المبيعات (صافي)" value={t?.net_sales} hint={`${t?.invoices ?? 0} فاتورة − مرتجعات ${formatEGP(t?.returns ?? 0)}${(t?.internal_sales ?? 0) > 0.005 ? ` • منها بين الفروع ${formatEGP(t?.internal_sales ?? 0)}` : ""}`} />
         <Kpi icon={<HandCoins />} label="المحصّل فعلاً في الإيد" value={t?.collected} hint="كاش + بنك + محفظة دخلت من العملاء في الفترة، ناقص اللي اترد لهم" />
-        <Kpi icon={<Clock />} label="الآجل الباقي على العملاء" value={t?.open_credit} hint="اللي لسه ما اتدفعش من فواتير الفترة دي لحد النهارده" />
+        <Kpi icon={<Clock />} label="الآجل الباقي على العملاء" value={t?.open_credit} hint={`اللي لسه ما اتدفعش من فواتير الفترة دي لحد النهارده${(t?.internal_open ?? 0) > 0.005 ? ` • منها على فروعنا ${formatEGP(t?.internal_open ?? 0)}` : ""}`} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

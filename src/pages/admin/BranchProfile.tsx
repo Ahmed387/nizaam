@@ -228,7 +228,7 @@ export default function BranchProfile() {
         <StatCard label="المصاريف التشغيلية" value={formatEGP(stats.totalExpenses)} icon={<DollarSign className="w-5 h-5" />} accent="warning" />
         <StatCard label="فواتير الشراء" value={formatEGP(stats.totalShipments)} icon={<Truck className="w-5 h-5" />} accent="secondary" />
         <StatCard label="رصيد الخزنة" value={formatEGP(stats.safeBalance)} icon={<Wallet className="w-5 h-5" />} accent={stats.safeBalance >= 0 ? "success" : "warning"} />
-        <StatCard label="مستحق لنا على العملاء" value={formatEGP(position?.customers?.open ?? 0)} hint={`مستحق للموردين ${formatEGP(position?.suppliers?.open ?? 0)}`} icon={<TrendingUp className="w-5 h-5" />} accent="success" />
+        <StatCard label="مستحق لنا على العملاء" value={formatEGP(position?.customers?.open ?? 0)} hint={`مستحق للموردين ${formatEGP(position?.suppliers?.open ?? 0)}${(position?.customers?.internal_open ?? 0) > 0.005 ? ` • منها على فروعنا ${formatEGP(position?.customers?.internal_open ?? 0)}` : ""}`} icon={<TrendingUp className="w-5 h-5" />} accent="success" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
