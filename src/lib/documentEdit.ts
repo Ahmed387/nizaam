@@ -157,7 +157,7 @@ export function lineDiff(before: DiffLine[], after: DiffLine[]): string[] {
   return out;
 }
 
-export type RestoreMoney = { action: "collect" | "debt" | "pay" | "as_before"; method?: string };
+export type RestoreMoney = { action: "collect" | "debt" | "pay" | "as_before" | "keep"; method?: string };
 export type RestoreKind = "invoice" | "voucher" | "sale_return" | "purchase_return" | "shipment";
 
 /** What left the customer's side when the invoice was cancelled (0142): cash given back, or its voided payments. */
@@ -168,9 +168,9 @@ export function restoreMoneyLeft(doc: { refund_method?: string | null; refund_am
 }
 
 /**
- * A cancelled purchase invoice (0146): did money leave at the cancellation, and which question does the owner answer?
- *  refund («المورد رجّع فلوسنا»): «ترجعهوله النهارده» (pay) / «كأن الاسترداد ماحصلش» (as_before);
- *  void («غلط ومفيش فلوس»): «ندفعله تاني دلوقتي» (pay) / «تفضل علينا» (debt); credit: nothing to ask.
+ * A cancelled purchase invoice (0146 / 0149): did money leave at the cancellation, and which question is asked?
+ *  refund («المورد رجّع فلوسنا»): «ترجعهوله النهارده» (pay) / «كأن الاسترداد ماحصلش» (as_before) / «تفضل معانا وتبقى
+ *  علينا له» (keep); void («غلط ومفيش فلوس»): «ندفعله تاني دلوقتي» (pay) / «تفضل علينا» (debt); credit: nothing to ask.
  */
 export function shipmentRestoreQuestion(doc: { money_action?: string | null; refund_amount?: number | null }): "refund" | "void" | null {
   if (doc.money_action === "refund" && Number(doc.refund_amount ?? 0) > 0.005) return "refund";
@@ -178,13 +178,72 @@ export function shipmentRestoreQuestion(doc: { money_action?: string | null; ref
   return null;
 }
 
-/** The request for «استرجاع من الملغاة» — the same door as an edit. */
-export function restorePayload(kind: RestoreKind, id: string, money: RestoreMoney | null, left = 0): DocEditPayload {
+export type RestoreDoc = {
+  refund_method?: string | null; refund_amount?: number | null; total_paid_before_cancel?: number | null;
+  money_action?: string | null; contact_id?: string | null;
+};
+export type RestoreChoice = { action: RestoreMoney["action"]; method?: string; label: string; effect: string; disabled?: boolean; why?: string };
+
+/**
+ * The choices of «استرجاع من الملغاة» when money left at the cancellation — the same for the owner and for whoever sends
+ * the request — each with what it does to the till and to his account (0142 / 0146 / 0149). Example PO00578, the supplier
+ * gave back 200: «النهارده» → till −200 today; «بيومه» → till −200 on the refund day; «تفضل علينا» → till as it is, we owe
+ * him 200. Empty = nothing to ask.
+ */
+export function restoreChoices(kind: RestoreKind, doc: RestoreDoc, left = 0): RestoreChoice[] {
+  const walkIn = !doc.contact_id;
+  if (kind === "invoice" && left > 0) {
+    const x = formatEGP(left);
+    const mustCollect = walkIn && doc.refund_method === "cash";
+    return [
+      { action: "collect", method: "cash", label: "يدفعهم تاني دلوقتي",
+        effect: `الخزنة +${x} النهارده — الفاتورة تبقى مدفوعة زي ما كانت` },
+      { action: "debt", label: "يفضلوا عليه",
+        effect: `الخزنة زي ما هي — الفاتورة تفضل مفتوحة وعليه ${x}`,
+        disabled: mustCollect, why: mustCollect ? "عميل نقدي من غير اسم: الفلوس لازم ترجع." : undefined },
+    ];
+  }
+  if (kind !== "shipment") return [];
+  const q = shipmentRestoreQuestion(doc);
+  if (q === "refund") {
+    const x = formatEGP(Number(doc.refund_amount ?? 0));
+    return [
+      { action: "pay", label: "هترجعهوله النهارده",
+        effect: `الخزنة −${x} النهارده — حسابه يرجع زي ما كان قبل الإلغاء` },
+      { action: "as_before", label: "كأن الاسترداد ماحصلش (بيومه)",
+        effect: `الخزنة −${x} في يوم الاسترداد نفسه (خزنة اليوم ده تتغير) — حسابه يرجع زي ما كان قبل الإلغاء` },
+      { action: "keep", label: "تفضل معانا وتبقى علينا له",
+        effect: `الخزنة زي ما هي (الـ ${x} يفضلوا فيها) — حسابه: علينا له ${x} تدفعهمله بعدين زي أي دين مورد`,
+        disabled: walkIn, why: walkIn ? "مفيش مورد على الفاتورة: الفلوس لازم ترجعله." : undefined },
+    ];
+  }
+  if (q === "void") {
+    return [
+      { action: "pay", method: "cash", label: "ندفعهم للمورد تاني دلوقتي (نقدي)",
+        effect: "الخزنة تقل بمبلغ الدفعات النهارده — الفاتورة تبقى مدفوعة زي ما كانت" },
+      { action: "debt", label: "يفضلوا علينا",
+        effect: "الخزنة زي ما هي — الفاتورة تفضل مفتوحة وعلينا له مبلغ الدفعات" },
+    ];
+  }
+  return [];
+}
+
+const RESTORE_FALLBACK: Record<RestoreMoney["action"], string> = {
+  collect: "العميل هيدفع تاني دلوقتي", debt: "الفلوس تفضل علينا للمورد", pay: "الفلوس هتطلع للمورد النهارده",
+  as_before: "كأن الاسترداد ماحصلش (بيومه)", keep: "الفلوس تفضل معانا وتبقى علينا للمورد",
+};
+
+/** The request for «استرجاع من الملغاة» — the same door as an edit. The card says the choice and its effect. */
+export function restorePayload(kind: RestoreKind, id: string, money: RestoreMoney | null, left = 0, doc: RestoreDoc = {}): DocEditPayload {
   const diff = ["الحالة: ملغي ← شغال (بنفس الرقم والتاريخ)"];
-  if (kind === "invoice" && money && left > 0) diff.push(money.action === "collect" ? `العميل هيدفع ${formatEGP(left)} تاني دلوقتي` : `الـ ${formatEGP(left)} يفضلوا على العميل`);
+  if (kind === "invoice" && money && left > 0) {
+    diff.push(money.action === "collect" ? `العميل هيدفع ${formatEGP(left)} تاني دلوقتي` : `الـ ${formatEGP(left)} يفضلوا على العميل`);
+    const c = restoreChoices(kind, doc, left).find((x) => x.action === money.action);
+    if (c) diff.push(c.effect);
+  }
   if (kind === "shipment" && money) {
-    diff.push(money.action === "pay" ? "الفلوس هتطلع للمورد النهارده"
-      : money.action === "as_before" ? "كأن الاسترداد ماحصلش (بيومه)" : "الفلوس تفضل علينا للمورد");
+    const c = restoreChoices(kind, doc).find((x) => x.action === money.action);
+    diff.push(c ? `${c.label}: ${c.effect}` : RESTORE_FALLBACK[money.action]);
   }
   switch (kind) {
     case "invoice": return { rpc: "restore_invoice", args: { p_invoice_id: id, p_money: money ?? {} }, diff };

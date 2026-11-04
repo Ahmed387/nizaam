@@ -7,8 +7,9 @@ import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import {
-  restoreMoneyLeft, restorePayload, shipmentRestoreQuestion, submitDocumentEdit, submitMessage,
+  restoreChoices, restoreMoneyLeft, restorePayload, shipmentRestoreQuestion, submitDocumentEdit, submitMessage,
   type RestoreKind, type RestoreMoney,
 } from "@/lib/documentEdit";
 
@@ -24,11 +25,12 @@ const KIND_NOTE: Record<RestoreKind, string> = {
 };
 
 /**
- * «استرجاع من الملغاة» (migrations 0142 / 0146): a cancelled sale invoice, hand-written voucher, sale return, purchase
- * return or purchase invoice comes back with the same number and day. The owner's runs now; anybody else's goes to the
- * owner as «طلب موافقة». When money left at the cancellation the owner is asked every time:
- *  sale invoice: «يدفع تاني دلوقتي» / «تفضل عليه»; purchase refunded by the supplier: «ترجعهوله النهارده» / «كأن الاسترداد
- *  ماحصلش»; purchase voided: «ندفعله تاني دلوقتي» / «تفضل علينا».
+ * «استرجاع من الملغاة» (migrations 0142 / 0146 / 0149): a cancelled sale invoice, hand-written voucher, sale return,
+ * purchase return or purchase invoice comes back with the same number and day. The owner's runs now; anybody else's goes
+ * to the owner as «طلب موافقة» carrying the choice. When money left at the cancellation whoever restores picks one, and
+ * every choice shows its effect under it (`restoreChoices`): sale invoice «يدفع تاني دلوقتي» / «تفضل عليه»; purchase
+ * refunded by the supplier «ترجعهوله النهارده» / «كأن الاسترداد ماحصلش» / «تفضل معانا وتبقى علينا له»; purchase voided
+ * «ندفعله تاني دلوقتي» / «تفضل علينا».
  */
 export function RestoreCancelledButton({ kind, doc, onDone }: {
   kind: RestoreKind;
@@ -53,9 +55,12 @@ export function RestoreCancelledButton({ kind, doc, onDone }: {
 
   const left = kind === "invoice" ? restoreMoneyLeft(doc) : 0;
   const shipQ = kind === "shipment" ? shipmentRestoreQuestion(doc) : null;
-  const walkIn = !doc.contact_id;
+  const choices = restoreChoices(kind, doc, left);
   const label = `${KIND_LABEL[kind]} ${doc.number ?? ""}`.trim();
-  const needsAnswer = left > 0 || shipQ !== null;
+  const needsAnswer = choices.length > 0;
+  const question = kind === "invoice" ? `وقت الإلغاء رجع للعميل ${formatEGP(left)}. هيحصل فيهم إيه؟`
+    : shipQ === "refund" ? `وقت الإلغاء المورد رجّعلنا ${formatEGP(doc.refund_amount ?? 0)}. هيحصل فيهم إيه؟`
+    : "وقت الإلغاء دفعات الفاتورة اتلغت (غلط ومفيش فلوس). دلوقتي:";
 
   const send = async () => {
     if (needsAnswer && !money) return toast.error("اختار هيحصل إيه في الفلوس");
@@ -63,7 +68,7 @@ export function RestoreCancelledButton({ kind, doc, onDone }: {
     setBusy(true);
     try {
       const res = await submitDocumentEdit({ entity: kind, entityId: doc.id, label, reason: reason.trim() || null,
-        payload: restorePayload(kind, doc.id, needsAnswer ? money : null, left) });
+        payload: restorePayload(kind, doc.id, needsAnswer ? money : null, left, doc) });
       toast.success(res.mode === "requested" ? submitMessage(res, `استرجاع ${label}`) : `رجع ${label} زي ما كان`);
       setOpen(false);
       onDone?.();
@@ -74,10 +79,6 @@ export function RestoreCancelledButton({ kind, doc, onDone }: {
     }
   };
 
-  const choice = (action: RestoreMoney["action"], text: string, method?: string, disabled?: boolean) => (
-    <Button size="sm" variant={money?.action === action ? "default" : "outline"} disabled={disabled}
-      onClick={() => setMoney({ action, ...(method ? { method } : {}) })}>{text}</Button>
-  );
 
   return (
     <>
@@ -90,31 +91,21 @@ export function RestoreCancelledButton({ kind, doc, onDone }: {
             <DialogTitle>ترجّع {label} زي ما كان؟</DialogTitle>
             <DialogDescription>{KIND_NOTE[kind]}</DialogDescription>
           </DialogHeader>
-          {left > 0 && (
+          {needsAnswer && (
             <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2 text-sm">
-              <div className="font-semibold">وقت الإلغاء رجع للعميل {formatEGP(left)}. هيحصل فيهم إيه؟</div>
-              <div className="flex flex-wrap gap-2">
-                {choice("collect", "يدفعهم تاني دلوقتي", "cash")}
-                {choice("debt", "يفضلوا عليه", undefined, walkIn && doc.refund_method === "cash")}
-              </div>
-              {walkIn && doc.refund_method === "cash" && <p className="text-xs text-muted-foreground">عميل نقدي من غير اسم: الفلوس لازم ترجع.</p>}
-            </div>
-          )}
-          {shipQ === "refund" && (
-            <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2 text-sm">
-              <div className="font-semibold">وقت الإلغاء المورد رجّعلنا {formatEGP(doc.refund_amount ?? 0)}. الفلوس دي هترجعله:</div>
-              <div className="flex flex-wrap gap-2">
-                {choice("pay", "النهارده")}
-                {choice("as_before", "كأن الاسترداد ماحصلش (بيومه)")}
-              </div>
-            </div>
-          )}
-          {shipQ === "void" && (
-            <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2 text-sm">
-              <div className="font-semibold">وقت الإلغاء دفعات الفاتورة اتلغت (غلط ومفيش فلوس). دلوقتي:</div>
-              <div className="flex flex-wrap gap-2">
-                {choice("pay", "ندفعهم للمورد تاني دلوقتي (نقدي)", "cash")}
-                {choice("debt", "يفضلوا علينا")}
+              <div className="font-semibold">{question}</div>
+              <div className="space-y-2" role="radiogroup">
+                {choices.map((c) => (
+                  <button key={c.action} type="button" role="radio" aria-checked={money?.action === c.action} disabled={c.disabled}
+                    onClick={() => setMoney({ action: c.action, ...(c.method ? { method: c.method } : {}) } as RestoreMoney)}
+                    className={cn("w-full text-right rounded-md border p-2 transition-colors",
+                      money?.action === c.action ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-muted",
+                      c.disabled && "opacity-50 cursor-not-allowed hover:bg-background")}>
+                    <div className="font-semibold">{c.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{c.effect}</div>
+                    {c.disabled && c.why && <div className="text-xs text-destructive mt-0.5">{c.why}</div>}
+                  </button>
+                ))}
               </div>
             </div>
           )}

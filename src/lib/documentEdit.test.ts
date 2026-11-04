@@ -93,3 +93,40 @@ describe("restore from «الملغاة» — returns and purchases (0146)", () 
     expect(restorePayload("shipment", "s1", { action: "debt" }).diff).toContain("الفلوس تفضل علينا للمورد");
   });
 });
+
+describe("restore a purchase the supplier refunded — three choices, each with its effect (0149)", () => {
+  const po578 = { money_action: "refund", refund_amount: 200, contact_id: "sup1" };
+  it("PO00578 (200 back): today / on its day / it stays with us and we owe him", async () => {
+    const { restoreChoices } = await import("./documentEdit");
+    const c = restoreChoices("shipment", po578);
+    expect(c.map((x) => x.action)).toEqual(["pay", "as_before", "keep"]);
+    expect(c[0].effect).toContain("النهارده");
+    expect(c[1].effect).toContain("يوم الاسترداد");
+    expect(c[2].effect).toMatch(/الخزنة زي ما هي/);
+    expect(c[2].effect).toContain("علينا له");
+    expect(c[2].effect).toContain("200");
+    expect(c.every((x) => !x.disabled)).toBe(true);
+  });
+  it("no supplier on the invoice → «تفضل علينا» is closed (nobody to owe)", async () => {
+    const { restoreChoices } = await import("./documentEdit");
+    const keep = restoreChoices("shipment", { ...po578, contact_id: null }).find((x) => x.action === "keep");
+    expect(keep?.disabled).toBe(true);
+    expect(keep?.why).toBeTruthy();
+  });
+  it("the request card carries the choice and its effect; the server gets action 'keep'", () => {
+    const p = restorePayload("shipment", "s1", { action: "keep" }, 0, po578);
+    expect((p.args as any).p_money).toEqual({ action: "keep" });
+    expect(p.diff?.[1]).toContain("تفضل معانا وتبقى علينا له");
+    expect(p.diff?.[1]).toContain("علينا له");
+  });
+  it("void and sale invoice keep two choices with effects; nothing to ask = no choices", async () => {
+    const { restoreChoices } = await import("./documentEdit");
+    expect(restoreChoices("shipment", { money_action: "void", contact_id: "s" }).map((x) => x.action)).toEqual(["pay", "debt"]);
+    const inv = restoreChoices("invoice", { refund_method: "cash", refund_amount: 1250 }, 1250);
+    expect(inv.map((x) => x.action)).toEqual(["collect", "debt"]);
+    expect(inv[1].disabled).toBe(true); // walk-in, cash given back → must collect
+    expect(inv[0].effect).toContain("الخزنة");
+    expect(restoreChoices("shipment", { money_action: "credit" })).toEqual([]);
+    expect(restoreChoices("sale_return", {})).toEqual([]);
+  });
+});
