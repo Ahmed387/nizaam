@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { PermTable } from "@/components/PermTable";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
 import { InternalBranchTag } from "@/components/contact/InternalBranchTag";
+import { SettleWithoutMoneyButton } from "@/components/contact/SettleWithoutMoneyButton";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -303,6 +304,11 @@ export default function ContactFile() {
             )}
             {canPay && branches.length > 0 && (
               <Button variant="outline" onClick={() => startPay("out")}><DollarSign className="w-4 h-4 ml-1" /> سداد للمورد</Button>
+            )}
+            {c && contactId && (hasCustomer || hasSupplier) && (
+              <SettleWithoutMoneyButton contactId={contactId} contactName={c.name} side={side}
+                sides={[...(hasCustomer ? ["customer" as const] : []), ...(hasSupplier ? ["supplier" as const] : [])]}
+                defaultBranch={scopeBranch ?? routeBranchId ?? null} onDone={() => { loadOverview(); loadSide(); }} />
             )}
             <Button variant="outline" onClick={() => nav(`${isAdminView ? `/admin/contacts/${contactId}/statement` : `/branch/${routeBranchId}/contacts/${contactId}/statement`}?side=${side}${scopeBranch ? `&branch=${scopeBranch}` : ""}`)}>
               <Activity className="w-4 h-4 ml-1" /> كشف {sideName}
