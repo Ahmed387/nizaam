@@ -14,7 +14,8 @@ import { formatEGP } from "@/lib/format";
 export type DocEntity = "invoice" | "shipment" | "sale_return" | "purchase_return" | "voucher";
 export type DocEditRpc =
   | "edit_invoice" | "edit_shipment" | "edit_sale_return" | "edit_purchase_return" | "edit_voucher"
-  | "update_invoice_date_sovereign" | "update_shipment_date" | "restore_invoice" | "restore_voucher";
+  | "update_invoice_date_sovereign" | "update_shipment_date" | "restore_invoice" | "restore_voucher"
+  | "restore_sale_return" | "restore_purchase_return" | "restore_shipment";
 
 export type DocEditStep = { rpc: DocEditRpc; args: Record<string, unknown> };
 export type ReturnAction = "cancel" | "keep";
@@ -156,7 +157,8 @@ export function lineDiff(before: DiffLine[], after: DiffLine[]): string[] {
   return out;
 }
 
-export type RestoreMoney = { action: "collect" | "debt"; method?: string };
+export type RestoreMoney = { action: "collect" | "debt" | "pay" | "as_before"; method?: string };
+export type RestoreKind = "invoice" | "voucher" | "sale_return" | "purchase_return" | "shipment";
 
 /** What left the customer's side when the invoice was cancelled (0142): cash given back, or its voided payments. */
 export function restoreMoneyLeft(doc: { refund_method?: string | null; refund_amount?: number | null; total_paid_before_cancel?: number | null }): number {
@@ -165,11 +167,30 @@ export function restoreMoneyLeft(doc: { refund_method?: string | null; refund_am
   return v > 0.005 ? Math.round(v * 100) / 100 : 0;
 }
 
+/**
+ * A cancelled purchase invoice (0146): did money leave at the cancellation, and which question does the owner answer?
+ *  refund («المورد رجّع فلوسنا»): «ترجعهوله النهارده» (pay) / «كأن الاسترداد ماحصلش» (as_before);
+ *  void («غلط ومفيش فلوس»): «ندفعله تاني دلوقتي» (pay) / «تفضل علينا» (debt); credit: nothing to ask.
+ */
+export function shipmentRestoreQuestion(doc: { money_action?: string | null; refund_amount?: number | null }): "refund" | "void" | null {
+  if (doc.money_action === "refund" && Number(doc.refund_amount ?? 0) > 0.005) return "refund";
+  if (doc.money_action === "void") return "void";
+  return null;
+}
+
 /** The request for «استرجاع من الملغاة» — the same door as an edit. */
-export function restorePayload(kind: "invoice" | "voucher", id: string, money: RestoreMoney | null, left = 0): DocEditPayload {
+export function restorePayload(kind: RestoreKind, id: string, money: RestoreMoney | null, left = 0): DocEditPayload {
   const diff = ["الحالة: ملغي ← شغال (بنفس الرقم والتاريخ)"];
-  if (money && left > 0) diff.push(money.action === "collect" ? `العميل هيدفع ${formatEGP(left)} تاني دلوقتي` : `الـ ${formatEGP(left)} يفضلوا على العميل`);
-  return kind === "invoice"
-    ? { rpc: "restore_invoice" as DocEditRpc, args: { p_invoice_id: id, p_money: money ?? {} }, diff }
-    : { rpc: "restore_voucher" as DocEditRpc, args: { p_voucher_id: id }, diff };
+  if (kind === "invoice" && money && left > 0) diff.push(money.action === "collect" ? `العميل هيدفع ${formatEGP(left)} تاني دلوقتي` : `الـ ${formatEGP(left)} يفضلوا على العميل`);
+  if (kind === "shipment" && money) {
+    diff.push(money.action === "pay" ? "الفلوس هتطلع للمورد النهارده"
+      : money.action === "as_before" ? "كأن الاسترداد ماحصلش (بيومه)" : "الفلوس تفضل علينا للمورد");
+  }
+  switch (kind) {
+    case "invoice": return { rpc: "restore_invoice", args: { p_invoice_id: id, p_money: money ?? {} }, diff };
+    case "voucher": return { rpc: "restore_voucher", args: { p_voucher_id: id }, diff };
+    case "sale_return": return { rpc: "restore_sale_return", args: { p_return_id: id }, diff };
+    case "purchase_return": return { rpc: "restore_purchase_return", args: { p_return_id: id }, diff };
+    case "shipment": return { rpc: "restore_shipment", args: { p_shipment_id: id, p_money: money ?? {} }, diff };
+  }
 }

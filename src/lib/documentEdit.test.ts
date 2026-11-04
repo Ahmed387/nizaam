@@ -74,3 +74,22 @@ describe("restore from «الملغاة» (0142)", () => {
     expect(restorePayload("voucher", "v1", null).args).toEqual({ p_voucher_id: "v1" });
   });
 });
+
+describe("restore from «الملغاة» — returns and purchases (0146)", () => {
+  it("sends each kind to its own server step", () => {
+    expect(restorePayload("sale_return", "r1", null)).toMatchObject({ rpc: "restore_sale_return", args: { p_return_id: "r1" } });
+    expect(restorePayload("purchase_return", "r2", null)).toMatchObject({ rpc: "restore_purchase_return", args: { p_return_id: "r2" } });
+    expect(restorePayload("shipment", "s1", { action: "as_before" })).toMatchObject({ rpc: "restore_shipment", args: { p_shipment_id: "s1", p_money: { action: "as_before" } } });
+  });
+  it("a purchase asks only when money left at the cancellation", async () => {
+    const { shipmentRestoreQuestion } = await import("./documentEdit");
+    expect(shipmentRestoreQuestion({ money_action: "refund", refund_amount: 200 })).toBe("refund");
+    expect(shipmentRestoreQuestion({ money_action: "void" })).toBe("void");
+    expect(shipmentRestoreQuestion({ money_action: "credit", refund_amount: 0 })).toBeNull();
+    expect(shipmentRestoreQuestion({ money_action: null })).toBeNull();
+  });
+  it("the request card says what happens to the money", () => {
+    expect(restorePayload("shipment", "s1", { action: "pay" }).diff).toContain("الفلوس هتطلع للمورد النهارده");
+    expect(restorePayload("shipment", "s1", { action: "debt" }).diff).toContain("الفلوس تفضل علينا للمورد");
+  });
+});

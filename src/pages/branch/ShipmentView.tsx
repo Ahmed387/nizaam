@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { RestoreCancelledButton } from "@/components/docEdit/RestoreCancelledButton";
 import { PermTable } from "@/components/PermTable";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
@@ -184,6 +185,10 @@ export default function ShipmentView() {
           {ship.cancelled_at && <> — بتاريخ {formatDate(ship.cancelled_at)}</>}
           {ship.cancel_reason && <> — السبب: {ship.cancel_reason}</>}
           <div className="text-xs text-muted-foreground mt-1">كمياتها خرجت من المخزن وقيدها اتعكس، وهي خارج كشف حساب المورد.</div>
+          <div className="mt-2">
+            <RestoreCancelledButton kind="shipment" onDone={loadShipment}
+              doc={{ id: ship.id, number: ship.shipment_number, money_action: (ship as any).money_action, refund_amount: (ship as any).refund_amount, contact_id: ship.contact_id }} />
+          </div>
         </div>
       )}
 

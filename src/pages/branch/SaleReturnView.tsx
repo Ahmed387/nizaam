@@ -13,6 +13,7 @@ import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { VariantLine } from "@/components/VariantChips";
 import { CancelReturnButton, CancelledReturnBanner } from "@/components/CancelReturnButton";
 import { EditReturnButton, ReturnEditLinks } from "@/components/EditReturnButton";
+import { RestoreCancelledButton } from "@/components/docEdit/RestoreCancelledButton";
 import { DocumentMoneyMovements } from "@/components/payments/DocumentMoneyMovements";
 import { RecordAttachments } from "@/components/RecordAttachments";
 
@@ -77,7 +78,10 @@ export default function SaleReturnView() {
         }
       />
 
-      <div className="max-w-3xl mx-auto no-print"><CancelledReturnBanner ret={ret} /><ReturnEditLinks kind="sale" branchId={branchId!} ret={ret} /></div>
+      <div className="max-w-3xl mx-auto no-print"><CancelledReturnBanner ret={ret} /><ReturnEditLinks kind="sale" branchId={branchId!} ret={ret} />
+        {(ret as any).status === "cancelled" && (
+          <div className="mt-2"><RestoreCancelledButton kind="sale_return" doc={{ id: (ret as any).id, number: (ret as any).return_number }} onDone={() => window.location.reload()} /></div>
+        )}</div>
 
 
 

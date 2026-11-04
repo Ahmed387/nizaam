@@ -7,18 +7,34 @@ import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
-import { restoreMoneyLeft, restorePayload, submitDocumentEdit, submitMessage, type RestoreMoney } from "@/lib/documentEdit";
+import {
+  restoreMoneyLeft, restorePayload, shipmentRestoreQuestion, submitDocumentEdit, submitMessage,
+  type RestoreKind, type RestoreMoney,
+} from "@/lib/documentEdit";
+
+const KIND_LABEL: Record<RestoreKind, string> = {
+  invoice: "فاتورة", voucher: "سند", sale_return: "مرتجع", purchase_return: "مرتجع شراء", shipment: "فاتورة شراء",
+};
+const KIND_NOTE: Record<RestoreKind, string> = {
+  invoice: "بنفس الرقم والتاريخ. البضاعة هتطلع من المخزن تاني (حتى لو المخزن هينزل تحت الصفر)، والبيع والتكلفة يرجعوا في يومها.",
+  voucher: "بنفس الرقم والتاريخ. الفلوس هترجع للخزنة في يومها الأصلي.",
+  sale_return: "بنفس الرقم والتاريخ. القطع ترجع المخزن تاني، والفلوس اللي رجعت الخزنة وقت الإلغاء تطلع تاني في يوم المرتجع.",
+  purchase_return: "بنفس الرقم والتاريخ. القطع تطلع من المخزن تاني، والفلوس اللي طلعت وقت الإلغاء ترجع الخزنة في يوم المرتجع.",
+  shipment: "بنفس الرقم والتاريخ. البضاعة ترجع المخزن، والقيد يرجع، وخطة السداد ترجع زي ما كانت.",
+};
 
 /**
- * «استرجاع من الملغاة» (migration 0142): a cancelled sale invoice or hand-written voucher comes back with the same
- * number and day. The owner's runs now; anybody else's goes to the owner as «طلب موافقة».
- * When money left at the cancellation (given back / payments voided) the owner is asked every time:
- * «يدفع تاني دلوقتي» or «تفضل عليه».
+ * «استرجاع من الملغاة» (migrations 0142 / 0146): a cancelled sale invoice, hand-written voucher, sale return, purchase
+ * return or purchase invoice comes back with the same number and day. The owner's runs now; anybody else's goes to the
+ * owner as «طلب موافقة». When money left at the cancellation the owner is asked every time:
+ *  sale invoice: «يدفع تاني دلوقتي» / «تفضل عليه»; purchase refunded by the supplier: «ترجعهوله النهارده» / «كأن الاسترداد
+ *  ماحصلش»; purchase voided: «ندفعله تاني دلوقتي» / «تفضل علينا».
  */
 export function RestoreCancelledButton({ kind, doc, onDone }: {
-  kind: "invoice" | "voucher";
+  kind: RestoreKind;
   doc: { id: string; number?: string | null; refund_method?: string | null; refund_amount?: number | null;
-         total_paid_before_cancel?: number | null; contact_id?: string | null; source_type?: string | null; type?: string | null };
+         total_paid_before_cancel?: number | null; contact_id?: string | null; source_type?: string | null; type?: string | null;
+         money_action?: string | null };
   onDone?: () => void;
 }) {
   const { isOwner, can } = useAuth();
@@ -27,22 +43,28 @@ export function RestoreCancelledButton({ kind, doc, onDone }: {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const allowed = isOwner || (kind === "invoice" ? can("sales.update") : can(doc.type === "receipt" ? "receipt_vouchers.create" : "payment_vouchers.create"));
+  const perm = kind === "invoice" ? "sales.update"
+    : kind === "shipment" ? "shipments.update"
+    : kind === "voucher" ? (doc.type === "receipt" ? "receipt_vouchers.create" : "payment_vouchers.create")
+    : "returns.update";
+  const allowed = isOwner || can(perm);
   // an automatic voucher (of an invoice / return / purchase) comes back with its document, not alone
   if (!allowed || (kind === "voucher" && doc.source_type)) return null;
 
   const left = kind === "invoice" ? restoreMoneyLeft(doc) : 0;
+  const shipQ = kind === "shipment" ? shipmentRestoreQuestion(doc) : null;
   const walkIn = !doc.contact_id;
-  const label = `${kind === "invoice" ? "فاتورة" : "سند"} ${doc.number ?? ""}`.trim();
+  const label = `${KIND_LABEL[kind]} ${doc.number ?? ""}`.trim();
+  const needsAnswer = left > 0 || shipQ !== null;
 
   const send = async () => {
-    if (left > 0 && !money) return toast.error("اختار: العميل هيدفع تاني دلوقتي ولا الفلوس تفضل عليه");
+    if (needsAnswer && !money) return toast.error("اختار هيحصل إيه في الفلوس");
     if (!isOwner && !reason.trim()) return toast.error("اكتب السبب");
     setBusy(true);
     try {
       const res = await submitDocumentEdit({ entity: kind, entityId: doc.id, label, reason: reason.trim() || null,
-        payload: restorePayload(kind, doc.id, left > 0 ? money : null, left) });
-      toast.success(res.mode === "requested" ? submitMessage(res, `استرجاع ${label}`) : `رجعت ${label} زي ما كانت`);
+        payload: restorePayload(kind, doc.id, needsAnswer ? money : null, left) });
+      toast.success(res.mode === "requested" ? submitMessage(res, `استرجاع ${label}`) : `رجع ${label} زي ما كان`);
       setOpen(false);
       onDone?.();
     } catch (e: any) {
@@ -52,6 +74,11 @@ export function RestoreCancelledButton({ kind, doc, onDone }: {
     }
   };
 
+  const choice = (action: RestoreMoney["action"], text: string, method?: string, disabled?: boolean) => (
+    <Button size="sm" variant={money?.action === action ? "default" : "outline"} disabled={disabled}
+      onClick={() => setMoney({ action, ...(method ? { method } : {}) })}>{text}</Button>
+  );
+
   return (
     <>
       <Button size="sm" variant="outline" onClick={() => { setMoney(null); setReason(""); setOpen(true); }}>
@@ -60,26 +87,35 @@ export function RestoreCancelledButton({ kind, doc, onDone }: {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
-            <DialogTitle>ترجع {label} زي ما كانت؟</DialogTitle>
-            <DialogDescription>
-              {kind === "invoice"
-                ? "بنفس الرقم والتاريخ. البضاعة هتطلع من المخزن تاني (حتى لو المخزن هينزل تحت الصفر)، والبيع والتكلفة يرجعوا في يومها."
-                : "بنفس الرقم والتاريخ. الفلوس هترجع للخزنة في يومها الأصلي."}
-            </DialogDescription>
+            <DialogTitle>ترجّع {label} زي ما كان؟</DialogTitle>
+            <DialogDescription>{KIND_NOTE[kind]}</DialogDescription>
           </DialogHeader>
           {left > 0 && (
             <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2 text-sm">
               <div className="font-semibold">وقت الإلغاء رجع للعميل {formatEGP(left)}. هيحصل فيهم إيه؟</div>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant={money?.action === "collect" ? "default" : "outline"} onClick={() => setMoney({ action: "collect", method: "cash" })}>
-                  يدفعهم تاني دلوقتي
-                </Button>
-                <Button size="sm" variant={money?.action === "debt" ? "default" : "outline"} disabled={walkIn && doc.refund_method === "cash"}
-                  onClick={() => setMoney({ action: "debt" })}>
-                  يفضلوا عليه
-                </Button>
+                {choice("collect", "يدفعهم تاني دلوقتي", "cash")}
+                {choice("debt", "يفضلوا عليه", undefined, walkIn && doc.refund_method === "cash")}
               </div>
               {walkIn && doc.refund_method === "cash" && <p className="text-xs text-muted-foreground">عميل نقدي من غير اسم: الفلوس لازم ترجع.</p>}
+            </div>
+          )}
+          {shipQ === "refund" && (
+            <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2 text-sm">
+              <div className="font-semibold">وقت الإلغاء المورد رجّعلنا {formatEGP(doc.refund_amount ?? 0)}. الفلوس دي هترجعله:</div>
+              <div className="flex flex-wrap gap-2">
+                {choice("pay", "النهارده")}
+                {choice("as_before", "كأن الاسترداد ماحصلش (بيومه)")}
+              </div>
+            </div>
+          )}
+          {shipQ === "void" && (
+            <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 space-y-2 text-sm">
+              <div className="font-semibold">وقت الإلغاء دفعات الفاتورة اتلغت (غلط ومفيش فلوس). دلوقتي:</div>
+              <div className="flex flex-wrap gap-2">
+                {choice("pay", "ندفعهم للمورد تاني دلوقتي (نقدي)", "cash")}
+                {choice("debt", "يفضلوا علينا")}
+              </div>
             </div>
           )}
           {!isOwner && (
@@ -89,7 +125,7 @@ export function RestoreCancelledButton({ kind, doc, onDone }: {
             </div>
           )}
           <DialogFooter className="gap-2 sm:justify-start">
-            <Button onClick={send} disabled={busy}>{isOwner ? "رجّعها" : "ابعت طلب للمالك"}</Button>
+            <Button onClick={send} disabled={busy}>{isOwner ? "رجّعه" : "ابعت طلب للمالك"}</Button>
             <Button variant="ghost" onClick={() => setOpen(false)}>رجوع</Button>
           </DialogFooter>
         </DialogContent>
