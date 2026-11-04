@@ -60,6 +60,7 @@ import { BulkActionsBar } from "@/components/documents/BulkActionsBar";
 import { AccountCell, SourceCell, PrintDocButton } from "@/components/documents/MoneyCells";
 import { fetchTreasuryLinks, payMethodLabel, SRC_LABEL, srcPath } from "@/lib/treasuryLinks";
 import type { BulkKind } from "@/lib/bulkDocs";
+import { PriorYearReturnButton } from "@/components/returns/PriorYearReturnDialog";
 
 type TabKey = "sale" | "purchase" | "sale_return" | "purchase_return" | "income" | "expense" | "transfer" | "quote";
 
@@ -1159,6 +1160,7 @@ export default function Invoices() {
                 <Link to={`/branch/${branchId}/pre-orders`}><FileText className="w-4 h-4" /> طلبات الحجز</Link>
               </Button>
             </PermGate>
+            {tab === "sale_return" && branchId && <PriorYearReturnButton branchId={branchId} onDone={() => load()} />}
             {cfg.newLink && (
               <PermGate perm={(cfg as any).newPerm ?? ""}>
                 <Button asChild className="gap-2">
