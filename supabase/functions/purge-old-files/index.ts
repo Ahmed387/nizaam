@@ -1,10 +1,11 @@
 // One-time go-live purge (migration 0150, owner 2026-11-04 «امسح اي داتا قديمة ... او صور»): removes every file of the old
 // product photos and document attachments through the Storage API (storage refuses SQL deletes). Called only from the
 // database with the one-time token in public.system_cron_tokens (name 'purge-old-files'); the token row is removed after the
-// run, so the function answers 401 from then on. Only the two buckets below can be emptied.
+// run, so the function answers 401 from then on. Only the buckets below can be emptied (system-backups: 0151, owner
+// «النسخ الاحتياطية القديمة … امسحها مش عاوزها»).
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const ALLOWED = ["product-images", "record-attachments"];
+const ALLOWED = ["product-images", "record-attachments", "system-backups"];
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { "Content-Type": "application/json" } });
 
