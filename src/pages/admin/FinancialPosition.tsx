@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/StatCard";
 import { BranchFinancialDistribution, FinancialBranchFilter } from "@/components/FinancialBranchScope";
 import { ALL_FINANCIAL_BRANCHES, useAdminFinancialBranchMetrics } from "@/hooks/useAdminFinancialBranchMetrics";
-import { supabase } from "@/integrations/supabase/client";
-import { fetchPartnerBalances } from "@/lib/partnerBalances";
+import { fetchPartnersOverview } from "@/lib/partners";
 import { useAuth } from "@/contexts/AuthContext";
 import PartnersList from "./PartnersList";
 import PartnerTransactions from "./PartnerTransactions";
@@ -66,19 +65,14 @@ export default function FinancialPosition() {
   const positionPayables = branchFilter === ALL_FINANCIAL_BRANCHES ? financial.companyPayables : selectedSnapshot?.payables ?? 0;
   const positionCash = branchFilter === ALL_FINANCIAL_BRANCHES ? financial.totalCash : selectedSnapshot?.cash ?? 0;
 
+  // 0137: the same five-card numbers as the partners tab (capital = contributions − capital withdrawals; profit not yet taken)
   const load = async () => {
     if (!tenantId) return;
-    const { data } = await supabase
-      .from("equity_partners" as any)
-      .select("id, initial_capital, is_active")
-      .eq("tenant_id", tenantId)
-      .eq("is_active", true);
-    const rows = (data ?? []) as any[];
-    const balances = await fetchPartnerBalances(tenantId);
+    const rows = (await fetchPartnersOverview().catch(() => [])).filter((r) => r.partner.is_active);
     setStats({
       count: rows.length,
-      capital: rows.reduce((s, r) => s + Number(r.initial_capital || 0), 0),
-      balance: rows.reduce((s, r) => s + (balances.get(r.id)?.current_balance ?? 0), 0),
+      capital: rows.reduce((s, r) => s + Number(r.capital || 0), 0),
+      balance: rows.reduce((s, r) => s + Number(r.profit || 0), 0),
     });
   };
   useEffect(() => { load(); }, [tenantId]);
@@ -142,22 +136,22 @@ export default function FinancialPosition() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm">إجمالي رأس المال</CardTitle>
+              <CardTitle className="text-sm">رأس مال الشركاء لحد النهارده</CardTitle>
               <Wallet className="w-5 h-5 text-primary" />
             </CardHeader>
             <CardContent>
                <FinancialAmount value={fmt(stats.capital)} size="lg" className="justify-start" />
-              <p className="text-xs text-muted-foreground mt-1">الفلوس اللي الشركاء حطوها في الشركة من الأول.</p>
+              <p className="text-xs text-muted-foreground mt-1">المساهمات − المسحوب من رأس المال.</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm">إجمالي الأرصدة الحالية</CardTitle>
+              <CardTitle className="text-sm">صافي ربح الشركاء</CardTitle>
               <TrendingUp className="w-5 h-5 text-primary" />
             </CardHeader>
             <CardContent>
                <FinancialAmount value={fmt(stats.balance)} size="lg" className="justify-start" />
-              <p className="text-xs text-muted-foreground mt-1">رصيد الشركاء دلوقتي بعد الأرباح والسحوبات.</p>
+              <p className="text-xs text-muted-foreground mt-1">اللي اتحسبلهم من الربح ولسه ماسحبوهوش.</p>
             </CardContent>
           </Card>
         </div>
@@ -180,21 +174,21 @@ export default function FinancialPosition() {
               variant="default"
             />
             <ActionButton
-              to="/admin/financial-position?tab=transactions&type=contribution"
+              to="/admin/financial-position?tab=partners"
               icon={<ArrowUpCircle className="w-4 h-4" />}
               title="تسجيل مساهمة"
-              note="شريك دخّل فلوس جديدة في الشركة — سجّلها هنا."
+              note="من كارت الشريك: «مساهمة» — بتختار الفرع والوعاء والتاريخ."
               iconClass="text-success"
             />
             <ActionButton
-              to="/admin/financial-position?tab=transactions&type=drawing"
+              to="/admin/financial-position?tab=partners"
               icon={<ArrowDownCircle className="w-4 h-4" />}
-              title="تسجيل مسحوبة"
-              note="شريك سحب فلوس من الشركة لنفسه — سجّل السحب هنا."
+              title="تسجيل سحب"
+              note="من كارت الشريك: «سحب» — من رأس المال أو من الربح (الزيادة بتبقى سلفة لوحدها)."
               iconClass="text-destructive"
             />
             <ActionButton
-              to="/admin/financial-position?tab=transactions&type=profit_share"
+              to="/admin/accounting/flexible-distribution"
               icon={<Gift className="w-4 h-4" />}
               title="توزيع أرباح"
               note="وزّع أرباح فترة معينة على الشركاء حسب نسبة كل واحد."

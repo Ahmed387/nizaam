@@ -5,6 +5,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+import { MyPartnerAccount } from "@/components/partners/MyPartnerAccount";
 import { StatCard } from "@/components/StatCard";
 import { PermPart } from "@/contexts/PermCustomize";
 import { DataTable } from "@/components/DataTable";
@@ -204,6 +205,7 @@ export default function BranchDashboard() {
   return (
     <BranchLayout>
       <PageHeader title="لوحة الفرع" />
+      <MyPartnerAccount />
       <h2 className="text-2xl font-extrabold mb-4 mt-1">نظرة عامة على نشاط اليوم</h2>
 
       {/* Active reservations (real-time) */}

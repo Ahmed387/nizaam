@@ -1,133 +1,78 @@
 import { readAll } from "@/hooks/useWholeList";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { PermTable } from "@/components/PermTable";
-import { useSearchParams } from "react-router-dom";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { PageHeader } from "@/components/layout/AppShell";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { Pencil } from "lucide-react";
-import { EditPartnerTxDialog } from "@/components/EditPartnerTxDialog";
+import { formatEGP } from "@/lib/format";
+import { TX_LABEL, txSign, type PartnerTxType } from "@/lib/partners";
 
+/**
+ * «الحركات» — every partner movement of the company, newest first (read only). Money in / out is recorded from the
+ * partner's own page (0137: branch, vessel and day), so each row links there.
+ */
 export default function PartnerTransactions({ embedded }: { embedded?: boolean } = {}) {
-  const [params] = useSearchParams();
-  const { tenantId } = useAuth();
-  const [partners, setPartners] = useState<any[]>([]);
-  const [form, setForm] = useState({
-    partner_id: "",
-    type: params.get("type") ?? "contribution",
-    amount: "", description: "",
-    month_year: new Date().toISOString().slice(0, 7),
-  });
-  const [recent, setRecent] = useState<any[]>([]);
-  const [editTx, setEditTx] = useState<any | null>(null);
-  const [openEdit, setOpenEdit] = useState(false);
+  const [rows, setRows] = useState<any[]>([]);
+  const [type, setType] = useState<string>("all");
+  const [loading, setLoading] = useState(true);
 
-  const loadPartners = async () => {
-    if (!tenantId) return;
-    const { data } = await supabase.from("equity_partners" as any)
-      .select("id, name").eq("tenant_id", tenantId).eq("is_active", true).order("name");
-    setPartners((data ?? []) as any[]);
-  };
-  const loadRecent = async () => {
-    if (!tenantId) return;
-    // every movement, newest first (it used to show the last 20 only)
-    const data = await readAll<any>(() => supabase.from("partner_transactions" as any)
-      .select("*, equity_partners(name)").eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false }).order("id")).catch((e) => { toast.error(e?.message ?? "تعذر تحميل الحركات"); return [] as any[]; });
-    setRecent(data);
-  };
-  useEffect(() => { loadPartners(); loadRecent(); }, [tenantId]);
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const data = await readAll<any>(() => supabase.from("partner_transactions" as any)
+        .select("id, partner_id, transaction_type, amount, description, movement_date, created_at, is_void, cancel_reason, equity_partners(name)")
+        .neq("amount", 0)
+        .order("created_at", { ascending: false }).order("id"));
+      setRows(data);
+      setLoading(false);
+    })();
+  }, []);
 
-  const submit = async () => {
-    if (!form.partner_id) return toast.error("اختر الشريك");
-    const amt = Number(form.amount);
-    if (!amt || amt <= 0) return toast.error("المبلغ غير صحيح");
-    const { error } = await supabase.rpc("record_partner_transaction" as any, {
-      _partner_id: form.partner_id,
-      _transaction_type: form.type,
-      _amount: amt,
-      _description: form.description || null,
-      _month_year: form.month_year,
-    });
-    if (error) return toast.error(error.message);
-    toast.success("تم تسجيل الحركة");
-    setForm({ ...form, amount: "", description: "" });
-    loadRecent();
-  };
-
-  const fmt = (n: number) => Number(n).toLocaleString("en-EG");
+  const shown = useMemo(() => (type === "all" ? rows : rows.filter((r) => r.transaction_type === type)), [rows, type]);
 
   return (
     <ConditionalLayout variant="admin" embedded={embedded}>
       <div dir="rtl" className="text-right space-y-4">
-        {!embedded && <PageHeader title="حركات الشركاء" subtitle="تسجيل مساهمات، مسحوبات، وأرباح" />}
-
+        {!embedded && <PageHeader title="حركات الشركاء" subtitle="كل مساهمة وسحب ونصيب — بتتسجل من صفحة كل شريك" />}
         <Card>
-          <CardHeader><CardTitle>تسجيل حركة جديدة</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div><Label>الشريك *</Label>
-              <Select value={form.partner_id} onValueChange={v => setForm({ ...form, partner_id: v })}>
-                <SelectTrigger><SelectValue placeholder="اختر شريك" /></SelectTrigger>
-                <SelectContent>{partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div><Label>النوع</Label>
-              <Select value={form.type} onValueChange={v => setForm({ ...form, type: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="contribution">مساهمة</SelectItem>
-                  <SelectItem value="drawing">مسحوبة</SelectItem>
-                  <SelectItem value="profit_share">توزيع أرباح</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>المبلغ (ج.م) *</Label><Input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} /></div>
-            <div><Label>الشهر</Label><Input value={form.month_year} onChange={e => setForm({ ...form, month_year: e.target.value })} /></div>
-            <div className="md:col-span-2"><Label>الوصف</Label><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-            <div className="md:col-span-2 flex justify-end"><Button onClick={submit}>حفظ الحركة</Button></div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>آخر 20 حركة</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+            <CardTitle>حركات الشركاء</CardTitle>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">كل الحركات</SelectItem>
+                {(Object.keys(TX_LABEL) as PartnerTxType[]).map((k) => <SelectItem key={k} value={k}>{TX_LABEL[k]}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <PermTable className="w-full text-sm">
-              <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">التاريخ</th><th className="p-2">الشريك</th><th className="p-2">النوع</th><th className="p-2">المبلغ</th><th className="p-2">الوصف</th><th className="p-2 w-14">إجراءات</th></tr></thead>
+            <PermTable className="w-full text-sm" permTable="partner_all_moves">
+              <thead className="bg-muted/40">
+                <tr className="text-right"><th className="p-2">التاريخ</th><th className="p-2">الشريك</th><th className="p-2">الحركة</th><th className="p-2">المبلغ</th><th className="p-2">البيان</th><th className="p-2">الحالة</th></tr>
+              </thead>
               <tbody>
-                {recent.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا يوجد</td></tr>}
-                {recent.map(t => (
-                  <tr key={t.id} className="border-t">
-                    <td className="p-2">{new Date(t.created_at).toLocaleDateString("en-EG")}</td>
-                    <td className="p-2 font-semibold">{t.equity_partners?.name ?? "-"}</td>
-                    <td className="p-2">{t.transaction_type}</td>
-                    <td className="p-2 font-mono">{fmt(t.amount)}</td>
-                    <td className="p-2">{t.description || "-"}</td>
-                    <td className="p-2">
-                      <button type="button" title="تعديل الحركة"
-                        onClick={() => { setEditTx(t); setOpenEdit(true); }}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-border/60 bg-muted/40 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                        <Pencil className="h-4 w-4" />
-                      </button>
+                {loading && <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">جاري التحميل…</td></tr>}
+                {!loading && shown.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">مفيش حركات</td></tr>}
+                {shown.map((r) => (
+                  <tr key={r.id} className={`border-t ${r.is_void ? "opacity-60" : ""}`}>
+                    <td className="p-2 whitespace-nowrap">{r.movement_date ?? String(r.created_at).slice(0, 10)}</td>
+                    <td className="p-2"><Link className="hover:underline" to={`/admin/financial-position/partner/${r.partner_id}`}>{r.equity_partners?.name ?? "—"}</Link></td>
+                    <td className="p-2">{TX_LABEL[r.transaction_type as PartnerTxType] ?? r.transaction_type}</td>
+                    <td className={`p-2 font-semibold whitespace-nowrap ${txSign(r.transaction_type) < 0 ? "text-destructive" : "text-success"}`}>
+                      {txSign(r.transaction_type) < 0 ? "−" : "+"}{formatEGP(r.amount)}
                     </td>
+                    <td className="p-2 text-xs">{r.description}</td>
+                    <td className="p-2">{r.is_void ? <Badge variant="destructive" title={r.cancel_reason ?? ""}>ملغي</Badge> : <Badge variant="secondary">شغال</Badge>}</td>
                   </tr>
                 ))}
               </tbody>
             </PermTable>
           </CardContent>
         </Card>
-        <EditPartnerTxDialog
-          open={openEdit}
-          onOpenChange={setOpenEdit}
-          tx={editTx}
-          onSaved={() => { loadRecent(); setEditTx(null); }}
-        />
       </div>
     </ConditionalLayout>
   );

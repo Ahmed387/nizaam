@@ -1,965 +1,134 @@
-import { edgeErrorMessage } from "@/lib/edgeError";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
-import { PageHeader } from "@/components/layout/AppShell";
-import { PartnerContributionAlerts } from "@/components/PartnerContributionAlerts";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
-import { fetchPartnerBalances } from "@/lib/partnerBalances";
-import { useAuth } from "@/contexts/AuthContext";
+import { ArrowDownCircle, ArrowUpCircle, Calculator, Gift, PlusCircle, UserCircle } from "lucide-react";
 import { toast } from "sonner";
-import { Copy, Eye, EyeOff, KeyRound, Power, Loader2, Plus, FileText, User, Trash2, Link2 } from "lucide-react";
-import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
-import { confirmAlert } from "@/components/ConfirmDialog";
-import { FinancialAmount } from "@/components/FinancialAmount";
-import { cairoTodayDay } from "@/lib/cairoDate";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { StatCard } from "@/components/StatCard";
+import { PermCard } from "@/contexts/PermCustomize";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatEGP } from "@/lib/format";
+import { fetchPartnersOverview, pct, salaryText, type PartnerCards } from "@/lib/partners";
+import { PartnerFormDialog } from "@/components/partners/PartnerFormDialog";
+import { PartnerMoneyDialog } from "@/components/partners/PartnerMoneyDialog";
+import { PeriodSharesDialog } from "@/components/partners/PeriodSharesDialog";
 
-
-type Partner = {
-  id: string; name: string; partner_type: string;
-  capital_share: number; operating_share: number;
-  initial_capital: number; current_balance: number;
-  is_active: boolean;
-};
-
-function passwordStrength(pw: string): { level: "ضعيفة" | "متوسطة" | "قوية"; color: string } {
-  let score = 0;
-  if (pw.length >= 8) score++;
-  if (/[A-Z]/.test(pw)) score++;
-  if (/[0-9]/.test(pw)) score++;
-  if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { level: "ضعيفة", color: "text-destructive" };
-  if (score <= 2) return { level: "متوسطة", color: "text-warning" };
-  return { level: "قوية", color: "text-success" };
-}
-
-export default function PartnersList({ embedded }: { embedded?: boolean } = {}) {
-  const { tenantId, profile, branches } = useAuth();
-  const [rows, setRows] = useState<Partner[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [userNames, setUserNames] = useState<Record<string, string>>({});
-  const [partnerCashBranchId, setPartnerCashBranchId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!tenantId) return;
-    supabase.from("branches").select("id").eq("tenant_id", tenantId).eq("code", "PARTNER-CASH").maybeSingle()
-      .then(({ data }) => setPartnerCashBranchId((data as any)?.id ?? null));
-  }, [tenantId]);
-
-  const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState("data");
-  const [form, setForm] = useState({
-    name: "", partner_type: "capital",
-    capital_share: "", operating_share: "",
-    initial_capital: "",
-    username: "", password: "", confirm: "",
-    email: "", phone: "",
-  });
-  const [showPw, setShowPw] = useState(false);
-  const [autoShare, setAutoShare] = useState(true);
-  const [recalcing, setRecalcing] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [successCreds, setSuccessCreds] = useState<{ username: string; password: string } | null>(null);
-  const [usernameCheck, setUsernameCheck] = useState<"idle" | "checking" | "taken" | "free">("idle");
-
-  // ===== وضع النافذة: ترقية موظف حالي / شريك خارجي جديد =====
-  type EligibleEmp = { id: string; name: string; job_title: string; phone: string | null; branch_id: string; user_id: string };
-  const [addMode, setAddMode] = useState<"employee" | "external">("employee");
-  const [eligibleEmps, setEligibleEmps] = useState<EligibleEmp[]>([]);
-  const [empLoading, setEmpLoading] = useState(false);
-  const [selectedEmpId, setSelectedEmpId] = useState("");
-  const [empSearch, setEmpSearch] = useState("");
-  const [startDate, setStartDate] = useState(() => cairoTodayDay());
-  const [partnerNotes, setPartnerNotes] = useState("");
-  const selectedEmp = eligibleEmps.find((e) => e.id === selectedEmpId) || null;
-  const branchName = (id: string) => branches.find((b) => b.id === id)?.name ?? "-";
-
-  /** الموظفين اللي ليهم حساب دخول ومش مربوطين بأي شريك */
-  const loadEligibleEmployees = async () => {
-    if (!tenantId) return;
-    setEmpLoading(true);
-    try {
-      const [{ data: emps }, { data: links }] = await Promise.all([
-        supabase.from("employees")
-          .select("id, name, job_title, phone, branch_id, user_id")
-          .eq("tenant_id", tenantId).eq("is_active", true).not("user_id", "is", null),
-        supabase.from("partner_users" as any).select("user_id").eq("tenant_id", tenantId),
-      ]);
-      const linked = new Set(((links ?? []) as any[]).map((l) => l.user_id));
-      setEligibleEmps(((emps ?? []) as any[]).filter((e) => !linked.has(e.user_id)) as EligibleEmp[]);
-    } finally {
-      setEmpLoading(false);
-    }
-  };
-
-  const openAddDialog = () => {
-    setAddMode("employee");
-    setSelectedEmpId(""); setEmpSearch(""); setPartnerNotes("");
-    setStartDate(cairoTodayDay());
-    setTab("data");
-    setOpen(true);
-    loadEligibleEmployees();
-  };
-
-  /** ترقية موظف موجود إلى شريك — عملية ذرية واحدة في قاعدة البيانات */
-  const submitEmployeePartner = async () => {
-    if (!selectedEmp) return toast.error("اختر الموظف المراد ترقيته");
-    const cap = autoShare ? Number(autoNewShare.toFixed(6)) : (Number(form.capital_share) || 0);
-    const op = Number(form.operating_share) || 0;
-    if (autoShare && newAmount <= 0) return toast.error("أدخل حصة رأس المال عشان النظام يحسب النسبة");
-    if (cap < 0 || cap > 1 || op < 0 || op > 1) return toast.error("النسب يجب أن تكون بين 0% و 100%");
-    if (!autoShare) {
-      const manualTotal = activePartners.reduce((s, p) => s + Number(p.capital_share || 0), 0) + cap;
-      if (manualTotal > 1.0001) return toast.error(`مجموع نسب الشركاء هيتعدى 100% — المجموع ${(manualTotal * 100).toFixed(2)}%`);
-    }
-    setSubmitting(true);
-    try {
-      if (autoShare && activePartners.length) await applyAutoSharesToExisting(newAmount);
-      const { error } = await supabase.rpc("create_partner_from_employee" as any, {
-        _employee_id: selectedEmp.id,
-        _partner_type: form.partner_type,
-        _capital_share: cap,
-        _operating_share: op,
-        _initial_capital: Number(form.initial_capital) || 0,
-        _start_date: startDate || null,
-        _notes: partnerNotes.trim() || null,
-      });
-      if (error) throw error;
-      if (autoShare) await applyAutoSharesToExisting(0).catch(() => {});
-      toast.success(`تم تسجيل الشراكة وربطها بالموظف (${selectedEmp.name}) بنجاح`);
-      setOpen(false);
-      setForm({ name: "", partner_type: "capital", capital_share: "", operating_share: "", initial_capital: "", username: "", password: "", confirm: "", email: "", phone: "" });
-      setSelectedEmpId(""); setPartnerNotes("");
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "فشل تسجيل الشراكة");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-
-
-
-  const [resetPartner, setResetPartner] = useState<Partner | null>(null);
-  const [resetPw, setResetPw] = useState("");
-  const [resetConfirm, setResetConfirm] = useState("");
-
-  // ربط شريك بحساب موظف موجود (ازدواجية صفة الشريك والموظف)
-  const [linkPartner, setLinkPartner] = useState<Partner | null>(null);
-  const [linkUserId, setLinkUserId] = useState("");
-  const [linking, setLinking] = useState(false);
-  const [empAccounts, setEmpAccounts] = useState<{ user_id: string; name: string; username: string }[]>([]);
-
-  const openLinkDialog = async (p: Partner) => {
-    setLinkPartner(p);
-    setLinkUserId("");
-    const { data: emps } = await supabase
-      .from("employees")
-      .select("user_id, name")
-      .eq("tenant_id", tenantId as string)
-      .not("user_id", "is", null);
-    const ids = ((emps ?? []) as any[]).map((e) => e.user_id);
-    if (!ids.length) { setEmpAccounts([]); return; }
-    const { data: profs } = await supabase.from("profiles").select("id, username").in("id", ids);
-    const uname: Record<string, string> = Object.fromEntries(((profs ?? []) as any[]).map((x) => [x.id, x.username]));
-    setEmpAccounts(((emps ?? []) as any[]).map((e) => ({ user_id: e.user_id, name: e.name, username: uname[e.user_id] ?? "-" })));
-  };
-
-  const saveLink = async () => {
-    if (!linkPartner || !linkUserId) return;
-    setLinking(true);
-    try {
-      const { data: existing } = await supabase
-        .from("partner_users" as any).select("id").eq("user_id", linkUserId).maybeSingle();
-      if (existing) throw new Error("الحساب ده مربوط بشريك تاني بالفعل");
-      const { error } = await supabase.from("partner_users" as any).insert({
-        tenant_id: tenantId, user_id: linkUserId, partner_id: linkPartner.id,
-      });
-      if (error) throw error;
-      await supabase.from("user_roles" as any)
-        .upsert({ user_id: linkUserId, role: "partner", tenant_id: tenantId }, { onConflict: "user_id,role" });
-      toast.success("تم ربط الشريك بحساب الموظف");
-      setLinkPartner(null);
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "فشل الربط");
-    } finally {
-      setLinking(false);
-    }
-  };
-
+/**
+ * «الشركاء» (0137, owner «غيرها كلها من الاول»): every partner with his five numbers, and the three things the owner does
+ * here — add / promote a partner, put money in / take it out (branch, vessel, day), and book the operating shares /
+ * % salaries of a period before distributing it.
+ */
+export default function PartnersList(_props: { embedded?: boolean } = {}) {
+  const { isOwner, isAdmin } = useAuth();
+  const canWrite = isOwner || isAdmin;
+  const [rows, setRows] = useState<PartnerCards[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [shares, setShares] = useState(false);
+  const [money, setMoney] = useState<{ kind: "contribution" | "withdrawal"; cards: PartnerCards } | null>(null);
+  const [showOld, setShowOld] = useState(false);
 
   const load = async () => {
-    if (!tenantId) return;
     setLoading(true);
-    const { data } = await supabase.from("equity_partners" as any)
-      .select("*").eq("tenant_id", tenantId).order("created_at");
-    const balances = await fetchPartnerBalances(tenantId);
-    const list = ((data ?? []) as any[]).map((p: any) => ({
-      ...p,
-      current_balance: balances.get(p.id)?.current_balance ?? 0,
-    })) as unknown as Partner[];
-    setRows(list);
-
-    // fetch usernames via partner_users -> profiles
-    if (list.length) {
-      const { data: links } = await supabase.from("partner_users" as any)
-        .select("partner_id, user_id, profiles(username)")
-        .in("partner_id", list.map(p => p.id));
-      const map: Record<string, string> = {};
-      (links ?? []).forEach((l: any) => { map[l.partner_id] = l.profiles?.username ?? "-"; });
-      setUserNames(map);
-    }
+    try { setRows(await fetchPartnersOverview()); } catch (e: any) { toast.error(e.message); }
     setLoading(false);
   };
-  useEffect(() => { load(); }, [tenantId]);
+  useEffect(() => { load(); }, []);
 
-  // realtime
-  useEffect(() => {
-    if (!tenantId) return;
-    const ch = supabase.channel(`partners-${tenantId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "equity_partners", filter: `tenant_id=eq.${tenantId}` }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "partner_transactions", filter: `tenant_id=eq.${tenantId}` }, load)
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [tenantId]);
-
-  // username real-time check
-  useEffect(() => {
-    if (!form.username || !tenantId) { setUsernameCheck("idle"); return; }
-    setUsernameCheck("checking");
-    const t = setTimeout(async () => {
-      const { data } = await supabase.from("profiles").select("id")
-        .eq("tenant_id", tenantId).eq("username", form.username).maybeSingle();
-      setUsernameCheck(data ? "taken" : "free");
-    }, 400);
-    return () => clearTimeout(t);
-  }, [form.username, tenantId]);
-
-  /** حساب النسب أوتوماتيك من المبالغ المدفوعة (رأس المال) */
-  const activePartners = rows.filter(p => p.is_active);
-  const newAmount = Number(form.initial_capital) || 0;
-  const autoTotalCapital = activePartners.reduce((s, p) => s + Number(p.initial_capital || 0), 0) + newAmount;
-  const autoSharesPreview = autoTotalCapital > 0
-    ? [
-        ...activePartners.map(p => ({ id: p.id, name: p.name, amount: Number(p.initial_capital || 0), share: Number(p.initial_capital || 0) / autoTotalCapital })),
-        ...(newAmount > 0 ? [{ id: "__new__", name: form.name || "الشريك الجديد", amount: newAmount, share: newAmount / autoTotalCapital }] : []),
-      ]
-    : [];
-  const autoNewShare = autoTotalCapital > 0 ? newAmount / autoTotalCapital : 0;
-
-  /** إعادة احتساب نسب كل الشركاء من المبالغ (السيرفر بيظبط فروق التقريب) */
-  const applyAutoSharesToExisting = async (pendingCapital = 0) => {
-    const { error } = await supabase.rpc("rebalance_partner_shares" as any, {
-      _tenant_id: tenantId, _pending_capital: pendingCapital,
-    });
-    if (error) throw error;
-  };
-
-
-  const recalcShares = async () => {
-    const total = activePartners.reduce((s, p) => s + Number(p.initial_capital || 0), 0);
-    if (total <= 0) return toast.error("مفيش رؤوس أموال مسجلة للشركاء");
-    setRecalcing(true);
-    try {
-      await applyAutoSharesToExisting();
-      toast.success("تم إعادة احتساب النسب من رؤوس الأموال");
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "فشل إعادة الاحتساب");
-    } finally {
-      setRecalcing(false);
-    }
-  };
-
-  /** تعديل المبلغ المدفوع لشريك موجود + إعادة توزيع النسب */
-  const [editCapital, setEditCapital] = useState<{ id: string; name: string; amount: string } | null>(null);
-  const [savingCapital, setSavingCapital] = useState(false);
-  const saveCapital = async () => {
-    if (!editCapital) return;
-    const amt = Number(editCapital.amount);
-    if (!(amt >= 0)) return toast.error("المبلغ غير صحيح");
-    setSavingCapital(true);
-    try {
-      const { error } = await supabase.rpc("set_partner_capital" as any, {
-        _partner_id: editCapital.id, _amount: amt, _rebalance: true,
-      });
-      if (error) throw error;
-      toast.success("تم تعديل رأس المال وإعادة احتساب نسب كل الشركاء");
-      setEditCapital(null);
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "فشل التعديل");
-    } finally {
-      setSavingCapital(false);
-    }
-  };
-
-  /** تعديل نسب شريك (رأس المال / التشغيل) يدويًا — الأونر هو اللي بيحدد */
-  const [editShares, setEditShares] = useState<{ id: string; name: string; cap: string; op: string } | null>(null);
-  const [savingShares, setSavingShares] = useState(false);
-  const saveShares = async () => {
-    if (!editShares) return;
-    const cap = Number(editShares.cap) / 100;
-    const op = Number(editShares.op) / 100;
-    if (!(cap >= 0 && cap <= 1) || !(op >= 0 && op <= 1)) return toast.error("النسب لازم تكون بين 0% و 100%");
-    const othersCap = rows
-      .filter((r) => r.id !== editShares.id && r.is_active)
-      .reduce((s, r) => s + Number(r.capital_share || 0), 0);
-    if (othersCap + cap > 1.0001) {
-      return toast.error(`مجموع نسب رأس المال هيتعدى 100% — المتاح لك ${((1 - othersCap) * 100).toFixed(2)}%`);
-    }
-    setSavingShares(true);
-    const { error } = await supabase.from("equity_partners" as any)
-      .update({ capital_share: cap, operating_share: op }).eq("id", editShares.id);
-    setSavingShares(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم تعديل النسب");
-    setEditShares(null);
-    load();
-  };
-
-
-
-  const submit = async () => {
-    // validation
-    if (!form.name.trim()) return toast.error("أدخل اسم الشريك");
-    const cap = autoShare ? Number(autoNewShare.toFixed(6)) : (Number(form.capital_share) || 0);
-    const op = Number(form.operating_share) || 0;
-    if (autoShare && newAmount <= 0) return toast.error("أدخل المبلغ المدفوع (رأس المال) عشان النظام يحسب النسبة");
-    if (cap < 0 || cap > 1 || op < 0 || op > 1) return toast.error("النسب يجب أن تكون بين 0 و 1");
-    if (!autoShare) {
-      const manualTotal = activePartners.reduce((s, p) => s + Number(p.capital_share || 0), 0) + cap;
-      if (Math.abs(manualTotal - 1) > 0.0001) {
-        return toast.error(`مجموع نسب الشركاء لازم يكون 100% بالظبط — المجموع كده ${(manualTotal * 100).toFixed(2)}%`);
-      }
-    }
-
-    if (!form.username.trim()) return toast.error("أدخل اسم المستخدم");
-    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      return toast.error("البريد الإلكتروني غير صحيح — سيبه فاضي لو مفيش إيميل");
-    }
-    if (usernameCheck === "taken") return toast.error("اسم المستخدم مستخدم بالفعل");
-    if (form.password !== form.confirm) return toast.error("كلمة المرور غير متطابقة");
-    if (form.password.length < 8 || !/[A-Za-z]/.test(form.password) || !/[0-9]/.test(form.password)) {
-      return toast.error("كلمة المرور يجب 8 أحرف على الأقل + حرف ورقم");
-    }
-
-    setSubmitting(true);
-    try {
-      // في الوضع الأوتوماتيك: نظبط نسب الشركاء الحاليين الأول ونسيب مساحة للشريك الجديد
-      if (autoShare && activePartners.length) await applyAutoSharesToExisting(newAmount);
-      const { data, error } = await supabase.functions.invoke("admin-create-partner", {
-
-        body: {
-          tenant_id: tenantId,
-          partner_name: form.name,
-          partner_type: form.partner_type,
-          capital_share: cap,
-          operating_share: op,
-          initial_capital: Number(form.initial_capital) || 0,
-          username: form.username,
-          password: form.password,
-          email: form.email.trim().toLowerCase(),
-          phone: form.phone || null,
-        },
-      });
-      if (error || (data as any)?.error) {
-        const msg = await edgeErrorMessage(error, data);
-        throw new Error(msg || "فشل إنشاء الشريك");
-      }
-      // بعد الإضافة: إعادة احتساب نهائية عشان المجموع يبقى 100% بالظبط
-      if (autoShare) await applyAutoSharesToExisting(0).catch(() => {});
-      setSuccessCreds({ username: form.username, password: form.password });
-      setForm({ name: "", partner_type: "capital", capital_share: "", operating_share: "", initial_capital: "", username: "", password: "", confirm: "", email: "", phone: "" });
-      setTab("data");
-      load();
-    } catch (e: any) {
-      toast.error(e.message || "فشل إنشاء الشريك");
-
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const toggleActive = async (p: Partner) => {
-    const { error } = await supabase.from("equity_partners" as any)
-      .update({ is_active: !p.is_active }).eq("id", p.id);
-    if (error) toast.error(error.message);
-    else { toast.success(p.is_active ? "تم تعطيل الشريك" : "تم تفعيل الشريك"); load(); }
-  };
-
-  const removePartner = async (p: Partner) => {
-    const ok = await confirmAlert({
-      title: `حذف الشريك "${p.name}" نهائياً؟`,
-      description: "هيتم مسح الشريك وحساب دخوله من قاعدة البيانات خالص. لو عليه أي حركات مالية (رأس مال / سلف / أرباح) الحذف هيترفض وتقدر تعطّله بدل الحذف.",
-      confirmLabel: "أيوه، احذف",
-      cancelLabel: "لأ، سيبه",
-      tone: "danger",
-    });
-    if (!ok) return;
-    const { data, error } = await supabase.functions.invoke("admin-delete-partner", {
-      body: { partner_id: p.id },
-    });
-    const errMsg = await edgeErrorMessage(error, data);
-    if (errMsg) return toast.error(errMsg);
-    toast.success("تم حذف الشريك نهائياً");
-    load();
-  };
-
-
-  const doReset = async () => {
-    if (!resetPartner) return;
-    if (resetPw !== resetConfirm) return toast.error("كلمة المرور غير متطابقة");
-    if (resetPw.length < 8 || !/[A-Za-z]/.test(resetPw) || !/[0-9]/.test(resetPw)) {
-      return toast.error("كلمة المرور يجب 8 أحرف على الأقل + حرف ورقم");
-    }
-    const { data, error } = await supabase.functions.invoke("admin-reset-partner-password", {
-      body: { partner_id: resetPartner.id, new_password: resetPw },
-    });
-    const rErr = await edgeErrorMessage(error, data);
-    if (rErr) {
-      toast.error(rErr || "فشل التحديث");
-    } else {
-      toast.success("تم تحديث كلمة المرور. شاركها مع الشريك يدوياً.");
-      setResetPartner(null); setResetPw(""); setResetConfirm("");
-    }
-  };
-
-  const strength = passwordStrength(form.password);
-
-  const typeLabel = (t: string) => t === "capital" ? "رأس مال" : t === "operating" ? "تشغيل" : "رأس مال وتشغيل";
-  const typeColor = (t: string) => t === "capital" ? "bg-primary/10 text-primary border-primary/20"
-    : t === "operating" ? "bg-warning/10 text-warning border-warning/20"
-    : "bg-accent/20 text-accent-foreground border-accent/30";
-  const initials = (n: string) => n.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("");
-  const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
-
-  const totalCapital = rows.reduce((s, p) => s + Number(p.initial_capital || 0), 0);
-  const totalBalance = rows.reduce((s, p) => s + Number(p.current_balance || 0), 0);
-  const activeCount = rows.filter(p => p.is_active).length;
+  const active = rows.filter((r) => r.partner.is_active);
+  const shown = showOld ? rows : active;
+  const totals = useMemo(() => active.reduce((s, r) => ({
+    capital: s.capital + Number(r.capital), profit: s.profit + Number(r.profit), advances: s.advances + Number(r.advances),
+  }), { capital: 0, profit: 0, advances: 0 }), [active]);
 
   return (
-    <ConditionalLayout variant="admin" embedded={embedded}>
-      <div dir="rtl" className="text-right space-y-5">
-        <PartnerContributionAlerts mode="live" />
-
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {!embedded && <PageHeader title="الشركاء" subtitle="إدارة الشركاء وحقوقهم وحساباتهم" />}
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            {partnerCashBranchId && (
-              <Button asChild variant="outline" className="w-full sm:w-auto shadow-sm">
-                <Link to={`/branch/${partnerCashBranchId}/treasury`}>
-                  <FileText className="w-4 h-4 ml-2" />خزينة الشركاء
-                </Link>
-              </Button>
-            )}
-            <Button variant="outline" className="w-full sm:w-auto shadow-sm" onClick={recalcShares} disabled={recalcing}>
-              {recalcing ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}إعادة احتساب النسب من المبالغ
-            </Button>
-            <Button onClick={openAddDialog} className="w-full sm:w-auto shadow-sm">
-              <Plus className="w-4 h-4 ml-2" />إضافة شريك جديد
-            </Button>
-
-          </div>
+    <div dir="rtl" className="text-right space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-xl font-extrabold">الشركاء</h2>
+          <p className="text-sm text-muted-foreground">رأس مال كل شريك وربحه وسلفه — دوس على أي شريك تشوف حركاته.</p>
         </div>
-
-        {/* Summary strip */}
-        {!loading && rows.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Card className="border-primary/20"><CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">عدد الشركاء</div>
-              <div className="text-2xl font-bold mt-1">{rows.length}</div>
-            </CardContent></Card>
-            <Card><CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">النشطون</div>
-              <div className="text-2xl font-bold mt-1 text-success">{activeCount}</div>
-            </CardContent></Card>
-            <Card><CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">إجمالي رأس المال</div>
-               <FinancialAmount value={fmt(totalCapital)} size="md" className="mt-1 justify-start font-mono" />
-            </CardContent></Card>
-            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20"><CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">إجمالي الأرصدة الحالية</div>
-               <FinancialAmount value={fmt(totalBalance)} size="md" className="mt-1 justify-start text-primary font-mono" />
-            </CardContent></Card>
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-        )}
-
-        {!loading && rows.length === 0 && (
-          <Card><CardContent className="p-10 text-center text-muted-foreground">لا يوجد شركاء</CardContent></Card>
-        )}
-
-        {/* Unified card grid — all sizes */}
-        {!loading && rows.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {rows.map(p => (
-              <Card key={p.id} className="overflow-hidden group hover:shadow-lg hover:border-primary/30 transition-all duration-200">
-                {/* Header band */}
-                <div className={`h-1.5 ${p.partner_type === "capital" ? "bg-primary" : p.partner_type === "operating" ? "bg-warning" : "bg-gradient-to-l from-primary to-warning"}`} />
-                <CardContent className="p-5 space-y-4">
-                  {/* Identity row */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground flex items-center justify-center text-lg font-bold shrink-0 shadow-md">
-                        {initials(p.name)}
-                      </div>
-                      <div className="min-w-0">
-                        <Link to={`/admin/financial-position/partner/${p.id}`}
-                          className="font-bold text-lg hover:text-primary transition-colors block truncate">
-                          {p.name}
-                        </Link>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <Badge variant="outline" className={`text-[11px] ${typeColor(p.partner_type)}`}>{typeLabel(p.partner_type)}</Badge>
-                          {p.is_active
-                            ? <Badge className="bg-success/15 text-success border-0 text-[11px]">● نشط</Badge>
-                            : <Badge variant="secondary" className="text-[11px]">معطل</Badge>}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Current balance — hero */}
-                  <div className="rounded-xl bg-gradient-to-br from-primary/5 via-primary/10 to-primary/5 border border-primary/20 p-4">
-                    <div className="text-xs text-muted-foreground mb-1">الرصيد الحالي</div>
-                     <FinancialAmount value={fmt(p.current_balance)} size="lg" className="justify-start text-primary font-mono" />
-                  </div>
-
-                  {/* Stats grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditShares({ id: p.id, name: p.name, cap: String((Number(p.capital_share) * 100).toFixed(2)), op: String((Number(p.operating_share) * 100).toFixed(2)) })}
-                      className="rounded-lg bg-muted/40 p-3 text-center hover:bg-muted transition-colors"
-                      title="تعديل النسب"
-                    >
-                      <div className="text-[11px] text-muted-foreground">حصة رأس المال ✎</div>
-                      <div className="font-bold text-base mt-0.5">{(Number(p.capital_share) * 100).toFixed(1)}%</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditShares({ id: p.id, name: p.name, cap: String((Number(p.capital_share) * 100).toFixed(2)), op: String((Number(p.operating_share) * 100).toFixed(2)) })}
-                      className="rounded-lg bg-muted/40 p-3 text-center hover:bg-muted transition-colors"
-                      title="تعديل النسب"
-                    >
-                      <div className="text-[11px] text-muted-foreground">حصة التشغيل ✎</div>
-                      <div className="font-bold text-base mt-0.5">{(Number(p.operating_share) * 100).toFixed(1)}%</div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setEditCapital({ id: p.id, name: p.name, amount: String(p.initial_capital ?? 0) })}
-                      className="rounded-lg bg-muted/40 p-3 text-center hover:bg-muted transition-colors"
-                      title="تعديل رأس المال وإعادة احتساب النسب"
-                    >
-                      <div className="text-[11px] text-muted-foreground">رأس المال ✎</div>
-                      <div className="font-bold text-base mt-0.5 font-mono">{fmt(p.initial_capital)}</div>
-                    </button>
-
-                  </div>
-
-                  {/* Username */}
-                  <div className="flex items-center justify-between text-xs pt-1 border-t">
-                    <span className="text-muted-foreground">اسم المستخدم</span>
-                    <span className="font-mono font-semibold">{userNames[p.id] ?? "-"}</span>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <Button size="sm" variant="default" className="flex-1 min-w-[120px]" asChild>
-                      <Link to={`/admin/financial-position/partner/${p.id}`}>
-                        <User className="w-4 h-4 ml-1.5" />كشف الحساب
-                      </Link>
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1 min-w-[100px]"
-                      onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "-" })}>
-                      <FileText className="w-4 h-4 ml-1.5" />تحميل PDF
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => openLinkDialog(p)} title="ربط الشريك بحساب موظف مسجل">
-                      <Link2 className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setResetPartner(p)} title="إعادة تعيين كلمة المرور">
-                      <KeyRound className="w-4 h-4" />
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => toggleActive(p)} title={p.is_active ? "تعطيل" : "تفعيل"}>
-                      <Power className={`w-4 h-4 ${p.is_active ? "text-success" : "text-muted-foreground"}`} />
-                    </Button>
-                    <Button size="sm" variant="outline" className="border-destructive/30" onClick={() => removePartner(p)} title="حذف نهائي">
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
-                  </div>
-
-                </CardContent>
-              </Card>
-            ))}
+        {canWrite && (
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setAdding(true)} className="gap-2"><PlusCircle className="w-4 h-4" /> شريك جديد</Button>
+            <Button variant="outline" onClick={() => setShares(true)} className="gap-2"><Calculator className="w-4 h-4" /> حصص التشغيل والمرتبات</Button>
+            <Button variant="outline" asChild className="gap-2"><Link to="/admin/accounting/flexible-distribution"><Gift className="w-4 h-4" /> توزيع الأرباح</Link></Button>
           </div>
         )}
       </div>
 
-      {/* Link partner to an existing employee account */}
-      <Dialog open={!!linkPartner} onOpenChange={(o) => !o && setLinkPartner(null)}>
-        <DialogContent dir="rtl">
-          <DialogHeader><DialogTitle>ربط «{linkPartner?.name}» بحساب موظف</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <p className="text-xs text-muted-foreground bg-primary/10 border border-primary/30 rounded p-2">
-              اختر حساب موظف موجود ليصبح هو نفسه حساب الشريك. الحساب هيحتفظ بصلاحياته ومستوى صلاحيته على كل فرع، وهيضاف له دخول شاشات الشركاء.
-            </p>
-            <div>
-              <Label>حساب الموظف</Label>
-              <Select value={linkUserId} onValueChange={setLinkUserId}>
-                <SelectTrigger><SelectValue placeholder="اختر موظف" /></SelectTrigger>
-                <SelectContent>
-                  {empAccounts.map((e) => (
-                    <SelectItem key={e.user_id} value={e.user_id}>{e.name} — {e.username}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!empAccounts.length && <p className="text-xs text-muted-foreground mt-1">لا يوجد موظفين مرتبطين بحسابات دخول</p>}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLinkPartner(null)}>إلغاء</Button>
-            <Button onClick={saveLink} disabled={!linkUserId || linking}>
-              {linking && <Loader2 className="w-4 h-4 ml-2 animate-spin" />}ربط الحساب
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatCard label="عدد الشركاء" value={String(active.length)} icon={<UserCircle className="w-5 h-5" />} accent="secondary"
+          metricHint={{ meaning: "الشركاء الشغالين دلوقتي", source: "الشركاء (partners_overview)", formula: "عدد الشركاء غير الموقوفين" }} />
+        <StatCard label="رأس المال لحد النهارده" value={formatEGP(totals.capital)} icon={<ArrowUpCircle className="w-5 h-5" />} accent="primary"
+          metricHint={{ meaning: "رأس مال كل الشركاء الشغالين", source: "حركات الشركاء (partners_overview)", formula: "Σ (المساهمات − المسحوبات من رأس المال)" }} />
+        <StatCard label="صافي ربح الشركاء" value={formatEGP(totals.profit)} hint="اتحسبلهم ولسه ماسحبوهوش" icon={<Gift className="w-5 h-5" />} accent="success"
+          metricHint={{ meaning: "الربح اللي اتحسب للشركاء ولسه في الشركة", source: "حركات الشركاء (partners_overview)", formula: "Σ (نصيب + حصة تشغيل + مرتب من الربح − سحب من الربح − سداد سلف)" }} />
+        <StatCard label="السلف" value={formatEGP(totals.advances)} hint="بتتخصم من التوزيع الجاي" icon={<ArrowDownCircle className="w-5 h-5" />} accent={totals.advances > 0 ? "warning" : "secondary"}
+          metricHint={{ meaning: "اللي الشركاء سحبوه أكتر من ربحهم", source: "سلف الشركاء المفتوحة", formula: "Σ الباقي من كل سلفة مفتوحة" }} />
+      </div>
 
-      {/* Add partner dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
-          <DialogHeader><DialogTitle>إضافة شريك جديد</DialogTitle></DialogHeader>
-
-          {/* شريط الاختيار العلوي */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {([
-              { key: "employee", title: "ترقية موظف حالي إلى شريك", desc: "بضغطة واحدة ومن غير تكرار بيانات" },
-              { key: "external", title: "تسجيل شريك خارجي جديد", desc: "شريك ليس له وظيفة في الشركة" },
-            ] as const).map((o) => (
-              <button
-                key={o.key}
-                type="button"
-                onClick={() => setAddMode(o.key)}
-                className={`text-right rounded-lg border p-3 transition-colors ${
-                  addMode === o.key ? "border-primary bg-primary/10 ring-1 ring-primary/30" : "border-border hover:bg-muted/50"
-                }`}
-              >
-                <div className="font-semibold text-sm">{o.title}</div>
-                <div className="text-xs text-muted-foreground mt-0.5">{o.desc}</div>
-              </button>
-            ))}
-          </div>
-
-          {addMode === "employee" ? (
-            <div className="space-y-4 mt-3">
-              {/* الكتلة الأولى: بيانات الهوية والارتباط */}
-              <div className="space-y-3">
-                <div className="text-sm font-semibold">بيانات الهوية والارتباط</div>
-                <div>
-                  <Label>اختر الموظف المراد ترقيته *</Label>
-                  <Input
-                    className="mt-1 mb-2"
-                    placeholder="ابحث بالاسم أو المسمى الوظيفي..."
-                    value={empSearch}
-                    onChange={(e) => setEmpSearch(e.target.value)}
-                  />
-                  <Select value={selectedEmpId} onValueChange={setSelectedEmpId}>
-                    <SelectTrigger><SelectValue placeholder={empLoading ? "جاري التحميل..." : "اختر الموظف"} /></SelectTrigger>
-                    <SelectContent>
-                      {eligibleEmps
-                        .filter((e) => !empSearch.trim() || `${e.name} ${e.job_title}`.includes(empSearch.trim()))
-                        .map((e) => (
-                          <SelectItem key={e.id} value={e.id}>{e.name} — {e.job_title}</SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  {!empLoading && eligibleEmps.length === 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">مفيش موظفين متاحين للترقية (لازم يكون للموظف حساب دخول ومش مربوط بشريك تاني).</p>
-                  )}
-                </div>
-
-                {selectedEmp && (
-                  <div className="rounded-lg border bg-muted/30 p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="space-y-1 text-sm">
-                        <div className="font-bold">{selectedEmp.name}</div>
-                        <div className="text-muted-foreground">{selectedEmp.job_title}</div>
-                        <div className="text-muted-foreground">الفرع الأساسي: {branchName(selectedEmp.branch_id)}</div>
-                        <div className="text-muted-foreground font-mono">{selectedEmp.phone || "بدون رقم هاتف"}</div>
+      {loading ? (
+        <div className="text-sm text-muted-foreground">جاري التحميل…</div>
+      ) : shown.length === 0 ? (
+        <Card><CardContent className="p-6 text-center text-muted-foreground">مفيش شركاء لسه — دوس «شريك جديد».</CardContent></Card>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {shown.map((r) => (
+            <PermCard key={r.partner.id} label="كارت الشريك">
+              <Card className={`overflow-hidden ${r.partner.is_active ? "" : "opacity-60"}`}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <Link to={`/admin/financial-position/partner/${r.partner.id}`} className="text-lg font-bold hover:underline">{r.partner.name}</Link>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <Badge variant="secondary">{r.partner.role_kind === "employee_partner" ? "موظف وشريك" : "شريك"}</Badge>
+                        {Number(r.partner.operating_share) > 0 && <Badge variant="outline">حصة تشغيل {pct(r.partner.operating_share)}</Badge>}
+                        {r.partner.role_kind === "employee_partner" && <Badge variant="outline">{salaryText(r.partner)}</Badge>}
+                        {!r.partner.is_active && <Badge variant="destructive">موقوف</Badge>}
                       </div>
-                      <Badge className="bg-success/10 text-success border-success/20">حساب دخول نشط وموثق</Badge>
                     </div>
+                    <Button size="sm" variant="ghost" asChild><Link to={`/admin/financial-position/partner/${r.partner.id}`}>افتح صفحته</Link></Button>
                   </div>
-                )}
-              </div>
-
-              {/* الكتلة الثانية: شروط وحصص الشراكة */}
-              <div className="border-t pt-4 space-y-3">
-                <div className="text-sm font-semibold">شروط وحصص الشراكة</div>
-                <div><Label>النوع *</Label>
-                  <Select value={form.partner_type} onValueChange={v => setForm({ ...form, partner_type: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="capital">شريك رأس مال</SelectItem>
-                      <SelectItem value="operating">شريك تشغيل</SelectItem>
-                      <SelectItem value="both">الاثنين</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div><Label>حصة رأس المال (ج.م) *</Label>
-                  <Input type="number" value={form.initial_capital} onChange={e => setForm({ ...form, initial_capital: e.target.value })} placeholder="مثال: 600000" />
-                </div>
-                <label className="flex items-center gap-2 text-sm cursor-pointer bg-muted/40 rounded-md p-2">
-                  <input type="checkbox" checked={autoShare} onChange={e => setAutoShare(e.target.checked)} className="accent-primary w-4 h-4" />
-                  <span>احسب نسبة الشراكة أوتوماتيك من المبالغ المدفوعة</span>
-                </label>
-                {autoShare ? (
-                  <div className="rounded-md border p-3 bg-primary/5 text-sm">
-                    نسبة الشريك الجديد: <span className="font-mono font-bold">{(autoNewShare * 100).toFixed(2)}%</span>
-                    <span className="text-xs text-muted-foreground"> — من إجمالي {fmt(autoTotalCapital)} ج.م</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+                    <Num label="المساهمات" v={r.contributions} />
+                    <Num label="مسحوب من رأس المال" v={r.capital_withdrawals} tone="destructive" />
+                    <Num label="رأس المال" v={r.capital} tone="primary" strong />
+                    <Num label="صافي الربح" v={r.profit} tone={r.profit < 0 ? "destructive" : "success"} strong />
+                    <Num label="السلف" v={r.advances} tone={r.advances > 0 ? "warning" : undefined} />
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div><Label>نسبة الشراكة والأرباح (0-1)</Label><Input type="number" step="0.0001" value={form.capital_share} onChange={e => setForm({ ...form, capital_share: e.target.value })} placeholder="مثال: 0.25" /></div>
-                    <div><Label>حصة التشغيل (0-1)</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
-                  </div>
-                )}
-                {autoShare && (
-                  <div><Label>حصة التشغيل (0-1) — اختياري</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
-                )}
-                <div><Label>تاريخ بدء الشراكة</Label><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-                <div><Label>ملاحظات أو شروط العقد (اختياري)</Label><Input value={partnerNotes} onChange={e => setPartnerNotes(e.target.value)} /></div>
-                <p className="text-xs text-muted-foreground">راتب الموظف وحساباته الوظيفية تفضل منفصلة تماماً عن حصته وأرباحه كشريك.</p>
-              </div>
-            </div>
-          ) : (
-          <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="w-full">
-              <TabsTrigger value="data" className="flex-1">بيانات الشريك</TabsTrigger>
-              <TabsTrigger value="creds" className="flex-1">بيانات الدخول</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="data" className="space-y-3 mt-4">
-              <div><Label>الاسم *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-              <div><Label>النوع *</Label>
-                <Select value={form.partner_type} onValueChange={v => setForm({ ...form, partner_type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="capital">شريك رأس مال</SelectItem>
-                    <SelectItem value="operating">شريك تشغيل</SelectItem>
-                    <SelectItem value="both">الاثنين</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>المبلغ المدفوع / رأس المال المبدئي (ج.م) *</Label><Input type="number" value={form.initial_capital} onChange={e => setForm({ ...form, initial_capital: e.target.value })} placeholder="مثال: 600000" /></div>
-
-              <label className="flex items-center gap-2 text-sm cursor-pointer bg-muted/40 rounded-md p-2">
-                <input type="checkbox" checked={autoShare} onChange={e => setAutoShare(e.target.checked)} className="accent-primary w-4 h-4" />
-                <span>احسب نسبة كل شريك أوتوماتيك من المبالغ المدفوعة</span>
-              </label>
-
-              {autoShare ? (
-                <div className="rounded-md border p-3 space-y-1.5 bg-primary/5">
-                  <div className="text-xs text-muted-foreground">إجمالي رأس المال بعد الإضافة: <span className="font-mono font-bold">{fmt(autoTotalCapital)}</span> ج.م</div>
-                  {autoSharesPreview.length === 0 && <div className="text-xs text-muted-foreground">أدخل المبلغ المدفوع علشان تظهر النسب</div>}
-                  {autoSharesPreview.map(s => (
-                    <div key={s.id} className={`flex items-center justify-between text-sm ${s.id === "__new__" ? "font-bold text-primary" : ""}`}>
-                      <span>{s.name}</span>
-                      <span className="font-mono">{fmt(s.amount)} ج.م — {(s.share * 100).toFixed(2)}%</span>
+                  {canWrite && r.partner.is_active && (
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setMoney({ kind: "contribution", cards: r })}><ArrowUpCircle className="w-4 h-4" /> مساهمة</Button>
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setMoney({ kind: "withdrawal", cards: r })}><ArrowDownCircle className="w-4 h-4" /> سحب</Button>
                     </div>
-                  ))}
-                  <div className="text-[11px] text-muted-foreground pt-1">هتتحدث نسب الشركاء الحاليين تلقائيًا عند الحفظ.</div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <div><Label>حصة رأس المال (0-1)</Label><Input type="number" step="0.0001" value={form.capital_share} onChange={e => setForm({ ...form, capital_share: e.target.value })} placeholder="مثال: 0.25" /></div>
-                  <div><Label>حصة التشغيل (0-1)</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
-                </div>
-              )}
-              {autoShare && (
-                <div><Label>حصة التشغيل (0-1) — اختياري</Label><Input type="number" step="0.0001" value={form.operating_share} onChange={e => setForm({ ...form, operating_share: e.target.value })} /></div>
-              )}
+                  )}
+                </CardContent>
+              </Card>
+            </PermCard>
+          ))}
+        </div>
+      )}
+      {rows.length > active.length && (
+        <Button variant="link" className="px-0" onClick={() => setShowOld((v) => !v)}>{showOld ? "اخفي الموقوفين" : `اعرض الموقوفين (${rows.length - active.length})`}</Button>
+      )}
 
-              <div className="flex justify-end">
-                <Button onClick={() => setTab("creds")}>التالي: بيانات الدخول</Button>
-              </div>
-            </TabsContent>
-            <TabsContent value="creds" className="space-y-3 mt-4">
-              <div>
-                <Label>اسم المستخدم *</Label>
-                <Input value={form.username} onChange={e => setForm({ ...form, username: e.target.value.toLowerCase().replace(/\s/g, "_") })} />
-                {usernameCheck === "checking" && <p className="text-xs text-muted-foreground mt-1">جاري التحقق...</p>}
-                {usernameCheck === "taken" && <p className="text-xs text-destructive mt-1">اسم المستخدم مستخدم بالفعل</p>}
-                {usernameCheck === "free" && <p className="text-xs text-success mt-1">✓ متاح</p>}
-              </div>
-              <div>
-                <Label>كلمة المرور *</Label>
-                <div className="relative">
-                  <Input type={showPw ? "text" : "password"} value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
-                  <button type="button" onClick={() => setShowPw(!showPw)} className="absolute left-2 top-1/2 -translate-y-1/2">
-                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {form.password && <p className={`text-xs mt-1 font-semibold ${strength.color}`}>القوة: {strength.level}</p>}
-              </div>
-              <div><Label>تأكيد كلمة المرور *</Label><Input type={showPw ? "text" : "password"} value={form.confirm} onChange={e => setForm({ ...form, confirm: e.target.value })} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>البريد الإلكتروني (اختياري)</Label>
-                  <Input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
-                  <p className="text-xs text-muted-foreground mt-1">سيبه فاضي لو مفيش إيميل — الشريك هيدخل باسم المستخدم وكلمة المرور.</p>
-                </div>
-                <div><Label>الهاتف (اختياري)</Label><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
-              </div>
-            </TabsContent>
-          </Tabs>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>إلغاء</Button>
-            <Button
-              onClick={addMode === "employee" ? submitEmployeePartner : submit}
-              disabled={submitting || (addMode === "employee" && !selectedEmpId)}
-            >
-              {submitting && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
-              {addMode === "employee" ? "تأكيد الشراكة والحفظ" : "إنشاء الشريك"}
-            </Button>
-          </DialogFooter>
-
-        </DialogContent>
-      </Dialog>
-
-      {/* Success credentials */}
-      <Dialog open={!!successCreds} onOpenChange={() => setSuccessCreds(null)}>
-        <DialogContent dir="rtl">
-          <DialogHeader><DialogTitle className="text-success">✅ تم إنشاء حساب الشريك بنجاح</DialogTitle></DialogHeader>
-          {successCreds && (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">شارك بيانات الدخول مع الشريك يدوياً — لن نعرضها مرة أخرى.</p>
-              <div className="p-3 bg-muted rounded flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-muted-foreground">اسم المستخدم</div>
-                  <div className="font-mono font-bold">{successCreds.username}</div>
-                </div>
-                <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(successCreds.username); toast.success("تم النسخ"); }}><Copy className="w-3 h-3" /></Button>
-              </div>
-              <div className="p-3 bg-muted rounded flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-muted-foreground">كلمة المرور</div>
-                  <div className="font-mono font-bold">{showPw ? successCreds.password : "•".repeat(successCreds.password.length)}</div>
-                </div>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="outline" onClick={() => setShowPw(!showPw)}>{showPw ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}</Button>
-                  <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(successCreds.password); toast.success("تم النسخ"); }}><Copy className="w-3 h-3" /></Button>
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter><Button onClick={() => { setSuccessCreds(null); setOpen(false); }}>تم</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reset password */}
-      <Dialog open={!!resetPartner} onOpenChange={() => setResetPartner(null)}>
-        <DialogContent dir="rtl">
-          <DialogHeader><DialogTitle>إعادة تعيين كلمة المرور — {resetPartner?.name}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>كلمة المرور الجديدة</Label><Input type="password" value={resetPw} onChange={e => setResetPw(e.target.value)} /></div>
-            <div><Label>تأكيد</Label><Input type="password" value={resetConfirm} onChange={e => setResetConfirm(e.target.value)} /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResetPartner(null)}>إلغاء</Button>
-            <Button onClick={doReset}>تحديث</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit partner capital */}
-      <Dialog open={!!editCapital} onOpenChange={() => setEditCapital(null)}>
-        <DialogContent dir="rtl">
-          <DialogHeader><DialogTitle>تعديل رأس المال — {editCapital?.name}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>المبلغ المدفوع (ج.م)</Label>
-              <Input type="number" value={editCapital?.amount ?? ""} onChange={e => setEditCapital(c => c ? { ...c, amount: e.target.value } : c)} />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              هيتسجل الفرق في كشف حساب الشريك (إيداع أو تخفيض)، وهتتعاد نسب كل الشركاء أوتوماتيك من المبالغ ومجموعها 100% بالظبط.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditCapital(null)}>إلغاء</Button>
-            <Button onClick={saveCapital} disabled={savingCapital}>
-              {savingCapital ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}حفظ وإعادة الاحتساب
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-
-      {/* Edit partner shares */}
-      <Dialog open={!!editShares} onOpenChange={() => setEditShares(null)}>
-        <DialogContent dir="rtl" className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base">تعديل النسب</DialogTitle>
-            <p className="text-sm text-muted-foreground truncate">{editShares?.name}</p>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 space-y-2">
-              <Label className="text-xs font-bold text-primary">نسبة رأس المال</Label>
-              <div className="relative">
-                <Input
-                  type="number" step="0.01" inputMode="decimal"
-                  className="pe-10 text-lg font-bold h-11 bg-background"
-                  value={editShares?.cap ?? ""}
-                  onChange={e => setEditShares(c => c ? { ...c, cap: e.target.value } : c)}
-                />
-                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm font-bold text-primary">%</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">نصيبه من الأرباح حسب مساهمته — مجموع كل الشركاء لازم ميعديش 100%.</p>
-            </div>
-
-            <div className="rounded-xl border border-success/25 bg-success/5 p-4 space-y-2">
-              <Label className="text-xs font-bold text-success">نسبة التشغيل</Label>
-              <div className="relative">
-                <Input
-                  type="number" step="0.01" inputMode="decimal"
-                  className="pe-10 text-lg font-bold h-11 bg-background"
-                  value={editShares?.op ?? ""}
-                  onChange={e => setEditShares(c => c ? { ...c, op: e.target.value } : c)}
-                />
-                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm font-bold text-success">%</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">مقابل إدارة الشغل، بتتخصم من صافي الربح قبل التوزيع — وكل الشركاء بيشوفوها.</p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditShares(null)}>إلغاء</Button>
-            <Button onClick={saveShares} disabled={savingShares}>
-              {savingShares ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : null}حفظ النسب
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-
-    </ConditionalLayout>
+      {adding && <PartnerFormDialog onClose={() => setAdding(false)} onDone={load} />}
+      {shares && <PeriodSharesDialog onClose={() => setShares(false)} onDone={load} />}
+      {money && <PartnerMoneyDialog kind={money.kind} cards={money.cards} onClose={() => setMoney(null)} onDone={load} />}
+    </div>
   );
 }
 
+const TONE = { primary: "text-primary", success: "text-success", destructive: "text-destructive", warning: "text-warning" } as const;
+
+function Num({ label, v, tone, strong }: { label: string; v: number; tone?: "primary" | "success" | "destructive" | "warning"; strong?: boolean }) {
+  const c = tone ? TONE[tone] : "";
+  return (
+    <div className="rounded-lg bg-muted/40 p-2">
+      <div className="text-muted-foreground">{label}</div>
+      <div className={`mt-1 ${strong ? "font-extrabold text-sm" : "font-semibold"} ${c}`}>{formatEGP(v)}</div>
+    </div>
+  );
+}

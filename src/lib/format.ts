@@ -55,6 +55,8 @@ const TREASURY_CATEGORY_LABELS: Record<string, string> = {
   partner_contribution: "مساهمة رأس مال شريك",
   partner_capital: "مساهمة رأس مال شريك",
   partner_withdrawal: "مسحوبات شريك",
+  partner_cancel: "إلغاء حركة شريك",
+  partner_advance: "سلفة شريك",
   branch_transfer_in: "تحويل وارد من فرع",
   branch_transfer_out: "تحويل صادر إلى فرع",
   capital_allocation_in: "تمويل وارد للفرع",

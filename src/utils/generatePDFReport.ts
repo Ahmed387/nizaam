@@ -1697,6 +1697,11 @@ const TX_LABEL: Record<string, string> = {
   drawing: "سحب من الرصيد",
   profit_share: "توزيع أرباح",
   capital_adjustment: "تسوية رأس المال",
+  capital_withdrawal: "سحب من رأس المال",
+  profit_withdrawal: "سحب من الربح",
+  advance_settle: "سداد سلفة من نصيبه",
+  operating_share: "حصة تشغيل",
+  salary_share: "مرتب من الربح",
 };
 
 export type PartnerStatementInput = {
@@ -1743,8 +1748,9 @@ export async function generatePartnerStatementReport(input: PartnerStatementInpu
     let running = Number(input.openingBalance) || 0;
     let totalIn = 0, totalOut = 0;
     const rows = sorted.map((t) => {
-      const amt = Number(t.amount) || 0;
-      const isOut = t.transaction_type === "drawing";
+      const amt = (t as any).is_void ? 0 : Number(t.amount) || 0;
+      // 0137: every withdrawal kind and an advance paid back from a share take from the balance
+      const isOut = ["drawing", "capital_withdrawal", "profit_withdrawal", "advance_settle"].includes(t.transaction_type);
       const debit = isOut ? amt : 0;   // مدين = خصم من الرصيد (سحب)
       const credit = isOut ? 0 : amt;  // دائن = زيادة الرصيد
       running += credit - debit;

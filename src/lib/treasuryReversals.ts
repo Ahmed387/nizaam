@@ -3,5 +3,5 @@
  *  their own tab; balances and period cards keep every row. */
 export const REVERSAL_CATEGORIES = [
   "إلغاء سند", "return_cancel", "purchase_return_cancel", "sales_refund",
-  "payment_edit_reversal", "payment_in_void", "payment_out_void", "fee_void", "تصحيح قيد عكسي",
+  "payment_edit_reversal", "payment_in_void", "payment_out_void", "fee_void", "تصحيح قيد عكسي", "partner_cancel",
 ];

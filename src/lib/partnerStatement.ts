@@ -1,3 +1,4 @@
+import { txSign } from "@/lib/partners";
 import { getCairoDayBounds } from "@/lib/cairoDate";
 import { supabase } from "@/integrations/supabase/client";
 import { withPartnerBalance } from "@/lib/partnerBalances";
@@ -26,12 +27,12 @@ export async function downloadPartnerStatementPdf(opts: {
   if (from) {
     const { data: prior } = await supabase
       .from("partner_transactions" as any)
-      .select("transaction_type, amount")
+      .select("transaction_type, amount, is_void")
       .eq("partner_id", partnerId)
       .lt("created_at", getCairoDayBounds(from).startIso!);
     (prior ?? []).forEach((t: any) => {
-      const a = Number(t.amount) || 0;
-      opening += t.transaction_type === "drawing" ? -a : a;
+      if (t.is_void) return;
+      opening += txSign(t.transaction_type) * (Number(t.amount) || 0);   // 0137: every withdrawal kind takes
     });
   }
 

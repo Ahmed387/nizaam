@@ -10,10 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { TX_LABEL, txSign } from "@/lib/partners";
 
-const LABEL: Record<string, string> = {
-  contribution: "مساهمة", drawing: "مسحوبة", profit_share: "أرباح", capital_adjustment: "تسوية",
-};
+// 0137: every kind of partner movement, signed the same way as the cards (withdrawals and advance paybacks take)
+const LABEL: Record<string, string> = TX_LABEL;
 
 export default function PartnerLedger() {
   const { user } = useAuth();
@@ -45,7 +45,7 @@ export default function PartnerLedger() {
   const { totalIn, totalOut, netBalance, rows } = useMemo(() => {
     let bal = 0, tIn = 0, tOut = 0;
     const list = txs.map(t => {
-      const signed = t.transaction_type === "drawing" ? -Number(t.amount) : Number(t.amount);
+      const signed = t.is_void ? 0 : txSign(t.transaction_type) * Number(t.amount);
       if (signed >= 0) tIn += signed; else tOut += Math.abs(signed);
       bal += signed;
       return { ...t, signed, running: bal };
@@ -76,9 +76,7 @@ export default function PartnerLedger() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">الكل</SelectItem>
-                  <SelectItem value="contribution">مساهمات</SelectItem>
-                  <SelectItem value="drawing">مسحوبات</SelectItem>
-                  <SelectItem value="profit_share">أرباح</SelectItem>
+                  {Object.entries(TX_LABEL).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
