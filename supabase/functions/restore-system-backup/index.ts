@@ -37,42 +37,75 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "نص التأكيد غير مطابق" }, 400);
     }
 
-    // ---- Owner-only authorization ----
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return jsonResponse({ error: "Unauthorized" }, 401);
-    const authClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: claims, error: claimsErr } = await authClient.auth.getClaims(authHeader.replace("Bearer ", ""));
-    const callerId = claims?.claims?.sub as string | undefined;
-    if (claimsErr || !callerId) return jsonResponse({ error: "Unauthorized" }, 401);
+    // ---- Owner-only authorization (a read-only check may also come from the database with the one-time
+    //      token «restore-check» in system_cron_tokens, migration 0152 — it can never restore) ----
+    let ownerTenants: string[] = [];
+    const providedCron = req.headers.get("x-cron-secret") ?? "";
+    let cronCheck = false;
+    if (dryRun && providedCron.length >= 16) {
+      const { data: tok } = await admin.from("system_cron_tokens").select("token").eq("name", "restore-check").maybeSingle();
+      cronCheck = !!tok?.token && tok.token === providedCron;
+    }
+    if (!cronCheck) {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) return jsonResponse({ error: "Unauthorized" }, 401);
+      const authClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: claims, error: claimsErr } = await authClient.auth.getClaims(authHeader.replace("Bearer ", ""));
+      const callerId = claims?.claims?.sub as string | undefined;
+      if (claimsErr || !callerId) return jsonResponse({ error: "Unauthorized" }, 401);
 
-    const { data: roles } = await admin.from("user_roles")
-      .select("tenant_id, role").eq("user_id", callerId).in("role", ["owner", "super_admin"]);
-    const ownerTenants = [...new Set((roles ?? []).map((r: any) => r.tenant_id).filter(Boolean))];
-    if (!ownerTenants.length) {
-      return jsonResponse({ error: "الاستعادة مقصورة على المالك فقط" }, 403);
+      const { data: roles } = await admin.from("user_roles")
+        .select("tenant_id, role").eq("user_id", callerId).in("role", ["owner", "super_admin"]);
+      ownerTenants = [...new Set((roles ?? []).map((r: any) => r.tenant_id).filter(Boolean))] as string[];
+      if (!ownerTenants.length) {
+        return jsonResponse({ error: "الاستعادة مقصورة على المالك فقط" }, 403);
+      }
     }
 
     const { data: backup, error: bErr } = await admin
       .from("system_backups").select("*").eq("id", backupId).maybeSingle();
     if (bErr || !backup) return jsonResponse({ error: "النسخة غير موجودة" }, 404);
-    if (!ownerTenants.includes(backup.tenant_id)) return jsonResponse({ error: "Forbidden" }, 403);
+    if (!cronCheck && !ownerTenants.includes(backup.tenant_id)) return jsonResponse({ error: "Forbidden" }, 403);
     if (!backup.storage_path) return jsonResponse({ error: "لا يوجد ملف لهذه النسخة" }, 400);
 
-    // ---- Read + unpack the archive (gzip or raw tar) ----
-    const objectRes = await fetch(`${url}/storage/v1/object/system-backups/${backup.storage_path}`, {
-      headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
-    });
-    if (!objectRes.ok || !objectRes.body) {
-      return jsonResponse({ error: `تعذر قراءة ملف النسخة: ${objectRes.status}` }, 500);
+    // ---- Read the backup: a folder (0152: one .json.gz per table / piece + manifest.json, read file by file and
+    //      handled like the entries of an archive) or an old single archive (gzip or raw tar) ----
+    let entries: { name: string; bytes: Uint8Array }[];
+    if (String(backup.storage_path).endsWith("/")) {
+      const dir = String(backup.storage_path).slice(0, -1);
+      entries = [];
+      for (let offset = 0; ; offset += 1000) {
+        const { data: files, error: lErr } = await admin.storage.from("system-backups").list(dir, { limit: 1000, offset });
+        if (lErr) return jsonResponse({ error: `تعذر قراءة فولدر النسخة: ${lErr.message}` }, 500);
+        for (const f of files ?? []) {
+          if (!f.id) continue;
+          let got: Blob | null = null;
+          for (let attempt = 1; attempt <= 4 && !got; attempt++) {
+            const { data: b } = await admin.storage.from("system-backups").download(`${dir}/${f.name}`);
+            if (b) got = b; else await new Promise((r) => setTimeout(r, 800 * attempt));
+          }
+          if (!got) return jsonResponse({ error: `تعذر تنزيل ${f.name}` }, 500);
+          const bytes = new Uint8Array(await got.arrayBuffer());
+          entries.push({ name: f.name === "manifest.json" ? f.name : `tables/${f.name}`, bytes });
+        }
+        if (!files || files.length < 1000) break;
+      }
+    } else {
+      const objectRes = await fetch(`${url}/storage/v1/object/system-backups/${backup.storage_path}`, {
+        headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
+      });
+      if (!objectRes.ok || !objectRes.body) {
+        return jsonResponse({ error: `تعذر قراءة ملف النسخة: ${objectRes.status}` }, 500);
+      }
+      const compressed = await objectRes.bytes();
+      const isGzip = compressed.byteLength >= 2 && compressed[0] === 0x1f && compressed[1] === 0x8b;
+      const raw = isGzip
+        ? await gunzip(new Response(compressed).body as ReadableStream<Uint8Array>)
+        : compressed;
+      entries = untar(raw);
     }
-    const compressed = await objectRes.bytes();
-    const isGzip = compressed.byteLength >= 2 && compressed[0] === 0x1f && compressed[1] === 0x8b;
-    const raw = isGzip
-      ? await gunzip(new Response(compressed).body as ReadableStream<Uint8Array>)
-      : compressed;
-    const entries = untar(raw);
 
     const manifestEntry = entries.find((e) => e.name === "manifest.json");
     const manifest = manifestEntry

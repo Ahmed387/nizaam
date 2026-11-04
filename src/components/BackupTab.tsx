@@ -13,6 +13,7 @@ import {
   Trash2, CloudUpload, RotateCcw, ShieldAlert, FileSearch,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
+import { zipStore } from "@/lib/zipWrite";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -85,9 +86,11 @@ export function BackupTab() {
   const runBackupNow = async () => {
     setRunningServer(true);
     setProgress({ done: 0, total: 1, label: "تجهيز قائمة الجداول…" });
+    // 0152: «finalize» moves the staged files into ONE folder (backup-folder) — no single file above 50 MB
     const call = async (body: Record<string, unknown>, tries = 3): Promise<any> => {
       for (let i = 0; i < tries; i++) {
-        const { data, error } = await supabase.functions.invoke("scheduled-backup", { body });
+        const fn = body.mode === "finalize" ? "backup-folder" : "scheduled-backup";
+        const { data, error } = await supabase.functions.invoke(fn, { body });
         const msg = await edgeErrorMessage(error);
         if (!msg) return data;
         if (i === tries - 1) throw new Error(msg);
@@ -104,7 +107,7 @@ export function BackupTab() {
         const r = await call({ mode: "part", job_id: plan.job_id, table: tables[i] });
         counts[tables[i]] = Number(r?.rows ?? 0);
       }
-      setProgress({ done: tables.length, total, label: "تجميع وضغط الملف النهائي والمرفقات…" });
+      setProgress({ done: tables.length, total, label: "تجميع الملفات في فولدر واحد…" });
       const data = await call({ mode: "finalize", job_id: plan.job_id, counts }, 2);
       setProgress({ done: total, total, label: "اكتملت النسخة" });
       const first = (data as any)?.results?.[0];
@@ -122,8 +125,45 @@ export function BackupTab() {
     }
   };
 
+  // 0152: a nightly backup is a FOLDER («<tenant>/backup-<stamp>/», storage_path ends with «/») of small .json.gz files
+  // + manifest.json — every file under 50 MB. «تحميل» packs the whole folder into ONE .zip on the device.
+  const folderFiles = async (dir: string): Promise<string[]> => {
+    const names: string[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase.storage.from("system-backups").list(dir, { limit: 1000, offset });
+      if (error) throw error;
+      for (const f of data ?? []) if ((f as any).id) names.push(f.name);
+      if (!data || data.length < 1000) break;
+    }
+    return names;
+  };
+
   const downloadBackup = async (row: any) => {
     if (!row.storage_path) return toast.error("لا يوجد ملف");
+    if (String(row.storage_path).endsWith("/")) {
+      const dir = String(row.storage_path).slice(0, -1);
+      const folderName = dir.split("/").pop() || "backup";
+      const t = toast.loading("بجهز الفولدر في ملف واحد…");
+      try {
+        const names = await folderFiles(dir);
+        const entries: { name: string; bytes: Uint8Array }[] = [];
+        for (const name of names) {
+          const { data, error } = await supabase.storage.from("system-backups").download(`${dir}/${name}`);
+          if (error || !data) throw new Error(`${name}: ${error?.message ?? "تعذر التنزيل"}`);
+          entries.push({ name: `${folderName}/${name}`, bytes: new Uint8Array(await data.arrayBuffer()) });
+        }
+        const blob = new Blob([zipStore(entries)], { type: "application/zip" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${folderName}.zip`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+        toast.success(`اتحمّل ${names.length} ملف في ${folderName}.zip`, { id: t });
+      } catch (e: any) {
+        toast.error(e?.message ?? "تعذر التحميل", { id: t });
+      }
+      return;
+    }
     const { data, error } = await supabase.storage.from("system-backups").createSignedUrl(row.storage_path, 300);
     if (error) return toast.error(error.message);
     window.open(data.signedUrl, "_blank");
@@ -132,7 +172,14 @@ export function BackupTab() {
   const deleteBackup = async (row: any) => {
     setDeletingId(row.id);
     try {
-      if (row.storage_path) {
+      if (row.storage_path && String(row.storage_path).endsWith("/")) {
+        const dir = String(row.storage_path).slice(0, -1);
+        const names = await folderFiles(dir);
+        for (let i = 0; i < names.length; i += 100) {
+          const { error: sErr } = await supabase.storage.from("system-backups").remove(names.slice(i, i + 100).map((n) => `${dir}/${n}`));
+          if (sErr) console.warn("storage delete:", sErr.message);
+        }
+      } else if (row.storage_path) {
         const { error: sErr } = await supabase.storage.from("system-backups").remove([row.storage_path]);
         if (sErr) console.warn("storage delete:", sErr.message);
       }
