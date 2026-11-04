@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { AdminLayout } from "@/components/layout/Layouts";
+import { FollowUpCards } from "@/components/dashboard/FollowUpCards";
 import { PageHeader } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
@@ -96,6 +97,9 @@ export default function AdminDashboard() {
 
       {/* 1) The answer first: are we winning, and what is the stock worth (this month) */}
       <PermPart page="admin_home" part="business_snapshot" group><div className="mb-6"><BusinessSnapshot compact /></div></PermPart>
+
+      {/* «متابعة» (0147): what the owner agreed to follow — each card opens where it is handled */}
+      <PermPart page="admin_home" part="follow_ups" group><FollowUpCards /></PermPart>
 
       {/* 2) Today — four plain numbers */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

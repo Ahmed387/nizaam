@@ -71,6 +71,7 @@ export const PAGE_PARTS: Record<string, PagePart[]> = {
   ],
   admin_home: [
     { id: "business_snapshot", label: "هل بنكسب؟ (ملخص الشهر)", kind: "بوكس", sensitive: true },
+    { id: "follow_ups", label: "متابعة (طلبات، تحويلات، سلف الشركاء…)", kind: "بوكس", sensitive: true },
     { id: "sales_today", label: "مبيعات النهارده", kind: "كارت" },
     { id: "low_stock", label: "أصناف قربت تخلص", kind: "كارت" },
     { id: "pending_approvals", label: "طلبات مستنية موافقتك", kind: "كارت" },
