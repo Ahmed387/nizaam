@@ -121,9 +121,12 @@ ${reportsText}`;
     for (let i = 0; i < 8; i++) {
       const resp = await aiChat({ model: "google/gemini-2.5-flash", messages, tools: TOOLS });
 
-      if (resp.status === 429) return json({ error: "الضغط عالي على الذكاء الاصطناعي، جرّب بعد شوية" }, 429);
+      if (resp.status === 429 || resp.status === 503) return json({ error: "الضغط عالي على الذكاء الاصطناعي دلوقتي، جرّب تاني بعد دقيقة" }, 503);
       if (resp.status === 402) return json({ error: "رصيد الذكاء الاصطناعي خلص، محتاج تشحن كريدت" }, 402);
-      if (!resp.ok) return json({ error: `خطأ من الذكاء الاصطناعي: ${await resp.text()}` }, 500);
+      if (!resp.ok) {
+        console.error("ask-me AI error", resp.status, (await resp.text()).slice(0, 500));
+        return json({ error: "الذكاء الاصطناعي مش بيرد دلوقتي، جرّب تاني بعد دقيقة" }, 502);
+      }
 
       const data = await resp.json();
       const msg = data?.choices?.[0]?.message;

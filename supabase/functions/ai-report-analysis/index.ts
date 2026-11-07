@@ -71,15 +71,16 @@ ${(s.top_products ?? []).slice(0, 10).map((p: any) => `- ${p.name}: كمية ${p
         ],
       });
 
-    if (aiResp.status === 429) {
-      return new Response(JSON.stringify({ error: "تم تجاوز الحد المسموح من طلبات الـ AI، حاول لاحقاً" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // 2026-11-07: a busy Google answer (503 «high demand») reached the screen raw; show a plain message instead.
+    if (aiResp.status === 429 || aiResp.status === 503) {
+      return new Response(JSON.stringify({ error: "الضغط عالي على الذكاء الاصطناعي دلوقتي، جرّب تاني بعد دقيقة" }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (aiResp.status === 402) {
       return new Response(JSON.stringify({ error: "يلزم شحن رصيد لاستخدام الذكاء الاصطناعي" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     if (!aiResp.ok) {
-      const errText = await aiResp.text();
-      throw new Error(`AI error: ${errText}`);
+      console.error("ai-report-analysis AI error", aiResp.status, (await aiResp.text()).slice(0, 500));
+      return new Response(JSON.stringify({ error: "الذكاء الاصطناعي مش بيرد دلوقتي، جرّب تاني بعد دقيقة" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const data = await aiResp.json();
