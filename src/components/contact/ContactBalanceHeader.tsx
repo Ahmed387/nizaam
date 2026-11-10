@@ -3,6 +3,28 @@ import { formatEGP } from "@/lib/format";
 import type { SideOverview } from "@/lib/ledger";
 
 /**
+ * «الصافي للاسم الواحد» (مدين / دائن) the way the old program «سهل» shows one account per name:
+ *   الصافي = رصيد ناحية العميل − رصيد ناحية المورد
+ *   موجب = مدين («عليه» — لينا عنده)، سالب = دائن («له» — علينا له).
+ * Shown for matching with «سهل» only: the two accounts above stay separate and are never netted in the books.
+ */
+function NetByName({ customerBalance, supplierBalance }: { customerBalance: number; supplierBalance: number }) {
+  const net = Math.round((customerBalance - supplierBalance) * 100) / 100;
+  const debit = Math.max(net, 0), credit = Math.max(-net, 0);
+  return (
+    <div className="mt-3 card-elevated p-4 border-r-4 border-muted-foreground/40">
+      <div className="text-sm text-muted-foreground">الصافي للاسم (زي سهل) = ناحية العميل − ناحية المورد</div>
+      <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+        <div><div className="text-xs text-muted-foreground">ناحية العميل</div><div className="tabular-nums font-semibold">{formatEGP(customerBalance)}</div></div>
+        <div><div className="text-xs text-muted-foreground">ناحية المورد</div><div className="tabular-nums font-semibold">{formatEGP(supplierBalance)}</div></div>
+        <div><div className="text-xs text-muted-foreground">عليه — مدين</div><div className="tabular-nums font-bold text-success">{debit > 0.005 ? formatEGP(debit) : "—"}</div></div>
+        <div><div className="text-xs text-muted-foreground">له — دائن</div><div className="tabular-nums font-bold text-destructive">{credit > 0.005 ? formatEGP(credit) : "—"}</div></div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * «الرصيد الفعلي» of a customer / supplier at the top of his file: what he owes us and what we owe him.
  * Each total is built from the two separate accounts (customer debt + our advance at him as a supplier, and
  * the reverse) — the accounts are never netted against each other (owner rule).
@@ -37,6 +59,7 @@ export function ContactBalanceHeader({ customer, supplier, scopeLabel }: { custo
         <Card title="علينا له" total={them} tone="border-destructive" icon={<ArrowUpRight className="h-4 w-4 text-destructive" />}
           lines={[["له كمورد (فواتير شراء مفتوحة)", toSupplier], ["مقدم دفعه لنا كعميل", customerAdvance]]} />
       </div>
+      <NetByName customerBalance={c} supplierBalance={s} />
       {us <= 0.005 && them <= 0.005 && <p className="mt-1 text-xs text-success">الحساب مسدد بالكامل.</p>}
     </div>
   );
