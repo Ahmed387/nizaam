@@ -4,6 +4,7 @@ import { PermTable } from "@/components/PermTable";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
 import { InternalBranchTag } from "@/components/contact/InternalBranchTag";
 import { SettleWithoutMoneyButton } from "@/components/contact/SettleWithoutMoneyButton";
+import { MergeContactButton } from "@/components/contact/MergeContactButton";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -309,6 +310,10 @@ export default function ContactFile() {
               <SettleWithoutMoneyButton contactId={contactId} contactName={c.name} side={side}
                 sides={[...(hasCustomer ? ["customer" as const] : []), ...(hasSupplier ? ["supplier" as const] : [])]}
                 defaultBranch={scopeBranch ?? routeBranchId ?? null} onDone={() => { loadOverview(); loadSide(); }} />
+            )}
+            {c && contactId && !c.is_archived && (
+              <MergeContactButton contactId={contactId} contactName={c.name} branchId={c.branch_id ?? null}
+                onDone={(kept) => { if (kept === contactId) { loadOverview(); loadSide(); } else nav(isAdminView ? `/admin/contacts/${kept}` : `/branch/${routeBranchId}/contacts/${kept}`); }} />
             )}
             <Button variant="outline" onClick={() => nav(`${isAdminView ? `/admin/contacts/${contactId}/statement` : `/branch/${routeBranchId}/contacts/${contactId}/statement`}?side=${side}${scopeBranch ? `&branch=${scopeBranch}` : ""}`)}>
               <Activity className="w-4 h-4 ml-1" /> كشف {sideName}
