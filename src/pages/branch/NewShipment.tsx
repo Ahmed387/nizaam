@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { PackStepper } from "@/components/PackUnits";
 import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
@@ -1044,6 +1045,7 @@ export default function NewShipment() {
                     <div className="space-y-1">
                       <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">الكمية</Label>
                       <Input type="number" min={1} value={l.quantity} onChange={(e) => updateLine(i, { quantity: Number(e.target.value) })} className="h-9 border-emerald-500/20 focus-visible:ring-emerald-500/30" />
+                      {l.product_id && <PackStepper qty={l.quantity} product={products.find((p: any) => p.id === l.product_id)} onChange={(q) => updateLine(i, { quantity: q })} />}
                     </div>
                     <div className="space-y-1">
                       <Label className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">سعر التكلفة</Label>

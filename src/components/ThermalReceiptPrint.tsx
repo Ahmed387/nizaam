@@ -2,6 +2,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ThermalReceiptItem {
+  /** the product's reference code (what staff search by) and its quantity in packs («2 كرتونة + 1 قطعة») — printed under the name */
+  code?: string | null;
+  pack?: string | null;
   name: string;
   qty: number;
   unit_price: number;
@@ -9,6 +12,8 @@ export interface ThermalReceiptItem {
 }
 
 export interface ThermalReceiptItem2 {
+  code?: string | null;
+  pack?: string | null;
   name: string;
   qty: number;
   unit_price: number;
@@ -289,7 +294,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
               <tr key={i}>
                 <td className="tr-num">{it.received ?? "—"}</td>
                 <td className="tr-num">{it.qty}</td>
-                <td className="tr-name">{it.name}</td>
+                <td className="tr-name">{it.name}{(it.code || it.pack) && <div style={{ fontSize: "0.85em", opacity: 0.85 }}>{[it.code ? `كود: ${it.code}` : "", it.pack || ""].filter(Boolean).join(" — ")}</div>}</td>
               </tr>
             ))}
           </tbody>
@@ -316,7 +321,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
                 <td className="tr-num">{fmt2(it.total)}</td>
                 <td className="tr-num">{fmt2(it.unit_price)}</td>
                 <td className="tr-num">{it.qty}</td>
-                <td className="tr-name">{it.name}</td>
+                <td className="tr-name">{it.name}{(it.code || it.pack) && <div style={{ fontSize: "0.85em", opacity: 0.85 }}>{[it.code ? `كود: ${it.code}` : "", it.pack || ""].filter(Boolean).join(" — ")}</div>}</td>
               </tr>
             ))}
           </tbody>

@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
+import { PackSizeButton, packOf, packText } from "@/components/PackUnits";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { normalizeForSearch, searchMatch, productSearchMatch } from "@/lib/search";
@@ -820,6 +821,7 @@ export default function Inventory() {
 
                         <td className="px-2 py-3 align-middle text-center font-medium tabular-nums">
                           <div className="font-bold">{r.quantity}</div>
+                          {packOf(r).size > 1 && <div className="text-[11px] text-muted-foreground whitespace-nowrap">{packText(r.quantity, packOf(r).size, packOf(r).name)}</div>}
                           <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
                         </td>
                         <td className="px-4 py-3 align-middle text-right">
@@ -841,6 +843,7 @@ export default function Inventory() {
                                   <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج" onClick={() => openEditAll(r)}>
                                     <Pencil className="w-4 h-4" />
                                   </Button>
+                                  {(isAdmin || hasRole("branch_manager")) && <PackSizeButton product={r} onDone={load} />}
                                   <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
                                     <History className="w-4 h-4" />
                                   </Button>

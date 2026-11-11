@@ -1,3 +1,4 @@
+import { packOf, packText } from "@/components/PackUnits";
 import { fetchContactBalance } from "@/lib/contactBalances";
 import { PermTable } from "@/components/PermTable";
 import { useEffect, useState } from "react";
@@ -88,7 +89,11 @@ export default function InvoiceView() {
           setCashierName(cashier?.name ?? null);
         }
         const { data: its } = await supabase.from("invoice_items").select("*").eq("invoice_id", invoiceId);
-        setItems(its ?? []);
+        // reference code + pack of each product (0192): shown under the name on screen and on the printed invoice
+        const pids = Array.from(new Set((its ?? []).map((x: any) => x.product_id).filter(Boolean)));
+        const { data: prods } = pids.length ? await (supabase.from("products") as any).select("id, sku, pack_size, pack_name").in("id", pids) : { data: [] };
+        const pm = Object.fromEntries(((prods ?? []) as any[]).map((p) => [p.id, p]));
+        setItems((its ?? []).map((x: any) => ({ ...x, _sku: pm[x.product_id]?.sku ?? null, _pack: packText(Number(x.quantity), packOf(pm[x.product_id]).size, packOf(pm[x.product_id]).name) })));
         const { data: pays } = await supabase.from("invoice_payments").select("*").eq("invoice_id", invoiceId).order("created_at");
         // voided payments, their reversal rows and old netting rows are not payments of this invoice
         setPayments((pays ?? []).filter((p: any) => !p.voided_at && !p.reverses_payment_id && p.payment_method !== "settlement"));
@@ -282,9 +287,10 @@ export default function InvoiceView() {
                     {it.color && <ColorChip name={it.color} />}
                   </div>
                   <VariantLine attrs={{ ...(it as any), color: null }} className="block mt-0.5" />
+                  {(it as any)._sku && <div className="text-[11px] text-muted-foreground mt-0.5">كود: <span className="font-mono">{(it as any)._sku}</span></div>}
                 </td>
 
-                <td className="text-center p-2">{it.quantity}</td>
+                <td className="text-center p-2">{it.quantity}{(it as any)._pack && <div className="text-[11px] text-muted-foreground whitespace-nowrap">{(it as any)._pack}</div>}</td>
                 <td className="text-center p-2">{formatEGP(it.selling_price)}</td>
                 <td className="text-center p-2 text-destructive">{Number(it.line_discount) > 0 ? `- ${formatEGP(it.line_discount)}` : "—"}</td>
                 <td className="text-left p-2 font-bold">{formatEGP(it.total)}</td>
@@ -505,6 +511,8 @@ export default function InvoiceView() {
         notes={inv.notes}
         items={items.map((it: any) => ({
           name: it.product_name,
+          code: it._sku ?? null,
+          pack: it._pack || null,
           qty: Number(it.quantity),
           unit_price: Number(it.selling_price ?? it.price ?? 0),
           total: Number(it.total ?? 0),

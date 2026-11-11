@@ -48,6 +48,7 @@ import { ProductCell, VariantLine } from "@/components/VariantChips";
 import type { VariantAttrs } from "@/lib/productVariant";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { saveContact } from "@/lib/contactWrites";
+import { PackStepper } from "@/components/PackUnits";
 
 
 
@@ -1587,6 +1588,9 @@ export default function NewSale() {
                               <Plus className="w-3.5 h-3.5" />
                             </button>
                           </div>
+                          <PackStepper qty={i.quantity} product={products.find((p: any) => p.id === i.product_id)} onChange={(q) => updateQty(k, q)}
+                            piecePrice={i.selling_price}
+                            onApplyDiscount={(d) => setItems(items.map((x) => itemKey(x) === k ? { ...x, discount_mode: "amount", discount_input: d, line_discount: Math.min(d, x.quantity * x.selling_price) } : x))} />
                         </td>
                         <td className="p-2 text-center">
                           <Input type="number" min="0" step="0.01" value={i.selling_price} onChange={(e) => updatePrice(k, parseFloat(e.target.value) || 0)} className="w-28 mx-auto text-center" />
