@@ -406,6 +406,7 @@ export default function AllSuppliers() {
         subtitle="عرض موحّد لكل العملاء والموردين عبر فروع الشركة"
         actions={
           <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => nav("/admin/accounts-balances")}>أرصدة مدين / دائن</Button>
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
             <Button variant="outline" onClick={() => openNewShipment()}><Truck className="w-4 h-4 ml-1" /> فاتورة شراء جديدة</Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> جهة جديدة</Button>

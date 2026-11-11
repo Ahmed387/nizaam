@@ -31,7 +31,10 @@ export default function BankReconciliation() {
   const [openStmt, setOpenStmt] = useState(false);
   const [selectedAcct, setSelectedAcct] = useState<string>("");
 
-  const [acctForm, setAcctForm] = useState({ name: "", bank_name: "", account_number: "", currency: "EGP", gl_account_id: "", opening_balance: "0" });
+  const [acctForm, setAcctForm] = useState({ name: "", bank_name: "", account_number: "", currency: "EGP", gl_account_id: "", opening_balance: "0", branch_id: "", payment_method: "" });
+  // the vessel of the system this bank / wallet account is (0197): its statement is matched to that vessel's movements
+  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
+  const VESSELS: [string, string][] = [["vodafone", "فودافون كاش"], ["instapay", "انستاباي / حساب البنك"], ["paymob", "PayMob"], ["bank", "بنك"], ["safe", "الخزينة"], ["cash", "درج النقدية"], ["company_offers", "خصومات / عروض الشركات"]];
   const today = cairoTodayDay();
   const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
   const [stmtForm, setStmtForm] = useState({ bank_account_id: "", statement_date: today, period_start: firstOfMonth, period_end: today, opening_balance: "0", closing_balance: "0" });
@@ -43,6 +46,7 @@ export default function BankReconciliation() {
       supabase.from("bank_statements" as any).select("*").order("statement_date", { ascending: false }).limit(50),
     ]);
     setAccounts((a.data as any) ?? []);
+    supabase.from("branches").select("id,name").eq("is_active", true).order("name").then(({ data }) => setBranches(((data ?? []) as any[]).filter((b) => b.name)));
     setCoa((c.data as any) ?? []);
     setStatements((s.data as any) ?? []);
   };
@@ -57,11 +61,13 @@ export default function BankReconciliation() {
       currency: acctForm.currency,
       gl_account_id: acctForm.gl_account_id || null,
       opening_balance: Number(acctForm.opening_balance) || 0,
+      branch_id: acctForm.branch_id || null,
+      payment_method: acctForm.branch_id && acctForm.payment_method ? acctForm.payment_method : null,
     });
     if (error) { toast.error(error.message); return; }
     toast.success("تم إضافة الحساب البنكي");
     setOpenAcct(false);
-    setAcctForm({ name: "", bank_name: "", account_number: "", currency: "EGP", gl_account_id: "", opening_balance: "0" });
+    setAcctForm({ name: "", bank_name: "", account_number: "", currency: "EGP", gl_account_id: "", opening_balance: "0", branch_id: "", payment_method: "" });
     load();
   };
 
@@ -107,8 +113,25 @@ export default function BankReconciliation() {
                     <div><Label>العملة</Label><Input value={acctForm.currency} onChange={e => setAcctForm({ ...acctForm, currency: e.target.value })} /></div>
                     <div><Label>الرصيد الافتتاحي</Label><Input type="number" value={acctForm.opening_balance} onChange={e => setAcctForm({ ...acctForm, opening_balance: e.target.value })} /></div>
                   </div>
+                  <div className="grid grid-cols-2 gap-3 rounded border border-primary/30 p-2">
+                    <div className="col-span-2 text-xs text-muted-foreground">وعاء السيستم اللي الكشف ده بتاعه — المطابقة هتبقى مع حركات الوعاء ده في الفرع ده بس (الأفضل).</div>
+                    <div>
+                      <Label>الفرع</Label>
+                      <Select value={acctForm.branch_id} onValueChange={v => setAcctForm({ ...acctForm, branch_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="اختر الفرع" /></SelectTrigger>
+                        <SelectContent>{branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>الوعاء</Label>
+                      <Select value={acctForm.payment_method} onValueChange={v => setAcctForm({ ...acctForm, payment_method: v })}>
+                        <SelectTrigger><SelectValue placeholder="اختر الوعاء" /></SelectTrigger>
+                        <SelectContent>{VESSELS.map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                   <div>
-                    <Label>الحساب المحاسبي المرتبط (GL)</Label>
+                    <Label>الحساب المحاسبي المرتبط (GL) — اختياري لو اخترت وعاء</Label>
                     <Select value={acctForm.gl_account_id} onValueChange={v => setAcctForm({ ...acctForm, gl_account_id: v })}>
                       <SelectTrigger><SelectValue placeholder="اختر حساب من الدليل" /></SelectTrigger>
                       <SelectContent>

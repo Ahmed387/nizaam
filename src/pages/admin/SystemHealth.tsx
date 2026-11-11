@@ -330,13 +330,13 @@ export default function SystemHealth() {
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <div className="p-3 text-xs text-muted-foreground bg-muted/20 border-b">
-              الفلوس اللي في الخزنة على أرض الواقع لازم تكون هي نفسها اللي مسجلة في دفتر الأستاذ (حساب 1100). أي فرق يعني فيه حركة اتسجلت في مكان ونسينا نسجلها في التاني.
+              الفلوس اللي في الخزنة على أرض الواقع لازم تكون هي نفسها اللي مسجلة في دفتر الأستاذ (حساب النقدية 1100 + حساب البنك والمحافظ 1110). أي فرق يعني فيه حركة اتسجلت في مكان ونسينا نسجلها في التاني.
             </div>
             <PermTable className="w-full text-sm">
               <thead className="bg-muted/40">
                 <tr className="text-right">
                   <th className="p-2">الشركة</th>
-                  <th className="p-2">الدفاتر (1100)</th>
+                  <th className="p-2">الدفاتر (1100 + 1110)</th>
                   <th className="p-2">الخزنة الفعلية</th>
                   <th className="p-2">الفرق</th>
                   <th className="p-2">الحالة</th>

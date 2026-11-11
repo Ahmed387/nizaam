@@ -12,12 +12,44 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowRight, Plus, Link2, Unlink, CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowRight, Plus, Link2, Unlink, CheckCircle2, Sparkles, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { FinancialAmount } from "@/components/FinancialAmount";
 
 type Statement = any;
-type StmtLine = { id: string; txn_date: string; description: string | null; reference: string | null; debit: number; credit: number; is_matched: boolean; matched_journal_line_id: string | null };
+type StmtLine = { id: string; txn_date: string; description: string | null; reference: string | null; debit: number; credit: number; is_matched: boolean; matched_journal_line_id: string | null; matched_treasury_id?: string | null };
+
+/** Rows of a bank / wallet statement sheet → statement lines. The header row is found by its words (تاريخ / date …); the
+ *  amount is either two columns (in: مدين / إيداع / وارد / credit-in, out: دائن / سحب / منصرف) or one signed «المبلغ». */
+export function parseStatementSheet(rows: any[][]): { txn_date: string; description: string | null; reference: string | null; debit: number; credit: number }[] {
+  const norm = (v: any) => String(v ?? "").trim().toLowerCase();
+  const find = (h: string[], words: string[]) => h.findIndex((c) => words.some((w) => c.includes(w)));
+  const hi = rows.findIndex((r) => r.some((c) => /تاريخ|date/.test(norm(c))));
+  if (hi < 0) return [];
+  const h = rows[hi].map(norm);
+  const cDate = find(h, ["تاريخ", "date"]), cDesc = find(h, ["وصف", "بيان", "تفاصيل", "desc", "detail", "narr"]), cRef = find(h, ["مرجع", "ref", "رقم العملية"]);
+  const cIn = find(h, ["مدين", "إيداع", "ايداع", "وارد", "deposit", "money in", "credit"]), cOut = find(h, ["دائن", "سحب", "منصرف", "صادر", "withdraw", "money out", "debit"]);
+  const cAmt = find(h, ["مبلغ", "قيمة", "amount"]);
+  const num = (v: any) => { const n = typeof v === "number" ? v : Number(String(v ?? "").replace(/[^0-9.\-]/g, "")); return Number.isFinite(n) ? n : 0; };
+  const day = (v: any): string | null => {
+    if (v instanceof Date && !isNaN(v.getTime())) return new Date(v.getTime() - v.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    if (typeof v === "number" && v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * 86400000)).toISOString().slice(0, 10);
+    const s = String(v ?? "").trim();
+    let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/); if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+    m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/); if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+    return null;
+  };
+  const out: { txn_date: string; description: string | null; reference: string | null; debit: number; credit: number }[] = [];
+  for (const r of rows.slice(hi + 1)) {
+    const d = day(r[cDate]); if (!d) continue;
+    let debit = cIn >= 0 ? Math.abs(num(r[cIn])) : 0, credit = cOut >= 0 ? Math.abs(num(r[cOut])) : 0;
+    if (!debit && !credit && cAmt >= 0) { const a = num(r[cAmt]); if (a >= 0) debit = a; else credit = -a; }
+    if (!debit && !credit) continue;
+    out.push({ txn_date: d, description: cDesc >= 0 && r[cDesc] != null ? String(r[cDesc]).trim() || null : null, reference: cRef >= 0 && r[cRef] != null ? String(r[cRef]).trim() || null : null, debit, credit });
+  }
+  return out;
+}
 type JLine = { id: string; entry_id: string; debit: number; credit: number; description: string | null; entry_date: string; entry_number: string; matched: boolean };
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
@@ -50,7 +82,13 @@ export default function BankReconciliationDetail() {
     const { data: ls } = await supabase.from("bank_statement_lines" as any).select("*").eq("statement_id", id).order("txn_date") as any;
     setLines((ls as any) ?? []);
 
-    if (acc?.gl_account_id) {
+    const byWallet = !!(acc?.branch_id && acc?.payment_method);
+    if (byWallet) {
+      // 0197: the vessel's own movements (treasury of that branch + method), not the journal lines of the shared account
+      const { data: mv, error: mvErr } = await (supabase.rpc as any)("bank_wallet_movements", { p_bank_account_id: acc.id, p_from: s.period_start, p_to: s.period_end });
+      if (mvErr) toast.error(mvErr.message);
+      setJournal(((mv ?? []) as any[]).map((r) => ({ id: r.id, entry_id: "", debit: Number(r.debit || 0), credit: Number(r.credit || 0), description: r.description, entry_date: r.txn_date, entry_number: r.category ?? "", matched: !!r.matched })));
+    } else if (acc?.gl_account_id) {
       const { data: jl } = await supabase
         .from("journal_entry_lines" as any)
         .select("id,entry_id,debit,credit,description,journal_entries!inner(entry_date,entry_number,status)")
@@ -73,7 +111,10 @@ export default function BankReconciliationDetail() {
     const { data: sum } = await supabase.rpc("get_bank_reconciliation_summary" as any, {
       p_bank_account_id: s.bank_account_id, p_period_start: s.period_start, p_period_end: s.period_end,
     });
-    setSummary(sum);
+    if (byWallet) {
+      const { data: bal } = await (supabase.rpc as any)("bank_wallet_balance", { p_bank_account_id: acc.id, p_to: s.period_end });
+      setSummary({ ...((sum as any) ?? {}), book_balance: Number(bal ?? 0) });
+    } else setSummary(sum);
     setLoading(false);
   };
   useEffect(() => { load(); }, [id]);
@@ -97,6 +138,26 @@ export default function BankReconciliationDetail() {
     load();
   };
 
+  const byWallet = !!(account?.branch_id && account?.payment_method);
+  const matchCol = byWallet ? "matched_treasury_id" : "matched_journal_line_id";
+
+  /** «رفع كشف Excel»: every row of the sheet with a date and an amount becomes a statement line (inside the period only). */
+  const importSheet = async (file: File) => {
+    if (!id || !stmt) return;
+    try {
+      const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: null }) as any[][];
+      const parsed = parseStatementSheet(rows);
+      const inside = parsed.filter((r) => r.txn_date >= stmt.period_start && r.txn_date <= stmt.period_end);
+      if (!parsed.length) { toast.error("ملقتش صفوف فيها تاريخ ومبلغ — اتأكد إن فيه عمود «التاريخ» وعمود مبلغ"); return; }
+      if (!inside.length) { toast.error(`الملف فيه ${parsed.length} صف، وكلهم بره فترة الكشف (${stmt.period_start} → ${stmt.period_end})`); return; }
+      const { error } = await supabase.from("bank_statement_lines" as any).insert(inside.map((r) => ({ ...r, statement_id: id, bank_account_id: stmt.bank_account_id })));
+      if (error) throw error;
+      toast.success(`اتضاف ${inside.length} بند من الملف${parsed.length > inside.length ? ` — ${parsed.length - inside.length} صف بره الفترة اتسابوا` : ""}`);
+      load();
+    } catch (e: any) { toast.error(e?.message ?? "تعذر قراءة الملف"); }
+  };
+
   const doMatch = async () => {
     if (!selectedStmt || !selectedJ) { toast.error("اختر بند من كل جانب"); return; }
     const s = lines.find(l => l.id === selectedStmt);
@@ -114,7 +175,7 @@ export default function BankReconciliationDetail() {
       }))) return;
     }
     const { error } = await supabase.from("bank_statement_lines" as any).update({
-      is_matched: true, matched_journal_line_id: selectedJ, matched_at: new Date().toISOString(),
+      is_matched: true, [matchCol]: selectedJ, matched_at: new Date().toISOString(),
     }).eq("id", selectedStmt);
     if (error) { toast.error(error.message); return; }
     toast.success("تمت المطابقة");
@@ -123,7 +184,7 @@ export default function BankReconciliationDetail() {
 
   const unmatch = async (lineId: string) => {
     const { error } = await supabase.from("bank_statement_lines" as any).update({
-      is_matched: false, matched_journal_line_id: null, matched_at: null,
+      is_matched: false, matched_journal_line_id: null, matched_treasury_id: null, matched_at: null,
     }).eq("id", lineId);
     if (error) { toast.error(error.message); return; }
     toast.success("تم إلغاء المطابقة"); load();
@@ -132,7 +193,7 @@ export default function BankReconciliationDetail() {
   const autoMatch = async () => {
     let count = 0;
     const unmatchedStmt = lines.filter(l => !l.is_matched);
-    const matchedJ = new Set(lines.filter(l => l.matched_journal_line_id).map(l => l.matched_journal_line_id));
+    const matchedJ = new Set<any>([...lines.map(l => l.matched_journal_line_id), ...lines.map(l => l.matched_treasury_id), ...journal.filter(j => j.matched).map(j => j.id)].filter(Boolean));
     const availableJ = journal.filter(j => !matchedJ.has(j.id));
     for (const s of unmatchedStmt) {
       const sNet = (s.debit || 0) - (s.credit || 0);
@@ -143,7 +204,7 @@ export default function BankReconciliationDetail() {
       });
       if (cand) {
         const { error } = await supabase.from("bank_statement_lines" as any).update({
-          is_matched: true, matched_journal_line_id: cand.id, matched_at: new Date().toISOString(),
+          is_matched: true, [matchCol]: cand.id, matched_at: new Date().toISOString(),
         }).eq("id", s.id);
         if (!error) { count++; matchedJ.add(cand.id); }
       }
@@ -209,6 +270,11 @@ export default function BankReconciliationDetail() {
                 <DialogFooter><Button onClick={addLine}>حفظ</Button></DialogFooter>
               </DialogContent>
             </Dialog>
+            <Button size="sm" variant="outline" asChild>
+              <label className="cursor-pointer"><FileSpreadsheet className="w-4 h-4 ml-1" />رفع كشف Excel
+                <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importSheet(f); }} />
+              </label>
+            </Button>
             <Button size="sm" variant="outline" onClick={autoMatch}><Sparkles className="w-4 h-4 ml-1" />مطابقة تلقائية</Button>
             <Button size="sm" onClick={doMatch} disabled={!selectedStmt || !selectedJ}><Link2 className="w-4 h-4 ml-1" />مطابقة المحدد</Button>
             <div className="flex-1" />
@@ -218,7 +284,7 @@ export default function BankReconciliationDetail() {
           </CardContent>
         </Card>
 
-        {!account?.gl_account_id && (
+        {!account?.gl_account_id && !byWallet && (
           <Card><CardContent className="py-4 text-warning">هذا الحساب البنكي غير مرتبط بحساب في دليل الحسابات — لا يمكن جلب قيود الدفاتر.</CardContent></Card>
         )}
 
@@ -263,13 +329,13 @@ export default function BankReconciliationDetail() {
 
           {/* Journal lines */}
           <Card>
-            <CardHeader><CardTitle>قيود الدفاتر ({journal.length})</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{byWallet ? "حركات الوعاء في السيستم" : "قيود الدفاتر"} ({journal.length})</CardTitle></CardHeader>
             <CardContent className="overflow-x-auto">
               <Table>
                 <TableHeader><TableRow>
                   <TableHead></TableHead>
                   <TableHead className="text-right">التاريخ</TableHead>
-                  <TableHead className="text-right">قيد</TableHead>
+                  <TableHead className="text-right">{byWallet ? "البند" : "قيد"}</TableHead>
                   <TableHead className="text-right">الوصف</TableHead>
                   <TableHead className="text-right">مدين</TableHead>
                   <TableHead className="text-right">دائن</TableHead>
@@ -284,7 +350,7 @@ export default function BankReconciliationDetail() {
                       </TableCell>
                       <TableCell>{j.entry_date}</TableCell>
                       <TableCell>
-                        <Link to={`/admin/accounting/journal/${j.entry_id}`} className="text-primary hover:underline">{j.entry_number}</Link>
+                        {j.entry_id ? <Link to={`/admin/accounting/journal/${j.entry_id}`} className="text-primary hover:underline">{j.entry_number}</Link> : <span className="text-xs text-muted-foreground">{j.entry_number || "—"}</span>}
                       </TableCell>
                       <TableCell className="max-w-[180px] truncate" title={j.description || ""}>{j.description || "—"}</TableCell>
                       <TableCell>{j.debit ? fmt(j.debit) : "—"}</TableCell>

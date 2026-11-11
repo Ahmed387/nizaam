@@ -384,6 +384,7 @@ export default function Contacts() {
         title="الموردين والعملاء"
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/accounts-balances`)}>أرصدة مدين / دائن</Button>
             <PermPart page="customers" part="export_buttons"><div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!total} className="gap-2">
               <FileSpreadsheet className="w-4 h-4" /> Excel
