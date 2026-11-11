@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, ReactNode, Ref, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useMemo, Fragment, forwardRef, ReactNode, Ref, useEffect, useRef, useState, type CSSProperties } from "react";
 import { ExcelLayer, FilterBar, type ServerAdapter } from "@/components/table/ExcelFilter";
 import { ColumnResizeLayer } from "@/components/table/ColumnResize";
 import { isActive, type CellKind } from "@/lib/tableFilter";
@@ -63,7 +63,7 @@ interface DataTableProps<T> {
 
 function DataTableInner<T>(
   {
-    columns,
+    columns: columnsProp,
     rows,
     loading,
     empty = "لا توجد بيانات",
@@ -86,6 +86,27 @@ function DataTableInner<T>(
 ) {
   const [page, setPage] = useState(0);
   const [tableEl, setTableEl] = useState<HTMLTableElement | null>(null);
+  // column order (owner 2026-11-11 «انقل عمود مكان عمود عن طريق السحب»): drag a header onto another header; the order is
+  // remembered per person's browser, per page and table (localStorage `colo:v1:<path>:<table>`), by column key.
+  const orderKey = `colo:v1:${typeof window === "undefined" ? "" : window.location.pathname}:${permTable ?? (excel ? excel.id : undefined) ?? "t"}`;
+  const [order, setOrder] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(orderKey) || "[]") || []; } catch { return []; } });
+  useEffect(() => { try { setOrder(JSON.parse(localStorage.getItem(orderKey) || "[]") || []); } catch { setOrder([]); } }, [orderKey]);
+  const columns = useMemo(() => {
+    if (!order.length) return columnsProp;
+    const pos = new Map(order.map((k, i) => [k, i]));
+    return columnsProp.map((c, i) => ({ c, i })).sort((a, b) => (pos.get(a.c.key) ?? 1000 + a.i) - (pos.get(b.c.key) ?? 1000 + b.i)).map((x) => x.c);
+  }, [columnsProp, order]);
+  const dragCol = useRef<string | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
+  const dropCol = (target: string) => {
+    const from = dragCol.current; dragCol.current = null; setOverCol(null);
+    if (!from || from === target) return;
+    const keys = columns.map((c) => c.key).filter((k) => k !== from);
+    keys.splice(keys.indexOf(target), 0, from);
+    setOrder(keys);
+    try { localStorage.setItem(orderKey, JSON.stringify(keys)); } catch { /* private mode */ }
+  };
+  const resetOrder = () => { setOrder([]); try { localStorage.removeItem(orderKey); } catch { /* private mode */ } };
   const server = excel ? excel.server : undefined;
   useEffect(() => { setPage(0); }, [rows.length]);
   const pageCount = pageSize ? Math.max(1, Math.ceil(rows.length / pageSize)) : 1;
@@ -157,6 +178,11 @@ function DataTableInner<T>(
       <>
       {excel !== false && <ExcelLayer table={tableEl} storageId={excel?.id ?? permTable} server={server} onVisibleChange={server ? undefined : reportView} />}
       <ColumnResizeLayer table={tableEl} storageId={excel ? excel.id ?? permTable : permTable} />
+      {order.length > 0 && (
+        <div className="px-3 py-1 text-xs text-muted-foreground print:hidden" data-no-print="">
+          ترتيب الأعمدة متغيّر — <button type="button" className="underline hover:text-foreground" onClick={resetOrder}>رجّع الترتيب الأصلي</button>
+        </div>
+      )}
       {/* Wide tables scroll inside a viewport-high box: the horizontal bar stays on screen and the header sticks. */}
       <div className={wide ? "w-full overflow-auto lg:overflow-x-hidden max-h-[calc(100vh-8rem)]" : "w-full overflow-x-auto"} data-wide={wide ? "" : undefined}>
         <table
@@ -173,10 +199,17 @@ function DataTableInner<T>(
                 <th
                   key={c.key}
                   data-xf-col={c.key}
+                  draggable
+                  onDragStart={(e) => { if ((e.target as HTMLElement).closest?.("[role=separator],button,input")) { e.preventDefault(); return; } dragCol.current = c.key; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", c.key); } catch { /* ignore */ } }}
+                  onDragOver={(e) => { if (dragCol.current && dragCol.current !== c.key) { e.preventDefault(); if (overCol !== c.key) setOverCol(c.key); } }}
+                  onDragLeave={() => { if (overCol === c.key) setOverCol(null); }}
+                  onDrop={(e) => { e.preventDefault(); dropCol(c.key); }}
+                  onDragEnd={() => { dragCol.current = null; setOverCol(null); }}
+                  title="اسحب العنوان على عمود تاني عشان تنقله مكانه"
                   data-xf-kind={typeof c.filter === "string" ? c.filter : undefined}
                   data-xf-nofilter={c.filter === false || isActionsColumn(c) ? "" : undefined}
                   data-xf-sum={c.total === undefined ? undefined : c.total ? "1" : "0"}
-                  style={c.width ? { width: c.width } : isActionsColumn(c) ? { width: "10rem" } : undefined}
+                  style={{ ...(c.width ? { width: c.width } : isActionsColumn(c) ? { width: "10rem" } : {}), ...(overCol === c.key ? { boxShadow: "inset 3px 0 0 hsl(var(--primary)), inset -3px 0 0 hsl(var(--primary))" } : {}) }}
                   className={`${headPad} font-extrabold text-xs md:text-sm uppercase tracking-wider text-foreground ${textMode} ${idx > 0 ? "border-r border-border/60" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                 >
                   {c.header}

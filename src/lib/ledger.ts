@@ -229,6 +229,14 @@ export async function fetchContactNetStatement(contactId: string, branchId?: str
   return (rows ?? []).map((r) => ({ ...r, debit: n(r.debit), credit: n(r.credit), balance: n(r.balance) }));
 }
 
+/** One line of the account's movements table (0199): the net statement + time of day, notes and where the line comes from. */
+export interface AccountMovement extends StatementLine { line_time: string | null; notes: string | null; src_table: string | null; src_id: string | null }
+/** The account's movements the way the owner reads them: لنا (debit) / علينا (credit) / الرصيد (+ = مدين, − = دائن). */
+export async function fetchContactAccountMovements(contactId: string, branchId?: string | null, from?: string | null, to?: string | null): Promise<AccountMovement[]> {
+  const rows = await callAll<any>("contact_account_movements", { p_contact: contactId, p_branch_id: branchId ?? null, p_from: from || null, p_to: to || null }, ["line_no"]);
+  return (rows ?? []).map((r) => ({ ...r, debit: n(r.debit), credit: n(r.credit), balance: n(r.balance) }));
+}
+
 // ---------------------------------------------------------------- documents on the six screens
 export interface DocumentStatus {
   doc_id: string; total: number; paid: number; paid_money: number; paid_by_returns: number;

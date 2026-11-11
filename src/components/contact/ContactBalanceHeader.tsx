@@ -1,66 +1,24 @@
-import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { formatEGP } from "@/lib/format";
 import type { SideOverview } from "@/lib/ledger";
 
 /**
- * «الصافي للاسم الواحد» (مدين / دائن) the way the old program «سهل» shows one account per name:
- *   الصافي = رصيد ناحية العميل − رصيد ناحية المورد
- *   موجب = مدين («عليه» — لينا عنده)، سالب = دائن («له» — علينا له).
- * Shown for matching with «سهل» only: the two accounts above stay separate and are never netted in the books.
- */
-function NetByName({ customerBalance, supplierBalance }: { customerBalance: number; supplierBalance: number }) {
-  const net = Math.round((customerBalance - supplierBalance) * 100) / 100;
-  const debit = Math.max(net, 0), credit = Math.max(-net, 0);
-  return (
-    <div className="mt-3 card-elevated p-4 border-r-4 border-muted-foreground/40">
-      <div className="text-sm text-muted-foreground">الصافي للاسم (زي سهل) = ناحية العميل − ناحية المورد</div>
-      <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-        <div><div className="text-xs text-muted-foreground">ناحية العميل</div><div className="tabular-nums font-semibold">{formatEGP(customerBalance)}</div></div>
-        <div><div className="text-xs text-muted-foreground">ناحية المورد</div><div className="tabular-nums font-semibold">{formatEGP(supplierBalance)}</div></div>
-        <div><div className="text-xs text-muted-foreground">عليه — مدين</div><div className="tabular-nums font-bold text-success">{debit > 0.005 ? formatEGP(debit) : "—"}</div></div>
-        <div><div className="text-xs text-muted-foreground">له — دائن</div><div className="tabular-nums font-bold text-destructive">{credit > 0.005 ? formatEGP(credit) : "—"}</div></div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * «الرصيد الفعلي» of a customer / supplier at the top of his file: what he owes us and what we owe him.
- * Each total is built from the two separate accounts (customer debt + our advance at him as a supplier, and
- * the reverse) — the accounts are never netted against each other (owner rule).
+ * The account's ONE balance (owner 2026-11-11 «التعامل الأول والأخير … دائن ومدين ورصيد»), the way «سهل» shows a name:
+ *   الرصيد = رصيد ناحية العميل − رصيد ناحية المورد؛ موجب = مدين (لنا عنده)، سالب = دائن (علينا له).
+ * No «لينا عنده / علينا له» cards and no open / closed invoices: the movements table under it explains the number.
  */
 export function ContactBalanceHeader({ customer, supplier, scopeLabel }: { customer: SideOverview | null; supplier: SideOverview | null; scopeLabel?: string }) {
-  const c = Number(customer?.balance ?? 0), s = Number(supplier?.balance ?? 0);
-  const fromCustomer = Math.max(c, 0), supplierAdvance = Math.max(-s, 0);
-  const toSupplier = Math.max(s, 0), customerAdvance = Math.max(-c, 0);
-  const us = fromCustomer + supplierAdvance, them = toSupplier + customerAdvance;
-
-  const Card = ({ title, total, tone, icon, lines }: { title: string; total: number; tone: string; icon: JSX.Element; lines: [string, number][] }) => (
-    <div className={`card-elevated flex-1 min-w-[220px] p-4 border-r-4 ${tone}`}>
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">{icon}{title}</div>
-      <div className="mt-1 text-2xl font-extrabold tabular-nums">{total > 0.005 ? formatEGP(total) : "—"}</div>
-      {lines.filter(([, v]) => v > 0.005).length > 0 && (
-        <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-          {lines.filter(([, v]) => v > 0.005).map(([l, v]) => <div key={l} className="flex justify-between gap-3"><span>{l}</span><span className="tabular-nums">{formatEGP(v)}</span></div>)}
-        </div>
-      )}
-    </div>
-  );
-
+  const net = Math.round((Number(customer?.balance ?? 0) - Number(supplier?.balance ?? 0)) * 100) / 100;
+  const zero = Math.abs(net) <= 0.005;
+  const tone = zero ? "border-muted-foreground/40" : net > 0 ? "border-success" : "border-destructive";
   return (
-    <div className="mb-4">
-      <div className="mb-2 flex items-baseline gap-2">
-        <h3 className="font-bold">الرصيد الفعلي</h3>
-        {scopeLabel && <span className="text-xs text-muted-foreground">{scopeLabel}</span>}
+    <div className={`card-elevated mb-4 p-4 border-r-4 ${tone} flex flex-wrap items-end gap-x-8 gap-y-2`} data-testid="account-balance">
+      <div>
+        <div className="text-sm text-muted-foreground">الرصيد الحالى{scopeLabel ? ` — ${scopeLabel}` : ""}</div>
+        <div className="mt-1 text-3xl font-extrabold tabular-nums">{zero ? "0" : formatEGP(Math.abs(net))}</div>
       </div>
-      <div className="flex flex-wrap gap-3">
-        <Card title="لينا عنده" total={us} tone="border-success" icon={<ArrowDownLeft className="h-4 w-4 text-success" />}
-          lines={[["عليه كعميل (فواتير مفتوحة)", fromCustomer], ["مقدم دفعناه له كمورد", supplierAdvance]]} />
-        <Card title="علينا له" total={them} tone="border-destructive" icon={<ArrowUpRight className="h-4 w-4 text-destructive" />}
-          lines={[["له كمورد (فواتير شراء مفتوحة)", toSupplier], ["مقدم دفعه لنا كعميل", customerAdvance]]} />
+      <div className={`text-lg font-bold ${zero ? "text-muted-foreground" : net > 0 ? "text-success" : "text-destructive"}`}>
+        {zero ? "مسدد" : net > 0 ? "مدين — لنا عنده" : "دائن — علينا له"}
       </div>
-      <NetByName customerBalance={c} supplierBalance={s} />
-      {us <= 0.005 && them <= 0.005 && <p className="mt-1 text-xs text-success">الحساب مسدد بالكامل.</p>}
     </div>
   );
 }

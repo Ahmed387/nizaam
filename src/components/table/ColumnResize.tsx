@@ -51,6 +51,33 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
   const key = `colw:v1:${pathname}:${storageId ?? "t"}`;
   const [widths, setWidths] = useState<Record<string, number>>({});
   const drag = useRef<{ label: string; startX: number; startW: number; rtl: boolean } | null>(null);
+  // row height (owner 2026-11-11 «محتاج انفذه على الصفوف بردو»): ONE height for all body rows of the table, dragged from
+  // the bottom edge of the header; saved with the widths under "__row". Double-click = natural height again.
+  const ROW = "__row";
+  const rowDrag = useRef<{ startY: number; startH: number } | null>(null);
+  const rowH = widths[ROW];
+  const startRow = (e: React.PointerEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const first = table?.querySelector(":scope > tbody > tr") as HTMLElement | null;
+    rowDrag.current = { startY: e.clientY, startH: Math.round(first?.getBoundingClientRect().height ?? 40) };
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    document.body.style.cursor = "row-resize"; document.body.style.userSelect = "none";
+  };
+  const moveRow = (e: React.PointerEvent) => {
+    const d = rowDrag.current; if (!d) return;
+    const next = Math.max(22, Math.min(160, d.startH + (e.clientY - d.startY)));
+    setWidths((w) => (w[ROW] === next ? w : { ...w, [ROW]: next }));
+  };
+  const endRow = () => {
+    if (!rowDrag.current) return;
+    rowDrag.current = null; document.body.style.cursor = ""; document.body.style.userSelect = "";
+    setWidths((w) => { save(key, w); return w; });
+  };
+  const resetRow = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    setWidths((w) => { const n = { ...w }; delete n[ROW]; save(key, n); return n; });
+  };
+  const rowCss = rowH ? `[data-cr="${uid}"] > tbody > tr > * { height: ${rowH}px !important; padding-top: ${Math.max(1, Math.min(14, Math.round((rowH - 22) / 2)))}px !important; padding-bottom: ${Math.max(1, Math.min(14, Math.round((rowH - 22) / 2)))}px !important; }` : "";
 
   // header cells: re-read whenever the header changes (columns shown / hidden, other data)
   useEffect(() => {
@@ -125,18 +152,31 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
   return (
     <>
       {css && <style>{css}</style>}
+      {rowCss && <style>{rowCss}</style>}
       <style>{`[data-cr="${uid}"] > thead > tr:last-child > *:not(.sticky) { position: relative; }${active ? `\n*:has(> [data-cr="${uid}"]) { overflow-x: auto !important; }` : ""}`}</style>
       {heads.map((h) => createPortal(
         <span
           role="separator" aria-orientation="vertical" aria-label={`تغيير عرض عمود ${h.label}`} title="اسحب لتغيير عرض العمود — دبل كليك يرجّعه"
           data-xf-ignore="" data-no-print=""
           onPointerDown={(e) => start(h, e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
-          onDoubleClick={(e) => reset(h, e)} onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => reset(h, e)} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()} draggable={false}
           className="print:hidden absolute top-0 bottom-0 z-10 w-2 cursor-col-resize select-none touch-none hover:bg-primary/40 active:bg-primary/60"
           style={{ insetInlineEnd: 0 }}
         />,
         h.el,
         `cr-${h.idx}-${h.label}`,
+      ))}
+      {heads.map((h) => createPortal(
+        <span
+          role="separator" aria-orientation="horizontal" aria-label="تغيير ارتفاع الصفوف" title="اسحب لتحت أو لفوق لتغيير ارتفاع الصفوف — دبل كليك يرجّعه"
+          data-xf-ignore="" data-no-print="" draggable={false}
+          onPointerDown={startRow} onPointerMove={moveRow} onPointerUp={endRow} onPointerCancel={endRow}
+          onDoubleClick={resetRow} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()}
+          className="print:hidden absolute bottom-0 z-10 h-1.5 cursor-row-resize select-none touch-none hover:bg-primary/40 active:bg-primary/60"
+          style={{ insetInlineStart: 0, insetInlineEnd: 8 }}
+        />,
+        h.el,
+        `rr-${h.idx}-${h.label}`,
       ))}
     </>
   );
