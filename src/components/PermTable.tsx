@@ -1,5 +1,6 @@
 import { forwardRef, Ref, TableHTMLAttributes, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ExcelLayer } from "@/components/table/ExcelFilter";
+import { ColumnResizeLayer } from "@/components/table/ColumnResize";
 import { createPortal } from "react-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -36,6 +37,7 @@ export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable(
   return (
     <>
       {!noFilter && <ExcelLayer table={el} storageId={filterId ?? permTable} />}
+      {!noFilter && <ColumnResizeLayer table={el} storageId={filterId ?? permTable} />}
       {page ? <PermTableInner page={page} permTable={permTable} tableRef={setRef} {...props} /> : <table ref={setRef} {...props} />}
     </>
   );

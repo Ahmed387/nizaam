@@ -18,7 +18,7 @@ import { exportToExcel, printReport } from "@/lib/export";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowRight, Download, Printer, Search, X } from "lucide-react";
-import { fetchContactStatement, type Side, type StatementLine } from "@/lib/ledger";
+import { fetchContactNetStatement, fetchContactStatement, type Side, type StatementLine } from "@/lib/ledger";
 import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
 import { EMPTY_STATE, type ColumnFilter, type ListColumn } from "@/lib/tableFilter";
 
@@ -60,7 +60,8 @@ export default function ContactStatement() {
 
   const [contact, setContact] = useState<any>(null);
   const [branchOpts, setBranchOpts] = useState<{ id: string; name: string }[]>([]);
-  const side: Side = (sp.get("side") as Side) || (contact?.type === "supplier" ? "supplier" : "customer");
+  // «net» (default, owner 2026-11-11): one statement per name like «سهل» — مدين / دائن / رصيد, no allocation shown
+  const side: Side | "net" = (sp.get("side") as Side | "net") || "net";
   // scope: "all" (company-wide, admins and contact totals) or one branch; branch users default to theirs
   const scope = sp.get("branch") ?? sp.get("branches")?.split(",")[0] ?? (routeBranchId && !isAdmin ? routeBranchId : "all");
   const scopeBranch = scope === "all" ? null : scope;
@@ -111,7 +112,9 @@ export default function ContactStatement() {
     setLoading(true);
     setLoadError(null);
     try {
-      setLines(await fetchContactStatement(contactId, side, scopeBranch, fromDate || null, toDate || null));
+      setLines(side === "net"
+        ? await fetchContactNetStatement(contactId, scopeBranch, fromDate || null, toDate || null)
+        : await fetchContactStatement(contactId, side, scopeBranch, fromDate || null, toDate || null));
     } catch (e: any) {
       // never show an empty statement as if the account were clean: say that it failed
       setLines([]);
@@ -142,10 +145,12 @@ export default function ContactStatement() {
   }, [body, search, kind, minAmount, maxAmount]);
   const finalBalance = body.length ? body[body.length - 1].balance : (opening?.balance ?? 0);
   const isC = side === "customer";
+  const isNet = side === "net";
   const balLabel = (b: number) => Math.abs(b) <= 0.005 ? "مسدد"
+    : isNet ? (b > 0 ? "مدين (عليه)" : "دائن (له)")
     : isC ? (b > 0 ? "عليه لنا" : "مقدم منه عندنا") : (b > 0 ? "علينا له" : "مقدم لينا عنده");
-  const debitHdr = isC ? "مدين (فواتير عليه)" : "دائن له (فواتير شراء)";
-  const creditHdr = isC ? "دائن (مقبوضات ورصيد)" : "مدين (مدفوعات ورصيد)";
+  const debitHdr = isNet ? "مدين (عليه)" : isC ? "مدين (فواتير عليه)" : "دائن له (فواتير شراء)";
+  const creditHdr = isNet ? "دائن (له)" : isC ? "دائن (مقبوضات ورصيد)" : "مدين (مدفوعات ورصيد)";
 
   // what each column shows (the running balance is the ledger's, computed before any filter)
   const listCols = useMemo<ListColumn<StatementLine>[]>(() => [
@@ -173,7 +178,7 @@ export default function ContactStatement() {
   const r2 = (v: number) => Math.round(v * 100) / 100;
   const totals = useMemo(() => ({ debit: r2(shownLines.reduce((s, l) => s + l.debit, 0)), credit: r2(shownLines.reduce((s, l) => s + l.credit, 0)) }), [shownLines]);
   const scopeName = scopeBranch ? branchOpts.find((b) => b.id === scopeBranch)?.name ?? "فرع" : "كل الفروع";
-  const sideName = isC ? "حساب العميل" : "حساب المورد";
+  const sideName = isNet ? "الحساب (مدين / دائن)" : isC ? "حساب العميل" : "حساب المورد";
 
   const setParam = (k: string, v: string | null) => {
     const next = new URLSearchParams(sp);
@@ -215,7 +220,7 @@ export default function ContactStatement() {
       <p class="muted">${isC ? "الرصيد الموجب = على العميل لنا، السالب = مقدم من العميل عندنا." : "الرصيد الموجب = علينا للمورد، السالب = مقدم لينا عند المورد."} حساب العميل وحساب المورد منفصلين.</p>`, { landscape: true });
   };
 
-  const showSideTabs = contact?.type === "both";
+  const showSideTabs = !!contact;
 
   return (
     <Layout>
@@ -235,8 +240,9 @@ export default function ContactStatement() {
         {showSideTabs && (
           <Tabs value={side} onValueChange={(v) => setParam("side", v)}>
             <TabsList>
-              <TabsTrigger value="customer">حساب العميل</TabsTrigger>
-              <TabsTrigger value="supplier">حساب المورد</TabsTrigger>
+              <TabsTrigger value="net">مدين / دائن (زي سهل)</TabsTrigger>
+              {contact?.type !== "supplier" && <TabsTrigger value="customer">حساب العميل</TabsTrigger>}
+              {contact?.type !== "customer" && <TabsTrigger value="supplier">حساب المورد</TabsTrigger>}
             </TabsList>
           </Tabs>
         )}

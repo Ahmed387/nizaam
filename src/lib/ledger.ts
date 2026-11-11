@@ -223,6 +223,12 @@ export async function fetchContactStatement(contactId: string, side: Side, branc
   return (rows ?? []).map((r) => ({ ...r, debit: n(r.debit), credit: n(r.credit), balance: n(r.balance) }));
 }
 
+/** One statement per name the way «سهل» shows it (0188): both sides in date order, مدين / دائن, running balance (+ = مدين عليه, − = دائن له). */
+export async function fetchContactNetStatement(contactId: string, branchId?: string | null, from?: string | null, to?: string | null): Promise<StatementLine[]> {
+  const rows = await callAll<any>("contact_net_statement", { p_contact: contactId, p_branch_id: branchId ?? null, p_from: from || null, p_to: to || null }, ["line_no"]);
+  return (rows ?? []).map((r) => ({ ...r, debit: n(r.debit), credit: n(r.credit), balance: n(r.balance) }));
+}
+
 // ---------------------------------------------------------------- documents on the six screens
 export interface DocumentStatus {
   doc_id: string; total: number; paid: number; paid_money: number; paid_by_returns: number;

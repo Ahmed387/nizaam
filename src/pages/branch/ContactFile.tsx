@@ -315,8 +315,8 @@ export default function ContactFile() {
               <MergeContactButton contactId={contactId} contactName={c.name} branchId={c.branch_id ?? null}
                 onDone={(kept) => { if (kept === contactId) { loadOverview(); loadSide(); } else nav(isAdminView ? `/admin/contacts/${kept}` : `/branch/${routeBranchId}/contacts/${kept}`); }} />
             )}
-            <Button variant="outline" onClick={() => nav(`${isAdminView ? `/admin/contacts/${contactId}/statement` : `/branch/${routeBranchId}/contacts/${contactId}/statement`}?side=${side}${scopeBranch ? `&branch=${scopeBranch}` : ""}`)}>
-              <Activity className="w-4 h-4 ml-1" /> كشف {sideName}
+            <Button variant="outline" onClick={() => nav(`${isAdminView ? `/admin/contacts/${contactId}/statement` : `/branch/${routeBranchId}/contacts/${contactId}/statement`}${scopeBranch ? `?branch=${scopeBranch}` : ""}`)}>
+              <Activity className="w-4 h-4 ml-1" /> كشف حساب (مدين / دائن)
             </Button>
             <Button variant="outline" onClick={printFile}><FileText className="w-4 h-4 ml-1" /> PDF</Button>
             <Button variant="outline" onClick={exportExcel}><Download className="w-4 h-4 ml-1" /> Excel</Button>

@@ -10,7 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDateTime } from "@/lib/format";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
@@ -28,7 +30,11 @@ const LIST_COLS: ListColumn<any>[] = [
 ];
 
 export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
-  const { tenant, profile } = useAuth();
+  const { tenant, profile, isOwner } = useAuth();
+  // «مسح السجل كله» — owner only (0190): the table is emptied and its disk space goes back; nothing before it stays traceable
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [purgeWord, setPurgeWord] = useState("");
+  const [purging, setPurging] = useState(false);
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -116,9 +122,34 @@ export default function AuditLog({ embedded }: { embedded?: boolean } = {}) {
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
+            {isOwner && <Button variant="destructive" onClick={() => { setPurgeWord(""); setPurgeOpen(true); }}><Trash2 className="w-4 h-4 ml-1" /> مسح السجل كله</Button>}
           </div>
         }
       />
+      <Dialog open={purgeOpen} onOpenChange={setPurgeOpen}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>مسح سجل العمليات كله</DialogTitle>
+            <DialogDescription>
+              السجل ده هو اللي بيقول مين غيّر إيه وإمتى. بعد المسح مفيش أي عملية قديمة هتتعرف مين عملها، والمسح ما بيرجعش.
+              الفواتير والسندات والأرصدة نفسها ما بتتأثرش. صدّر Excel الأول لو عاوز نسخة. اكتب كلمة «مسح» للتأكيد.
+            </DialogDescription>
+          </DialogHeader>
+          <Input value={purgeWord} onChange={(e) => setPurgeWord(e.target.value)} placeholder="مسح" />
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPurgeOpen(false)} disabled={purging}>إلغاء</Button>
+            <Button variant="destructive" disabled={purging || purgeWord.trim() !== "مسح"} onClick={async () => {
+              setPurging(true);
+              try {
+                const { data, error } = await (supabase.rpc as any)("purge_audit_log", { p_confirm: purgeWord.trim() });
+                if (error) throw error;
+                toast.success(`اتمسح ${data?.rows ?? ""} سجل — المساحة اللي رجعت ${data?.freed ?? ""}`);
+                setPurgeOpen(false); whole.refresh(); load();
+              } catch (e: any) { toast.error(e?.message ?? "تعذر المسح"); } finally { setPurging(false); }
+            }}>{purging ? "بمسح…" : "مسح نهائي"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <DataTable loading={wholeMode ? !listRes : loading} rows={shownRows} columns={columns} excel={{ id: "audit", server: tableAdapter }} />
       <div className="flex items-center justify-center gap-2 mt-3 text-sm">
         <Button variant="outline" size="sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => p - 1)}>السابق</Button>

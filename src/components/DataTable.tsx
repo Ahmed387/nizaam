@@ -1,5 +1,6 @@
 import { Fragment, forwardRef, ReactNode, Ref, useEffect, useRef, useState, type CSSProperties } from "react";
 import { ExcelLayer, FilterBar, type ServerAdapter } from "@/components/table/ExcelFilter";
+import { ColumnResizeLayer } from "@/components/table/ColumnResize";
 import { isActive, type CellKind } from "@/lib/tableFilter";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -155,6 +156,7 @@ function DataTableInner<T>(
     return (
       <>
       {excel !== false && <ExcelLayer table={tableEl} storageId={excel?.id ?? permTable} server={server} onVisibleChange={server ? undefined : reportView} />}
+      <ColumnResizeLayer table={tableEl} storageId={excel ? excel.id ?? permTable : permTable} />
       {/* Wide tables scroll inside a viewport-high box: the horizontal bar stays on screen and the header sticks. */}
       <div className={wide ? "w-full overflow-auto lg:overflow-x-hidden max-h-[calc(100vh-8rem)]" : "w-full overflow-x-auto"} data-wide={wide ? "" : undefined}>
         <table
