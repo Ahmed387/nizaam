@@ -20,7 +20,7 @@ import { fetchVoucherCategories, PARTY_TYPE_LABEL, Voucher, VoucherCategory, Vou
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { formatEGP, formatDate } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, XCircle, Eye, Pencil, Printer, FileDown, ChevronDown, Check } from "lucide-react";
+import { Plus, XCircle, Eye, Pencil, Printer, FileDown, ChevronDown, Check, Tags } from "lucide-react";
 import { DetailsChevron } from "@/components/DetailsChevron";
 import { toast } from "sonner";
 import { exportToExcel, printReport } from "@/lib/export";
@@ -55,7 +55,28 @@ interface Props {
 }
 
 export function VouchersTable({ branchId, type, adminAllBranches, tenantId, initialFrom, initialTo, onlyDeductedFromProfit }: Props) {
-  const { isAdmin, hasRole, user, profile } = useAuth();
+  const { isAdmin, hasRole, user, profile, isOwner } = useAuth();
+  // «تغيير تصنيف السند» — owner only (0191): income / expense vouchers with no customer / supplier on them
+  const [catTarget, setCatTarget] = useState<Voucher | null>(null);
+  const [catNew, setCatNew] = useState("");
+  const [catReason, setCatReason] = useState("");
+  const [catBusy, setCatBusy] = useState(false);
+  const [catList, setCatList] = useState<VoucherCategory[]>([]);
+  useEffect(() => {
+    if (!catTarget) return;
+    setCatNew(""); setCatReason("");
+    fetchVoucherCategories(catTarget.type as VoucherType).then(setCatList).catch(() => setCatList([]));
+  }, [catTarget]);
+  const doChangeCategory = async () => {
+    if (!catTarget || !catNew) return;
+    setCatBusy(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("change_voucher_category", { p_voucher: catTarget.id, p_category: catNew, p_reason: catReason.trim() || null });
+      if (error) throw error;
+      toast.success(`اتغير تصنيف ${data?.voucher ?? ""} من «${data?.from ?? "—"}» إلى «${data?.to ?? ""}»${data?.entry ? " — واتسجل قيد إعادة التبويب" : ""}`);
+      setCatTarget(null);
+    } catch (e: any) { toast.error(e?.message ?? "تعذر تغيير التصنيف"); } finally { setCatBusy(false); }
+  };
   const [rows, setRows] = useState<Voucher[]>([]);
   const [cats, setCats] = useState<VoucherCategory[]>([]);
   const [branches, setBranches] = useState<any[]>([]);
@@ -569,6 +590,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
                     <Pencil className="w-4 h-4" />
                   </Button>
                 )}
+                {isOwner && r.status === "active" && r.source === "manual" && !(r as any).party_id && (
+                  <Button size="sm" variant="ghost" onClick={() => setCatTarget(r)} title="تغيير تصنيف السند (للمالك) — الخزنة ما بتتغيرش، والربح بيتغير في شهر السند لو التصنيف الجديد من نوع تاني">
+                    <Tags className="w-4 h-4" />
+                  </Button>
+                )}
                 <Button size="sm" variant="ghost" onClick={() => printVoucher(r)} title="طباعة السند">
                   <Printer className="w-4 h-4" />
                 </Button>
@@ -614,6 +640,33 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
         />
       )}
 
+      <Dialog open={!!catTarget} onOpenChange={(o) => !o && setCatTarget(null)}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>تغيير تصنيف السند {catTarget?.voucher_number}</DialogTitle></DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p className="text-muted-foreground">
+              المبلغ والتاريخ والخزنة ما بيتغيروش. لو التصنيف الجديد على حساب مختلف، بيتسجل قيد إعادة تبويب بتاريخ السند، وربح شهر السند بيتغير.
+            </p>
+            <div>التصنيف الحالي: <b>{cats.find((c) => c.id === (catTarget as any)?.category_id)?.name ?? catList.find((c) => c.id === (catTarget as any)?.category_id)?.name ?? "—"}</b> — المبلغ: <b>{formatEGP(Number(catTarget?.amount ?? 0))}</b></div>
+            <div>
+              <Label>التصنيف الجديد</Label>
+              <Select value={catNew} onValueChange={setCatNew}>
+                <SelectTrigger><SelectValue placeholder="اختار التصنيف" /></SelectTrigger>
+                <SelectContent>
+                  {catList.filter((c) => (c as any).is_active !== false && c.id !== (catTarget as any)?.category_id).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label>السبب (اختياري)</Label><Textarea value={catReason} onChange={(e) => setCatReason(e.target.value)} rows={2} /></div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCatTarget(null)} disabled={catBusy}>إلغاء</Button>
+            <Button className="btn-gradient" disabled={catBusy || !catNew} onClick={doChangeCategory}>{catBusy ? "بغيّر…" : "تغيير التصنيف"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!cancelTarget} onOpenChange={(o) => !o && setCancelTarget(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>إلغاء السند {cancelTarget?.voucher_number}</DialogTitle></DialogHeader>
