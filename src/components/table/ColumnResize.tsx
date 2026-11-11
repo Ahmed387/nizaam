@@ -141,3 +141,31 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
     </>
   );
 }
+
+/**
+ * Every OTHER table of the app (hand-written `<table>` / shadcn `<Table>` — 81 of them on 2026-11-11) gets the same
+ * resizing without touching its file: mounted once in App, it watches the page and gives a `ColumnResizeLayer` to each
+ * table that has a header row and is not already served by DataTable / PermTable (they mark their table with `data-cr`
+ * first — the scan waits a moment for that). Opt out with `data-no-resize` on the table or any parent (print layouts).
+ * A table is told apart on its page by its order among the unserved tables.
+ */
+export function GlobalColumnResize() {
+  const [tables, setTables] = useState<HTMLTableElement[]>([]);
+  const mine = useRef(new Set<HTMLTableElement>());
+  useEffect(() => {
+    let timer: number | undefined;
+    const scan = () => {
+      const next = Array.from(document.querySelectorAll<HTMLTableElement>("table")).filter((t) =>
+        t.isConnected && t.querySelector(":scope > thead > tr > th") && !t.closest("[data-no-resize]")
+        && (mine.current.has(t) || !t.hasAttribute("data-cr")));
+      mine.current = new Set(next);
+      setTables((prev) => (prev.length === next.length && prev.every((t, i) => t === next[i]) ? prev : next));
+    };
+    const later = () => { window.clearTimeout(timer); timer = window.setTimeout(scan, 400); };
+    later();
+    const mo = new MutationObserver(later);
+    mo.observe(document.body, { childList: true, subtree: true });
+    return () => { mo.disconnect(); window.clearTimeout(timer); };
+  }, []);
+  return <>{tables.map((t, i) => <ColumnResizeLayer key={i} table={t} storageId={`auto${i}`} />)}</>;
+}

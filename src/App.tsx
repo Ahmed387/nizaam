@@ -27,6 +27,7 @@ function AdminRedirectToContact() {
   return <Navigate to={`/admin/contacts/${contactId}`} replace />;
 }
 
+import { GlobalColumnResize } from "@/components/table/ColumnResize";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ConfirmDialogHost } from "@/components/ConfirmDialog";
 import ShiftAlertBar from "@/components/ShiftAlertBar";
@@ -230,6 +231,7 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Sonner position="top-center" dir="rtl" />
+        <GlobalColumnResize />
         <ConfirmDialogHost />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AuthProvider>
