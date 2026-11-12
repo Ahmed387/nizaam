@@ -1,4 +1,4 @@
-import { netOf, netText, netTone } from "@/lib/netBalance";
+import { netOf, netText, netTone, netLabel } from "@/lib/netBalance";
 import { useEffect, useMemo, useState } from "react";
 import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
@@ -442,8 +442,8 @@ export default function AllSuppliers() {
         </button></PermCard>
         <PermCard label="الصافي (دائن − مدين)"><div className="text-right p-4 rounded-lg border bg-primary/5 border-primary/30">
           <div className="text-xs text-primary">الصافي (دائن − مدين)</div>
-          <FinancialAmount value={(totals?.credit_total ?? 0) - (totals?.debit_total ?? 0)} size="md" className="mt-1 justify-start text-primary" />
-          <div className="text-[11px] text-muted-foreground">موجب = علينا أكتر، سالب = لنا أكتر</div>
+          <FinancialAmount value={Math.abs((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0))} size="md" className={`mt-1 justify-start ${netTone((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0))}`} />
+          <div className="text-[11px] text-muted-foreground">{netLabel((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0))} — مدين (أخضر) لنا أكتر، دائن (أحمر) علينا أكتر</div>
         </div></PermCard>
       </div>
 

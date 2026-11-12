@@ -8,6 +8,7 @@ export const netOf = (customerBalance: unknown, supplierBalance: unknown) =>
   Math.round(((Number(supplierBalance) || 0) - (Number(customerBalance) || 0)) * 100) / 100;
 export const netKind = (net: number): "credit" | "debit" | "zero" => (Math.abs(net) <= 0.005 ? "zero" : net > 0 ? "credit" : "debit");
 export const netLabel = (net: number) => ({ credit: "دائن", debit: "مدين", zero: "مسدد" })[netKind(net)];
-/** «‎-2,000 ج.م مدين» / «4,400 ج.م دائن» / «مسدد». */
-export const netText = (net: number) => (netKind(net) === "zero" ? "مسدد" : `${net < 0 ? "-" : ""}${formatEGP(Math.abs(net))} ${netLabel(net)}`);
+/** «2,000 ج.م مدين» (أخضر) / «4,400 ج.م دائن» (أحمر) / «مسدد» — no minus sign on screen (owner 2026-11-12 «شيل حوار السالب والموجب»);
+ *  the sign stays internal only (sorting / filters). */
+export const netText = (net: number) => (netKind(net) === "zero" ? "مسدد" : `${formatEGP(Math.abs(net))} ${netLabel(net)}`);
 export const netTone = (net: number) => ({ credit: "text-destructive", debit: "text-success", zero: "text-muted-foreground" })[netKind(net)];

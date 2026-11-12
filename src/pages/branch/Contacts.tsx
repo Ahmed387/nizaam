@@ -1,4 +1,4 @@
-import { netOf, netText, netTone, netLabel } from "@/lib/netBalance";
+import { netOf, netText, netTone, netLabel, netKind } from "@/lib/netBalance";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { PermTable } from "@/components/PermTable";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -175,7 +175,7 @@ export default function Contacts() {
     rows: selRows.map((r, i) => {
       const net = netOf(r.customer_balance, r.supplier_balance);
       return {
-        "#": i + 1, "رقم الحساب": r.account_no ?? "", "اسم الحساب": r.name, "الرصيد الحالى": net, "مدين / دائن": netLabel(net),
+        "#": i + 1, "رقم الحساب": r.account_no ?? "", "اسم الحساب": r.name, "الرصيد الحالى": Math.abs(net), "مدين / دائن": netLabel(net),
         "طبيعة الحساب": TYPE_LABELS[r.type as ContactType] ?? r.type, "التليفون": r.phone ?? "", "العنوان": r.address ?? "", "الملاحظة": r.notes ?? "",
       };
     }),
@@ -425,11 +425,11 @@ export default function Contacts() {
           metricHint={{ meaning: "مجموع أرصدة الحسابات الدائنة: اللي علينا للناس.", source: "الدفتر الموحد: رصيد كل حساب في الفرع ده (ناحية العميل − ناحية المورد).", formula: "Σ رصيد كل حساب رصيده دائن" }}
         />
         <MetricCardWithHint
-          label="الصافي (دائن − مدين)"
-          value={(totals?.credit_total ?? 0) - (totals?.debit_total ?? 0)}
-          tone="primary"
+          label={`الصافي — ${netLabel((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0))}`}
+          value={Math.abs((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0))}
+          tone={netKind((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0)) === "credit" ? "destructive" : netKind((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0)) === "debit" ? "success" : "primary"}
           icon={<Wallet />}
-          metricHint={{ meaning: "موجب = علينا أكتر من اللي لنا (دائن)، سالب = لنا أكتر (مدين).", source: "الكارتين اللي قبله.", formula: "إجمالي الدائن − إجمالي المدين" }}
+          metricHint={{ meaning: "الفرق بين الكارتين: مدين (أخضر) = لنا أكتر من اللي علينا، دائن (أحمر) = علينا أكتر.", source: "الكارتين اللي قبله.", formula: "إجمالي الدائن − إجمالي المدين" }}
         />
         <MetricCardWithHint
           label="أقساط متأخرة (عملاء / موردين)"

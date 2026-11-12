@@ -15,7 +15,7 @@ export function ContactBalanceHeader({ customer, supplier, scopeLabel }: { custo
     <div className={`card-elevated mb-4 p-4 border-r-4 ${tone} flex flex-wrap items-end gap-x-8 gap-y-2`} data-testid="account-balance">
       <div>
         <div className="text-sm text-muted-foreground">الرصيد الحالى{scopeLabel ? ` — ${scopeLabel}` : ""}</div>
-        <div className="mt-1 text-3xl font-extrabold tabular-nums" dir="ltr">{kind === "zero" ? "0" : `${net < 0 ? "-" : ""}${formatEGP(Math.abs(net))}`}</div>
+        <div className="mt-1 text-3xl font-extrabold tabular-nums" dir="ltr">{kind === "zero" ? "0" : formatEGP(Math.abs(net))}</div>
       </div>
       <div className={`text-lg font-bold ${netTone(net)}`}>{kind === "zero" ? "مسدد" : kind === "debit" ? "مدين — لنا عنده" : "دائن — علينا له"}</div>
     </div>

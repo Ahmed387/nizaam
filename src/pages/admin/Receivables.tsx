@@ -283,7 +283,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
             <div className="flex items-center gap-2 text-sm font-semibold text-warning">
               <ArrowUpRight className="w-4 h-4" />إجمالي الدائن (علينا)
             </div>
-             <FinancialAmount value={net?.credit ?? totals.oweSuppliers} size="md" className="mt-2 justify-start font-extrabold text-warning" />
+             <FinancialAmount value={net?.credit ?? totals.oweSuppliers} size="md" className="mt-2 justify-start font-extrabold text-destructive" />
             <div className="text-[11px] text-muted-foreground mt-1">{net ? `${net.cn} حساب رصيده دائن` : "فلوس هتخرج منك"}</div>
           </div>
 

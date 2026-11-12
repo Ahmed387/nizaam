@@ -23,7 +23,8 @@ import { Textarea } from "@/components/ui/textarea";
  */
 /** the ledger function returns + = مدين; the owner reads the opposite sign (دائن +، مدين −) */
 const balText = (b: number) => (Math.abs(b) <= 0.005 ? "مسدد" : b > 0 ? "مدين" : "دائن");
-const signed = (b: number) => (Math.abs(b) <= 0.005 ? "0" : `${b > 0 ? "-" : ""}${formatEGP(Math.abs(b))}`);
+// the amount only — مدين / دائن written next to it, no minus sign (owner 2026-11-12)
+const signed = (b: number) => (Math.abs(b) <= 0.005 ? "0" : formatEGP(Math.abs(b)));
 /** tag name of the printed sheet's table (a print window, not a screen table) */
 const T = "table";
 const timeText = (t: string | null) => {
@@ -89,7 +90,7 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
   const asRows = (list: AccountMovement[]) => list.map((l) => ({
     "التاريخ": l.line_date ? formatDate(l.line_date) : "", "الوقت": l.line_time ? timeText(l.line_time) : "", "رقم الحركة": l.reference ?? "",
     "الحركة": l.line_type, "الفرع": l.branch_name ?? "", "لنا": l.debit || "", "علينا": l.credit || "",
-    "الرصيد الحالى": -l.balance, "طبيعة الرصيد": balText(l.balance), "الملاحظات": l.notes ?? "",
+    "الرصيد الحالى": Math.abs(l.balance), "طبيعة الرصيد": balText(l.balance), "الملاحظات": l.notes ?? "",
   }));
   const exportList = (list: AccountMovement[]) => exportToExcel(`حركات_${contactName}_${scopeName}`, [{ name: "الحركات", rows: asRows(list.slice().reverse()) }]);
   const printList = (list: AccountMovement[]) => {
