@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, ExternalLink, Pencil, Printer, X } from "lucide-react";
+import { Download, ExternalLink, Pencil, Printer, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,9 @@ import { exportToExcel, printReport } from "@/lib/export";
 import { openDocs } from "@/lib/openDocs";
 import { fetchContactAccountMovements, type AccountMovement } from "@/lib/ledger";
 import { PrintDocButton } from "@/components/documents/MoneyCells";
-import type { BulkKind } from "@/lib/bulkDocs";
+import { cancelDoc, type BulkKind } from "@/lib/bulkDocs";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 /**
  * The account's movements (owner 2026-11-11, migration 0199): the one table of the contact file —
@@ -19,7 +21,9 @@ import type { BulkKind } from "@/lib/bulkDocs";
  * لنا = مدين (adds to what he owes us), علينا = دائن; the running balance is the ledger's, computed before any filter.
  * Newest first; «رصيد أول المدة» of a chosen period stays last. Reads only.
  */
+/** the ledger function returns + = مدين; the owner reads the opposite sign (دائن +، مدين −) */
 const balText = (b: number) => (Math.abs(b) <= 0.005 ? "مسدد" : b > 0 ? "مدين" : "دائن");
+const signed = (b: number) => (Math.abs(b) <= 0.005 ? "0" : `${b > 0 ? "-" : ""}${formatEGP(Math.abs(b))}`);
 const timeText = (t: string | null) => {
   if (!t) return "—";
   const [h, m] = t.split(":").map(Number);
@@ -42,6 +46,9 @@ const printKind = (l: AccountMovement): BulkKind | null =>
   l.src_table === "invoices" ? "sale" : l.src_table === "shipments" ? "purchase" : l.src_table === "returns" ? "sale_return"
   : l.src_table === "purchase_returns" ? "purchase_return" : l.src_table === "vouchers" ? (l.credit > 0 ? "income" : "expense") : null;
 
+/** Cancelled straight from the table: vouchers and returns (their own cancel path, a reversal — never a delete). An invoice asks about its money, so it is cancelled from inside the invoice. */
+const directCancel = (l: AccountMovement) => l.src_table === "vouchers" || l.src_table === "returns" || l.src_table === "purchase_returns";
+
 export function ContactMovements({ contactId, contactName, branchId, scopeName, reloadKey }: {
   contactId: string; contactName: string; branchId: string | null; scopeName: string; reloadKey?: unknown;
 }) {
@@ -53,6 +60,9 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
   const [to, setTo] = useState("");
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [view, setView] = useState<AccountMovement[] | null>(null);
+  const [cancelRows, setCancelRows] = useState<AccountMovement[] | null>(null);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -77,14 +87,33 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
   const asRows = (list: AccountMovement[]) => list.map((l) => ({
     "التاريخ": l.line_date ? formatDate(l.line_date) : "", "الوقت": l.line_time ? timeText(l.line_time) : "", "رقم الحركة": l.reference ?? "",
     "الحركة": l.line_type, "الفرع": l.branch_name ?? "", "لنا": l.debit || "", "علينا": l.credit || "",
-    "الرصيد الحالى": Math.abs(l.balance), "طبيعة الرصيد": balText(l.balance), "الملاحظات": l.notes ?? "",
+    "الرصيد الحالى": -l.balance, "طبيعة الرصيد": balText(l.balance), "الملاحظات": l.notes ?? "",
   }));
   const exportList = (list: AccountMovement[]) => exportToExcel(`حركات_${contactName}_${scopeName}`, [{ name: "الحركات", rows: asRows(list.slice().reverse()) }]);
   const printList = (list: AccountMovement[]) => {
     const tr = list.slice().reverse().map((l) => `<tr><td>${l.line_date ? formatDate(l.line_date) : ""}</td><td>${l.line_time ? timeText(l.line_time) : ""}</td><td>${l.reference ?? ""}</td><td>${l.line_type}</td>
-      <td>${l.debit ? formatEGP(l.debit) : "—"}</td><td>${l.credit ? formatEGP(l.credit) : "—"}</td><td><b>${formatEGP(Math.abs(l.balance))} ${balText(l.balance)}</b></td><td>${l.notes ?? ""}</td></tr>`).join("");
+      <td>${l.debit ? formatEGP(l.debit) : "—"}</td><td>${l.credit ? formatEGP(l.credit) : "—"}</td><td><b dir="ltr">${signed(l.balance)}</b> ${balText(l.balance)}</td><td>${l.notes ?? ""}</td></tr>`).join("");
     printReport(`حركات ${contactName}`, `<h1>${contactName}</h1><div class="meta">${scopeName}${from || to ? ` · ${from || "البداية"} → ${to || "النهارده"}` : ""}</div>
       <table><thead><tr><th>التاريخ</th><th>الوقت</th><th>رقم الحركة</th><th>الحركة</th><th>لنا</th><th>علينا</th><th>الرصيد الحالى</th><th>الملاحظات</th></tr></thead><tbody>${tr}</tbody></table>`, { landscape: true });
+  };
+  const runCancel = async () => {
+    if (!cancelRows) return;
+    setBusy(true);
+    let ok = 0; const failed: string[] = [];
+    for (const l of cancelRows) {
+      const k = printKind(l);
+      try { if (!k || !l.src_id) throw new Error("مالوش مستند"); await cancelDoc(k, { id: l.src_id }, reason.trim()); ok += 1; }
+      catch (e: any) { failed.push(`${l.reference ?? l.line_type}: ${e?.message ?? "تعذر الإلغاء"}`); }
+    }
+    setBusy(false); setCancelRows(null); setReason("");
+    if (ok) toast.success(`اتلغى ${ok} مستند — اتسجل عكسه والرصيد اتعدل`);
+    if (failed.length) toast.error(failed.slice(0, 3).join(" · "));
+    load();
+  };
+  const cancelChosen = () => {
+    const can = chosen.filter(directCancel), rest = chosen.length - can.length;
+    if (rest) toast.message(`${rest} فاتورة من المحدد بتتلغي من جواها (بتسأل عن فلوسها) — «فتح المحدد» بيفتحهم`);
+    if (can.length) { setReason(""); setCancelRows(can); }
   };
   const openChosen = () => {
     const list = chosen.map((l) => ({ path: movementPath(l), label: l.reference ?? l.line_type })).filter((d): d is { path: string; label: string } => !!d.path);
@@ -114,9 +143,22 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
           <Button size="sm" variant="outline" onClick={openChosen} title="بيفتح كل مستند محدد كتاب فوق — التعديل والإلغاء من جوه كل مستند"><ExternalLink className="w-4 h-4 ml-1" /> فتح المحدد (تعديل / إلغاء)</Button>
           <Button size="sm" variant="outline" onClick={() => printList(chosen)}><Printer className="w-4 h-4 ml-1" /> طباعة المحدد</Button>
           <Button size="sm" variant="outline" onClick={() => exportList(chosen)}><Download className="w-4 h-4 ml-1" /> تصدير المحدد</Button>
-          <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>إلغاء التحديد</Button>
+          <Button size="sm" variant="outline" className="text-destructive" onClick={cancelChosen}><Trash2 className="w-4 h-4 ml-1" /> إلغاء المحدد</Button>
+          <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>شيل التحديد</Button>
         </div>
       )}
+
+      <Dialog open={!!cancelRows} onOpenChange={(o) => { if (!o && !busy) setCancelRows(null); }}>
+        <DialogContent dir="rtl">
+          <DialogHeader><DialogTitle>إلغاء {cancelRows?.length === 1 ? (cancelRows[0].reference ?? cancelRows[0].line_type) : `${cancelRows?.length ?? 0} مستند`}</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">مفيش حاجة بتتمسح: بيتسجل عكس الحركة في الخزنة والدفاتر، والرصيد بيتعدل، والمستند بيفضل ظاهر «ملغي».</p>
+          <Textarea placeholder="سبب الإلغاء (5 حروف على الأقل)" value={reason} onChange={(e) => setReason(e.target.value)} />
+          <DialogFooter>
+            <Button variant="outline" disabled={busy} onClick={() => setCancelRows(null)}>رجوع</Button>
+            <Button variant="destructive" disabled={busy || reason.trim().length < 5} onClick={runCancel}>{busy ? "بلغي…" : "تأكيد الإلغاء"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {error && (
         <div className="card-elevated p-3 text-sm text-destructive flex items-center justify-between gap-2">
@@ -146,7 +188,7 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
           { key: "debit", header: "لنا", render: (l: AccountMovement) => (l.debit ? <span className="font-semibold tabular-nums">{formatEGP(l.debit)}</span> : "—") },
           { key: "credit", header: "علينا", render: (l: AccountMovement) => (l.credit ? <span className="font-semibold tabular-nums">{formatEGP(l.credit)}</span> : "—") },
           { key: "balance", header: "الرصيد الحالى", render: (l: AccountMovement) => (
-            <span className="font-bold tabular-nums">{formatEGP(Math.abs(l.balance))} <span className={`text-[10px] ${l.balance > 0.005 ? "text-success" : l.balance < -0.005 ? "text-destructive" : "text-muted-foreground"}`}>{balText(l.balance)}</span></span>
+            <span className="font-bold tabular-nums"><span dir="ltr">{signed(l.balance)}</span> <span className={`text-[10px] ${l.balance > 0.005 ? "text-success" : l.balance < -0.005 ? "text-destructive" : "text-muted-foreground"}`}>{balText(l.balance)}</span></span>
           ) },
           { key: "notes", header: "الملاحظات", render: (l: AccountMovement) => <span className="text-xs text-muted-foreground" title={l.notes ?? ""}>{l.notes ? (l.notes.length > 60 ? l.notes.slice(0, 60) + "…" : l.notes) : "—"}</span> },
           { key: "act", header: "الإجراءات", filter: false, render: (l: AccountMovement) => {
@@ -155,8 +197,11 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
             return (
               <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
                 {k && l.src_id && <PrintDocButton kind={k} id={l.src_id} />}
-                <Button size="sm" variant="ghost" className="h-7 text-xs" title="تعديل / إلغاء: بيتفتح المستند، والمالك بيعدّل مباشرة وغيره بيبعت طلب موافقة"
-                  onClick={() => nav(p)}><Pencil className="w-3.5 h-3.5 ml-1" /> تعديل / إلغاء</Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" title="تعديل: بيفتح المستند — المالك بيعدّل مباشرة وغيره بيبعت طلب موافقة" aria-label="تعديل"
+                  onClick={() => nav(p)}><Pencil className="w-3.5 h-3.5" /></Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="إلغاء"
+                  title={directCancel(l) ? "إلغاء (بيتسجل عكسه)" : "إلغاء الفاتورة من جواها — بتسأل عن فلوسها"}
+                  onClick={() => { if (directCancel(l)) { setReason(""); setCancelRows([l]); } else nav(p); }}><Trash2 className="w-3.5 h-3.5" /></Button>
               </div>
             );
           } },

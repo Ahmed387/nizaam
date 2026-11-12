@@ -99,6 +99,8 @@ export interface ContactPageTotals {
   customers_open: number; customers_open_count: number; customer_advances: number; customer_advances_count: number;
   suppliers_open: number; suppliers_open_count: number; supplier_advances: number; supplier_advances_count: number;
   customer_overdue: number; supplier_overdue: number;
+  /** 0204: the accounts' ONE net balance — Σ مدين (لنا) / Σ دائن (علينا) */
+  debit_total?: number; debit_count?: number; credit_total?: number; credit_count?: number;
 }
 export interface ContactsPage {
   rows: ContactPageRow[];
@@ -107,7 +109,7 @@ export interface ContactsPage {
   totals: ContactPageTotals;
   sides: { customer: boolean; supplier: boolean };
 }
-export type BalanceFilter = "owe_us" | "we_owe" | "customer_advance" | "supplier_advance" | "overdue" | "settled";
+export type BalanceFilter = "debit" | "credit" | "zero" | "owe_us" | "we_owe" | "customer_advance" | "supplier_advance" | "overdue" | "settled";
 
 export async function fetchContactsPage(args: {
   branchId: string | null; type?: "all" | "customer" | "supplier" | "both"; query?: string | null;

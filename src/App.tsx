@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect } from "react";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, useParams } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useParams, useLocation } from "react-router-dom";
 
 function RedirectToTreasury() {
   const { id } = useParams();
@@ -54,6 +55,12 @@ function RouteLoading() {
  * After start-up, quietly fetch the screens a cashier needs even when the internet drops (sale, returns,
  * dashboard), and after a new deploy reload once if an old page file is gone.
  */
+/** A page that throws shows a card (or reloads when its file is gone after a publish) — never a white screen. */
+function RouteGuard({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  return <RouteErrorBoundary resetKey={pathname}>{children}</RouteErrorBoundary>;
+}
+
 function PageWarmup() {
   useEffect(() => {
     const warm = () => {
@@ -242,6 +249,7 @@ const App = () => (
           <ShiftAlertBar />
           <DesktopNotifications />
           <PermCustomizeProvider>
+          <RouteGuard>
           <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<Index />} />
@@ -427,6 +435,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          </RouteGuard>
           </PermCustomizeProvider>
         </AuthProvider>
       </BrowserRouter>

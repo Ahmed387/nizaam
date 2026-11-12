@@ -30,7 +30,7 @@ export default function ArchivePage() {
     try {
       const [c, p] = await Promise.all([
         fetchAllRows<any>(() => {
-          let q: any = (supabase.from("contacts") as any).select("id, account_no, name, type, phone, branch_id, merged_into, created_at, branches(name)").eq("is_archived", true);
+          let q: any = (supabase.from("contacts") as any).select("id, account_no, name, type, phone, branch_id, merged_into, created_at, branches:branch_id(name)").eq("is_archived", true);
           if (branchId) q = q.eq("branch_id", branchId);
           return q.order("id");
         }),

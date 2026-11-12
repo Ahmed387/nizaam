@@ -1,3 +1,4 @@
+import { netOf, netText, netTone, netLabel } from "@/lib/netBalance";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { PermTable } from "@/components/PermTable";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -67,8 +68,8 @@ const CONTACT_COLS: ListColumn<any>[] = [
   { key: "address", label: "العنوان", kind: "text", get: (r) => r.address },
   { key: "notes", label: "الملاحظات", kind: "text", get: (r) => r.notes },
   { key: "account_no", label: "رقم الحساب", kind: "number", get: (r) => r.account_no ?? null },
-  // ONE balance per account: + = مدين (لنا عنده), − = دائن (علينا له)
-  { key: "__net", label: "الرصيد الحالى", kind: "number", get: (r) => Math.round((Number(r.customer_balance ?? 0) - Number(r.supplier_balance ?? 0)) * 100) / 100, sum: true, money: true },
+  // ONE balance per account: دائن + (علينا له)، مدين − (لنا عنده)
+  { key: "__net", label: "الرصيد الحالى", kind: "number", get: (r) => netOf(r.customer_balance, r.supplier_balance), sum: true, money: true },
 ];
 
 export default function Contacts() {
@@ -100,13 +101,11 @@ export default function Contacts() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggleBalance = (k: BalanceKey) =>
     setBalanceFilters((prev) => prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]);
+  // the account's ONE balance (owner 2026-11-12 «حساب جاري»): مدين / دائن / صفر — plus the instalments that are late
   const BALANCE_LABELS: Record<BalanceKey, string> = {
-    owe_us: "عملاء عليهم فلوس لنا",
-    customer_advance: "عملاء ليهم مقدم عندنا",
-    we_owe: "موردين لهم فلوس علينا",
-    supplier_advance: "موردين لينا عندهم مقدم",
-    overdue: "عليهم أقساط متأخرة",
-    settled: "حساباتهم مسددة",
+    debit: "مدين (لنا عنده)", credit: "دائن (علينا له)", zero: "رصيده صفر", overdue: "عليهم أقساط متأخرة",
+    owe_us: "عملاء عليهم فلوس لنا", customer_advance: "عملاء ليهم مقدم عندنا", we_owe: "موردين لهم فلوس علينا",
+    supplier_advance: "موردين لينا عندهم مقدم", settled: "حساباتهم مسددة",
   };
   const isManager = hasRole("branch_manager");
 
@@ -174,9 +173,9 @@ export default function Contacts() {
   const exportSelected = () => exportToExcel("جهات-محددة", [{
     name: "الجهات",
     rows: selRows.map((r, i) => {
-      const net = Math.round((Number(r.customer_balance ?? 0) - Number(r.supplier_balance ?? 0)) * 100) / 100;
+      const net = netOf(r.customer_balance, r.supplier_balance);
       return {
-        "#": i + 1, "رقم الحساب": r.account_no ?? "", "اسم الحساب": r.name, "الرصيد الحالى": Math.abs(net), "مدين / دائن": Math.abs(net) <= 0.005 ? "مسدد" : net > 0 ? "مدين" : "دائن",
+        "#": i + 1, "رقم الحساب": r.account_no ?? "", "اسم الحساب": r.name, "الرصيد الحالى": net, "مدين / دائن": netLabel(net),
         "طبيعة الحساب": TYPE_LABELS[r.type as ContactType] ?? r.type, "التليفون": r.phone ?? "", "العنوان": r.address ?? "", "الملاحظة": r.notes ?? "",
       };
     }),
@@ -405,43 +404,32 @@ export default function Contacts() {
       </div></PermPart>
 
 
-      {/* Balance KPIs — هذا الفرع فقط (فواتيره وفلوسه)، العملاء والموردين كل جانب لوحده */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+      {/* owner 2026-11-12 «حساب جاري»: three cards on the accounts' ONE balance + the late instalments (kept) */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <MetricCardWithHint
-          label="مستحق لنا على العملاء"
-          active={balanceFilters.length === 1 && balanceFilters[0] === "owe_us"}
-          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "owe_us" ? [] : ["owe_us"]))}
-          value={totals?.customers_open ?? 0}
+          label="إجمالي المدين (لنا)"
+          active={balanceFilters.length === 1 && balanceFilters[0] === "debit"}
+          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "debit" ? [] : ["debit"]))}
+          value={totals?.debit_total ?? 0}
           tone="success"
           icon={<ArrowDownLeft />}
-          metricHint={{ meaning: "المتبقي على فواتير بيع الفرع المفتوحة بعد كل التحصيلات ورصيد المرتجعات (بما فيها فلوس اتدفعت في فرع تاني على فواتير هنا).", source: "الدفتر الموحد (contacts_page): فواتير البيع ناقص التوزيعات عليها.", formula: "Σ (إجمالي الفاتورة − الموزع عليها) لفواتير الفرع المفتوحة" }}
+          metricHint={{ meaning: "مجموع أرصدة الحسابات المدينة: اللي لنا عند الناس.", source: "الدفتر الموحد: رصيد كل حساب في الفرع ده (ناحية العميل − ناحية المورد).", formula: "Σ رصيد كل حساب رصيده مدين" }}
         />
         <MetricCardWithHint
-          label="مقدمات عملاء عندنا"
-          active={balanceFilters.length === 1 && balanceFilters[0] === "customer_advance"}
-          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "customer_advance" ? [] : ["customer_advance"]))}
-          value={totals?.customer_advances ?? 0}
-          tone="primary"
-          icon={<Wallet />}
-          metricHint={{ meaning: "فلوس عملاء اتسجلت في الفرع ده ولسه ما اتخصمتش من أي فاتورة (حساب 2150).", source: "الدفتر الموحد: حركات العملاء في الفرع اللي لسه ليها رصيد.", formula: "Σ (مبلغ الحركة − الموزع منها)" }}
-        />
-        <MetricCardWithHint
-          label="مستحق للموردين علينا"
-          active={balanceFilters.length === 1 && balanceFilters[0] === "we_owe"}
-          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "we_owe" ? [] : ["we_owe"]))}
-          value={totals?.suppliers_open ?? 0}
+          label="إجمالي الدائن (علينا)"
+          active={balanceFilters.length === 1 && balanceFilters[0] === "credit"}
+          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "credit" ? [] : ["credit"]))}
+          value={totals?.credit_total ?? 0}
           tone="destructive"
           icon={<ArrowUpRight />}
-          metricHint={{ meaning: "المتبقي على فواتير شراء الفرع المفتوحة بعد المدفوعات ورصيد مرتجعات الشراء.", source: "الدفتر الموحد: فواتير الشراء ناقص التوزيعات عليها.", formula: "Σ (إجمالي فاتورة الشراء − الموزع عليها)" }}
+          metricHint={{ meaning: "مجموع أرصدة الحسابات الدائنة: اللي علينا للناس.", source: "الدفتر الموحد: رصيد كل حساب في الفرع ده (ناحية العميل − ناحية المورد).", formula: "Σ رصيد كل حساب رصيده دائن" }}
         />
         <MetricCardWithHint
-          label="مقدمات لينا عند الموردين"
-          active={balanceFilters.length === 1 && balanceFilters[0] === "supplier_advance"}
-          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "supplier_advance" ? [] : ["supplier_advance"]))}
-          value={totals?.supplier_advances ?? 0}
+          label="الصافي (دائن − مدين)"
+          value={(totals?.credit_total ?? 0) - (totals?.debit_total ?? 0)}
           tone="primary"
           icon={<Wallet />}
-          metricHint={{ meaning: "فلوس دفعها الفرع للموردين ولسه ما اتخصمتش من فواتير شراء (حساب 1460).", source: "الدفتر الموحد: حركات الموردين في الفرع اللي لسه ليها رصيد.", formula: "Σ (مبلغ الحركة − الموزع منها)" }}
+          metricHint={{ meaning: "موجب = علينا أكتر من اللي لنا (دائن)، سالب = لنا أكتر (مدين).", source: "الكارتين اللي قبله.", formula: "إجمالي الدائن − إجمالي المدين" }}
         />
         <MetricCardWithHint
           label="أقساط متأخرة (عملاء / موردين)"
@@ -450,7 +438,7 @@ export default function Contacts() {
           value={(totals?.customer_overdue ?? 0)}
           tone="warning"
           icon={<Clock />}
-          metricHint={{ meaning: `أقساط عملاء الفرع اللي ميعادها عدى ولسه مفتوحة. أقساط الموردين المتأخرة: ${formatEGP(totals?.supplier_overdue ?? 0)}.`, source: "خطط وأقساط الفرع، محدودة بالمتبقي الفعلي في الدفتر (القسط على فاتورة اتسددت مش بيتحسب متأخر).", formula: "Σ (قيمة القسط − المدفوع منه) لأقساط مستحقة قبل النهارده بتوقيت القاهرة" }}
+          metricHint={{ meaning: `أقساط عملاء الفرع اللي ميعادها عدى ولسه ما اتدفعتش. أقساط الموردين المتأخرة: ${formatEGP(totals?.supplier_overdue ?? 0)}.`, source: "خطط الأقساط.", formula: "Σ الأقساط اللي ميعادها عدى" }}
         />
       </div>
 
@@ -487,7 +475,7 @@ export default function Contacts() {
               <div className="text-xs text-muted-foreground px-2 pb-2 border-b mb-1">
                 اختر تصنيف أو أكثر
               </div>
-              {(["owe_us", "customer_advance", "we_owe", "supplier_advance", "overdue", "settled"] as const).map((k) => (
+              {(["debit", "credit", "zero", "overdue"] as const).map((k) => (
                 <label
                   key={k}
                   className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent cursor-pointer text-sm"
@@ -582,18 +570,15 @@ export default function Contacts() {
             },
           },
           {
-            // ONE balance per account (owner 2026-11-11): customer side − supplier side; + = مدين (لنا عنده), − = دائن (علينا له)
+            // ONE balance per account («حساب جاري», owner 2026-11-12): دائن + (علينا له)، مدين − (لنا عنده)
             key: "__net",
             header: "الرصيد الحالى",
             render: (r: any) => {
-              const net = Math.round((Number(r.customer_balance ?? 0) - Number(r.supplier_balance ?? 0)) * 100) / 100;
-              const all = Math.round((Number(r.customer_balance_all ?? 0) - Number(r.supplier_balance_all ?? 0)) * 100) / 100;
-              const txt = (v: number) => (Math.abs(v) <= 0.005 ? "مسدد" : v > 0 ? "مدين" : "دائن");
+              const net = netOf(r.customer_balance, r.supplier_balance), all = netOf(r.customer_balance_all, r.supplier_balance_all);
               return (
-                <div className="tabular-nums">
-                  {Math.abs(net) <= 0.005 ? <span className="text-muted-foreground">مسدد</span>
-                    : <span className={`font-bold ${net > 0 ? "text-success" : "text-destructive"}`}>{formatEGP(Math.abs(net))} <span className="text-xs">{txt(net)}</span></span>}
-                  {Math.abs(all - net) > 0.005 && <div className="text-[11px] text-muted-foreground">كل الفروع: {formatEGP(Math.abs(all))} {txt(all)}</div>}
+                <div className="tabular-nums" dir="ltr">
+                  <span className={`font-bold ${netTone(net)}`}>{netText(net)}</span>
+                  {Math.abs(all - net) > 0.005 && <div className="text-[11px] text-muted-foreground" dir="rtl">كل الفروع: {netText(all)}</div>}
                 </div>
               );
             },

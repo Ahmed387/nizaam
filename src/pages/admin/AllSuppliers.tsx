@@ -1,3 +1,4 @@
+import { netOf, netText, netTone } from "@/lib/netBalance";
 import { useEffect, useMemo, useState } from "react";
 import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
@@ -146,7 +147,11 @@ export default function AllSuppliers() {
     // separately, so a contact with an open invoice AND an advance shows under both
     const co = Number(s.customer_open) || 0, ca = Number(s.customer_advance) || 0;
     const so = Number(s.supplier_open) || 0, sa = Number(s.supplier_advance) || 0;
+    const net = netOf(s.customer_balance, s.supplier_balance);
     switch (balanceFilter) {
+      case "debit": return net < -0.005;
+      case "credit": return net > 0.005;
+      case "zero": return Math.abs(net) <= 0.005;
       case "owe_us": return co > 0.005;
       case "we_owe": return so > 0.005;
       case "customer_advance": return ca > 0.005;
@@ -425,26 +430,21 @@ export default function AllSuppliers() {
           <div className="text-xs text-muted-foreground">إجمالي المشتريات (فواتير شراء سارية)</div>
           <FinancialAmount value={stats.totalPurchases} size="md" className="mt-1 justify-start text-primary" />
         </div></PermCard>
-        <PermCard label="مستحق لنا على العملاء"><button type="button" onClick={() => setBalanceFilter("owe_us")} className="text-right p-4 rounded-lg border bg-warning/5 border-warning/30">
-          <div className="text-xs text-warning flex items-center gap-1"><ArrowDown className="w-3 h-3" /> مستحق لنا على العملاء</div>
-          <FinancialAmount value={totals?.customers_open ?? 0} size="md" className="mt-1 justify-start text-warning" />
-          <div className="text-[11px] text-muted-foreground">{totals?.customers_open_count ?? 0} عميل</div>
+        <PermCard label="إجمالي المدين (لنا)"><button type="button" onClick={() => setBalanceFilter("debit")} className="text-right p-4 rounded-lg border bg-success/5 border-success/30">
+          <div className="text-xs text-success flex items-center gap-1"><ArrowDown className="w-3 h-3" /> إجمالي المدين (لنا)</div>
+          <FinancialAmount value={totals?.debit_total ?? 0} size="md" className="mt-1 justify-start text-success" />
+          <div className="text-[11px] text-muted-foreground">{totals?.debit_count ?? 0} حساب</div>
         </button></PermCard>
-        <PermCard label="مقدمات عملاء عندنا (2150)"><button type="button" onClick={() => setBalanceFilter("customer_advance")} className="text-right p-4 rounded-lg border bg-primary/5 border-primary/30">
-          <div className="text-xs text-primary">مقدمات عملاء عندنا (2150)</div>
-          <FinancialAmount value={totals?.customer_advances ?? 0} size="md" className="mt-1 justify-start text-primary" />
-          <div className="text-[11px] text-muted-foreground">{totals?.customer_advances_count ?? 0} عميل</div>
+        <PermCard label="إجمالي الدائن (علينا)"><button type="button" onClick={() => setBalanceFilter("credit")} className="text-right p-4 rounded-lg border bg-destructive/5 border-destructive/30">
+          <div className="text-xs text-destructive flex items-center gap-1"><ArrowUp className="w-3 h-3" /> إجمالي الدائن (علينا)</div>
+          <FinancialAmount value={totals?.credit_total ?? 0} size="md" className="mt-1 justify-start text-destructive" />
+          <div className="text-[11px] text-muted-foreground">{totals?.credit_count ?? 0} حساب</div>
         </button></PermCard>
-        <PermCard label="مستحق للموردين علينا"><button type="button" onClick={() => setBalanceFilter("we_owe")} className="text-right p-4 rounded-lg border bg-destructive/5 border-destructive/30">
-          <div className="text-xs text-destructive flex items-center gap-1"><ArrowUp className="w-3 h-3" /> مستحق للموردين علينا</div>
-          <FinancialAmount value={totals?.suppliers_open ?? 0} size="md" className="mt-1 justify-start text-destructive" />
-          <div className="text-[11px] text-muted-foreground">{totals?.suppliers_open_count ?? 0} مورد</div>
-        </button></PermCard>
-        <PermCard label="مقدمات لينا عند الموردين (1460)"><button type="button" onClick={() => setBalanceFilter("supplier_advance")} className="text-right p-4 rounded-lg border bg-success/5 border-success/30">
-          <div className="text-xs text-success">مقدمات لينا عند الموردين (1460)</div>
-          <FinancialAmount value={totals?.supplier_advances ?? 0} size="md" className="mt-1 justify-start text-success" />
-          <div className="text-[11px] text-muted-foreground">{totals?.supplier_advances_count ?? 0} مورد</div>
-        </button></PermCard>
+        <PermCard label="الصافي (دائن − مدين)"><div className="text-right p-4 rounded-lg border bg-primary/5 border-primary/30">
+          <div className="text-xs text-primary">الصافي (دائن − مدين)</div>
+          <FinancialAmount value={(totals?.credit_total ?? 0) - (totals?.debit_total ?? 0)} size="md" className="mt-1 justify-start text-primary" />
+          <div className="text-[11px] text-muted-foreground">موجب = علينا أكتر، سالب = لنا أكتر</div>
+        </div></PermCard>
       </div>
 
       <div className="flex gap-2 mb-3 flex-wrap">
@@ -469,12 +469,10 @@ export default function AllSuppliers() {
           <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">كل الحالات</SelectItem>
-            <SelectItem value="owe_us">مستحق لنا على العميل</SelectItem>
-            <SelectItem value="customer_advance">العميل له مقدم عندنا</SelectItem>
-            <SelectItem value="we_owe">مستحق للمورد علينا</SelectItem>
-            <SelectItem value="supplier_advance">لينا مقدم عند المورد</SelectItem>
+            <SelectItem value="debit">مدين (لنا عنده)</SelectItem>
+            <SelectItem value="credit">دائن (علينا له)</SelectItem>
+            <SelectItem value="zero">رصيده صفر</SelectItem>
             <SelectItem value="overdue">أقساط متأخرة</SelectItem>
-            <SelectItem value="settled">مسدد (الجانبين صفر)</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -493,10 +491,9 @@ export default function AllSuppliers() {
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
           { key: "totalShipments", header: "إجمالي المشتريات", render: (r: any) => <span className="font-semibold">{formatEGP(r.totalShipments)}</span> },
           { key: "__net", header: "الرصيد الحالى", render: (r: any) => {
-            // ONE balance per account (owner 2026-11-11): + = مدين (لنا عنده), − = دائن (علينا له)
-            const v = Math.round(((Number(r.customer_balance) || 0) - (Number(r.supplier_balance) || 0)) * 100) / 100;
-            if (Math.abs(v) <= 0.005) return <span className="text-muted-foreground">مسدد</span>;
-            return <span className={`font-bold tabular-nums ${v > 0 ? "text-success" : "text-destructive"}`}>{formatEGP(Math.abs(v))} <span className="text-xs">{v > 0 ? "مدين" : "دائن"}</span></span>;
+            // ONE balance per account («حساب جاري»): دائن + (علينا له)، مدين − (لنا عنده)
+            const v = netOf(r.customer_balance, r.supplier_balance);
+            return <span dir="ltr" className={`font-bold tabular-nums ${netTone(v)}`}>{netText(v)}</span>;
           }},
           { key: "actions", header: "الإجراءات", width: "18rem", className: "min-w-[18rem]", render: (r: any) => (
             <div className="flex min-w-max items-center gap-1" onClick={(e) => e.stopPropagation()}>

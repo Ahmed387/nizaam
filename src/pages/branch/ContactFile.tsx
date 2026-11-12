@@ -1,3 +1,4 @@
+import { netOf, netText, netTone } from "@/lib/netBalance";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
 import { InternalBranchTag } from "@/components/contact/InternalBranchTag";
@@ -207,12 +208,11 @@ export default function ContactFile() {
       </div>
 
       {scopeBranch && ovAll && (() => {
-        const net = Math.round(((ovAll.customer?.balance ?? 0) - (ovAll.supplier?.balance ?? 0)) * 100) / 100;
+        const net = netOf(ovAll.customer?.balance, ovAll.supplier?.balance);
         return (
           <div className="card-elevated p-3 mb-4 text-sm flex flex-wrap gap-2">
             <span className="font-semibold">الرصيد في كل الفروع:</span>
-            <b className="tabular-nums">{formatEGP(Math.abs(net))}</b>
-            <span>{Math.abs(net) <= 0.005 ? "مسدد" : net > 0 ? "مدين — لنا عنده" : "دائن — علينا له"}</span>
+            <b className={`tabular-nums ${netTone(net)}`} dir="ltr">{netText(net)}</b>
           </div>
         );
       })()}
