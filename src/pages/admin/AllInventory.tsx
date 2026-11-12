@@ -1,3 +1,4 @@
+import { fetchLastPurchaseCosts } from "@/lib/lastPurchaseCost";
 import { useEffect, useMemo, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import * as XLSX from "xlsx";
@@ -19,7 +20,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
-import { Upload, Loader2, Image as ImageIcon, Pencil, Plus, Trash2, FileSpreadsheet, Barcode, ArrowLeftRight, Edit3, Tag, History } from "lucide-react";
+import { Upload, Loader2, Image as ImageIcon, Pencil, Plus, Trash2, FileSpreadsheet, Barcode, ArrowLeftRight, Edit3, Tag, History, Activity } from "lucide-react";
 import { PriceEditDialog } from "@/components/PriceEditDialog";
 import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { ImageField } from "@/components/ImageField";
@@ -87,9 +88,11 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
       supabase.from("branches").select("id, name").eq("is_active", true).eq("is_system", false).order("name"),
       supabase.from("categories").select("id, name").order("name"),
     ]);
+    const last = await fetchLastPurchaseCosts(null).catch(() => new Map<string, number>());
     setRows(
       (prods ?? []).map((p: any) => ({
         ...p,
+        last_purchase_cost: last.get(p.id) ?? null,
         branch_name: p.branches?.name ?? "—",
         category_name: p.categories?.name ?? "—",
       }))
@@ -390,7 +393,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
                 : <div className="w-10 h-10 rounded bg-muted flex items-center justify-center"><ImageIcon className="w-4 h-4 text-muted-foreground" /></div>}
             </div>
           ) },
-          { key: "name", header: "المنتج", width: "30%", align: "right", render: (r: Row) => (
+          { key: "name", header: "اسم الصنف", width: "26%", align: "right", render: (r: Row) => (
             <ProductCell
               name={r.name}
               attrs={r as any}
@@ -403,26 +406,27 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
               }
             />
           ) },
-          { key: "quantity", header: "الكمية", width: "5rem", align: "center", numeric: true, render: (r: Row) => <span className="font-bold">{r.quantity}</span> },
-          { key: "prices", header: "الأسعار (شراء / بيع / سوق)", width: "16%", align: "center", render: (r: Row) => (
-            <div className="flex flex-col items-center gap-0.5 text-xs tabular-nums">
-              <span className="text-muted-foreground">{formatEGP(r.cost_price)}</span>
-              <span className="text-success font-semibold">{formatEGP(r.selling_price)}</span>
-              <span className="text-primary">{formatEGP(r.market_price)}</span>
-            </div>
-          ) },
+          { key: "quantity", header: "اجمالى الكمية", width: "6rem", align: "center", numeric: true, render: (r: Row) => <span className="font-bold">{r.quantity}</span> },
+          { key: "category_name", header: "التصنيف", align: "center", render: (r: Row) => r.category_name ?? "—" },
+          { key: "selling_price", header: "سعر البيع", align: "center", numeric: true, total: false, render: (r: Row) => <span className="text-success font-semibold tabular-nums">{formatEGP(r.selling_price)}</span> },
+          { key: "avg_cost", header: "متوسط سعر الشراء", align: "center", numeric: true, total: false, render: (r: Row) => <span className="tabular-nums">{formatEGP(Number((r as any).avg_cost) > 0 ? (r as any).avg_cost : r.cost_price)}</span> },
+          { key: "last_purchase_cost", header: "اخر سعر الشراء", align: "center", numeric: true, total: false, render: (r: Row) => <span className="tabular-nums">{(r as any).last_purchase_cost != null ? formatEGP((r as any).last_purchase_cost) : "—"}</span> },
+          { key: "unit", header: "الوحدة", align: "center", render: (r: Row) => (Number((r as any).pack_size) > 1 ? `${(r as any).pack_name ?? "كرتونة"} (${(r as any).pack_size})` : "قطعة") },
           { key: "status", header: "الحالة", width: "6.5rem", align: "center", render: (r: Row) => {
             if (r.quantity === 0) return <span className="px-2 py-1 rounded text-xs bg-destructive/15 text-destructive whitespace-nowrap">🔴 نفد</span>;
             if (r.quantity <= r.low_stock_alert) return <span className="px-2 py-1 rounded text-xs bg-warning/15 text-warning whitespace-nowrap">🟡 منخفض</span>;
             return <span className="px-2 py-1 rounded text-xs bg-success/15 text-success whitespace-nowrap">🟢 متوفر</span>;
           }},
-          { key: "actions", header: "إجراءات", width: "9rem", align: "center", render: (r: Row) => (
+          { key: "actions", header: "الإجراءات", width: "12rem", align: "center", render: (r: Row) => (
             <div className="flex gap-1 justify-center">
               <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setPriceEdit(r); }} title="تعديل السعر">
                 <Tag className="w-3.5 h-3.5" />
               </Button>
               <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setHistoryFor(r); }} title="تاريخ الأسعار">
                 <History className="w-3.5 h-3.5" />
+              </Button>
+              <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); navigate(`/branch/${r.branch_id}/inventory/${r.id}/movements`); }} title="حركة المنتج">
+                <Activity className="w-3.5 h-3.5" />
               </Button>
               <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); setPendingImageDeletes([]); setEditOriginalImage(String(r.image ?? "")); setEditing({ ...r }); }} title="تعديل المنتج">
                 <Pencil className="w-3.5 h-3.5" />

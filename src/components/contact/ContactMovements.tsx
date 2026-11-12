@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, ExternalLink, Printer, X } from "lucide-react";
+import { Download, ExternalLink, Pencil, Printer, X } from "lucide-react";
 import { toast } from "sonner";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { formatDate, formatEGP } from "@/lib/format";
 import { exportToExcel, printReport } from "@/lib/export";
 import { openDocs } from "@/lib/openDocs";
 import { fetchContactAccountMovements, type AccountMovement } from "@/lib/ledger";
+import { PrintDocButton } from "@/components/documents/MoneyCells";
+import type { BulkKind } from "@/lib/bulkDocs";
 
 /**
  * The account's movements (owner 2026-11-11, migration 0199): the one table of the contact file —
@@ -34,6 +36,11 @@ export const movementPath = (l: AccountMovement): string | null => {
     default: return null;
   }
 };
+
+/** Which print layout a line uses; a voucher is a receipt when it lowers the balance (علينا) and a payment when it raises it (لنا). */
+const printKind = (l: AccountMovement): BulkKind | null =>
+  l.src_table === "invoices" ? "sale" : l.src_table === "shipments" ? "purchase" : l.src_table === "returns" ? "sale_return"
+  : l.src_table === "purchase_returns" ? "purchase_return" : l.src_table === "vouchers" ? (l.credit > 0 ? "income" : "expense") : null;
 
 export function ContactMovements({ contactId, contactName, branchId, scopeName, reloadKey }: {
   contactId: string; contactName: string; branchId: string | null; scopeName: string; reloadKey?: unknown;
@@ -104,7 +111,7 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
       {picked.size > 0 && (
         <div className="card-elevated p-2 flex flex-wrap items-center gap-2 border-primary/40 bg-primary/5 text-sm" data-testid="movements-selection">
           <b>{picked.size} محدد</b>
-          <Button size="sm" variant="outline" onClick={openChosen}><ExternalLink className="w-4 h-4 ml-1" /> فتح المحدد</Button>
+          <Button size="sm" variant="outline" onClick={openChosen} title="بيفتح كل مستند محدد كتاب فوق — التعديل والإلغاء من جوه كل مستند"><ExternalLink className="w-4 h-4 ml-1" /> فتح المحدد (تعديل / إلغاء)</Button>
           <Button size="sm" variant="outline" onClick={() => printList(chosen)}><Printer className="w-4 h-4 ml-1" /> طباعة المحدد</Button>
           <Button size="sm" variant="outline" onClick={() => exportList(chosen)}><Download className="w-4 h-4 ml-1" /> تصدير المحدد</Button>
           <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>إلغاء التحديد</Button>
@@ -142,10 +149,17 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
             <span className="font-bold tabular-nums">{formatEGP(Math.abs(l.balance))} <span className={`text-[10px] ${l.balance > 0.005 ? "text-success" : l.balance < -0.005 ? "text-destructive" : "text-muted-foreground"}`}>{balText(l.balance)}</span></span>
           ) },
           { key: "notes", header: "الملاحظات", render: (l: AccountMovement) => <span className="text-xs text-muted-foreground" title={l.notes ?? ""}>{l.notes ? (l.notes.length > 60 ? l.notes.slice(0, 60) + "…" : l.notes) : "—"}</span> },
-          { key: "act", header: "الإجراءات", filter: false, render: (l: AccountMovement) => (movementPath(l) ? (
-            <Button size="sm" variant="ghost" className="h-7 text-xs" title="فتح المستند: طباعة / تعديل / إلغاء من جواه"
-              onClick={(e) => { e.stopPropagation(); nav(movementPath(l)!); }}><ExternalLink className="w-3.5 h-3.5 ml-1" /> فتح</Button>
-          ) : null) },
+          { key: "act", header: "الإجراءات", filter: false, render: (l: AccountMovement) => {
+            const p = movementPath(l), k = printKind(l);
+            if (!p) return null;
+            return (
+              <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                {k && l.src_id && <PrintDocButton kind={k} id={l.src_id} />}
+                <Button size="sm" variant="ghost" className="h-7 text-xs" title="تعديل / إلغاء: بيتفتح المستند، والمالك بيعدّل مباشرة وغيره بيبعت طلب موافقة"
+                  onClick={() => nav(p)}><Pencil className="w-3.5 h-3.5 ml-1" /> تعديل / إلغاء</Button>
+              </div>
+            );
+          } },
         ]}
         footer={body.length > 0 ? (
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">

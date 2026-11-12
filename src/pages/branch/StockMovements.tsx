@@ -1,3 +1,5 @@
+import { ProductDocMovements } from "@/components/ProductDocMovements";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
 import { PermCard } from "@/contexts/PermCustomize";
 import { useNavigate, useParams } from "react-router-dom";
@@ -330,6 +332,16 @@ export default function StockMovements() {
         }
       />
 
+      {/* owner 2026-11-11: the item's movements from its documents first; the older detailed list (adjustments, counts, transfers) stays beside it */}
+      <Tabs defaultValue="docs">
+        <TabsList>
+          <TabsTrigger value="docs">حركة الصنف (من المستندات)</TabsTrigger>
+          <TabsTrigger value="detail">تفاصيل التسويات والجرد والتحويلات</TabsTrigger>
+        </TabsList>
+        <TabsContent value="docs" className="mt-3">
+          {product && <ProductDocMovements product={product} reloadKey={tick} />}
+        </TabsContent>
+        <TabsContent value="detail" className="mt-3">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <PermCard label="إجمالي الوارد"><div className="card-elevated p-4">
           <div className="text-xs text-muted-foreground mb-1">إجمالي الوارد</div>
@@ -393,6 +405,9 @@ export default function StockMovements() {
           ) },
         ]}
       />
+
+        </TabsContent>
+      </Tabs>
 
     </BranchLayout>
   );

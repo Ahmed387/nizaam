@@ -61,16 +61,14 @@ const positive = (v: number) => (v > 0.005 ? v : null);
  * (+ he owes us / we owe him, − an advance), so «أكبر من 0» = عليه لنا; «لينا عنده» / «علينا له» add up.
  */
 const CONTACT_COLS: ListColumn<any>[] = [
-  { key: "name", label: "الاسم", kind: "text", get: (r) => r.name },
-  { key: "type", label: "النوع", kind: "text", get: (r) => TYPE_LABELS[r.type as ContactType] ?? r.type },
+  { key: "name", label: "اسم الحساب", kind: "text", get: (r) => r.name },
+  { key: "type", label: "طبيعة الحساب", kind: "text", get: (r) => TYPE_LABELS[r.type as ContactType] ?? r.type },
   { key: "phone", label: "التليفون", kind: "text", get: (r) => r.phone },
-  { key: "email", label: "الإيميل", kind: "text", get: (r) => r.email },
   { key: "address", label: "العنوان", kind: "text", get: (r) => r.address },
   { key: "notes", label: "الملاحظات", kind: "text", get: (r) => r.notes },
-  { key: "customer_balance", label: "حساب العميل", kind: "number", get: (r) => (r.type === "supplier" ? null : Number(r.customer_balance ?? 0)) },
-  { key: "supplier_balance", label: "حساب المورد", kind: "number", get: (r) => (r.type === "customer" ? null : Number(r.supplier_balance ?? 0)) },
-  { key: "__owed_us", label: "لينا عنده", kind: "number", get: (r) => { const o = owes(r).us; return positive(o.fromCustomer + o.supplierAdvance); }, sum: true, money: true },
-  { key: "__we_owe", label: "علينا له", kind: "number", get: (r) => { const o = owes(r).them; return positive(o.toSupplier + o.customerAdvance); }, sum: true, money: true },
+  { key: "account_no", label: "رقم الحساب", kind: "number", get: (r) => r.account_no ?? null },
+  // ONE balance per account: + = مدين (لنا عنده), − = دائن (علينا له)
+  { key: "__net", label: "الرصيد الحالى", kind: "number", get: (r) => Math.round((Number(r.customer_balance ?? 0) - Number(r.supplier_balance ?? 0)) * 100) / 100, sum: true, money: true },
 ];
 
 export default function Contacts() {
@@ -176,12 +174,10 @@ export default function Contacts() {
   const exportSelected = () => exportToExcel("جهات-محددة", [{
     name: "الجهات",
     rows: selRows.map((r, i) => {
-      const o = owes(r);
+      const net = Math.round((Number(r.customer_balance ?? 0) - Number(r.supplier_balance ?? 0)) * 100) / 100;
       return {
-        "#": i + 1, "الاسم": r.name, "النوع": TYPE_LABELS[r.type as ContactType] ?? r.type, "التليفون": r.phone ?? "", "العنوان": r.address ?? "",
-        "لينا عنده": o.us.fromCustomer + o.us.supplierAdvance, "علينا له": o.them.toSupplier + o.them.customerAdvance,
-        "حساب العميل": sideText("c", Number(r.customer_balance ?? 0)) + " " + Math.abs(Number(r.customer_balance ?? 0)),
-        "حساب المورد": sideText("s", Number(r.supplier_balance ?? 0)) + " " + Math.abs(Number(r.supplier_balance ?? 0)),
+        "#": i + 1, "رقم الحساب": r.account_no ?? "", "اسم الحساب": r.name, "الرصيد الحالى": Math.abs(net), "مدين / دائن": Math.abs(net) <= 0.005 ? "مسدد" : net > 0 ? "مدين" : "دائن",
+        "طبيعة الحساب": TYPE_LABELS[r.type as ContactType] ?? r.type, "التليفون": r.phone ?? "", "العنوان": r.address ?? "", "الملاحظة": r.notes ?? "",
       };
     }),
   }]);
@@ -385,6 +381,7 @@ export default function Contacts() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/accounts-balances`)}>أرصدة مدين / دائن</Button>
+            <Button variant="outline" size="sm" onClick={() => nav(`/branch/${branchId}/archive`)}>الأرشيف</Button>
             <PermPart page="customers" part="export_buttons"><div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={!total} className="gap-2">
               <FileSpreadsheet className="w-4 h-4" /> Excel
@@ -559,9 +556,10 @@ export default function Contacts() {
                      onClick={(e) => e.stopPropagation()} onChange={() => toggleSel(r)} aria-label={`تحديد ${r.name}`} />
             ),
           },
+          { key: "account_no", header: "رقم الحساب", render: (r: any) => <span className="font-mono text-xs">{r.account_no ?? "—"}</span> },
           {
             key: "name",
-            header: "الاسم",
+            header: "اسم الحساب",
             render: (r: any) => {
               const open = expandedId === r.id;
               return (
@@ -584,8 +582,25 @@ export default function Contacts() {
             },
           },
           {
+            // ONE balance per account (owner 2026-11-11): customer side − supplier side; + = مدين (لنا عنده), − = دائن (علينا له)
+            key: "__net",
+            header: "الرصيد الحالى",
+            render: (r: any) => {
+              const net = Math.round((Number(r.customer_balance ?? 0) - Number(r.supplier_balance ?? 0)) * 100) / 100;
+              const all = Math.round((Number(r.customer_balance_all ?? 0) - Number(r.supplier_balance_all ?? 0)) * 100) / 100;
+              const txt = (v: number) => (Math.abs(v) <= 0.005 ? "مسدد" : v > 0 ? "مدين" : "دائن");
+              return (
+                <div className="tabular-nums">
+                  {Math.abs(net) <= 0.005 ? <span className="text-muted-foreground">مسدد</span>
+                    : <span className={`font-bold ${net > 0 ? "text-success" : "text-destructive"}`}>{formatEGP(Math.abs(net))} <span className="text-xs">{txt(net)}</span></span>}
+                  {Math.abs(all - net) > 0.005 && <div className="text-[11px] text-muted-foreground">كل الفروع: {formatEGP(Math.abs(all))} {txt(all)}</div>}
+                </div>
+              );
+            },
+          },
+          {
             key: "type",
-            header: "النوع",
+            header: "طبيعة الحساب",
             render: (r: any) => {
               const t = r.type as ContactType;
               const variant = t === "customer" ? "default" : t === "supplier" ? "secondary" : "outline";
@@ -593,11 +608,10 @@ export default function Contacts() {
             },
           },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
-          { key: "email", header: "الإيميل", render: (r: any) => <span dir="ltr" className="text-xs">{r.email ?? "—"}</span> },
           { key: "address", header: "العنوان", render: (r: any) => r.address ?? "—" },
           {
             key: "notes",
-            header: "الملاحظات",
+            header: "الملاحظة",
             render: (r: any) => (
               <div className="flex items-start gap-1 max-w-[16rem]" onClick={(e) => e.stopPropagation()}>
                 <span className="text-xs whitespace-pre-wrap break-words line-clamp-3" title={r.notes ?? ""}>{r.notes || "—"}</span>
@@ -608,77 +622,19 @@ export default function Contacts() {
             ),
           },
           {
-            key: "customer_balance",
-            header: "حساب العميل",
-            render: (r: any) => {
-              if (r.type === "supplier") return <span className="text-muted-foreground">—</span>;
-              const b = Number(r.customer_balance ?? 0), all = Number(r.customer_balance_all ?? 0);
-              const main = Math.abs(b) <= 0.005 ? <span className="text-muted-foreground">مسدد</span>
-                : b > 0 ? <span className="text-success font-bold">{formatEGP(b)} <span className="text-xs">(لنا عليه)</span></span>
-                : <span className="text-primary font-bold">{formatEGP(-b)} <span className="text-xs">(مقدم منه)</span></span>;
-              return <div>{main}{Math.abs(all - b) > 0.005 && <div className="text-[11px] text-muted-foreground">كل الفروع: {formatEGP(Math.abs(all))} {all > 0 ? "لنا" : all < 0 ? "مقدم" : ""}</div>}</div>;
-            },
-          },
-          {
-            key: "supplier_balance",
-            header: "حساب المورد",
-            render: (r: any) => {
-              if (r.type === "customer") return <span className="text-muted-foreground">—</span>;
-              const b = Number(r.supplier_balance ?? 0), all = Number(r.supplier_balance_all ?? 0);
-              const main = Math.abs(b) <= 0.005 ? <span className="text-muted-foreground">مسدد</span>
-                : b > 0 ? <span className="text-destructive font-bold">{formatEGP(b)} <span className="text-xs">(علينا له)</span></span>
-                : <span className="text-primary font-bold">{formatEGP(-b)} <span className="text-xs">(مقدم لينا)</span></span>;
-              return <div>{main}{Math.abs(all - b) > 0.005 && <div className="text-[11px] text-muted-foreground">كل الفروع: {formatEGP(Math.abs(all))} {all > 0 ? "علينا" : all < 0 ? "مقدم" : ""}</div>}</div>;
-            },
-          },
-          {
-            key: "__owed_us",
-            header: "لينا عنده",
-            render: (r: any) => {
-              const o = owes(r).us; const t = o.fromCustomer + o.supplierAdvance;
-              if (t <= 0.005) return <span className="text-muted-foreground">—</span>;
-              return (
-                <div className="tabular-nums">
-                  <span className="font-bold text-success">{formatEGP(t)}</span>
-                  {o.fromCustomer > 0.005 && o.supplierAdvance > 0.005 && (
-                    <div className="text-[11px] text-muted-foreground">عليه كعميل {formatEGP(o.fromCustomer)} • مقدم عنده كمورد {formatEGP(o.supplierAdvance)}</div>
-                  )}
-                  {o.fromCustomer <= 0.005 && <div className="text-[11px] text-muted-foreground">مقدم دفعناه له</div>}
-                </div>
-              );
-            },
-          },
-          {
-            key: "__we_owe",
-            header: "علينا له",
-            render: (r: any) => {
-              const o = owes(r).them; const t = o.toSupplier + o.customerAdvance;
-              if (t <= 0.005) return <span className="text-muted-foreground">—</span>;
-              return (
-                <div className="tabular-nums">
-                  <span className="font-bold text-destructive">{formatEGP(t)}</span>
-                  {o.toSupplier > 0.005 && o.customerAdvance > 0.005 && (
-                    <div className="text-[11px] text-muted-foreground">له كمورد {formatEGP(o.toSupplier)} • مقدم منه كعميل {formatEGP(o.customerAdvance)}</div>
-                  )}
-                  {o.toSupplier <= 0.005 && <div className="text-[11px] text-muted-foreground">مقدم دفعه لنا</div>}
-                </div>
-              );
-            },
-          },
-          {
             key: "actions",
-            header: "إجراءات",
+            header: "الإجراءات",
             width: "16rem",
             className: "min-w-[16rem]",
             render: (r: any) => {
               const t = r.type as ContactType;
               return (
                 <div className="flex min-w-max items-center justify-center gap-1.5 px-1" onClick={(e) => e.stopPropagation()}>
-                  <Button size="sm" variant="outline" title="كشف حساب" onClick={() => nav(`/branch/${branchId}/contacts/${r.id}/statement`)}>
+                  <Button size="sm" variant="outline" title="كشف حساب" onClick={() => nav(`/branch/${branchId}/contacts/${r.id}`)}>
                     <FileText className="w-3.5 h-3.5" />
                   </Button>
                   {/* سند قبض: يظهر للعميل وللجهة المشتركة ويفتح النافذة ببيانات الجهة الحالية */}
-                  {(r.type === "customer" || r.type === "both") && (
+                  {(
                     <Button
                       size="sm"
                       variant="outline"
@@ -692,7 +648,7 @@ export default function Contacts() {
                     </Button>
                   )}
                   {/* سند صرف: يظهر للمورد وللجهة المشتركة ويفتح النافذة ببيانات الجهة الحالية */}
-                  {(r.type === "supplier" || r.type === "both") && (
+                  {(
                     <Button
                       size="sm"
                       variant="outline"

@@ -407,6 +407,7 @@ export default function AllSuppliers() {
         actions={
           <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => nav("/admin/accounts-balances")}>أرصدة مدين / دائن</Button>
+            <Button variant="outline" onClick={() => nav("/admin/archive")}>الأرشيف</Button>
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
             <Button variant="outline" onClick={() => openNewShipment()}><Truck className="w-4 h-4 ml-1" /> فاتورة شراء جديدة</Button>
             <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> جهة جديدة</Button>
@@ -481,8 +482,9 @@ export default function AllSuppliers() {
       <DataTable loading={loading} rows={filtered} onView={setView}
         onRowClick={(r: any) => window.open(`/admin/contacts/${r.id}`, "_blank", "noopener,noreferrer")}
         columns={[
-          { key: "name", header: "الاسم", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },
-          { key: "type", header: "النوع", render: (r: any) => {
+          { key: "account_no", header: "رقم الحساب", render: (r: any) => <span className="font-mono text-xs">{r.account_no ?? "—"}</span> },
+          { key: "name", header: "اسم الحساب", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },
+          { key: "type", header: "طبيعة الحساب", render: (r: any) => {
             const t = r.type as "customer" | "supplier" | "both";
             const lbl = t === "customer" ? "عميل" : t === "supplier" ? "مورد" : "عميل ومورد";
             const cls = t === "both" ? "bg-primary/10 text-primary" : t === "customer" ? "bg-success/10 text-success" : "bg-warning/10 text-warning";
@@ -490,26 +492,16 @@ export default function AllSuppliers() {
           } },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
           { key: "totalShipments", header: "إجمالي المشتريات", render: (r: any) => <span className="font-semibold">{formatEGP(r.totalShipments)}</span> },
-          { key: "customer_balance", header: "حساب العميل", render: (r: any) => {
-            if (r.type === "supplier") return <span className="text-muted-foreground">—</span>;
-            const v = Number(r.customer_balance) || 0;
+          { key: "__net", header: "الرصيد الحالى", render: (r: any) => {
+            // ONE balance per account (owner 2026-11-11): + = مدين (لنا عنده), − = دائن (علينا له)
+            const v = Math.round(((Number(r.customer_balance) || 0) - (Number(r.supplier_balance) || 0)) * 100) / 100;
             if (Math.abs(v) <= 0.005) return <span className="text-muted-foreground">مسدد</span>;
-            return v > 0
-              ? <span className="text-warning font-bold">{formatEGP(v)} <span className="text-xs">لنا عليه</span></span>
-              : <span className="text-primary font-bold">{formatEGP(-v)} <span className="text-xs">مقدم منه</span></span>;
+            return <span className={`font-bold tabular-nums ${v > 0 ? "text-success" : "text-destructive"}`}>{formatEGP(Math.abs(v))} <span className="text-xs">{v > 0 ? "مدين" : "دائن"}</span></span>;
           }},
-          { key: "supplier_balance", header: "حساب المورد", render: (r: any) => {
-            if (r.type === "customer") return <span className="text-muted-foreground">—</span>;
-            const v = Number(r.supplier_balance) || 0;
-            if (Math.abs(v) <= 0.005) return <span className="text-muted-foreground">مسدد</span>;
-            return v > 0
-              ? <span className="text-destructive font-bold">{formatEGP(v)} <span className="text-xs">علينا له</span></span>
-              : <span className="text-success font-bold">{formatEGP(-v)} <span className="text-xs">مقدم لينا عنده</span></span>;
-          }},
-          { key: "actions", header: "إجراءات", width: "18rem", className: "min-w-[18rem]", render: (r: any) => (
+          { key: "actions", header: "الإجراءات", width: "18rem", className: "min-w-[18rem]", render: (r: any) => (
             <div className="flex min-w-max items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <Button size="sm" variant="outline" title="فتح صفحة الجهة في تبويب جديد" onClick={() => window.open(`/admin/contacts/${r.id}`, "_blank", "noopener,noreferrer")}><Eye className="w-3.5 h-3.5" /></Button>
-              {(r.type === "customer" || r.type === "both") && (
+              {(
                 <Button
                   size="sm"
                   variant="outline"
@@ -522,7 +514,7 @@ export default function AllSuppliers() {
                   <Receipt className="w-4 h-4" aria-hidden="true" />
                 </Button>
               )}
-              {(r.type === "supplier" || r.type === "both") && (
+              {(
                 <Button
                   size="sm"
                   variant="outline"

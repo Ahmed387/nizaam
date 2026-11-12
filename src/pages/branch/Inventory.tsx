@@ -1,3 +1,4 @@
+import { fetchLastPurchaseCosts } from "@/lib/lastPurchaseCost";
 import { readAll } from "@/hooks/useWholeList";
 import { useEffect, useState } from "react";
 import { PermTable } from "@/components/PermTable";
@@ -61,6 +62,8 @@ export default function Inventory() {
   const initialTab = ["products", "transfers", "adjustments", "count"].includes(tabParam ?? "") ? tabParam! : "products";
   const { user, profile, tenantId, isAdmin, hasRole } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
+  // «التحديد» (owner 2026-11-11): rows picked for «تصدير المحدد»
+  const [picked, setPicked] = useState<Set<string>>(new Set());
   const [cats, setCats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -118,7 +121,9 @@ export default function Inventory() {
   const load = async () => {
     setLoading(true);
     const data = await fetchAllRows<any>(() => supabase.from("products").select("*, categories(name)").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).catch(() => [] as any[]);
-    setRows(data); setLoading(false);
+    // «آخر سعر الشراء» (0201): the newest purchase invoice line of each product; a failure only leaves the column empty
+    const last = await fetchLastPurchaseCosts(branchId ?? null).catch(() => new Map<string, number>());
+    setRows(data.map((r: any) => ({ ...r, last_purchase_cost: last.get(r.id) ?? null }))); setLoading(false);
   };
   useEffect(() => {
     load();
@@ -750,6 +755,21 @@ export default function Inventory() {
             <span className="text-xs text-muted-foreground">عرض {filtered.length} من {showArchived ? archivedCount : activeRows.length}</span>
           </div>
 
+          {picked.size > 0 && (
+            <div className="card-elevated p-2 mb-2 flex flex-wrap items-center gap-2 border-primary/40 bg-primary/5 text-sm">
+              <b>{picked.size} محدد</b>
+              <Button size="sm" variant="outline" onClick={async () => {
+                const { exportToExcel } = await import("@/lib/export");
+                exportToExcel("اصناف_محددة", [{ name: "الأصناف", rows: filtered.filter((r: any) => picked.has(r.id)).map((r: any) => ({
+                  "الكود": r.sku, "اسم الصنف": r.name, "اجمالى الكمية": r.quantity, "التصنيف": r.categories?.name ?? "", "سعر البيع": r.selling_price,
+                  "متوسط سعر الشراء": Number(r.avg_cost) > 0 ? r.avg_cost : r.cost_price, "اخر سعر الشراء": r.last_purchase_cost ?? "", "الوحدة": packOf(r).size > 1 ? `${packOf(r).name} (${packOf(r).size})` : "قطعة",
+                })) }]);
+              }}>تصدير المحدد</Button>
+              <Button size="sm" variant="outline" onClick={() => setPicked(new Set(filtered.map((r: any) => r.id)))}>تحديد كل المعروض</Button>
+              <Button size="sm" variant="ghost" onClick={() => setPicked(new Set())}>إلغاء التحديد</Button>
+            </div>
+          )}
+
           {/* Desktop table */}
           <div className="hidden lg:block card-elevated overflow-x-auto">
             {loading ? (
@@ -757,23 +777,23 @@ export default function Inventory() {
             ) : filtered.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">لا توجد منتجات</div>
             ) : (
-              <PermTable className="w-full min-w-[1000px] text-sm table-fixed">
+              <PermTable className="w-full min-w-[1150px] text-sm table-fixed">
                 <colgroup>
-                  <col className="w-[35%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[9%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[14%]" />
+                  <col className="w-[4%]" /><col className="w-[4%]" /><col className="w-[27%]" /><col className="w-[8%]" /><col className="w-[9%]" />
+                  <col className="w-[9%]" /><col className="w-[10%]" /><col className="w-[9%]" /><col className="w-[6%]" /><col className="w-[14%]" />
                 </colgroup>
                 <thead>
                   <tr className="bg-surface-2 border-b border-border text-xs uppercase tracking-wider text-muted-foreground">
-                    <th className="px-4 py-3 text-right font-semibold">المنتج</th>
+                    <th className="px-2 py-3 text-center font-semibold">#</th>
+                    <th className="px-2 py-3 text-center font-semibold" data-no-filter="">التحديد</th>
+                    <th className="px-4 py-3 text-right font-semibold">اسم الصنف</th>
+                    <th className="px-2 py-3 text-center font-semibold">اجمالى الكمية</th>
                     <th className="px-2 py-3 text-center font-semibold">التصنيف</th>
-                    <th className="px-2 py-3 text-center font-semibold">التاريخ</th>
-                    <th className="px-2 py-3 text-center font-semibold">الكمية</th>
-                    <th className="px-4 py-3 text-right font-semibold">الأسعار</th>
-                    <th className="px-2 py-3 text-center font-semibold">إجراءات</th>
+                    <th className="px-2 py-3 text-center font-semibold">سعر البيع</th>
+                    <th className="px-2 py-3 text-center font-semibold">متوسط سعر الشراء</th>
+                    <th className="px-2 py-3 text-center font-semibold">اخر سعر الشراء</th>
+                    <th className="px-2 py-3 text-center font-semibold">الوحدة</th>
+                    <th className="px-2 py-3 text-center font-semibold">الإجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -790,6 +810,11 @@ export default function Inventory() {
                         className={`border-b border-border last:border-0 hover:bg-muted/40 ${i % 2 ? "bg-surface/20" : "bg-card"}`}
                         onDoubleClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}
                       >
+                        <td className="px-2 py-3 align-middle text-center text-muted-foreground tabular-nums">{i + 1}</td>
+                        <td className="px-2 py-3 align-middle text-center" onDoubleClick={(e) => e.stopPropagation()}>
+                          <input type="checkbox" className="h-4 w-4 cursor-pointer" aria-label={`تحديد ${r.name}`} checked={picked.has(r.id)}
+                            onChange={() => setPicked((p) => { const n = new Set(p); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })} />
+                        </td>
                         <td className="px-4 py-3 align-middle">
                           <div className="flex items-center gap-3 min-w-0">
                             {r.image ? (
@@ -812,25 +837,18 @@ export default function Inventory() {
                             />
                           </div>
                         </td>
-                        <td className="px-2 py-3 align-middle text-center text-muted-foreground break-words" title={r.categories?.name ?? ""}>
-                          {r.categories?.name ?? "—"}
-                        </td>
-                        <td className="px-2 py-3 align-middle text-center text-xs text-muted-foreground">
-                          {formatDate(r.initial_stock_date ?? r.created_at)}
-                        </td>
-
                         <td className="px-2 py-3 align-middle text-center font-medium tabular-nums">
                           <div className="font-bold">{r.quantity}</div>
                           {packOf(r).size > 1 && <div className="text-[11px] text-muted-foreground whitespace-nowrap">{packText(r.quantity, packOf(r).size, packOf(r).name)}</div>}
                           <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] ${status.cls}`}>{status.label}</span>
                         </td>
-                        <td className="px-4 py-3 align-middle text-right">
-                          <div className="flex flex-col gap-1 tabular-nums text-xs leading-tight whitespace-nowrap">
-                            <span className="text-muted-foreground">شراء: {formatEGP(r.cost_price)}</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">بيع: {formatEGP(r.selling_price)}</span>
-                            <span className="text-blue-600 dark:text-blue-400">سوق: {formatEGP(r.market_price)}</span>
-                          </div>
+                        <td className="px-2 py-3 align-middle text-center text-muted-foreground break-words" title={r.categories?.name ?? ""}>
+                          {r.categories?.name ?? "—"}
                         </td>
+                        <td className="px-2 py-3 align-middle text-center tabular-nums font-semibold text-emerald-600 dark:text-emerald-400">{formatEGP(r.selling_price)}</td>
+                        <td className="px-2 py-3 align-middle text-center tabular-nums">{Number(r.avg_cost) > 0 ? formatEGP(r.avg_cost) : formatEGP(r.cost_price)}</td>
+                        <td className="px-2 py-3 align-middle text-center tabular-nums">{r.last_purchase_cost != null ? formatEGP(r.last_purchase_cost) : "—"}</td>
+                        <td className="px-2 py-3 align-middle text-center text-xs">{packOf(r).size > 1 ? `${packOf(r).name} (${packOf(r).size})` : "قطعة"}</td>
                         <td className="px-2 py-3 align-middle text-center">
                           {canManageInventory && (
                             <div className="flex items-center justify-center gap-1.5" onDoubleClick={(e) => e.stopPropagation()}>

@@ -198,16 +198,18 @@ export default function BranchCapital() {
                     <CardContent className="space-y-2 text-sm">
                       <Row label="رأس المال المخصص" value={p.allocated_capital} icon={<Wallet className="w-4 h-4 text-primary" />} highlight />
                       <hr className="my-2" />
-                      <Row label="الإيرادات" value={p.revenue} icon={<TrendingUp className="w-4 h-4 text-success" />} />
-                      <Row label="تكلفة البضاعة" value={-p.cogs} icon={<Package className="w-4 h-4 text-muted-foreground" />} />
+                      <Row label="اللي اتباع (صافي المبيعات)" value={p.revenue} icon={<TrendingUp className="w-4 h-4 text-success" />} />
+                      <Row label="تكلفة اللي اتباع" value={-p.cogs} icon={<Package className="w-4 h-4 text-muted-foreground" />} />
                       <Row label="مجمل الربح" value={p.gross_profit} bold />
                       <Row label="المصروفات التشغيلية" value={-p.expenses} icon={<TrendingDown className="w-4 h-4 text-destructive" />} />
                       <Row label="صافي الربح" value={p.net_profit} bold className={p.net_profit >= 0 ? "text-success" : "text-destructive"} />
                       <hr className="my-2" />
                       <Row label="الكاش في الخزنة" value={p.treasury_cash} />
-                      <Row label="قيمة المخزون" value={p.inventory_value} />
-                      <Row label="المدينون (لم يُحصل)" value={p.receivables} />
-                      <Row label="الدائنون (لم يُدفع)" value={p.payables} className="text-warning" />
+                      <Row label="البضاعة المتاحة (بمتوسط التكلفة)" value={p.inventory_value} />
+                      <Row label="مدين — لنا عند العملاء" value={p.receivables} />
+                      <Row label="لنا عند الموردين (مقدمات)" value={(p as any).supplier_advances ?? 0} />
+                      <Row label="دائن — علينا للموردين" value={p.payables} className="text-warning" />
+                      <Row label="علينا للعملاء (مقدمات منهم)" value={(p as any).customer_advances ?? 0} className="text-warning" />
                       <hr className="my-2" />
                       <Row label="إجمالي الأصول التشغيلية" value={p.total_assets} bold highlight />
                     </CardContent>

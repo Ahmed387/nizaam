@@ -129,6 +129,7 @@ const Contacts = lazy(() => import("./pages/branch/Contacts"));
 const ContactFile = lazy(() => import("./pages/branch/ContactFile"));
 const ContactStatement = lazy(() => import("./pages/branch/ContactStatement"));
 const AccountsDebitCredit = lazy(() => import("./pages/branch/AccountsDebitCredit"));
+const ArchivePage = lazy(() => import("./pages/admin/ArchivePage"));
 const Treasury = lazy(() => import("./pages/branch/Treasury"));
 const Employees = lazy(() => import("./pages/branch/Employees"));
 const AdvanceRequests = lazy(() => import("./pages/branch/AdvanceRequests"));
@@ -392,6 +393,8 @@ const App = () => (
             <Route path="/branch/:id/contacts/:contactId/statement" element={<ProtectedRoute perm="customers.view"><ContactStatement /></ProtectedRoute>} />
             <Route path="/admin/contacts/:contactId/statement" element={<ProtectedRoute adminOnly><ContactStatement /></ProtectedRoute>} />
             <Route path="/branch/:id/accounts-balances" element={<ProtectedRoute perm="customers.view"><AccountsDebitCredit /></ProtectedRoute>} />
+            <Route path="/branch/:id/archive" element={<ProtectedRoute perm="customers.view"><ArchivePage /></ProtectedRoute>} />
+            <Route path="/admin/archive" element={<ProtectedRoute perm="admin_contacts.view" adminOnly><ArchivePage /></ProtectedRoute>} />
             <Route path="/admin/accounts-balances" element={<ProtectedRoute perm="admin_contacts.view" adminOnly><AccountsDebitCredit /></ProtectedRoute>} />
             <Route path="/branch/:id/customers" element={<Navigate to="../contacts?tab=customer" replace />} />
             <Route path="/branch/:id/customers/:contactId" element={<RedirectCustomerToContact />} />
