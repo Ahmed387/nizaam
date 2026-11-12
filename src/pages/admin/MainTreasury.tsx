@@ -331,7 +331,7 @@ export default function MainTreasury() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <Button type="button" variant="ghost" className="block h-auto w-full rounded-2xl p-0 text-right" onClick={() => setCreditDrawer("customer")} aria-label="مقدمات العملاء">
           <StatCard
-            label="مقدمات عملاء عندنا (2150)"
+            label="دائن — مقدمات عملاء (2150)"
             value={formatEGP(position?.customers?.advances ?? 0)}
             icon={<Landmark className="w-5 h-5" />}
             hint={`${position?.customers?.advance_contacts ?? 0} عميل · اضغط للتفاصيل`}
@@ -342,7 +342,7 @@ export default function MainTreasury() {
         </Button>
         <Button type="button" variant="ghost" className="block h-auto w-full rounded-2xl p-0 text-right" onClick={() => setCreditDrawer("supplier")} aria-label="مقدمات الموردين">
           <StatCard
-            label="مقدماتنا عند الموردين (1460)"
+            label="مدين — مقدمات عند الموردين (1460)"
             value={formatEGP(position?.suppliers?.advances ?? 0)}
             icon={<Landmark className="w-5 h-5" />}
             hint={`${position?.suppliers?.advance_contacts ?? 0} مورد · اضغط للتفاصيل`}

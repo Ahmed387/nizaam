@@ -34,9 +34,9 @@ export function BranchFinancialDistribution({ rows, loading }: { rows: BranchFin
         empty="لا توجد بيانات فروع"
         columns={[
           { key: "name", header: "الفرع / الوعاء", render: (row) => <span className="font-semibold">{row.name}</span> },
-          { key: "receivables", header: "مستحق على العملاء", render: (row) => formatEGP(row.receivables) },
-          { key: "payables", header: "مستحق للموردين", render: (row) => formatEGP(row.payables) },
-          { key: "customerAdvances", header: "مقدمات عملاء", render: (row) => formatEGP(row.customerAdvances) },
+          { key: "receivables", header: "مدين — لنا عند العملاء", render: (row) => formatEGP(row.receivables) },
+          { key: "payables", header: "دائن — علينا للموردين", render: (row) => formatEGP(row.payables) },
+          { key: "customerAdvances", header: "دائن — مقدمات عملاء", render: (row) => formatEGP(row.customerAdvances) },
           { key: "supplierAdvances", header: "مقدمات موردين", render: (row) => formatEGP(row.supplierAdvances) },
           { key: "cash", header: "الكاش في الخزنة", render: (row) => <span className="font-bold">{formatEGP(row.cash)}</span> },
         ]}

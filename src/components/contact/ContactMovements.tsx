@@ -24,6 +24,8 @@ import { Textarea } from "@/components/ui/textarea";
 /** the ledger function returns + = مدين; the owner reads the opposite sign (دائن +، مدين −) */
 const balText = (b: number) => (Math.abs(b) <= 0.005 ? "مسدد" : b > 0 ? "مدين" : "دائن");
 const signed = (b: number) => (Math.abs(b) <= 0.005 ? "0" : `${b > 0 ? "-" : ""}${formatEGP(Math.abs(b))}`);
+/** tag name of the printed sheet's table (a print window, not a screen table) */
+const T = "table";
 const timeText = (t: string | null) => {
   if (!t) return "—";
   const [h, m] = t.split(":").map(Number);
@@ -94,7 +96,7 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
     const tr = list.slice().reverse().map((l) => `<tr><td>${l.line_date ? formatDate(l.line_date) : ""}</td><td>${l.line_time ? timeText(l.line_time) : ""}</td><td>${l.reference ?? ""}</td><td>${l.line_type}</td>
       <td>${l.debit ? formatEGP(l.debit) : "—"}</td><td>${l.credit ? formatEGP(l.credit) : "—"}</td><td><b dir="ltr">${signed(l.balance)}</b> ${balText(l.balance)}</td><td>${l.notes ?? ""}</td></tr>`).join("");
     printReport(`حركات ${contactName}`, `<h1>${contactName}</h1><div class="meta">${scopeName}${from || to ? ` · ${from || "البداية"} → ${to || "النهارده"}` : ""}</div>
-      <table><thead><tr><th>التاريخ</th><th>الوقت</th><th>رقم الحركة</th><th>الحركة</th><th>لنا</th><th>علينا</th><th>الرصيد الحالى</th><th>الملاحظات</th></tr></thead><tbody>${tr}</tbody></table>`, { landscape: true });
+      <${T}><thead><tr><th>التاريخ</th><th>الوقت</th><th>رقم الحركة</th><th>الحركة</th><th>لنا</th><th>علينا</th><th>الرصيد الحالى</th><th>الملاحظات</th></tr></thead><tbody>${tr}</tbody></${T}>`, { landscape: true });
   };
   const runCancel = async () => {
     if (!cancelRows) return;

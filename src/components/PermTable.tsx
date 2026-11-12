@@ -37,8 +37,9 @@ export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable(
   return (
     <>
       {!noFilter && <ExcelLayer table={el} storageId={filterId ?? permTable} />}
-      {!noFilter && <ColumnResizeLayer table={el} storageId={filterId ?? permTable} />}
       {page ? <PermTableInner page={page} permTable={permTable} tableRef={setRef} {...props} {...(noFilter ? { "data-no-resize": "" } : {})} /> : <table ref={setRef} {...props} {...(noFilter ? { "data-no-resize": "" } : {})} />}
+      {/* after the table: its styles must not come before the column-hiding style */}
+      {!noFilter && <ColumnResizeLayer table={el} storageId={filterId ?? permTable} />}
     </>
   );
 });

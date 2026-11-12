@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
  * Until a column is resized the table is untouched. From the first resize the widths of ALL columns are frozen at what
  * they measure, the table switches to `table-layout: fixed` with width = Σ columns (its scroll box scrolls sideways),
  * so only the dragged column changes. Widths are remembered per person's browser, per page path and table
- * (localStorage `colw:v1:<path>:<table>`), keyed by the column's title; a column whose title is not saved keeps its
+ * (localStorage `colw:v1:<path>:<id of the table>`), keyed by the column's title; a column whose title is not saved keeps its
  * natural width. Applied with a <style> of nth-child rules (like PermTable's hidden columns), never by editing cells,
  * so React re-renders do not lose it. Nothing is sent to the server.
  */
@@ -33,6 +33,25 @@ function readHeads(t: HTMLTableElement): Head[] {
     idx += span - 1;
   });
   return out;
+}
+
+/**
+ * The handles are NOT portalled straight into the <th>: React rewrites a text-only title by setting the cell's text, which
+ * drops any foreign child, and unmounting the portal afterwards threw «removeChild» — a white page (owner 2026-11-12).
+ * Each header cell gets a holder element we own (`display: contents`, so the handles still position against the cell);
+ * the portals live in the holder, and the holder is put back whenever the cell lost it.
+ */
+const holders = new WeakMap<HTMLTableCellElement, HTMLSpanElement>();
+function holderOf(th: HTMLTableCellElement): HTMLSpanElement {
+  let h = holders.get(th);
+  if (!h) {
+    h = document.createElement("span");
+    h.setAttribute("data-cr-holder", ""); h.setAttribute("data-xf-ignore", ""); h.setAttribute("data-no-print", "");
+    h.style.display = "contents";
+    holders.set(th, h);
+  }
+  if (h.parentNode !== th) th.appendChild(h);
+  return h;
 }
 
 const load = (key: string): Record<string, number> => {
@@ -84,6 +103,7 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
     if (!table) { setHeads([]); return; }
     const scan = () => {
       const next = readHeads(table);
+      next.forEach((h) => holderOf(h.el));   // put a dropped holder back (the title's text was rewritten)
       setHeads((prev) => (prev.length === next.length && prev.every((h, i) => h.el === next[i].el && h.label === next[i].label) ? prev : next));
     };
     scan();
@@ -163,7 +183,7 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
           className="print:hidden absolute top-0 bottom-0 z-10 w-2 cursor-col-resize select-none touch-none hover:bg-primary/40 active:bg-primary/60"
           style={{ insetInlineEnd: 0 }}
         />,
-        h.el,
+        holderOf(h.el),
         `cr-${h.idx}-${h.label}`,
       ))}
       {heads.map((h) => createPortal(
@@ -175,7 +195,7 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
           className="print:hidden absolute bottom-0 z-10 h-1.5 cursor-row-resize select-none touch-none hover:bg-primary/40 active:bg-primary/60"
           style={{ insetInlineStart: 0, insetInlineEnd: 8 }}
         />,
-        h.el,
+        holderOf(h.el),
         `rr-${h.idx}-${h.label}`,
       ))}
     </>
@@ -183,7 +203,7 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
 }
 
 /**
- * Every OTHER table of the app (hand-written `<table>` / shadcn `<Table>` — 81 of them on 2026-11-11) gets the same
+ * Every OTHER table of the app (hand-written plain tables / shadcn `<Table>` — 81 of them on 2026-11-11) gets the same
  * resizing without touching its file: mounted once in App, it watches the page and gives a `ColumnResizeLayer` to each
  * table that has a header row and is not already served by DataTable / PermTable (they mark their table with `data-cr`
  * first — the scan waits a moment for that). Opt out with `data-no-resize` on the table or any parent (print layouts).

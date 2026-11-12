@@ -640,7 +640,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <MiniKpi label="تكلفة فواتير الشراء (الفترة)" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} فاتورة شراء`} />
             <MiniKpi label="مدفوع للموردين (الفترة)" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" />
-            <MiniKpi label="إجمالي علينا للموردين" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint="جانب الموردين في الدفتر الموحد" />
+            <MiniKpi label="دائن — علينا للموردين" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint="جانب الموردين في الدفتر الموحد" />
             <MiniKpi label="أقساط موردين متأخرة" value={String(scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier").length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />
           </div>
 

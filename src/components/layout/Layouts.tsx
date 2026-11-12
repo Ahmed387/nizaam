@@ -117,7 +117,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     // ===== المالية =====
     ...only(allow("admin_financial_position.view", { ownerOnly: true }), {
       to: "/admin/financial-position",
-      label: "الذمم المالية",
+      label: "المدين والدائن",
       icon: <HandCoins className="w-4 h-4" />,
       group: "الماليـة",
       children: [
@@ -129,7 +129,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       { to: "/admin/main-treasury", label: "الخزينة", icon: <Wallet className="w-4 h-4" />, group: "الماليـة" },
       [
         ...(allow("admin_finance.view") ? [{ to: "/admin/finance?tab=vouchers", label: "السندات المالية", icon: <Receipt className="w-4 h-4" /> }] : []),
-        ...(allow("admin_finance.view") ? [{ to: "/admin/finance?tab=receivables", label: "ذمم العملاء والموردين", icon: <Coins className="w-4 h-4" /> }] : []),
+        ...(allow("admin_finance.view") ? [{ to: "/admin/finance?tab=receivables", label: "أرصدة المدين والدائن", icon: <Coins className="w-4 h-4" /> }] : []),
         ...(allow("admin_finance.view", { adminOnly: true }) ? [{ to: "/admin/accounting/branch-capital", label: "تحويل فلوس للفروع", icon: <Building2 className="w-4 h-4" /> }] : []),
       ],
     ),

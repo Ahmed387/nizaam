@@ -16,12 +16,12 @@ export default function FinanceHub() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right">
-        <PageHeader title="المالية" subtitle="السندات المالية والذمم" />
+        <PageHeader title="المالية" subtitle="السندات المالية وأرصدة المدين والدائن" />
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })} dir="rtl">
           <div className="flex justify-start">
             <TabsList className="flex-wrap h-auto">
               {show.vouchers && <TabsTrigger value="vouchers">السندات المالية</TabsTrigger>}
-              {show.receivables && <TabsTrigger value="receivables">ذمم العملاء والموردين</TabsTrigger>}
+              {show.receivables && <TabsTrigger value="receivables">أرصدة المدين والدائن</TabsTrigger>}
             </TabsList>
           </div>
           {show.vouchers && <TabsContent value="vouchers" className="mt-4"><AllVouchers embedded /></TabsContent>}

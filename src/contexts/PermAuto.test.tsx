@@ -75,8 +75,9 @@ describe("every card, tab and column tags itself on a catalogue page", () => {
     hidden.add(`part.dashboard.${autoPartId("col", "الأسعار")}.view`);
     hidden.add(`part.dashboard.${autoPartId("card", "أعلى العملاء")}.view`);
     const { container } = show("/branch/b1/dashboard");
-    await waitFor(() => expect(container.querySelector("style")?.textContent ?? "").toMatch(/nth-child\(2\)/));
-    expect(container.querySelector("style")!.textContent).toMatch(/display: none/);
+    // every <style> of the table: the column-resize layer adds its own beside the column-hiding one
+    const css = () => Array.from(container.querySelectorAll("style")).map((x) => x.textContent ?? "").join("\n");
+    await waitFor(() => expect(css()).toMatch(/nth-child\(2\)[^}]*\{[^}]*display: none/));
     expect(screen.queryByText("محتوى الكارت")).toBeNull();
     expect(screen.getByText("غسالة")).toBeInTheDocument();
   });

@@ -145,10 +145,10 @@ export default function BranchProfile() {
       { البيان: "الإيداعات في الخزنة", القيمة: stats.cashIn },
       { البيان: "السحوبات من الخزنة", القيمة: stats.cashOut },
       { البيان: "رصيد الخزنة الحالي", القيمة: stats.safeBalance },
-      { البيان: "مستحق لنا على العملاء (الفرع)", القيمة: position?.customers?.open ?? 0 },
-      { البيان: "مقدمات عملاء (الفرع)", القيمة: position?.customers?.advances ?? 0 },
-      { البيان: "مستحق للموردين (الفرع)", القيمة: position?.suppliers?.open ?? 0 },
-      { البيان: "مقدمات لينا عند الموردين (الفرع)", القيمة: position?.suppliers?.advances ?? 0 },
+      { البيان: "مدين — لنا عند العملاء (الفرع)", القيمة: position?.customers?.open ?? 0 },
+      { البيان: "دائن — مقدمات عملاء (الفرع)", القيمة: position?.customers?.advances ?? 0 },
+      { البيان: "دائن — علينا للموردين (الفرع)", القيمة: position?.suppliers?.open ?? 0 },
+      { البيان: "مدين — مقدمات عند الموردين (الفرع)", القيمة: position?.suppliers?.advances ?? 0 },
     ];
     exportToExcel(`فرع ${branch.name}`, [
       { name: "ملخص", rows: summary },
@@ -228,7 +228,7 @@ export default function BranchProfile() {
         <StatCard label="المصاريف التشغيلية" value={formatEGP(stats.totalExpenses)} icon={<DollarSign className="w-5 h-5" />} accent="warning" />
         <StatCard label="فواتير الشراء" value={formatEGP(stats.totalShipments)} icon={<Truck className="w-5 h-5" />} accent="secondary" />
         <StatCard label="رصيد الخزنة" value={formatEGP(stats.safeBalance)} icon={<Wallet className="w-5 h-5" />} accent={stats.safeBalance >= 0 ? "success" : "warning"} />
-        <StatCard label="مستحق لنا على العملاء" value={formatEGP(position?.customers?.open ?? 0)} hint={`مستحق للموردين ${formatEGP(position?.suppliers?.open ?? 0)}${(position?.customers?.internal_open ?? 0) > 0.005 ? ` • منها على فروعنا ${formatEGP(position?.customers?.internal_open ?? 0)}` : ""}`} icon={<TrendingUp className="w-5 h-5" />} accent="success" />
+        <StatCard label="مدين — لنا عند العملاء" value={formatEGP(position?.customers?.open ?? 0)} hint={`دائن — علينا للموردين ${formatEGP(position?.suppliers?.open ?? 0)}${(position?.customers?.internal_open ?? 0) > 0.005 ? ` • منها على فروعنا ${formatEGP(position?.customers?.internal_open ?? 0)}` : ""}`} icon={<TrendingUp className="w-5 h-5" />} accent="success" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

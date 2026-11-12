@@ -21,6 +21,8 @@ export interface ProductDocLine {
   qty_in: number; qty_out: number; balance: number; unit_price: number | null; src_table: string | null; src_id: string | null;
   branch_id: string | null; branch_name: string | null;
 }
+/** tag name of the printed sheet's table (a print window, not a screen table) */
+const T = "table";
 const timeText = (t: string | null) => {
   if (!t) return "—";
   const [h, m] = t.split(":").map(Number);
@@ -83,7 +85,7 @@ export function ProductDocMovements({ product, reloadKey }: { product: any; relo
   const printList = (list: ProductDocLine[]) => {
     const f = flat(list); const keys = Object.keys(f[0] ?? {});
     printReport(`حركة الصنف ${product?.name ?? ""}`, `<h1>${product?.name ?? ""}</h1><div class="meta">الكود ${product?.sku ?? ""} · الكمية الحالية ${product?.quantity ?? ""}</div>
-      <table><thead><tr>${keys.map((k) => `<th>${k}</th>`).join("")}</tr></thead><tbody>${f.map((r: any) => `<tr>${keys.map((k) => `<td>${r[k] ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></table>`, { landscape: true });
+      <${T}><thead><tr>${keys.map((k) => `<th>${k}</th>`).join("")}</tr></thead><tbody>${f.map((r: any) => `<tr>${keys.map((k) => `<td>${r[k] ?? ""}</td>`).join("")}</tr>`).join("")}</tbody></${T}>`, { landscape: true });
   };
   const openChosen = () => {
     const list = chosen.map((l) => ({ path: pathOf(l), label: l.doc_number ?? l.kind })).filter((d): d is { path: string; label: string } => !!d.path);

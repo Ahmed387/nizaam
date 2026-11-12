@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
+import { PermTable } from "@/components/PermTable";
 
 /**
  * «دمج حساب تاني» in the contact file — owner only (migration 0185, `merge_contacts`).
@@ -136,7 +137,7 @@ export function MergeContactButton({ contactId, contactName, branchId, onDone }:
                   <div className="rounded border">
                     <div className="px-3 py-2 text-sm font-semibold bg-muted/50">اللي هيتنقل للحساب الباقي</div>
                     {moved.length === 0 ? <div className="px-3 py-2 text-sm text-muted-foreground">مفيش مستندات على الحساب اللي هيتشال.</div> : (
-                      <table className="w-full text-sm">
+                      <PermTable noFilter className="w-full text-sm">
                         <tbody>
                           {moved.map((d) => (
                             <tr key={d.key} className="border-t">
@@ -146,19 +147,19 @@ export function MergeContactButton({ contactId, contactName, branchId, onDone }:
                             </tr>
                           ))}
                         </tbody>
-                      </table>
+                      </PermTable>
                     )}
                   </div>
                   <div className="rounded border">
                     <div className="px-3 py-2 text-sm font-semibold bg-muted/50">الرصيد (كل الفروع) قبل وبعد</div>
-                    <table className="w-full text-sm">
+                    <PermTable noFilter className="w-full text-sm">
                       <thead><tr className="text-xs text-muted-foreground"><th className="px-3 py-1 text-right"></th><th className="px-3 py-1 text-right">ناحية العميل</th><th className="px-3 py-1 text-right">ناحية المورد</th></tr></thead>
                       <tbody>
                         <tr className="border-t"><td className="px-3 py-1.5">قبل — {preview.from.name}</td><td className="px-3 py-1.5">{sideText("customer", preview.from.customer_balance)}</td><td className="px-3 py-1.5">{sideText("supplier", preview.from.supplier_balance)}</td></tr>
                         <tr className="border-t"><td className="px-3 py-1.5">قبل — {preview.into.name}</td><td className="px-3 py-1.5">{sideText("customer", preview.into.customer_balance)}</td><td className="px-3 py-1.5">{sideText("supplier", preview.into.supplier_balance)}</td></tr>
                         <tr className="border-t font-bold"><td className="px-3 py-1.5">بعد الدمج — {preview.after.name} ({typeName(preview.after.type)})</td><td className="px-3 py-1.5">{sideText("customer", preview.after.customer_balance)}</td><td className="px-3 py-1.5">{sideText("supplier", preview.after.supplier_balance)}</td></tr>
                       </tbody>
-                    </table>
+                    </PermTable>
                   </div>
                   {preview.balanced
                     ? <p className="text-xs text-success">الرصيد بعد الدمج = مجموع الرصيدين قبله. مفيش فرق.</p>

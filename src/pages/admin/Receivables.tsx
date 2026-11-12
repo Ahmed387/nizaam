@@ -97,6 +97,19 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  // «حساب جاري» (owner 2026-11-12): the two top cards read the accounts' ONE net balance — the same numbers as the
+  // contacts page (contacts_page totals, 0204); the instalment cards beside them stay on the plans.
+  const [net, setNet] = useState<{ debit: number; credit: number; dn: number; cn: number } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (supabase.rpc as any)("contacts_page", { p_branch_id: branchFilter === "all" ? null : branchFilter, p_type: "all", p_query: null, p_balance: null, p_limit: 1, p_offset: 0 })
+      .then(({ data, error }: any) => {
+        if (!alive) return;
+        const t = data?.totals;
+        setNet(error || !t ? null : { debit: Number(t.debit_total) || 0, credit: Number(t.credit_total) || 0, dn: Number(t.debit_count) || 0, cn: Number(t.credit_count) || 0 });
+      });
+    return () => { alive = false; };
+  }, [branchFilter, refreshing]);
   useRealtimeRefresh(["payment_plans", "payment_installments", "invoice_payments", "invoices"], load);
 
   const matchesSearchAndBranch = (p: Plan) => {
@@ -236,7 +249,7 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
     <ConditionalLayout variant="admin" embedded={embedded}>
       <div className="space-y-5" dir="rtl">
         {!embedded && (
-          <h1 className="text-2xl font-bold">ذمم العملاء والموردين</h1>
+          <h1 className="text-2xl font-bold">أرصدة المدين والدائن</h1>
         )}
 
         {/* دليل سريع لليوزر */}
@@ -260,18 +273,18 @@ export default function Receivables({ embedded }: { embedded?: boolean } = {}) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <div className="rounded-2xl border border-success/30 bg-success/5 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-success">
-              <ArrowDownLeft className="w-4 h-4" />مستحق لنا (عملاء)
+              <ArrowDownLeft className="w-4 h-4" />إجمالي المدين (لنا)
             </div>
-             <FinancialAmount value={totals.due} size="md" className="mt-2 justify-start font-extrabold text-success" />
-            <div className="text-[11px] text-muted-foreground mt-1">فلوس هتدخل الخزنة</div>
+             <FinancialAmount value={net?.debit ?? totals.due} size="md" className="mt-2 justify-start font-extrabold text-success" />
+            <div className="text-[11px] text-muted-foreground mt-1">{net ? `${net.dn} حساب رصيده مدين` : "فلوس هتدخل الخزنة"}</div>
           </div>
 
           <div className="rounded-2xl border border-warning/30 bg-warning/5 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-warning">
-              <ArrowUpRight className="w-4 h-4" />مستحق للموردين
+              <ArrowUpRight className="w-4 h-4" />إجمالي الدائن (علينا)
             </div>
-             <FinancialAmount value={totals.oweSuppliers} size="md" className="mt-2 justify-start font-extrabold text-warning" />
-            <div className="text-[11px] text-muted-foreground mt-1">فلوس هتخرج منك</div>
+             <FinancialAmount value={net?.credit ?? totals.oweSuppliers} size="md" className="mt-2 justify-start font-extrabold text-warning" />
+            <div className="text-[11px] text-muted-foreground mt-1">{net ? `${net.cn} حساب رصيده دائن` : "فلوس هتخرج منك"}</div>
           </div>
 
           <div className="rounded-2xl border border-warning/30 bg-warning/5 p-4">

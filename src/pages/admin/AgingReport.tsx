@@ -100,13 +100,13 @@ export default function AgingReport() {
             <div className="text-lg font-bold font-mono">{fmt(s.total_open)}</div>
           </div>
           <div className="p-3 rounded-lg border">
-            <div className="text-xs text-muted-foreground">{isC ? "مقدمات عملاء (منفصلة)" : "مقدماتنا عند الموردين (منفصلة)"}</div>
+            <div className="text-xs text-muted-foreground">{isC ? "دائن — مقدمات عملاء (منفصلة)" : "مدين — مقدمات عند الموردين (منفصلة)"}</div>
             <div className="text-lg font-bold font-mono">{fmt(s.advance)}</div>
           </div>
         </div>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">
-            {isC ? <Users className="w-5 h-5" /> : <Truck className="w-5 h-5" />} {isC ? "مستحق على العملاء" : "مستحق للموردين"}
+            {isC ? <Users className="w-5 h-5" /> : <Truck className="w-5 h-5" />} {isC ? "مدين — لنا عند العملاء" : "دائن — علينا للموردين"}
             {s.d120_plus > 0 && <Badge variant="destructive" className="mr-2"><AlertTriangle className="w-3 h-3 ml-1" />متأخرات حرجة</Badge>}
           </CardTitle></CardHeader>
           <CardContent>
