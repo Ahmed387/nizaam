@@ -206,13 +206,27 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
     setTick((t) => t + 1);
   };
 
+  // The menu stays open until «تم», Escape or a click outside it. Scrolling (inside it, the page or the table — a touchpad
+  // sends tiny scrolls just by resting a hand on it, owner 2026-11-12) only moves it so it stays under its button.
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const place = useCallback(() => {
+    const el = btnRef.current;
+    if (!el || !el.isConnected) { setMenu(null); return; }
+    const r = el.getBoundingClientRect();
+    const next = { top: Math.round(r.bottom + 2), right: Math.round(Math.max(4, window.innerWidth - r.right)) };
+    setMenu((m) => (m && m.top === next.top && m.right === next.right ? m : next));
+  }, []);
+  const open = !!menu;
   useEffect(() => {
-    if (!menu) return;
-    const close = (e?: Event) => { const t = e?.target as HTMLElement | null; if (t?.closest?.("[data-cols-menu]")) return; setMenu(null); };
-    const away = (e: MouseEvent) => { const t = e.target as HTMLElement | null; if (!t?.closest?.("[data-cols-menu],[data-testid='cols-button']")) setMenu(null); };
-    window.addEventListener("scroll", close, true); window.addEventListener("resize", close); document.addEventListener("mousedown", away);
-    return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); document.removeEventListener("mousedown", away); };
-  }, [menu]);
+    if (!open) return;
+    let raf = 0;
+    const follow = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(place); };
+    const away = (e: PointerEvent) => { const t = e.target as HTMLElement | null; if (!t?.closest?.("[data-cols-menu]") && t !== btnRef.current && !btnRef.current?.contains(t)) setMenu(null); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setMenu(null); };
+    window.addEventListener("scroll", follow, true); window.addEventListener("resize", follow);
+    document.addEventListener("pointerdown", away, true); document.addEventListener("keydown", esc);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("scroll", follow, true); window.removeEventListener("resize", follow); document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", esc); };
+  }, [open, place]);
   if (!table || heads.length === 0) return null;
   return (
     <>
@@ -221,13 +235,13 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
       {hideCss && <style>{hideCss}</style>}
       {host && heads.length > 1 && createPortal(
         <div>
-          <button type="button" aria-expanded={!!menu} data-testid="cols-button"
-            onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setMenu((m) => (m ? null : { top: r.bottom + 2, right: Math.max(4, window.innerWidth - r.right) })); }}
+          <button type="button" ref={btnRef} aria-expanded={!!menu} data-testid="cols-button"
+            onClick={() => { if (menu) setMenu(null); else place(); }}
             className={`rounded-md border px-2 py-0.5 text-[11px] leading-5 bg-background hover:bg-muted ${hidden.length ? "text-primary font-bold" : "text-muted-foreground"}`}>
             الأعمدة{hidden.length ? ` (${hidden.length} مخفي)` : ""}
           </button>
           {menu && createPortal(
-            <div className="fixed z-[100] max-h-72 w-56 overflow-y-auto rounded-md border bg-popover p-1 text-sm shadow-lg" dir="rtl" style={{ top: menu.top, right: menu.right }} data-testid="cols-menu" data-cols-menu>
+            <div className="fixed z-[100] max-h-72 w-56 overflow-y-auto overscroll-contain rounded-md border bg-popover p-1 text-sm shadow-lg" dir="rtl" style={{ top: menu.top, right: menu.right }} data-testid="cols-menu" data-cols-menu data-xf-ignore onPointerDown={(e) => e.stopPropagation()}>
               {heads.map((h) => (
                 <label key={`${h.idx}-${h.label}`} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted">
                   <input type="checkbox" className="h-4 w-4" checked={!hidden.includes(h.label)} onChange={() => toggleHidden(h.label)} />
