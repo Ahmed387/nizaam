@@ -208,7 +208,7 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
 
   useEffect(() => {
     if (!menu) return;
-    const close = () => setMenu(null);
+    const close = (e?: Event) => { const t = e?.target as HTMLElement | null; if (t?.closest?.("[data-cols-menu]")) return; setMenu(null); };
     const away = (e: MouseEvent) => { const t = e.target as HTMLElement | null; if (!t?.closest?.("[data-cols-menu],[data-testid='cols-button']")) setMenu(null); };
     window.addEventListener("scroll", close, true); window.addEventListener("resize", close); document.addEventListener("mousedown", away);
     return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); document.removeEventListener("mousedown", away); };
