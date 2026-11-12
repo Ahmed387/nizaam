@@ -206,6 +206,13 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
     setTick((t) => t + 1);
   };
 
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => setMenu(null);
+    const away = (e: MouseEvent) => { const t = e.target as HTMLElement | null; if (!t?.closest?.("[data-cols-menu],[data-testid='cols-button']")) setMenu(null); };
+    window.addEventListener("scroll", close, true); window.addEventListener("resize", close); document.addEventListener("mousedown", away);
+    return () => { window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); document.removeEventListener("mousedown", away); };
+  }, [menu]);
   if (!table || heads.length === 0) return null;
   return (
     <>
@@ -219,8 +226,8 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
             className={`rounded-md border px-2 py-0.5 text-[11px] leading-5 bg-background hover:bg-muted ${hidden.length ? "text-primary font-bold" : "text-muted-foreground"}`}>
             الأعمدة{hidden.length ? ` (${hidden.length} مخفي)` : ""}
           </button>
-          {menu && (
-            <div className="fixed z-50 max-h-72 w-56 overflow-y-auto rounded-md border bg-popover p-1 text-sm shadow-lg" dir="rtl" style={{ top: menu.top, right: menu.right }} data-testid="cols-menu">
+          {menu && createPortal(
+            <div className="fixed z-[100] max-h-72 w-56 overflow-y-auto rounded-md border bg-popover p-1 text-sm shadow-lg" dir="rtl" style={{ top: menu.top, right: menu.right }} data-testid="cols-menu" data-cols-menu>
               {heads.map((h) => (
                 <label key={`${h.idx}-${h.label}`} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted">
                   <input type="checkbox" className="h-4 w-4" checked={!hidden.includes(h.label)} onChange={() => toggleHidden(h.label)} />
@@ -231,8 +238,7 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
                 <button type="button" className="underline" onClick={() => { setHidden([]); try { localStorage.removeItem(hideKey); } catch { /* private mode */ } }}>إظهار الكل</button>
                 <button type="button" className="underline" onClick={() => setMenu(null)}>تم</button>
               </div>
-            </div>
-          )}
+            </div>, document.body)}
         </div>, host)}
       <style>{`[data-cr="${uid}"] > thead > tr:last-child > *:not(.sticky) { position: relative; }${active ? `\n*:has(> [data-cr="${uid}"]) { overflow-x: auto !important; }` : ""}`}</style>
       {heads.map((h) => createPortal(
