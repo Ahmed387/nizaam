@@ -8,7 +8,9 @@ import { createPortal } from "react-dom";
  *   - double-click it → the column goes back to its natural width.
  * Until a column is resized the table is untouched. From the first resize the widths of ALL columns are frozen at what
  * they measure, the table switches to `table-layout: fixed` with width = Σ columns (its scroll box scrolls sideways),
- * so only the dragged column changes. Widths are remembered per person's browser, per page path and table
+ * so only the dragged column changes. Double-click on the handle OR anywhere on a resized column's title = natural width again.
+ * «الأعمدة» (owner 2026-11-12): a small button above the table lists its columns with ✓ — untick to hide a column for
+ * yourself, tick to show it again (localStorage `colh:v1:path:tableId`, by title; print and Excel are not affected). Widths are remembered per person's browser, per page path and table id
  * (localStorage `colw:v1:<path>:<id of the table>`), keyed by the column's title; a column whose title is not saved keeps its
  * natural width. Applied with a <style> of nth-child rules (like PermTable's hidden columns), never by editing cells,
  * so React re-renders do not lose it. Nothing is sent to the server.
@@ -70,6 +72,27 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
   const key = `colw:v1:${pathname}:${storageId ?? "t"}`;
   const [widths, setWidths] = useState<Record<string, number>>({});
   const drag = useRef<{ label: string; startX: number; startW: number; rtl: boolean } | null>(null);
+  // personal hide / show of columns
+  const hideKey = `colh:v1:${pathname}:${storageId ?? "t"}`;
+  const [hidden, setHidden] = useState<string[]>([]);
+  useEffect(() => { try { setHidden(JSON.parse(localStorage.getItem(hideKey) || "[]") || []); } catch { setHidden([]); } }, [hideKey]);
+  const toggleHidden = (label: string) => setHidden((h) => {
+    const n = h.includes(label) ? h.filter((x) => x !== label) : [...h, label];
+    try { if (n.length) localStorage.setItem(hideKey, JSON.stringify(n)); else localStorage.removeItem(hideKey); } catch { /* private mode */ }
+    return n;
+  });
+  const [menu, setMenu] = useState<{ top: number; right: number } | null>(null);
+  // the «الأعمدة» button lives in a small host placed right before the table
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!table?.parentElement) { setHost(null); return; }
+    const el = document.createElement("div");
+    el.setAttribute("data-no-print", ""); el.setAttribute("data-xf-ignore", "");
+    el.className = "print:hidden sticky right-0 z-20 flex justify-start h-6 w-max";
+    table.parentElement.insertBefore(el, table);
+    setHost(el);
+    return () => { el.remove(); setHost(null); };
+  }, [table]);
   // row height (owner 2026-11-11 «محتاج انفذه على الصفوف بردو»): ONE height for all body rows of the table, dragged from
   // the bottom edge of the header; saved with the widths under "__row". Double-click = natural height again.
   const ROW = "__row";
@@ -130,14 +153,29 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
   const css = useMemo(() => {
     if (!active) return "";
     const w = (h: Head) => Math.max(MIN, Math.round(widths[h.label] ?? natural.current[h.label] ?? h.el.getBoundingClientRect().width));
-    const total = heads.reduce((s, h) => s + w(h), 0);
+    const total = heads.reduce((s, h) => s + (hidden.includes(h.label) ? 0 : w(h)), 0);
     const rules = heads.map((h) => {
       const px = w(h);
       return `[data-cr="${uid}"] > * > tr > :nth-child(${h.idx}):not([colspan]) { width: ${px}px !important; min-width: ${px}px !important; max-width: ${px}px !important; overflow: hidden; text-overflow: ellipsis; }`;
     });
     return `[data-cr="${uid}"] { table-layout: fixed !important; width: ${total}px !important; min-width: ${total}px !important; max-width: none !important; }\n${rules.join("\n")}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, widths, sig, uid, tick]);
+  }, [active, widths, sig, uid, tick, hidden]);
+  const hideCss = heads.filter((h) => hidden.includes(h.label))
+    .map((h) => `[data-cr="${uid}"] > * > tr > :nth-child(${h.idx}):not([colspan]) { display: none !important; }`).join("\n");
+  // double-click anywhere on a RESIZED column's title puts it back (the thin handle alone was hard to hit)
+  useEffect(() => {
+    const offs = heads.map((h) => {
+      const fn = (e: MouseEvent) => {
+        if ((e.target as HTMLElement).closest?.("button,input,a,[role=separator]")) return;
+        setWidths((w) => { if (w[h.label] == null) return w; const n = { ...w }; delete n[h.label]; save(key, n); return n; });
+        natural.current = {}; setTick((t) => t + 1);
+      };
+      h.el.addEventListener("dblclick", fn);
+      return () => h.el.removeEventListener("dblclick", fn);
+    });
+    return () => offs.forEach((off) => off());
+  }, [heads, key]);
 
   const start = (h: Head, e: React.PointerEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -173,6 +211,29 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
     <>
       {css && <style>{css}</style>}
       {rowCss && <style>{rowCss}</style>}
+      {hideCss && <style>{hideCss}</style>}
+      {host && heads.length > 1 && createPortal(
+        <div>
+          <button type="button" aria-expanded={!!menu} data-testid="cols-button"
+            onClick={(e) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setMenu((m) => (m ? null : { top: r.bottom + 2, right: Math.max(4, window.innerWidth - r.right) })); }}
+            className={`rounded-md border px-2 py-0.5 text-[11px] leading-5 bg-background hover:bg-muted ${hidden.length ? "text-primary font-bold" : "text-muted-foreground"}`}>
+            الأعمدة{hidden.length ? ` (${hidden.length} مخفي)` : ""}
+          </button>
+          {menu && (
+            <div className="fixed z-50 max-h-72 w-56 overflow-y-auto rounded-md border bg-popover p-1 text-sm shadow-lg" dir="rtl" style={{ top: menu.top, right: menu.right }} data-testid="cols-menu">
+              {heads.map((h) => (
+                <label key={`${h.idx}-${h.label}`} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-muted">
+                  <input type="checkbox" className="h-4 w-4" checked={!hidden.includes(h.label)} onChange={() => toggleHidden(h.label)} />
+                  <span className="truncate">{h.label}</span>
+                </label>
+              ))}
+              <div className="mt-1 flex justify-between border-t px-2 pt-1 text-xs">
+                <button type="button" className="underline" onClick={() => { setHidden([]); try { localStorage.removeItem(hideKey); } catch { /* private mode */ } }}>إظهار الكل</button>
+                <button type="button" className="underline" onClick={() => setMenu(null)}>تم</button>
+              </div>
+            </div>
+          )}
+        </div>, host)}
       <style>{`[data-cr="${uid}"] > thead > tr:last-child > *:not(.sticky) { position: relative; }${active ? `\n*:has(> [data-cr="${uid}"]) { overflow-x: auto !important; }` : ""}`}</style>
       {heads.map((h) => createPortal(
         <span

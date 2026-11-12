@@ -101,8 +101,12 @@ function DataTableInner<T>(
   const dropCol = (target: string) => {
     const from = dragCol.current; dragCol.current = null; setOverCol(null);
     if (!from || from === target) return;
-    const keys = columns.map((c) => c.key).filter((k) => k !== from);
-    keys.splice(keys.indexOf(target), 0, from);
+    // dropped on a column that comes AFTER it → goes after that column; on one BEFORE it → goes before it
+    // (always inserting «before» made a move toward the end do nothing on the next column — owner 2026-11-12)
+    const all = columns.map((c) => c.key);
+    const forward = all.indexOf(from) < all.indexOf(target);
+    const keys = all.filter((k) => k !== from);
+    keys.splice(keys.indexOf(target) + (forward ? 1 : 0), 0, from);
     setOrder(keys);
     try { localStorage.setItem(orderKey, JSON.stringify(keys)); } catch { /* private mode */ }
   };
