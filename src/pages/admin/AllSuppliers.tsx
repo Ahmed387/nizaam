@@ -1,4 +1,5 @@
 import { netOf, netText, netTone, netLabel } from "@/lib/netBalance";
+import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { useEffect, useMemo, useState } from "react";
 import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
@@ -481,7 +482,7 @@ export default function AllSuppliers() {
         onRowClick={(r: any) => window.open(`/admin/contacts/${r.id}`, "_blank", "noopener,noreferrer")}
         columns={[
           { key: "account_no", header: "رقم الحساب", render: (r: any) => <span className="font-mono text-xs">{r.account_no ?? "—"}</span> },
-          { key: "name", header: "اسم الحساب", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },
+          { key: "name", header: "اسم الحساب", render: (r: any) => <div><div className="font-semibold">{r.name}<InternalBranchBadge id={r.id} /></div><div className="text-xs text-muted-foreground">{r.contact_person ?? "—"}</div></div> },
           { key: "type", header: "طبيعة الحساب", render: (r: any) => {
             const t = r.type as "customer" | "supplier" | "both";
             const lbl = t === "customer" ? "عميل" : t === "supplier" ? "مورد" : "عميل ومورد";

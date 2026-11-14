@@ -6,6 +6,7 @@ import { MergeContactButton } from "@/components/contact/MergeContactButton";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
+import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { PaymentPlansPanel } from "@/components/PaymentPlansPanel";
 import { MultiMethodPaymentDialog } from "@/components/MultiMethodPaymentDialog";
 import { ContactMovements } from "@/components/contact/ContactMovements";
@@ -221,6 +222,8 @@ export default function ContactFile() {
 
       {loading && !ov && <div className="p-8 text-center text-muted-foreground">جاري التحميل...</div>}
 
+      {contactId && <div className="mb-2 empty:hidden"><InternalBranchBadge id={contactId} className="text-xs px-2 py-0.5" /></div>}
+
       {ov && (
         <ContactBalanceHeader customer={ov.customer} supplier={ov.supplier}
           scopeLabel={scopeBranch ? `فرع ${scopeOptions.find((b) => b.id === scope)?.name ?? ""}` : "كل الفروع"} />
@@ -261,7 +264,7 @@ export default function ContactFile() {
       <Dialog open={!!payPick} onOpenChange={(o) => { if (!o) setPayPick(null); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{payPick === "in" ? "الفلوس هتدخل خزنة أنهي فرع؟" : "الفلوس هتطلع من خزنة أنهي فرع؟"}</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">الحركة بتتسجل في الفرع اللي استلم أو دفع الفلوس، وبتتخصم من أقدم مستند مفتوح لنفس الحساب في أي فرع.</p>
+          <p className="text-sm text-muted-foreground">الحركة بتتسجل في حساب العميل / المورد في الفرع اللي استلم أو دفع الفلوس، وبتنزّل رصيده في الفرع ده.</p>
           <Select value={pickedBranch} onValueChange={setPickedBranch}>
             <SelectTrigger><SelectValue placeholder="اختار الفرع" /></SelectTrigger>
             <SelectContent>

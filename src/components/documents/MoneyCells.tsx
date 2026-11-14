@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { useNavigate } from "react-router-dom";
 import { Printer } from "lucide-react";
 import { toast } from "sonner";
@@ -11,7 +12,7 @@ import { SRC_LABEL, srcPath, type TreasuryLink } from "@/lib/treasuryLinks";
 /** «اسم الحساب»: the customer / supplier the money belongs to (automatic vouchers get it from their document). */
 export function AccountCell({ name }: { name?: string | null }) {
   return name
-    ? <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>
+    ? <span className="flex max-w-[230px] items-center"><span className="truncate font-semibold" title={name}>{name}</span><InternalBranchBadge name={name} /></span>
     : <span className="text-muted-foreground">—</span>;
 }
 

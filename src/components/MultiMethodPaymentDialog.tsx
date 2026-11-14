@@ -238,7 +238,7 @@ export function MultiMethodPaymentDialog({
                 <span className="font-bold text-success">{formatEGP(supplierCredit)}</span>
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                بيتخصم تلقائياً من أقدم فاتورة شراء مفتوحة لنفس المورد (حساب المورد بس — منفصل عن حساب العميل).
+                بينزّل رصيد المورد في الفرع ده.
               </div>
             </div>
           )}

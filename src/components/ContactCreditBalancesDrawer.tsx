@@ -61,8 +61,8 @@ export function ContactCreditBalancesDrawer({ open, onOpenChange, side }: Props)
           <SheetTitle>{side === "customer" ? "مقدمات العملاء عندنا (2150)" : "مقدماتنا عند الموردين (1460)"}</SheetTitle>
           <SheetDescription>
             {side === "customer"
-              ? "فلوس دفعها العملاء ولسه ما اتخصمتش من فواتير. أول ما تتسجل فاتورة للعميل بتتخصم منها تلقائياً (الأقدم أولاً)."
-              : "فلوس دفعناها للموردين مقدم ولسه ما اتخصمتش من فواتير شراء. بتتخصم تلقائياً من أقدم فاتورة شراء مفتوحة."}
+              ? "عملاء رصيدهم دائن: دفعوا فلوس أكتر من فواتيرهم، فالفرق علينا ليهم في حسابهم الجاري."
+              : "موردين رصيدهم مدين: دفعنالهم أكتر من فواتيرهم، فالفرق لينا عندهم في حسابهم الجاري."}
             {" "}الجانبين منفصلين تماماً.
           </SheetDescription>
         </SheetHeader>
@@ -86,7 +86,6 @@ export function ContactCreditBalancesDrawer({ open, onOpenChange, side }: Props)
                 { key: "name", header: "الجهة", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{typeLabel(r.type)}</div></div> },
                 { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
                 { key: "adv", header: "المقدم المتاح", render: (r: any) => <b className="text-primary">{formatEGP(advanceOf(r))}</b> },
-                { key: "open", header: side === "customer" ? "فواتير مفتوحة عليه" : "فواتير شراء مفتوحة", render: (r: any) => formatEGP(side === "customer" ? r.customer_open : r.supplier_open) },
                 { key: "go", header: "", render: (r: any) => (
                   <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/admin/contacts/${r.id}`); }}>الملف</Button>
                 ) },

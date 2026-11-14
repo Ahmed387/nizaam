@@ -1,4 +1,5 @@
 import { netOf, netText, netTone, netLabel, netKind } from "@/lib/netBalance";
+import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { PermTable } from "@/components/PermTable";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -201,21 +202,19 @@ export default function Contacts() {
       const bal = Number(sd === "c" ? r.customer_balance : r.supplier_balance) || 0;
       return role || Math.abs(bal) > 0.005;
     };
-    return all.map((r: any) => ({
-      "الاسم": r.name,
-      "النوع": TYPE_LABELS[(r.type ?? "customer") as ContactType],
-      "التليفون": r.phone ?? "",
-      "الإيميل": r.email ?? "",
-      "العنوان": r.address ?? "",
-      "حساب العميل (الفرع)": hasSide(r, "c") ? Number(r.customer_balance ?? 0) : "",
-      "حالة حساب العميل": hasSide(r, "c") ? sideText("c", Number(r.customer_balance ?? 0)) : "",
-      "فواتير بيع مفتوحة": hasSide(r, "c") ? Number(r.customer_open ?? 0) : "",
-      "مقدم العميل": hasSide(r, "c") ? Number(r.customer_advance ?? 0) : "",
-      "حساب المورد (الفرع)": hasSide(r, "s") ? Number(r.supplier_balance ?? 0) : "",
-      "حالة حساب المورد": hasSide(r, "s") ? sideText("s", Number(r.supplier_balance ?? 0)) : "",
-      "فواتير شراء مفتوحة": hasSide(r, "s") ? Number(r.supplier_open ?? 0) : "",
-      "مقدمنا عند المورد": hasSide(r, "s") ? Number(r.supplier_advance ?? 0) : "",
-    }));
+    // ONE net balance per account like the screen (owner 2026-11-14: no open / closed invoices anywhere)
+    return all.map((r: any) => {
+      const net = netOf(r.customer_balance, r.supplier_balance);
+      return {
+        "رقم الحساب": r.account_no ?? "",
+        "اسم الحساب": r.name,
+        "طبيعة الحساب": TYPE_LABELS[(r.type ?? "customer") as ContactType],
+        "التليفون": r.phone ?? "",
+        "العنوان": r.address ?? "",
+        "الرصيد الحالى": Math.abs(net),
+        "مدين / دائن": netLabel(net),
+      };
+    });
   };
   const filterSuffix = balanceFilters.length === 1 ? `_${balanceFilters[0]}` : "";
   const handleExportExcel = async () => {
@@ -229,12 +228,10 @@ export default function Contacts() {
     const title = "أرصدة العملاء والموردين" + (filterSuffix ? ` (${BALANCE_LABELS[balanceFilters[0]]})` : "");
     const summary = `
       <div class="kpi">
-        <div><span class="muted">مستحق لنا على العملاء</span><b class="pos">${formatEGP(totals?.customers_open ?? 0)}</b></div>
-        <div><span class="muted">مقدمات عملاء عندنا</span><b>${formatEGP(totals?.customer_advances ?? 0)}</b></div>
-        <div><span class="muted">مستحق للموردين علينا</span><b class="neg">${formatEGP(totals?.suppliers_open ?? 0)}</b></div>
-        <div><span class="muted">مقدمات لينا عند الموردين</span><b>${formatEGP(totals?.supplier_advances ?? 0)}</b></div>
-      </div>
-      <div class="meta">حساب العميل وحساب المورد منفصلين.</div>`;
+        <div><span class="muted">إجمالي المدين (لنا)</span><b class="pos">${formatEGP(totals?.debit_total ?? 0)}</b></div>
+        <div><span class="muted">إجمالي الدائن (علينا)</span><b class="neg">${formatEGP(totals?.credit_total ?? 0)}</b></div>
+        <div><span class="muted">الصافي</span><b>${formatEGP(Math.abs((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0)))} ${netLabel((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0))}</b></div>
+      </div>`;
     const head = `<tr>${Object.keys(data[0]).map(k => `<th>${k}</th>`).join("")}</tr>`;
     const body = data.map(r => `<tr>${Object.entries(r).map(([k, v]) => {
       if (k.startsWith("حساب ") && v !== "") return `<td><b>${formatEGP(Math.abs(Number(v as any)))}</b></td>`;
@@ -562,7 +559,7 @@ export default function Contacts() {
                     {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </button>
                   <div>
-                    <div className="font-semibold">{r.name}</div>
+                    <div className="font-semibold">{r.name}<InternalBranchBadge id={r.id} /></div>
                     {r.contact_person && <div className="text-xs text-muted-foreground">{r.contact_person}</div>}
                   </div>
                 </div>

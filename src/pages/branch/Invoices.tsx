@@ -1,4 +1,5 @@
 import { ContactLookup } from "@/components/ContactLookup";
+import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { PermTable } from "@/components/PermTable";
 import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
 import { PermPart, usePartVisible } from "@/contexts/PermCustomize";
@@ -542,8 +543,6 @@ export default function Invoices() {
     { key: "__b_instapay", header: "انستاباي", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.instapay) },
     { key: "__b_wallet", header: "محفظة", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.wallet) },
     { key: "__b_bank", header: "بنكي", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.bank) },
-    { key: "__b_account", header: k === "sale" ? "من تحت حسابه" : "من تحت حسابنا", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.account) },
-    { key: "__b_other", header: "من مرتجع", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.other) },
   ];
   const bucketCell = (v: number | undefined) => Number(v) > 0 ? <span className="tabular-nums">{formatEGP(Number(v))}</span> : <span className="text-muted-foreground">—</span>;
   const textCell = (v: any) => v ? <span className="block truncate max-w-[12rem] mx-auto" title={String(v)}>{v}</span> : <span className="text-muted-foreground">—</span>;
@@ -607,7 +606,7 @@ export default function Invoices() {
           ) },
           { key: "customer", header: "العميل", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
             const name = r.contacts?.name ?? "نقدي";
-            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
+            return <span className="flex max-w-[230px] items-center"><span className="truncate font-semibold" title={name}>{name}</span><InternalBranchBadge id={r.contact_id} name={r.contacts?.name} /></span>;
           } },
           { key: "total", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.total) },
           ...settleColumns("sale"),
@@ -662,7 +661,7 @@ export default function Invoices() {
           ) },
           { key: "supplier", header: "المورد", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
             const name = r.contacts?.name ?? "—";
-            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
+            return <span className="flex max-w-[230px] items-center"><span className="truncate font-semibold" title={name}>{name}</span><InternalBranchBadge id={r.contact_id} name={r.contacts?.name} /></span>;
           } },
           { key: "total_cost", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.total_cost) },
           ...settleColumns("purchase"),
@@ -718,7 +717,7 @@ export default function Invoices() {
           ) },
           { key: "customer", header: "العميل", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
             const name = r.invoices?.contacts?.name ?? "نقدي";
-            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
+            return <span className="flex max-w-[230px] items-center"><span className="truncate font-semibold" title={name}>{name}</span><InternalBranchBadge name={r.invoices?.contacts?.name} /></span>;
           } },
           { key: "inv", header: "رقم الفاتورة", align: "center", className: "min-w-[100px]", render: (r: any) => <span className="font-mono">{r.invoices?.invoice_number ?? "—"}</span> },
           { key: "reason", header: "السبب", align: "center", className: "min-w-[130px]", render: (r: any) => textCell(r.reason) },
@@ -769,7 +768,7 @@ export default function Invoices() {
           ) },
           { key: "supplier", header: "المورد", align: "right", className: "min-w-[190px] text-right", render: (r: any) => {
             const name = r.contacts?.name ?? "—";
-            return <span className="block max-w-[190px] truncate font-semibold" title={name}>{name}</span>;
+            return <span className="flex max-w-[230px] items-center"><span className="truncate font-semibold" title={name}>{name}</span><InternalBranchBadge id={r.contact_id} name={r.contacts?.name} /></span>;
           } },
           { key: "ship", header: "رقم الفاتورة", align: "center", className: "min-w-[100px]", render: (r: any) => <span className="font-mono">{r.shipments?.shipment_number ?? "—"}</span> },
           { key: "reason", header: "السبب", align: "center", className: "min-w-[130px]", render: (r: any) => textCell(r.reason) },
@@ -1065,8 +1064,6 @@ export default function Invoices() {
     { value: "instapay", label: "انستاباي" },
     { value: "wallet", label: "محفظة" },
     { value: "bank", label: "بنكي" },
-    ...(tab === "sale" ? [{ value: "account", label: "من تحت حسابه" }, { value: "return", label: "من مرتجع" }] : []),
-    ...(tab === "purchase" ? [{ value: "account", label: "من تحت حسابنا عند المورد" }, { value: "return", label: "من مرتجع" }] : []),
   ];
   const classOptions = [{ value: "cash", label: "نقدي (اتدفعت كلها وقت البيع)" }, { value: "credit", label: "آجل" }];
   const payStateOptions = [{ value: "paid", label: "مدفوعة بالكامل" }, { value: "partial", label: "سداد جزئي" }, { value: "unpaid", label: "لم يتم الدفع" }];
@@ -1552,9 +1549,6 @@ function VoucherDetailsRow({ v, income, branchId }: { v: any; income: boolean; b
     supabase.rpc("voucher_money_split" as any, { p_ids: [v.id] } as any).then(({ data }: any) => { if (live) setSp(((data ?? []) as any[])[0] ?? {}); });
     return () => { live = false; };
   }, [v.id, v.__splitLoaded]);
-  const m = v.__splitLoaded
-    ? { inLedger: !!v.__inLedger, alloc: Number(v.__alloc) || 0, onAcc: Number(v.__onAcc) || 0, docs: v.__docs ?? null }
-    : { inLedger: !!sp?.in_ledger, alloc: Number(sp?.allocated) || 0, onAcc: Number(sp?.on_account) || 0, docs: sp?.docs ?? null };
   const path = l ? srcPath(branchId, l) : null;
   const Item = ({ k, children }: { k: string; children: ReactNode }) => (
     <div className="flex gap-2"><span className="text-muted-foreground whitespace-nowrap">{k}:</span><span className="font-semibold">{children}</span></div>
@@ -1568,12 +1562,6 @@ function VoucherDetailsRow({ v, income, branchId }: { v: any; income: boolean; b
           : v.source === "manual" ? "سند يدوي" : "سند تلقائي"}
       </Item>
       <Item k="طريقة الدفع">{payMethodLabel(v.payment_method)}{v.reference_number ? ` • رقم العملية ${v.reference_number}` : ""}</Item>
-      {m.inLedger && v.status !== "cancelled" && (
-        <>
-          <Item k={income ? "اتخصم من فواتير" : "اتدفع على فواتير"}>{formatEGP(m.alloc)}{m.docs ? ` (${m.docs})` : ""}</Item>
-          <Item k={income ? "فضل مقدم تحت حسابه" : "فضل مقدم لينا عنده"}>{formatEGP(m.onAcc)}</Item>
-        </>
-      )}
       {Number(v.fee_amount) > 0 && <Item k="العمولة">{formatEGP(v.fee_amount)}</Item>}
       <Item k="سجّله">{v.created_by_name ?? "—"} • {formatDateTime(v.__enteredAt ?? v.created_at)}</Item>
       {v.status === "cancelled" && <Item k="اتلغى">{v.cancelled_at ? formatDateTime(v.cancelled_at) : "—"}{v.cancel_reason ? ` — ${v.cancel_reason}` : ""}</Item>}

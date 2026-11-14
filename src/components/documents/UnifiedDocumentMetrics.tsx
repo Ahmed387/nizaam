@@ -21,12 +21,12 @@ const TOP: Record<DocKind, CardDef[]> = {
   sale: [
     { key: "active", label: "إجمالي المبيعات", icon: <TrendingUp />, tone: "primary", countWord: "فاتورة", meaning: "قيمة فواتير البيع النشطة المعروضة وعددها (الملغاة في تبويب «الملغاة» لوحدها).", formula: "Σ إجمالي الفاتورة للفواتير النشطة" },
     { key: "cashDocs", label: "نقدي", icon: <Banknote />, tone: "success", countWord: "فاتورة", split: "cash", meaning: "الفواتير اللي اتدفعت كلها فلوس (كاش / انستاباي / محفظة / بنكي) وقت البيع نفسه. تحت الكارت: اتدفعت إزاي.", formula: "Σ إجمالي الفواتير اللي المدفوع وقت البيع = إجمالي الفاتورة" },
-    { key: "creditDocs", label: "آجل", icon: <Clock />, tone: "warning", countWord: "فاتورة", split: "credit", meaning: "أي فاتورة ما اتدفعتش كلها فلوس وقت البيع: لسه عليها، أو اتسددت بعدين، أو من تحت حسابه، أو من مرتجع. تحت الكارت: اتسدد منها إزاي والباقي.", formula: "Σ إجمالي الفواتير − الفواتير النقدية" },
+    { key: "creditDocs", label: "آجل", icon: <Clock />, tone: "warning", countWord: "فاتورة", split: "credit", meaning: "أي فاتورة ما اتدفعتش كلها فلوس وقت البيع. تحت الكارت: عددها والمتبقي عليها.", formula: "Σ إجمالي الفواتير − الفواتير النقدية" },
   ],
   purchase: [
     { key: "active", label: "إجمالي المشتريات", icon: <TrendingUp />, tone: "primary", countWord: "فاتورة شراء", meaning: "قيمة فواتير الشراء المطابقة وعددها.", formula: "Σ إجمالي التكلفة" },
     { key: "cashDocs", label: "نقدي", icon: <Banknote />, tone: "success", countWord: "فاتورة شراء", split: "cash", meaning: "فواتير الشراء اللي اتدفعت كلها فلوس للمورد وقت الفاتورة نفسها. تحت الكارت: اتدفعت إزاي.", formula: "Σ إجمالي الفواتير اللي المدفوع وقت الفاتورة = إجماليها" },
-    { key: "creditDocs", label: "آجل", icon: <Clock />, tone: "warning", countWord: "فاتورة شراء", split: "credit", meaning: "أي فاتورة شراء ما اتدفعتش كلها وقتها: لسه علينا، أو اتسددت بعدين، أو من تحت حسابنا عند المورد، أو من مرتجع.", formula: "Σ إجمالي الفواتير − الفواتير النقدية" },
+    { key: "creditDocs", label: "آجل", icon: <Clock />, tone: "warning", countWord: "فاتورة شراء", split: "credit", meaning: "أي فاتورة شراء ما اتدفعتش كلها وقتها. تحت الكارت: عددها والمتبقي عليها.", formula: "Σ إجمالي الفواتير − الفواتير النقدية" },
   ],
   sale_return: [
     { key: "active", label: "إجمالي المرتجع", icon: <TrendingUp />, tone: "primary", countWord: "مرتجع نشط", meaning: "قيمة مرتجعات البيع النشطة.", formula: "Σ قيمة المرتجع حيث الحالة = نشط" },
@@ -51,19 +51,6 @@ const TOP: Record<DocKind, CardDef[]> = {
   ],
 };
 
-/** Sale / purchase second row: what happened to the «آجل» documents. */
-const CREDIT_ROW = (kind: "sale" | "purchase"): CardDef[] => [
-  { key: "creditMoney", label: "اتسدد بفلوس", icon: <Wallet />, tone: "success", countWord: "فاتورة",
-    meaning: kind === "sale" ? "فلوس دخلت على الفواتير الآجلة: اللي اندفع وقت البيع (جزء) واللي اتحصّل بعده بسند أو من ملف العميل." : "فلوس اتدفعت للمورد على الفواتير الآجلة: وقت الفاتورة (جزء) أو بعدها.",
-    formula: "Σ (المدفوع وقت البيع + المدفوع بعده) للفواتير الآجلة" },
-  { key: "creditAccount", label: kind === "sale" ? "من تحت حسابه" : "من تحت حسابنا عند المورد", icon: <Scale />, tone: "primary", countWord: "فاتورة",
-    meaning: kind === "sale" ? "اتخصم من فلوس كان العميل سايبها قبل كده — بموافقة الكاشير وقت البيع أو «سدد من تحت حسابه» من ملف العميل." : "اتخصم من فلوس دفعناها للمورد قبل كده — بالاختيار وقت فاتورة الشراء أو من ملف المورد.",
-    formula: "Σ الخصم من تحت الحساب على الفواتير الآجلة" },
-  { key: "creditReturn", label: "من مرتجع", icon: <ArrowDownCircle />, tone: "warning", countWord: "فاتورة",
-    meaning: "قيمة بضاعة رجعت من نفس الفاتورة وقللتها — مش فلوس دخلت الخزنة.", formula: "Σ قيمة المرتجع اللي نزل على الفواتير الآجلة" },
-  { key: "creditOpen", label: "لم يتم الدفع (مفتوح)", icon: <Clock />, tone: "destructive", countWord: "فاتورة",
-    meaning: kind === "sale" ? "اللي لسه على العملاء في الفواتير الآجلة." : "اللي لسه علينا للموردين في الفواتير الآجلة.", formula: "Σ المتبقي على الفواتير الآجلة" },
-];
 
 const BUCKET_DEFS: { key: CollectionBucket; label: string; icon: ReactNode; where: string }[] = [
   { key: "cash", label: "كاش (درج الخزنة)", icon: <Banknote />, where: "درج خزنة الفرع النقدية — رصيد الخزنة بيتحرك فوراً" },
@@ -142,19 +129,6 @@ export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSel
           );
         })}
       </div>
-      {settled && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {CREDIT_ROW(kind as "sale" | "purchase").map((c) => (
-            <MetricCardWithHint key={c.key} label={c.label} value={metrics?.values[c.key] ?? 0} icon={c.icon} tone={c.tone} {...sel(c.key)}
-              footer={c.key === "creditMoney"
-                ? <div className="space-y-0.5"><span className="tabular-nums">{(metrics?.counts[c.key] ?? 0).toLocaleString("en-US")} {c.countWord}</span>
-                    <div className="flex justify-between gap-2"><span>وقت البيع</span><span className="tabular-nums font-semibold text-foreground">{(metrics?.values.creditAtSale ?? 0).toLocaleString("en-US")}</span></div>
-                    <div className="flex justify-between gap-2"><span>بعد البيع</span><span className="tabular-nums font-semibold text-foreground">{(metrics?.values.creditLater ?? 0).toLocaleString("en-US")}</span></div></div>
-                : <span className="tabular-nums">{(metrics?.counts[c.key] ?? 0).toLocaleString("en-US")} {c.countWord}</span>}
-              metricHint={{ meaning: c.meaning, source, formula: c.formula }} />
-          ))}
-        </div>
-      )}
       {buckets.length > 0 && <div className="text-xs font-semibold text-muted-foreground pt-1">{BUCKET_TITLE[kind]}</div>}
       {buckets.length > 0 && <div className={`grid grid-cols-2 gap-3 ${buckets.length === 5 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
         {BUCKET_DEFS.filter((b) => buckets.includes(b.key)).map((b) => (
@@ -173,23 +147,25 @@ export function UnifiedDocumentMetrics({ kind, metrics, loading, selected, onSel
 
 const SPLIT_METHODS: { key: CollectionBucket; label: string; sale?: string; purchase?: string }[] = [
   { key: "cash", label: "كاش" }, { key: "instapay", label: "انستاباي" }, { key: "wallet", label: "محفظة" },
-  { key: "bank", label: "تحويل بنكي" }, { key: "account", label: "", sale: "من تحت حسابه", purchase: "من تحت حسابنا" }, { key: "other", label: "من مرتجع" },
+  { key: "bank", label: "تحويل بنكي" },
 ];
 
 /** Under «نقدي» / «آجل»: how the money of those documents came, and (آجل) what is still open. */
 function SplitLines({ kind, split, side, countLine }: { kind: DocKind; split?: import("@/hooks/useDocumentMetrics").PaySplit; side: "cash" | "credit"; countLine?: ReactNode }) {
   const fmt = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  const rows = SPLIT_METHODS.filter((m) => (m.key !== "other" && m.key !== "account") || (split?.byBucket[m.key] ?? 0) > 0.01);
+  // owner 2026-11-14 «نقفل حوار الفواتير المفتوحة والمغلقة»: «آجل» shows its count and what is still left (= the «المتبقي»
+  // column), never how it was settled (from account / from a return); «نقدي» shows how it was paid
+  const rows = side === "credit" ? [] : SPLIT_METHODS;
   return (
     <div className="space-y-1">
       {countLine}
-      <div className="mt-1 border-t border-border/60 pt-1 space-y-0.5">
+      <div className={`space-y-0.5 ${rows.length ? "mt-1 border-t border-border/60 pt-1" : ""}`}>
         {rows.map((m) => (
           <div key={m.key} className="flex justify-between gap-2"><span>{(kind === "purchase" ? m.purchase : m.sale) ?? m.label}</span><span className="tabular-nums font-semibold text-foreground">{fmt(split?.byBucket[m.key] ?? 0)}</span></div>
         ))}
         {side === "credit" && (
           <div className="flex justify-between gap-2 border-t border-border/60 pt-0.5">
-            <span>{kind === "sale" ? "لم يتم الدفع (على العملاء)" : "لم يتم الدفع (للموردين)"}</span>
+            <span>المتبقي</span>
             <span className="tabular-nums font-bold text-warning">{fmt(split?.remaining ?? 0)}</span>
           </div>
         )}
