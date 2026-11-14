@@ -15,10 +15,11 @@ import { toast } from "sonner";
 import { Plus, Package, PlayCircle, Trash2, CalendarClock } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
+import { rpcErrorText } from "@/lib/rpcError";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
 
-type Account = { id: string; code: string; name: string; name_ar: string | null; account_type: string };
 type FixedAsset = {
   id: string;
   code: string;
@@ -34,11 +35,13 @@ type FixedAsset = {
   asset_account_id: string | null;
   accum_depreciation_account_id: string | null;
   depreciation_expense_account_id: string | null;
+  branch_id: string | null;
+  funding: "opening" | "paid" | null;
 };
 
 export default function FixedAssets() {
-  const { tenantId } = useAuth();
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const { tenantId, branches } = useAuth();
+  const [methods, setMethods] = useState<PaymentMethodOption[]>([]);
   const [assets, setAssets] = useState<FixedAsset[]>([]);
   const [accum, setAccum] = useState<Record<string, number>>({});
   const [open, setOpen] = useState(false);
@@ -46,28 +49,29 @@ export default function FixedAssets() {
   const [runOpen, setRunOpen] = useState(false);
   const [runMonth, setRunMonth] = useState<string>(new Date().toISOString().slice(0, 7));
   const [running, setRunning] = useState(false);
-  const [form, setForm] = useState({
-    code: "",
+  const emptyForm = () => ({
     name: "",
     category: "",
+    branch_id: "",
     acquisition_date: cairoTodayDay(),
     cost: "",
     salvage_value: "0",
     useful_life_months: "60",
-    asset_account_id: "",
-    accum_depreciation_account_id: "",
-    depreciation_expense_account_id: "",
+    funding: "" as "" | "opening" | "paid",
+    method: "cash",
     notes: "",
   });
-  const [disposal, setDisposal] = useState({ disposal_date: cairoTodayDay(), disposal_amount: "0" });
+  const [form, setForm] = useState(emptyForm());
+  const [saving, setSaving] = useState(false);
+  const [disposal, setDisposal] = useState({ disposal_date: cairoTodayDay(), disposal_amount: "0", method: "cash" });
 
   const load = async () => {
     if (!tenantId) return;
-    const [a, fa] = await Promise.all([
-      supabase.from("chart_of_accounts").select("id,code,name,name_ar,account_type").eq("tenant_id", tenantId).eq("is_active", true).order("code"),
+    const [m, fa] = await Promise.all([
+      loadAllPaymentMethods().catch(() => [] as PaymentMethodOption[]),
       supabase.from("fixed_assets" as any).select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
     ]);
-    setAccounts((a.data as any) ?? []);
+    setMethods(m.filter(x => x.is_enabled && x.kind !== "virtual"));
     const list = (fa.data as any) ?? [];
     setAssets(list);
     // fetch accumulated depreciation totals
@@ -83,54 +87,43 @@ export default function FixedAssets() {
 
   useEffect(() => { load(); }, [tenantId]);
 
-  const defaults = useMemo(() => ({
-    asset: accounts.find(a => a.code === "1500")?.id || "",
-    accum: accounts.find(a => a.code === "1590")?.id || "",
-    expense: accounts.find(a => a.code === "6500")?.id || "",
-  }), [accounts]);
+  const branchName = (id: string | null) => branches.find(b => b.id === id)?.name || "—";
+  const methodLabel = (v: string) => methods.find(m => m.value === v)?.label || v;
 
   const openCreate = () => {
-    setForm(f => ({
-      ...f,
-      asset_account_id: defaults.asset,
-      accum_depreciation_account_id: defaults.accum,
-      depreciation_expense_account_id: defaults.expense,
-    }));
+    setForm({ ...emptyForm(), branch_id: branches.length === 1 ? branches[0].id : "" });
     setOpen(true);
   };
 
+  const monthly = useMemo(() => {
+    const c = Number(form.cost || 0), sv = Number(form.salvage_value || 0), n = Number(form.useful_life_months || 0);
+    return n > 0 && c > sv ? (c - sv) / n : 0;
+  }, [form.cost, form.salvage_value, form.useful_life_months]);
+
   const save = async () => {
     if (!tenantId) return;
-    if (!form.code || !form.name || !form.cost || !form.useful_life_months) {
-      toast.error("أدخل الكود والاسم والتكلفة والعمر الإنتاجي");
+    if (!form.name || !form.cost || !form.useful_life_months || !form.branch_id || !form.funding) {
+      toast.error("اكتب الاسم والتكلفة والعمر، واختار الفرع وطريقة الحصول على الأصل");
       return;
     }
-    const { error } = await supabase.from("fixed_assets" as any).insert({
-      tenant_id: tenantId,
-      code: form.code,
-      name: form.name,
-      category: form.category || null,
-      acquisition_date: form.acquisition_date,
-      cost: Number(form.cost),
-      salvage_value: Number(form.salvage_value || 0),
-      useful_life_months: Number(form.useful_life_months),
-      asset_account_id: form.asset_account_id || null,
-      accum_depreciation_account_id: form.accum_depreciation_account_id || null,
-      depreciation_expense_account_id: form.depreciation_expense_account_id || null,
-      notes: form.notes || null,
-    } as any);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم إضافة الأصل");
-    setOpen(false);
-    setForm({
-      code: "", name: "", category: "",
-      acquisition_date: cairoTodayDay(),
-      cost: "", salvage_value: "0", useful_life_months: "60",
-      asset_account_id: defaults.asset,
-      accum_depreciation_account_id: defaults.accum,
-      depreciation_expense_account_id: defaults.expense,
-      notes: "",
+    setSaving(true);
+    const { data, error } = await supabase.rpc("add_fixed_asset" as any, {
+      p_name: form.name,
+      p_category: form.category || null,
+      p_branch: form.branch_id,
+      p_date: form.acquisition_date,
+      p_cost: Number(form.cost),
+      p_salvage: Number(form.salvage_value || 0),
+      p_life_months: Number(form.useful_life_months),
+      p_funding: form.funding,
+      p_method: form.method,
+      p_notes: form.notes || null,
     });
+    setSaving(false);
+    if (error) { toast.error(rpcErrorText(error)); return; }
+    const d = (data as any)?.depreciation;
+    toast.success(`تم إضافة الأصل ${(data as any)?.code ?? ""}` + (d?.entries ? ` — واتحسب إهلاك ${d.entries} شهر (${fmt(d.amount)})` : ""));
+    setOpen(false);
     load();
   };
 
@@ -142,7 +135,7 @@ export default function FixedAssets() {
       _period_month: `${runMonth}-01`,
     });
     setRunning(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(rpcErrorText(error)); return; }
     const n = ((data as any) ?? []).length;
     toast.success(n > 0 ? `تم ترحيل ${n} قيد إهلاك` : "لا يوجد إهلاك جديد لهذا الشهر");
     setRunOpen(false);
@@ -155,11 +148,12 @@ export default function FixedAssets() {
       _asset_id: disposeOpen.id,
       _disposal_date: disposal.disposal_date,
       _disposal_amount: Number(disposal.disposal_amount || 0),
+      _method: disposal.method,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(rpcErrorText(error)); return; }
     toast.success("تم التخلص من الأصل");
     setDisposeOpen(null);
-    setDisposal({ disposal_date: cairoTodayDay(), disposal_amount: "0" });
+    setDisposal({ disposal_date: cairoTodayDay(), disposal_amount: "0", method: "cash" });
     load();
   };
 
@@ -170,7 +164,7 @@ export default function FixedAssets() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="الأصول الثابتة" subtitle="إدارة الأصول واحتساب الإهلاك الشهري تلقائيًا" />
+        <PageHeader title="الأصول الثابتة" subtitle="الإهلاك بيتحسب لوحده كل شهر (من الشهر اللي بعد الشراء) — لو مفيش أصول مفيش إهلاك" />
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
@@ -191,7 +185,7 @@ export default function FixedAssets() {
             <div className="flex gap-2">
               <Dialog open={runOpen} onOpenChange={setRunOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline"><CalendarClock className="w-4 h-4 ml-2" />ترحيل إهلاك الشهر</Button>
+                  <Button variant="outline"><CalendarClock className="w-4 h-4 ml-2" />ترحيل إهلاك شهر يدوي</Button>
                 </DialogTrigger>
                 <DialogContent dir="rtl">
                   <DialogHeader><DialogTitle>ترحيل إهلاك شهري</DialogTitle></DialogHeader>
@@ -200,7 +194,7 @@ export default function FixedAssets() {
                       <Label>الشهر</Label>
                       <Input type="month" value={runMonth} onChange={e => setRunMonth(e.target.value)} />
                     </div>
-                    <p className="text-sm text-muted-foreground">سيتم احتساب قسط شهر واحد لكل أصل نشط لم يتم ترحيله بعد لهذا الشهر، وإنشاء القيود المحاسبية تلقائيًا.</p>
+                    <p className="text-sm text-muted-foreground">الإهلاك بيترحّل لوحده كل يوم لأي شهر خلص. الزرار ده بس لو عاوز ترحّل شهر خلص حالًا. الشهر الحالي مش بيترحّل قبل ما يخلص، ومفيش شهر بيترحّل مرتين.</p>
                   </div>
                   <DialogFooter>
                     <Button onClick={runDepreciation} disabled={running}>
@@ -216,34 +210,47 @@ export default function FixedAssets() {
                 <DialogContent dir="rtl" className="max-w-2xl">
                   <DialogHeader><DialogTitle>إضافة أصل ثابت</DialogTitle></DialogHeader>
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label>الكود *</Label><Input value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></div>
-                    <div><Label>الاسم *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+                    <div><Label>الاسم *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="عربية نقل، تكييف، رفوف..." /></div>
                     <div><Label>الفئة</Label><Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="سيارات، أجهزة..." /></div>
-                    <div><Label>تاريخ الشراء</Label><Input type="date" value={form.acquisition_date} onChange={e => setForm({ ...form, acquisition_date: e.target.value })} /></div>
+                    <div><Label>الفرع *</Label>
+                      <Select value={form.branch_id} onValueChange={v => setForm({ ...form, branch_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="اختار الفرع" /></SelectTrigger>
+                        <SelectContent>{branches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div><Label>تاريخ الشراء</Label><Input type="date" max={cairoTodayDay()} value={form.acquisition_date} onChange={e => setForm({ ...form, acquisition_date: e.target.value })} /></div>
                     <div><Label>التكلفة *</Label><Input type="number" value={form.cost} onChange={e => setForm({ ...form, cost: e.target.value })} /></div>
-                    <div><Label>قيمة الخردة</Label><Input type="number" value={form.salvage_value} onChange={e => setForm({ ...form, salvage_value: e.target.value })} /></div>
+                    <div><Label>قيمة الخردة (لو هيتباع في الآخر)</Label><Input type="number" value={form.salvage_value} onChange={e => setForm({ ...form, salvage_value: e.target.value })} /></div>
                     <div><Label>العمر الإنتاجي (شهور) *</Label><Input type="number" value={form.useful_life_months} onChange={e => setForm({ ...form, useful_life_months: e.target.value })} /></div>
-                    <div className="col-span-2"><Label>حساب الأصل</Label>
-                      <Select value={form.asset_account_id} onValueChange={v => setForm({ ...form, asset_account_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
-                        <SelectContent>{accounts.filter(a => a.account_type === "asset").map(a => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name_ar || a.name}</SelectItem>)}</SelectContent>
+                    <div><Label>إهلاك الشهر</Label><div className="h-10 flex items-center font-mono">{fmt(monthly)}</div></div>
+                    <div className="col-span-2"><Label>الأصل ده جه منين؟ *</Label>
+                      <Select value={form.funding} onValueChange={v => setForm({ ...form, funding: v as "opening" | "paid" })}>
+                        <SelectTrigger><SelectValue placeholder="اختار" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="opening">كان عندنا قبل السيستم (رصيد افتتاحي — مفيش فلوس بتطلع)</SelectItem>
+                          <SelectItem value="paid">اشتريناه ودفعنا من خزنة الفرع</SelectItem>
+                        </SelectContent>
                       </Select>
                     </div>
-                    <div className="col-span-2"><Label>حساب مجمع الإهلاك</Label>
-                      <Select value={form.accum_depreciation_account_id} onValueChange={v => setForm({ ...form, accum_depreciation_account_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
-                        <SelectContent>{accounts.filter(a => a.account_type === "asset").map(a => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name_ar || a.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-2"><Label>حساب مصروف الإهلاك</Label>
-                      <Select value={form.depreciation_expense_account_id} onValueChange={v => setForm({ ...form, depreciation_expense_account_id: v })}>
-                        <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
-                        <SelectContent>{accounts.filter(a => a.account_type === "expense").map(a => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name_ar || a.name}</SelectItem>)}</SelectContent>
-                      </Select>
-                    </div>
+                    {form.funding === "paid" && (
+                      <div className="col-span-2"><Label>اتدفع من *</Label>
+                        <Select value={form.method} onValueChange={v => setForm({ ...form, method: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>{methods.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <div className="col-span-2"><Label>ملاحظات</Label><Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+                    {form.funding && Number(form.cost) > 0 && (
+                      <div className="col-span-2 p-2 rounded bg-muted text-sm">
+                        {form.funding === "paid"
+                          ? `هيطلع ${fmt(Number(form.cost))} من ${methodLabel(form.method)} في ${branchName(form.branch_id)} يوم ${form.acquisition_date}، والأصل يدخل الدفاتر بنفس المبلغ (المصروفات والربح مش بيتأثروا يوم الشراء).`
+                          : `الأصل يدخل الدفاتر بـ ${fmt(Number(form.cost))} كرصيد افتتاحي — الخزنة مش بتتأثر.`}
+                        {monthly > 0 && ` بعد كده كل شهر ${fmt(monthly)} مصروف إهلاك (بيقلل الربح) لمدة ${form.useful_life_months} شهر.`}
+                      </div>
+                    )}
                   </div>
-                  <DialogFooter><Button onClick={save}>حفظ</Button></DialogFooter>
+                  <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button></DialogFooter>
                 </DialogContent>
               </Dialog>
             </div>
@@ -255,6 +262,7 @@ export default function FixedAssets() {
                   <TableHead>الكود</TableHead>
                   <TableHead>الاسم</TableHead>
                   <TableHead>الفئة</TableHead>
+                  <TableHead>الفرع</TableHead>
                   <TableHead>تاريخ الشراء</TableHead>
                   <TableHead className="text-left">التكلفة</TableHead>
                   <TableHead className="text-left">مجمع الإهلاك</TableHead>
@@ -265,7 +273,7 @@ export default function FixedAssets() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {assets.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">لا توجد أصول</TableCell></TableRow>}
+                {assets.length === 0 && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">لا توجد أصول</TableCell></TableRow>}
                 {assets.map(a => {
                   const ac = accum[a.id] || 0;
                   const bookValue = Number(a.cost) - ac;
@@ -274,6 +282,7 @@ export default function FixedAssets() {
                       <TableCell className="font-mono">{a.code}</TableCell>
                       <TableCell>{a.name}</TableCell>
                       <TableCell>{a.category || "—"}</TableCell>
+                      <TableCell>{branchName(a.branch_id)}</TableCell>
                       <TableCell>{a.acquisition_date}</TableCell>
                       <TableCell className="text-left font-mono">{fmt(a.cost)}</TableCell>
                       <TableCell className="text-left font-mono text-warning">{fmt(ac)}</TableCell>
@@ -308,6 +317,14 @@ export default function FixedAssets() {
               )}
               <div><Label>تاريخ التخلص</Label><Input type="date" value={disposal.disposal_date} onChange={e => setDisposal({ ...disposal, disposal_date: e.target.value })} /></div>
               <div><Label>سعر البيع / التحصيل</Label><Input type="number" value={disposal.disposal_amount} onChange={e => setDisposal({ ...disposal, disposal_amount: e.target.value })} /></div>
+              {Number(disposal.disposal_amount) > 0 && (
+                <div><Label>الفلوس دخلت في</Label>
+                  <Select value={disposal.method} onValueChange={v => setDisposal({ ...disposal, method: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{methods.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              )}
               {disposeOpen && (() => {
                 const nbv = Number(disposeOpen.cost) - (accum[disposeOpen.id] || 0);
                 const gain = Number(disposal.disposal_amount || 0) - nbv;

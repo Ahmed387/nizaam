@@ -102,6 +102,7 @@ export const ADMIN_SUBSECTION_PERMISSION_GROUPS: PermGroup[] = [
   { key: "admin_acc_closing", label: "المحاسبة ← الإقفال وتوزيع الأرباح", actions: ["view"] },
   { key: "admin_acc_assets", label: "المحاسبة ← الأصول الثابتة", actions: ["view"] },
   { key: "admin_acc_branch_capital", label: "المحاسبة ← توزيع رأس المال على الفروع", actions: ["view"] },
+  { key: "admin_eta", label: "المالية ← الفواتير الإلكترونية الواردة (منظومة الضرائب)", actions: ["view"] },
   // التقارير
   { key: "admin_monthly_profit", label: "ملخص الأرباح الشهري", actions: ["view"] },
   { key: "admin_reports_owner", label: "التقارير ← نظرة المالك", actions: ["view"] },
@@ -138,6 +139,7 @@ export const SUBSECTION_PARENT: Record<string, string> = {
   admin_acc_closing: "admin_finance",
   admin_acc_assets: "admin_finance",
   admin_acc_branch_capital: "admin_finance",
+  admin_eta: "admin_finance",
   admin_reports_owner: "admin_reports_hub",
   admin_reports_central: "admin_reports_hub",
   admin_reports_profitability: "admin_reports_hub",
@@ -211,6 +213,7 @@ export const PERM_HELP: Record<string, string> = {
   admin_acc_closing: "قفل الفترات وتوزيع الأرباح على الشركاء.",
   admin_acc_assets: "الأصول الثابتة وإهلاكها.",
   admin_acc_branch_capital: "توزيع رأس المال على الفروع.",
+  admin_eta: "فواتير الموردين اللي اتسجلت على منظومة الفاتورة الإلكترونية باسم شركتك (استقبال بس).",
   admin_monthly_profit: "ملخص الأرباح الشهري بالعامية: الشركة كسبت كام الشهر ده ونصيب كل شريك.",
   admin_reports_owner: "نظرة المالك داخل مركز التقارير.",
   admin_reports_central: "تقارير العمليات المركزية لكل الفروع.",

@@ -130,6 +130,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       [
         ...(allow("admin_finance.view") ? [{ to: "/admin/finance?tab=vouchers", label: "السندات المالية", icon: <Receipt className="w-4 h-4" /> }] : []),
         ...(allow("admin_finance.view") ? [{ to: "/admin/finance?tab=receivables", label: "أرصدة المدين والدائن", icon: <Coins className="w-4 h-4" /> }] : []),
+        ...(allow("admin_eta.view", { adminOnly: true }) ? [{ to: "/admin/eta-invoices", label: "الفواتير الإلكترونية الواردة", icon: <Receipt className="w-4 h-4" /> }] : []),
         ...(allow("admin_finance.view", { adminOnly: true }) ? [{ to: "/admin/accounting/branch-capital", label: "تحويل فلوس للفروع", icon: <Building2 className="w-4 h-4" /> }] : []),
       ],
     ),
