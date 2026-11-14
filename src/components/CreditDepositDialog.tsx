@@ -23,9 +23,11 @@ interface Props {
   size?: "sm" | "default";
 }
 
-/** Admin/owner-only: deposit credit into the central management account, never an operational branch drawer. */
+/** Admin/owner-only: money left on account, into the till of the branch chosen here (0206, owner 2026-11-14). */
 export function CreditDepositButton({ contact, onDone, size = "default" }: Props) {
-  const { isAdmin, tenantId } = useAuth();
+  const { isAdmin, tenantId, branches } = useAuth();
+  const realBranches = (branches ?? []).filter((b: any) => !b.is_system);
+  const [branchId, setBranchId] = useState("");
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [opts, setOpts] = useState<ContactOpt[]>([]);
@@ -59,6 +61,7 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
   const submit = async () => {
     const amt = Number(amount);
     if (!contactId) return toast.error("اختار الجهة");
+    if (!branchId) return toast.error("اختار الفرع اللي الفلوس هتدخل خزنته");
     if (!(amt > 0)) return toast.error("المبلغ لازم يكون أكبر من صفر");
     if (method === "bank" && (!ref.trim() || !fromAcc.trim() || !toAcc.trim()))
       return toast.error("رقم العملية والحساب المحوَّل منه وإليه مطلوبين للبنك");
@@ -70,6 +73,7 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
       p_reference_number: method === "bank" ? ref.trim() : null,
       p_transferred_from: method === "bank" ? fromAcc.trim() : null,
       p_transferred_to: method === "bank" ? toAcc.trim() : null,
+      p_branch_id: branchId,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -90,7 +94,7 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
           <DialogHeader>
             <DialogTitle>إيداع رصيد تحت الحساب</DialogTitle>
             <DialogDescription>
-              المبلغ يدخل الخزينة الرئيسية (الإدارة) أو الحساب البنكي العام للشركة فقط — لا يمس درج أي فرع — ويُضاف لرصيد الجهة المتاح تحت الحساب.
+              المبلغ يدخل خزنة الفرع اللي تختاره، ويتسجل في حساب الجهة في نفس الفرع تحت الحساب.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -115,12 +119,21 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
               <div><Label>التاريخ</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
             </div>
             <div>
+              <Label>الفرع</Label>
+              <Select value={branchId} onValueChange={setBranchId}>
+                <SelectTrigger><SelectValue placeholder="اختار الفرع" /></SelectTrigger>
+                <SelectContent>
+                  {realBranches.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>طريقة الاستلام</Label>
               <Select value={method} onValueChange={(v) => setMethod(v as "cash" | "bank")}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">الخزينة الرئيسية (الإدارة) — نقدي</SelectItem>
-                  <SelectItem value="bank">الحساب البنكي العام للشركة</SelectItem>
+                  <SelectItem value="cash">نقدي — خزنة الفرع</SelectItem>
+                  <SelectItem value="bank">تحويل بنكي</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -134,7 +147,7 @@ export function CreditDepositButton({ contact, onDone, size = "default" }: Props
             )}
             <div>
               <Label>البيان / الملاحظات</Label>
-              <Textarea placeholder="إيداع دفعة تحت الحساب طرف الإدارة" value={desc} onChange={(e) => setDesc(e.target.value)} />
+              <Textarea placeholder="إيداع دفعة تحت الحساب" value={desc} onChange={(e) => setDesc(e.target.value)} />
             </div>
           </div>
           <DialogFooter>

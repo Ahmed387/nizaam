@@ -1,7 +1,6 @@
 import { netOf, netText, netTone } from "@/lib/netBalance";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
-import { InternalBranchTag } from "@/components/contact/InternalBranchTag";
 import { SettleWithoutMoneyButton } from "@/components/contact/SettleWithoutMoneyButton";
 import { MergeContactButton } from "@/components/contact/MergeContactButton";
 import { useNavigate, useParams } from "react-router-dom";
@@ -111,8 +110,11 @@ export default function ContactFile() {
   const scopeOptions = useMemo(() => {
     // admins: every branch the contact dealt with; branch staff: their own branches only
     const list = new Map<string, string>();
-    if (isAdmin) (c?.branches ?? []).forEach((b) => list.set(b.id, b.name));
-    else branches.forEach((b: any) => list.set(b.id, b.name));
+    // 0206 (owner 2026-11-14): every account lives in the real branches only — the system tills (الخزينة الرئيسية /
+    // خزينة الشركاء) are never a scope of a customer / supplier
+    const sys = new Set(branches.filter((b: any) => b.is_system).map((b: any) => b.id));
+    if (isAdmin) (c?.branches ?? []).forEach((b) => { if (!sys.has(b.id) && !/الخزينة|خزينة الشركاء/.test(b.name)) list.set(b.id, b.name); });
+    else branches.forEach((b: any) => { if (!b.is_system) list.set(b.id, b.name); });
     if (routeBranchId && !list.has(routeBranchId)) list.set(routeBranchId, branches.find((b) => b.id === routeBranchId)?.name ?? "الفرع");
     return Array.from(list.entries()).map(([id, name]) => ({ id, name }));
   }, [c?.branches, branches, isAdmin, routeBranchId]);
@@ -218,8 +220,6 @@ export default function ContactFile() {
       })()}
 
       {loading && !ov && <div className="p-8 text-center text-muted-foreground">جاري التحميل...</div>}
-
-      {contactId && <InternalBranchTag contactId={contactId} />}
 
       {ov && (
         <ContactBalanceHeader customer={ov.customer} supplier={ov.supplier}
