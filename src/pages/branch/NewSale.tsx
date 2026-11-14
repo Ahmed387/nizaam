@@ -1914,31 +1914,7 @@ export default function NewSale() {
                   <span className="font-medium">المتبقي كآجل:</span>
                   <b className="text-warning text-base">{formatEGP(creditRemaining)}</b>
                 </div>
-                {creditRemaining > 0 && (
-                  <>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button
-                        type="button"
-                        variant={scheduleType === "open" ? "default" : "outline"}
-                        onClick={() => setScheduleType("open")}
-                        className="w-full h-11 text-base font-semibold"
-                      >
-                        مفتوح
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={scheduleType === "scheduled" ? "default" : "outline"}
-                        onClick={() => setScheduleType("scheduled")}
-                        className="w-full h-11 text-base font-semibold"
-                      >
-                        أقساط محددة
-                      </Button>
-                    </div>
-                    {scheduleType === "scheduled" && (
-                      <InstallmentScheduler remaining={creditRemaining} value={installments} onChange={setInstallments} />
-                    )}
-                  </>
-                )}
+                {/* no instalment schedules (owner 2026-11-14): the rest stays on his account */}
               </div>
             )}
           </div>

@@ -142,6 +142,16 @@ export const PAGE_PARTS: Record<string, PagePart[]> = {
     { id: "new_product_button", label: "زرار «منتج جديد»", kind: "زرار" },
     { id: "cycle_count_alert", label: "تنبيه الجرد الدوري", kind: "تنبيه" },
   ],
+  receipt_vouchers: [
+    { id: "filters", label: "البحث والفلاتر", kind: "بوكس" },
+    { id: "excel_button", label: "زرار تصدير Excel", kind: "زرار" },
+    { id: "pdf_button", label: "زرار «PDF تفصيلي»", kind: "زرار" },
+  ],
+  payment_vouchers: [
+    { id: "filters", label: "البحث والفلاتر", kind: "بوكس" },
+    { id: "excel_button", label: "زرار تصدير Excel", kind: "زرار" },
+    { id: "pdf_button", label: "زرار «PDF تفصيلي»", kind: "زرار" },
+  ],
   customers: [
     { id: "export_buttons", label: "زراير تصدير Excel / PDF", kind: "زرار" },
     { id: "add_button", label: "زرار «إضافة جهة»", kind: "زرار" },

@@ -292,31 +292,9 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
       {(value.mode === "partial" || value.mode === "credit") && (
         <div className="space-y-2 border-t pt-3">
           <div className="flex justify-between text-sm">
-            <span>المتبقي للأقساط:</span>
+            <span>المتبقي على الحساب (آجل):</span>
             <b className="text-warning text-base">{formatEGP(remainingForInstallments)}</b>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              { v: "scheduled", l: "أقساط بمواعيد محددة" },
-              { v: "open", l: "مفتوح (بدون جدول)" },
-            ] as const).map((opt) => (
-              <button
-                key={opt.v}
-                type="button"
-                onClick={() => onChange({ ...value, scheduleType: opt.v })}
-                className={`px-3 py-2 rounded border text-sm ${value.scheduleType === opt.v ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
-              >
-                {opt.l}
-              </button>
-            ))}
-          </div>
-          {value.scheduleType === "scheduled" && (
-            <InstallmentScheduler
-              remaining={remainingForInstallments}
-              value={value.installments}
-              onChange={(r) => onChange({ ...value, installments: r })}
-            />
-          )}
         </div>
       )}
     </div>

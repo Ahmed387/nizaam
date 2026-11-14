@@ -401,8 +401,8 @@ export default function Contacts() {
       </div></PermPart>
 
 
-      {/* owner 2026-11-12 «حساب جاري»: three cards on the accounts' ONE balance + the late instalments (kept) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+      {/* owner 2026-11-12 «حساب جاري»: three cards on the accounts' ONE balance (instalments removed 2026-11-14) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <MetricCardWithHint
           label="إجمالي المدين (لنا)"
           active={balanceFilters.length === 1 && balanceFilters[0] === "debit"}
@@ -427,15 +427,6 @@ export default function Contacts() {
           tone={netKind((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0)) === "credit" ? "destructive" : netKind((totals?.credit_total ?? 0) - (totals?.debit_total ?? 0)) === "debit" ? "success" : "primary"}
           icon={<Wallet />}
           metricHint={{ meaning: "الفرق بين الكارتين: مدين (أخضر) = لنا أكتر من اللي علينا، دائن (أحمر) = علينا أكتر.", source: "الكارتين اللي قبله.", formula: "إجمالي الدائن − إجمالي المدين" }}
-        />
-        <MetricCardWithHint
-          label="أقساط متأخرة (عملاء / موردين)"
-          active={balanceFilters.length === 1 && balanceFilters[0] === "overdue"}
-          onClick={() => setBalanceFilters((p) => (p.length === 1 && p[0] === "overdue" ? [] : ["overdue"]))}
-          value={(totals?.customer_overdue ?? 0)}
-          tone="warning"
-          icon={<Clock />}
-          metricHint={{ meaning: `أقساط عملاء الفرع اللي ميعادها عدى ولسه ما اتدفعتش. أقساط الموردين المتأخرة: ${formatEGP(totals?.supplier_overdue ?? 0)}.`, source: "خطط الأقساط.", formula: "Σ الأقساط اللي ميعادها عدى" }}
         />
       </div>
 
@@ -472,7 +463,7 @@ export default function Contacts() {
               <div className="text-xs text-muted-foreground px-2 pb-2 border-b mb-1">
                 اختر تصنيف أو أكثر
               </div>
-              {(["debit", "credit", "zero", "overdue"] as const).map((k) => (
+              {(["debit", "credit", "zero"] as const).map((k) => (
                 <label
                   key={k}
                   className="flex items-center gap-2 px-2 py-2 rounded-md hover:bg-accent cursor-pointer text-sm"

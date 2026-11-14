@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCanViewNetProfit } from "@/lib/netProfitAccess";
 import { CancelInvoiceDialog } from "@/components/CancelInvoiceDialog";
 import { CancelPurchaseDialog } from "@/components/CancelPurchaseDialog";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
@@ -132,6 +133,7 @@ function transferSummary(all: any[], vals: Record<string, TransferValue>) {
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
   const { branches, isAdmin, hasRole, tenantId, user, profile, can } = useAuth();
+  const canProfit = useCanViewNetProfit();
   const isManager = hasRole("branch_manager");
   // No hard delete (owner rule): sale and purchase invoices are cancelled, never deleted.
   const [cancelSale, setCancelSale] = useState<any>(null);
@@ -338,6 +340,19 @@ export default function Invoices() {
         };
       });
     }
+    if (tab === "sale" && canProfit && data.length) {
+      // «ربح الفاتورة» (0211), 500 ids per call
+      const ids = data.filter((x: any) => x.status !== "cancelled").map((x: any) => x.id);
+      const prof = new Map<string, any>();
+      for (let i = 0; i < ids.length; i += 500) {
+        const { data: pr } = await supabase.rpc("invoice_profits" as any, { p_ids: ids.slice(i, i + 500) } as any).abortSignal(signal);
+        for (const x of (pr ?? []) as any[]) prof.set(x.invoice_id, x);
+      }
+      data = data.map((x: any) => {
+        const p = prof.get(x.id);
+        return p ? { ...x, __profit: Number(p.profit), __sales: Number(p.sales), __cost: Number(p.cost) - Number(p.returned_cost), __returned: Number(p.returned) } : x;
+      });
+    }
     if ((tab === "sale" || tab === "purchase") && data.length) {
       // a past period: status AND the method columns as of its last day (0091); later money is a note on the row
       const pv = await fetchDocumentPayView(tab === "sale" ? "invoice" : "shipment", data.filter((x: any) => x.status !== "cancelled").map((x: any) => x.id), statusAsOf, signal)
@@ -345,7 +360,7 @@ export default function Invoices() {
       data = data.map((x: any) => enrichSettled(x, tab === "sale" ? x.total : x.total_cost, pv.status.get(x.id), pv.asOf.get(x.id)));
     }
     return data;
-  }, [tab, statusAsOf]);
+  }, [tab, statusAsOf, canProfit]);
 
   const reqRef = useRef<{ id: number; ctrl: AbortController | null }>({ id: 0, ctrl: null });
   /** One page from the database (the screen with no column filter: fast first page, as before). */
@@ -457,9 +472,9 @@ export default function Invoices() {
   useEffect(() => { setCardFilter(null); }, [tab, branchId, view]);
 
   // ===== Excel filters (owner 2026-10-26): an arrow on every column, on the WHOLE list, linked to the bar on top =====
-  const listCols = useMemo(() => documentListColumns(tab, view, { branchName, transferValue: (id) => transferValues[id]?.sent }),
+  const listCols = useMemo(() => documentListColumns(tab, view, { branchName, transferValue: (id) => transferValues[id]?.sent, profit: canProfit }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tab, view, branches, transferValues]);
+    [tab, view, branches, transferValues, canProfit]);
   // a clicked card narrows the whole list too (not only the page on screen)
   const cardPred = useMemo(() => (docKind && cardFilter ? (r: any) => matchesDocCard(docKind, r, cardFilter) : null), [docKind, cardFilter]);
   const { result: list, adapter: listAdapter, state: colEff, apply: applyList } = useListFilter({
@@ -609,6 +624,11 @@ export default function Invoices() {
             return <span className="flex max-w-[230px] items-center"><span className="truncate font-semibold" title={name}>{name}</span><InternalBranchBadge id={r.contact_id} name={r.contacts?.name} /></span>;
           } },
           { key: "total", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.total) },
+          // «ربح الفاتورة» (0211): sale − cost, after its returns; only with «رؤية صافي الربح»
+          ...(canProfit ? [{ key: "__profit", header: "ربح الفاتورة", align: "center" as const, className: "min-w-[110px]", numeric: true,
+            render: (r: any) => r.status === "cancelled" || r.__profit == null ? <span className="text-muted-foreground">—</span>
+              : <span className={Number(r.__profit) < 0 ? "text-destructive" : "text-success"}
+                  title={`البيع ${formatEGP(r.__sales ?? 0)} − التكلفة ${formatEGP(r.__cost ?? 0)}${Number(r.__returned) ? ` · مرتجع ${formatEGP(r.__returned)}` : ""}`}>{formatEGP(r.__profit)}</span> }] : []),
           ...settleColumns("sale"),
           { key: "status", header: "الحالة", align: "center", className: "min-w-[80px]", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
           { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },

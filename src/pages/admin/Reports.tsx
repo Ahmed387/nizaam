@@ -527,7 +527,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           "إجمالي المبيعات، المرتجعات، عدد ومتوسط الفواتير",
           "تفصيل طرق الدفع (نقدي / محفظة / إنستاباي / تحويل)",
           "أداء كل كاشير ونسبته من إجمالي البيع",
-          "حركة الخزنة، المصروفات التشغيلية، أقساط الموردين المتأخرة",
+          "حركة الخزنة والمصروفات التشغيلية",
         ]}
         unique="يُظهر النشاط اليومي للفروع وطرق الدفع، بدون تفاصيل ربحية أو قوائم أفضل/أسوأ."
         accent="primary"
@@ -637,11 +637,10 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
 
         {/* ===== TAB 3: PURCHASES & SUPPLIERS (with payables aging) ===== */}
         <TabsContent value="purchases" className="mt-4 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <MiniKpi label="تكلفة فواتير الشراء (الفترة)" value={formatEGP(k.shipmentsCost)} icon={<Truck className="w-4 h-4" />} hint={`${scopedShipments.length} فاتورة شراء`} />
             <MiniKpi label="مدفوع للموردين (الفترة)" value={formatEGP(k.supPaid)} icon={<ArrowUpCircle className="w-4 h-4" />} accent="success" />
             <MiniKpi label="دائن — علينا للموردين" value={formatEGP(supplierDebt)} icon={<Wallet className="w-4 h-4" />} accent="destructive" hint="جانب الموردين في الدفتر الموحد" />
-            <MiniKpi label="أقساط موردين متأخرة" value={String(scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier").length)} icon={<AlertTriangle className="w-4 h-4" />} accent="warning" />
           </div>
 
           <div className="text-xs text-muted-foreground text-end">
@@ -650,23 +649,6 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           </div>
 
 
-          <div className="card-elevated p-4">
-            <h4 className="font-bold mb-3">أقساط الموردين المتأخرة</h4>
-            <DataTable
-              rows={scopedOverdue.filter((o: any) => o.payment_plans?.entity_type === "supplier")}
-              loading={loading}
-              empty="✅ لا توجد أقساط موردين متأخرة"
-              columns={[
-                { key: "supplier", header: "المورد", render: (r: any) => <b>{r.payment_plans?.entity_name ?? "—"}</b> },
-                { key: "due_date", header: "تاريخ الاستحقاق", render: (r: any) => new Date(r.due_date).toLocaleDateString("ar-EG") },
-                { key: "days_late", header: "أيام التأخير", render: (r: any) => {
-                  const days = Math.max(0, Math.floor((Date.now() - new Date(r.due_date).getTime()) / 86400000));
-                  const tone = days > 30 ? "bg-destructive text-destructive-foreground" : days > 14 ? "bg-warning text-warning-foreground" : "bg-amber-500/20 text-amber-700 dark:text-amber-400";
-                  return <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${tone}`}>{days} يوم</span>;
-                } },
-                { key: "amount", header: "المبلغ المستحق", render: (r: any) => <b className="text-destructive">{formatEGP(Number(r.amount) - Number(r.paid_amount || 0))}</b> },
-              ]} />
-          </div>
         </TabsContent>
 
 

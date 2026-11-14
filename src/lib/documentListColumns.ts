@@ -52,6 +52,8 @@ type Ctx = {
   branchName: (id?: string | null) => string;
   /** a transfer's value at the sender's moving average (0080) */
   transferValue: (id: string) => number | undefined;
+  /** «ربح الفاتورة» (0211): only for whoever may see net profit */
+  profit?: boolean;
 };
 type Col = ListColumn<any>;
 
@@ -107,6 +109,7 @@ export function documentListColumns(tab: DocTab, view: "active" | "cancelled", c
         text("invoice_number", "رقم", (r) => r.invoice_number),
         text("customer", "العميل", (r) => r.contacts?.name ?? "نقدي"),
         money("total", "المبلغ", (r) => n(r.total)),
+        ...(ctx.profit ? [money("__profit", "ربح الفاتورة", (r) => (live(r) && r.__profit != null ? n(r.__profit) : null))] : []),
         ...settleCols("sale"),
         text("status", "الحالة", (r) => (r.status === "active" ? "نشطة" : "ملغاة")),
         text("__recipient", "المستلم", (r) => r.recipient_name),

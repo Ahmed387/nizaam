@@ -81,7 +81,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!isAdmin) return;
     (async () => {
-      try { await supabase.rpc("mark_overdue_installments" as any); } catch {}
       try { await supabase.rpc("generate_alerts" as any); } catch {}
     })();
   }, [isAdmin]);

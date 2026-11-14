@@ -17,6 +17,19 @@ import { FinancialAmount } from "@/components/FinancialAmount";
 import { formatEGP } from "@/lib/format";
 
 // Simple tooltip-like note wrapper — plain Arabic explanation under each button.
+/** accounting page → its permission (App.tsx guards the same keys) */
+export const ACC_PAGE_PERM: Record<string, string> = {
+  "/admin/accounting/chart": "admin_acc_books.view", "/admin/accounting/journal": "admin_acc_books.view",
+  "/admin/accounting/ledger": "admin_acc_books.view", "/admin/accounting/trial-balance": "admin_acc_books.view",
+  "/admin/accounting/balance-sheet": "admin_acc_statements.view", "/admin/accounting/income-statement": "admin_acc_statements.view",
+  "/admin/accounting/cash-flow": "admin_acc_statements.view", "/admin/accounting/equity-changes": "admin_acc_statements.view",
+  "/admin/accounting/cogs-statement": "admin_acc_statements.view",
+  "/admin/accounting/aging": "admin_acc_aging.view", "/admin/accounting/opening-balances": "admin_acc_opening.view",
+  "/admin/accounting/bank-reconciliation": "admin_acc_bank.view", "/admin/accounting/fiscal-closing": "admin_acc_closing.view",
+  "/admin/accounting/flexible-distribution": "admin_acc_closing.view", "/admin/accounting/fixed-assets": "admin_acc_assets.view",
+  "/admin/accounting/branch-capital": "admin_acc_branch_capital.view",
+};
+
 const ActionButton = forwardRef<HTMLAnchorElement, {
   to: string;
   icon: React.ReactNode;
@@ -32,6 +45,10 @@ const ActionButton = forwardRef<HTMLAnchorElement, {
   variant = "outline",
   iconClass = "text-primary",
 }, ref) {
+  const { can } = useAuth();
+  // each accounting page has its own permission (settings → الأدوار والصلاحيات → المالية)
+  const perm = Object.entries(ACC_PAGE_PERM).find(([p]) => to.startsWith(p))?.[1];
+  if (perm && !can(perm)) return null;
   return (
     <Link
       ref={ref}

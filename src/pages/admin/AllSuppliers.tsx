@@ -473,7 +473,6 @@ export default function AllSuppliers() {
             <SelectItem value="debit">مدين (لنا عنده)</SelectItem>
             <SelectItem value="credit">دائن (علينا له)</SelectItem>
             <SelectItem value="zero">رصيده صفر</SelectItem>
-            <SelectItem value="overdue">أقساط متأخرة</SelectItem>
           </SelectContent>
         </Select>
       </div>

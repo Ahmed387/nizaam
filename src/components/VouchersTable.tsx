@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { PermCard } from "@/contexts/PermCustomize";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { PermCard, PermPart } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ interface Props {
 }
 
 export function VouchersTable({ branchId, type, adminAllBranches, tenantId, initialFrom, initialTo, onlyDeductedFromProfit }: Props) {
-  const { isAdmin, hasRole, user, profile, isOwner } = useAuth();
+  const { isAdmin, user, profile, isOwner, can } = useAuth();
   // «تغيير تصنيف السند» — owner only (0191): income / expense vouchers with no customer / supplier on them
   const [catTarget, setCatTarget] = useState<Voucher | null>(null);
   const [catNew, setCatNew] = useState("");
@@ -132,7 +132,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
     || (k === "branch" && f.kind === "values" && f.values.length === 1 && branches.some((b) => b.name === f.values[0]))
     || (k === "category" && f.kind === "values" && f.values.length > 0 && f.values.every((v) => cats.some((c) => c.name === v)))));
 
-  const canAdd = !!branchId && (isAdmin || hasRole("branch_manager"));
+  // the owner decides in «الأدوار والصلاحيات»: سندات القبض / سندات الصرف → يضيف / يلغي
+  const permKey = type === "receipt" ? "receipt_vouchers" : type === "payment" ? "payment_vouchers" : null;
+  const canAdd = !!branchId && !!permKey && can(`${permKey}.create`);
+  /** a box of the page the owner can hide per person (only on the one-type pages, where the page key is known) */
+  const part = (id: string, node: ReactNode) => (permKey ? <PermPart page={permKey} part={id}>{node}</PermPart> : node);
 
   // Cancelled vouchers never sit in the main table — they have their own «الملغاة» view.
   const [showCancelled, setShowCancelled] = useState(false);
@@ -382,6 +386,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       )}
 
       <div className="card-elevated p-4 space-y-3">
+        {part("filters", (<div className="space-y-3">
         <Input
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
@@ -500,10 +505,14 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
           )}
         </div>
 
+        </div>))}
         <div className="flex flex-wrap gap-2 items-center justify-end pt-2 border-t">
+          {part("excel_button", (
           <Button size="sm" variant="outline" disabled={isExporting} onClick={() => runExport((list) => exportToExcel("vouchers", [{ name: "السندات", rows: toExportRows(list) }]))}>
             <FileDown className="w-4 h-4 ms-1" /> Excel
           </Button>
+          ))}
+          {part("pdf_button", (
           <Button size="sm" variant="outline" disabled={isExporting} onClick={() => runExport((list) => {
             const branchName = branchId ? (branchMap[branchId] ?? "الفرع") : "كل الفروع";
             generateVouchersReport({
@@ -518,6 +527,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
           })}>
             <FileDown className="w-4 h-4 ms-1" /> PDF تفصيلي
           </Button>
+          ))}
           {canAdd && (
             <Button size="sm" onClick={() => setDialogOpen(true)} className="gap-2">
               <Plus className="w-4 h-4" /> {type === "receipt" ? "سند قبض جديد" : "سند صرف جديد"}
@@ -579,7 +589,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
           ) },
           ...(adminAllBranches ? [{ key: "branch", header: "الفرع", render: (r: Voucher) => branchMap[r.branch_id] ?? "—" }] : []),
           { key: "actions", header: "الإجراءات", render: (r: Voucher) => {
-            const canCancel = r.status === "active" && (isAdmin || (hasRole("branch_manager") && r.source === "manual"));
+            const canCancel = r.status === "active" && (isAdmin || (can(`${r.type === "receipt" ? "receipt_vouchers" : "payment_vouchers"}.delete`) && r.source === "manual"));
             return (
               <div className="flex items-center gap-1 justify-center" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="ghost" onClick={() => setViewTarget(r)} title="عرض السند والمرفقات">
