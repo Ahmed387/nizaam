@@ -98,12 +98,10 @@ export default function FinancialPosition() {
 
           <TabsContent value="overview" className="mt-4 space-y-6">
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <StatCard label="الكاش في كل الخزن" value={formatEGP(positionCash)} icon={<Wallet className="w-5 h-5" />} accent="primary" />
-          <StatCard label="مدين — لنا عند العملاء" value={formatEGP(positionReceivables)} icon={<HandCoins className="w-5 h-5" />} accent="success" />
-          <StatCard label="دائن — علينا للموردين" value={formatEGP(positionPayables)} icon={<ArrowDownCircle className="w-5 h-5" />} accent="destructive" />
-          <StatCard label="دائن — مقدمات عملاء (2150)" value={formatEGP(branchFilter === ALL_FINANCIAL_BRANCHES ? financial.customerAdvances : selectedSnapshot?.customerAdvances ?? 0)} icon={<Landmark className="w-5 h-5" />} accent="warning" />
-          <StatCard label="مقدمات موردين (1460)" value={formatEGP(branchFilter === ALL_FINANCIAL_BRANCHES ? financial.supplierAdvances : selectedSnapshot?.supplierAdvances ?? 0)} icon={<Landmark className="w-5 h-5" />} accent="secondary" />
+          <StatCard label="إجمالي المدين (لنا)" value={formatEGP(positionReceivables)} icon={<HandCoins className="w-5 h-5" />} accent="success" />
+          <StatCard label="إجمالي الدائن (علينا)" value={formatEGP(positionPayables)} icon={<ArrowDownCircle className="w-5 h-5" />} accent="destructive" />
         </div>
 
         {branchFilter === ALL_FINANCIAL_BRANCHES && <BranchFinancialDistribution rows={financial.distribution} loading={financial.loading} />}

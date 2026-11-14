@@ -12,126 +12,117 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { fetchAging, type AgingRow, type Side } from "@/lib/ledger";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatEGP } from "@/lib/format";
 import { cairoTodayDay } from "@/lib/cairoDate";
-import { Users, Truck, AlertTriangle } from "lucide-react";
+import { rpcErrorText } from "@/lib/rpcError";
+import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
+import { ArrowDownLeft, ArrowUpRight, AlertTriangle } from "lucide-react";
 
 /**
- * Aging of what is still open today, from the unified ledger (Step 6C): every open sale / purchase
- * invoice and opening debt by its date, after payments, deposits (FIFO, any branch) and return credit.
- * Customers and suppliers are two separate reports; advances are shown apart and never netted.
+ * «أعمار الديون» per ACCOUNT (owner 2026-11-14 «يعرض رصيد كل حساب مدين، وبقاله قد إيه مدين», migration 0207):
+ * every account's ONE balance (current account, like the contacts list) and how long it has been مدين / دائن without
+ * a break — no open invoices. `contacts_balance_age(branch, as_of)`: + = مدين (لنا عنده), − = دائن (علينا له).
  */
-const fmt = (n: number) => (Number(n) || 0).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const BUCKETS: { key: keyof AgingRow; label: string; tone: string }[] = [
-  { key: "d0_30", label: "0-30 يوم", tone: "bg-muted/40" },
-  { key: "d31_60", label: "31-60 يوم", tone: "bg-muted/40" },
-  { key: "d61_90", label: "61-90 يوم", tone: "bg-muted/40" },
-  { key: "d91_120", label: "91-120 يوم", tone: "bg-warning/10 border-warning/30" },
-  { key: "d120_plus", label: "أكثر من 120", tone: "bg-destructive/10 border-destructive/30" },
-];
+type Row = {
+  contact_id: string; account_no: number | null; contact_name: string; contact_type: string;
+  balance: number; since: string | null; days: number | null; last_money: string | null; last_move: string | null;
+};
+const BUCKETS = [
+  { key: "b0", label: "0-30 يوم", from: 0, to: 30, tone: "bg-muted/40" },
+  { key: "b1", label: "31-60 يوم", from: 31, to: 60, tone: "bg-muted/40" },
+  { key: "b2", label: "61-90 يوم", from: 61, to: 90, tone: "bg-muted/40" },
+  { key: "b3", label: "91-120 يوم", from: 91, to: 120, tone: "bg-warning/10 border-warning/30" },
+  { key: "b4", label: "أكثر من 120", from: 121, to: Infinity, tone: "bg-destructive/10 border-destructive/30" },
+] as const;
+const bucketOf = (days: number | null) => BUCKETS.find((b) => (days ?? 0) >= b.from && (days ?? 0) <= b.to) ?? BUCKETS[0];
+const TYPE: Record<string, string> = { customer: "عميل", supplier: "مورد", both: "عميل ومورد" };
 
 export default function AgingReport() {
   const { tenantId } = useAuth();
   const nav = useNavigate();
   const [branchId, setBranchId] = useState("all");
-  // as of a past day: what was open that day (the ledger rule replayed with the money and documents up to it)
   const [asOf, setAsOf] = useState("");
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
-  const [rows, setRows] = useState<Record<Side, AgingRow[]>>({ customer: [], supplier: [] });
+  const [rows, setRows] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
+  const [bucket, setBucket] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.from("branches").select("id, name").eq("is_active", true).order("name").then(({ data }) => setBranches((data ?? []) as any));
+    supabase.from("branches").select("id, name, is_system").eq("is_active", true).order("name")
+      .then(({ data }) => setBranches(((data ?? []) as any[]).filter((b) => !b.is_system)));
   }, [tenantId]);
 
   const load = async () => {
     if (!tenantId) return;
     setLoading(true);
     setLoadError(null);
-    try {
-      const b = branchId === "all" ? null : branchId;
-      const day = asOf && asOf < cairoTodayDay() ? asOf : null;
-      const [c, s] = await Promise.all([fetchAging("customer", b, day), fetchAging("supplier", b, day)]);
-      setRows({ customer: c, supplier: s });
-    } catch (e: any) {
-      setRows({ customer: [], supplier: [] });
-      setLoadError(e?.message ?? "تعذر تحميل التقرير");
-    } finally {
-      setLoading(false);
-    }
+    const day = asOf && asOf < cairoTodayDay() ? asOf : null;
+    const { data, error } = await (supabase.rpc as any)("contacts_balance_age", { p_branch_id: branchId === "all" ? null : branchId, p_as_of: day });
+    if (error) { setRows([]); setLoadError(rpcErrorText(error)); }
+    else setRows(((data ?? []) as any[]).map((r) => ({ ...r, balance: Number(r.balance) || 0, days: r.days == null ? null : Number(r.days) })));
+    setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId, branchId, asOf]);
   useRealtimeRefresh(["invoices", "invoice_payments", "shipments", "supplier_payments", "returns", "purchase_returns", "vouchers", "payment_transactions"], load);
 
-  const filterRows = (list: AgingRow[]) => {
+  const Section = ({ kind }: { kind: "debit" | "credit" }) => {
+    const isD = kind === "debit";
     const q = search.trim().toLowerCase();
-    return (q ? list.filter((r) => r.contact_name.toLowerCase().includes(q)) : list).sort((a, b) => b.total_open - a.total_open);
-  };
-  const sum = (list: AgingRow[]) => {
-    const out: Record<string, number> = { total_open: 0, advance: 0 };
-    for (const b of BUCKETS) out[b.key as string] = 0;
-    for (const r of list) {
-      for (const b of BUCKETS) out[b.key as string] += Number(r[b.key]) || 0;
-      out.total_open += r.total_open;
-      out.advance += r.advance;
-    }
-    Object.keys(out).forEach((k) => { out[k] = Math.round(out[k] * 100) / 100; });
-    return out;
-  };
-
-  const Section = ({ side }: { side: Side }) => {
-    const list = filterRows(rows[side]);
-    const s = sum(list);
-    const isC = side === "customer";
+    const all = rows.filter((r) => (isD ? r.balance > 0 : r.balance < 0) && (!q || r.contact_name.toLowerCase().includes(q)));
+    const list = bucket ? all.filter((r) => bucketOf(r.days).key === bucket) : all;
+    const sums = Object.fromEntries(BUCKETS.map((b) => [b.key, all.filter((r) => bucketOf(r.days).key === b.key).reduce((s, r) => s + Math.abs(r.balance), 0)]));
+    const total = all.reduce((s, r) => s + Math.abs(r.balance), 0);
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           {BUCKETS.map((b) => (
-            <div key={b.key as string} className={`p-3 rounded-lg border ${b.tone}`}>
-              <div className="text-xs text-muted-foreground">{b.label}</div>
-              <div className="text-lg font-bold font-mono">{fmt(s[b.key as string])}</div>
-            </div>
+            <button type="button" key={b.key} onClick={() => setBucket(bucket === b.key ? null : b.key)}
+              className={`p-3 rounded-lg border text-right ${b.tone} ${bucket === b.key ? "ring-2 ring-primary" : ""}`}>
+              <div className="text-xs text-muted-foreground">{isD ? "مدين من" : "دائن من"} {b.label}</div>
+              <div className="text-lg font-bold tabular-nums">{formatEGP(sums[b.key])}</div>
+            </button>
           ))}
-          <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
-            <div className="text-xs text-muted-foreground">إجمالي المفتوح</div>
-            <div className="text-lg font-bold font-mono">{fmt(s.total_open)}</div>
-          </div>
-          <div className="p-3 rounded-lg border">
-            <div className="text-xs text-muted-foreground">{isC ? "دائن — مقدمات عملاء (منفصلة)" : "مدين — مقدمات عند الموردين (منفصلة)"}</div>
-            <div className="text-lg font-bold font-mono">{fmt(s.advance)}</div>
+          <div className={`p-3 rounded-lg border ${isD ? "bg-success/10 border-success/30" : "bg-destructive/10 border-destructive/30"}`}>
+            <div className="text-xs text-muted-foreground">{isD ? "إجمالي المدين (لنا)" : "إجمالي الدائن (علينا)"}</div>
+            <div className={`text-lg font-bold tabular-nums ${isD ? "text-success" : "text-destructive"}`}>{formatEGP(total)}</div>
+            <div className="text-[11px] text-muted-foreground">{all.length} حساب</div>
           </div>
         </div>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-lg flex items-center gap-2">
-            {isC ? <Users className="w-5 h-5" /> : <Truck className="w-5 h-5" />} {isC ? "مدين — لنا عند العملاء" : "دائن — علينا للموردين"}
-            {s.d120_plus > 0 && <Badge variant="destructive" className="mr-2"><AlertTriangle className="w-3 h-3 ml-1" />متأخرات حرجة</Badge>}
+            {isD ? <ArrowDownLeft className="w-5 h-5 text-success" /> : <ArrowUpRight className="w-5 h-5 text-destructive" />}
+            {isD ? "حسابات مدينة — لنا عندهم" : "حسابات دائنة — علينا ليهم"}
+            {sums.b4 > 0 && <Badge variant="destructive" className="mr-2"><AlertTriangle className="w-3 h-3 ml-1" />أكثر من 120 يوم</Badge>}
           </CardTitle></CardHeader>
           <CardContent>
             {loading ? <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div> : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">الجهة</TableHead>
-                    {BUCKETS.map((b) => <TableHead key={b.key as string} className="text-right">{b.label}</TableHead>)}
-                    <TableHead className="text-right">إجمالي المفتوح</TableHead>
-                    <TableHead className="text-right">مقدم</TableHead>
-                    <TableHead className="text-right">أقدم مستند</TableHead>
+                    <TableHead className="text-right">رقم الحساب</TableHead>
+                    <TableHead className="text-right">اسم الحساب</TableHead>
+                    <TableHead className="text-right">طبيعة الحساب</TableHead>
+                    <TableHead className="text-right">الرصيد</TableHead>
+                    <TableHead className="text-right">{isD ? "مدين من يوم" : "دائن من يوم"}</TableHead>
+                    <TableHead className="text-right">بقاله (يوم)</TableHead>
+                    <TableHead className="text-right">{isD ? "آخر تحصيل / فلوس" : "آخر سداد / فلوس"}</TableHead>
+                    <TableHead className="text-right">آخر حركة</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {list.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">لا يوجد رصيد مستحق</TableCell></TableRow>}
+                  {list.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">مفيش حسابات</TableCell></TableRow>}
                   {list.map((r) => (
                     <TableRow key={r.contact_id} className="cursor-pointer hover:bg-muted/40" onClick={() => nav(`/admin/contacts/${r.contact_id}`)}>
-                      <TableCell className="font-medium">{r.contact_name}</TableCell>
-                      {BUCKETS.map((b) => (
-                        <TableCell key={b.key as string} className={`font-mono ${b.key === "d120_plus" && Number(r[b.key]) > 0 ? "text-destructive font-bold" : ""}`}>{fmt(Number(r[b.key]))}</TableCell>
-                      ))}
-                      <TableCell className="font-mono font-bold">{fmt(r.total_open)}</TableCell>
-                      <TableCell className="font-mono">{r.advance > 0.005 ? fmt(r.advance) : "—"}</TableCell>
-                      <TableCell>{r.oldest_date ? formatDate(r.oldest_date) : "—"}</TableCell>
+                      <TableCell className="tabular-nums">{r.account_no ?? "—"}</TableCell>
+                      <TableCell className="font-medium">{r.contact_name}<InternalBranchBadge id={r.contact_id} /></TableCell>
+                      <TableCell>{TYPE[r.contact_type] ?? r.contact_type}</TableCell>
+                      <TableCell className={`tabular-nums font-bold ${isD ? "text-success" : "text-destructive"}`}>{formatEGP(Math.abs(r.balance))} {isD ? "مدين" : "دائن"}</TableCell>
+                      <TableCell>{r.since ? formatDate(r.since) : "—"}</TableCell>
+                      <TableCell className={`tabular-nums ${(r.days ?? 0) > 120 ? "text-destructive font-bold" : (r.days ?? 0) > 90 ? "text-warning font-semibold" : ""}`}>{r.days ?? "—"}</TableCell>
+                      <TableCell>{r.last_money ? formatDate(r.last_money) : "—"}</TableCell>
+                      <TableCell>{r.last_move ? formatDate(r.last_move) : "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -148,7 +139,7 @@ export default function AgingReport() {
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title={fin("aging")} subtitle={`${fin("receivables")} على العملاء و${fin("payables")} للموردين حسب عمر المستند — ${asOf && asOf < cairoTodayDay() ? "حتى " + formatDate(asOf) : "النهارده"} — ${branchLabel}`} />
+        <PageHeader title={fin("aging")} subtitle={`رصيد كل حساب وبقاله قد إيه مدين أو دائن — ${asOf && asOf < cairoTodayDay() ? "حتى " + formatDate(asOf) : "النهارده"} — ${branchLabel}`} />
 
         <Card>
           <CardContent className="pt-6 flex flex-wrap gap-4 items-end">
@@ -171,20 +162,20 @@ export default function AgingReport() {
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث..." />
             </div>
             <p className="text-xs text-muted-foreground w-full">
-              المتبقي محسوب من الدفتر الموحد بعد كل المدفوعات (الأقدم أولاً، من أي فرع) ورصيد المرتجعات. العملاء والموردين تقريرين منفصلين.
+              الرصيد = الحساب الجاري (نفس رصيد صفحة العملاء والموردين). «بقاله» = من آخر مرة الرصيد اتقلب أو اتصفّر لحد التاريخ ده. اضغط على كارت المدة عشان تفلتر بيه.
             </p>
           </CardContent>
         </Card>
 
         {loadError && <div className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">تعذر تحميل التقرير: {loadError}</div>}
 
-        <Tabs defaultValue="ar">
+        <Tabs defaultValue="debit" onValueChange={() => setBucket(null)}>
           <TabsList className="w-full grid grid-cols-2 h-12">
-            <TabsTrigger value="ar" className="text-base"><Users className="w-4 h-4 ml-2" />ذمم العملاء (مدينة)</TabsTrigger>
-            <TabsTrigger value="ap" className="text-base"><Truck className="w-4 h-4 ml-2" />ذمم الموردين (دائنة)</TabsTrigger>
+            <TabsTrigger value="debit" className="text-base"><ArrowDownLeft className="w-4 h-4 ml-2" />مدين — لنا</TabsTrigger>
+            <TabsTrigger value="credit" className="text-base"><ArrowUpRight className="w-4 h-4 ml-2" />دائن — علينا</TabsTrigger>
           </TabsList>
-          <TabsContent value="ar" className="mt-4"><Section side="customer" /></TabsContent>
-          <TabsContent value="ap" className="mt-4"><Section side="supplier" /></TabsContent>
+          <TabsContent value="debit" className="mt-4"><Section kind="debit" /></TabsContent>
+          <TabsContent value="credit" className="mt-4"><Section kind="credit" /></TabsContent>
         </Tabs>
       </div>
     </AdminLayout>

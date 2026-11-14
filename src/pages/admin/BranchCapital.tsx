@@ -206,10 +206,8 @@ export default function BranchCapital() {
                       <hr className="my-2" />
                       <Row label="الكاش في الخزنة" value={p.treasury_cash} />
                       <Row label="البضاعة المتاحة (بمتوسط التكلفة)" value={p.inventory_value} />
-                      <Row label="مدين — لنا عند العملاء" value={p.receivables} />
-                      <Row label="لنا عند الموردين (مقدمات)" value={(p as any).supplier_advances ?? 0} />
-                      <Row label="دائن — علينا للموردين" value={p.payables} className="text-warning" />
-                      <Row label="علينا للعملاء (مقدمات منهم)" value={(p as any).customer_advances ?? 0} className="text-warning" />
+                      <Row label="إجمالي المدين (لنا)" value={p.receivables} />
+                      <Row label="إجمالي الدائن (علينا)" value={p.payables} className="text-warning" />
                       <hr className="my-2" />
                       <Row label="إجمالي الأصول التشغيلية" value={p.total_assets} bold highlight />
                     </CardContent>

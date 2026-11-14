@@ -29,7 +29,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { ContactCreditBalancesDrawer } from "@/components/ContactCreditBalancesDrawer";
 import { GlReconciliationPanel } from "@/components/GlReconciliationPanel";
-import { fetchLedgerPosition, fetchOpeningSummary, type LedgerPosition, type OpeningSummary } from "@/lib/ledger";
+import { fetchNetTotals, fetchOpeningSummary, type OpeningSummary } from "@/lib/ledger";
 import { PAYMENT_METHOD_LABELS, PaymentMethod } from "@/lib/paymentMethods";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
@@ -116,7 +116,7 @@ export default function MainTreasury() {
   const [tableLoading, setTableLoading] = useState(true);
   const [viewMovement, setViewMovement] = useState<TreasuryMovement | null>(null);
   const [creditDrawer, setCreditDrawer] = useState<null | "customer" | "supplier">(null);
-  const [position, setPosition] = useState<LedgerPosition | null>(null);
+  const [position, setPosition] = useState<{ debit: number; credit: number; debitCount: number; creditCount: number } | null>(null);
   const [opening, setOpening] = useState<OpeningSummary | null>(null);
 
   useEffect(() => {
@@ -164,7 +164,7 @@ export default function MainTreasury() {
         const row = Array.isArray(data) ? (data as any[])[0] : (data as any);
         return { branch_id: b.id, current_balance: Number(row?.total_balance ?? 0) } as ViewBal;
       })),
-      fetchLedgerPosition(null).catch(() => null),
+      fetchNetTotals(null).catch(() => null),
       fetchOpeningSummary().catch(() => null),
     ]);
     setRows((tr ?? []) as TxRow[]);
@@ -327,26 +327,26 @@ export default function MainTreasury() {
         <StatCard label="عدد الخزائن" value={branches.length} icon={<Store className="w-5 h-5" />} accent="primary" />
       </div>
 
-      {/* Money on account — two separate cards (never added together, never netted) */}
+      {/* «حساب جاري» (owner 2026-11-14): accounts دائن / مدين by their ONE balance — no advances / open invoices */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <Button type="button" variant="ghost" className="block h-auto w-full rounded-2xl p-0 text-right" onClick={() => setCreditDrawer("customer")} aria-label="مقدمات العملاء">
+        <Button type="button" variant="ghost" className="block h-auto w-full rounded-2xl p-0 text-right" onClick={() => setCreditDrawer("customer")} aria-label="الحسابات الدائنة">
           <StatCard
-            label="دائن — مقدمات عملاء (2150)"
-            value={formatEGP(position?.customers?.advances ?? 0)}
+            label="إجمالي الدائن — علينا"
+            value={formatEGP(position?.credit ?? 0)}
             icon={<Landmark className="w-5 h-5" />}
-            hint={`${position?.customers?.advance_contacts ?? 0} عميل · اضغط للتفاصيل`}
-            metricHint={{ meaning: "فلوس دفعها العملاء تحت الحساب ولسه ما اتخصمتش من فواتير.", source: "الدفتر الموحد: حركات العملاء اللي لسه ليها رصيد بعد التوزيع (FIFO).", formula: "Σ (مبلغ الحركة − الموزع منها) لجانب العملاء" }}
+            hint={`${position?.creditCount ?? 0} حساب · اضغط للتفاصيل`}
+            metricHint={{ meaning: "مجموع أرصدة الحسابات اللي رصيدها دائن: علينا ليهم.", source: "رصيد كل حساب الجاري في كل الفروع (نفس صفحة العملاء والموردين).", formula: "Σ رصيد كل حساب رصيده دائن" }}
             accent="warning"
             className="cursor-pointer"
           />
         </Button>
-        <Button type="button" variant="ghost" className="block h-auto w-full rounded-2xl p-0 text-right" onClick={() => setCreditDrawer("supplier")} aria-label="مقدمات الموردين">
+        <Button type="button" variant="ghost" className="block h-auto w-full rounded-2xl p-0 text-right" onClick={() => setCreditDrawer("supplier")} aria-label="الحسابات المدينة">
           <StatCard
-            label="مدين — مقدمات عند الموردين (1460)"
-            value={formatEGP(position?.suppliers?.advances ?? 0)}
+            label="إجمالي المدين — لنا"
+            value={formatEGP(position?.debit ?? 0)}
             icon={<Landmark className="w-5 h-5" />}
-            hint={`${position?.suppliers?.advance_contacts ?? 0} مورد · اضغط للتفاصيل`}
-            metricHint={{ meaning: "فلوس دفعناها للموردين مقدم ولسه ما اتخصمتش من فواتير شراء.", source: "الدفتر الموحد: حركات الموردين اللي لسه ليها رصيد بعد التوزيع (FIFO).", formula: "Σ (مبلغ الحركة − الموزع منها) لجانب الموردين" }}
+            hint={`${position?.debitCount ?? 0} حساب · اضغط للتفاصيل`}
+            metricHint={{ meaning: "مجموع أرصدة الحسابات اللي رصيدها مدين: لنا عندهم.", source: "رصيد كل حساب الجاري في كل الفروع (نفس صفحة العملاء والموردين).", formula: "Σ رصيد كل حساب رصيده مدين" }}
             accent="secondary"
             className="cursor-pointer"
           />

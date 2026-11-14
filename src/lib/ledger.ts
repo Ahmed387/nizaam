@@ -342,6 +342,16 @@ export async function fetchLedgerPosition(branchId?: string | null): Promise<Led
   return { ...d, customers: numDeep(d.customers), suppliers: numDeep(d.suppliers), cross_branch: numDeep(d.cross_branch) };
 }
 
+/**
+ * «حساب جاري» totals (owner 2026-11-14): Σ accounts مدين (لنا عندهم) and Σ accounts دائن (علينا ليهم), net per account,
+ * in one branch or all — the same numbers as the contacts page cards (`contacts_page` totals). Never open invoices.
+ */
+export async function fetchNetTotals(branchId?: string | null): Promise<{ debit: number; credit: number; debitCount: number; creditCount: number }> {
+  const d = await call<any>("contacts_page", { p_branch_id: branchId ?? null, p_type: "all", p_query: null, p_balance: null, p_limit: 1, p_offset: 0 });
+  const t = d?.totals ?? {};
+  return { debit: Number(t.debit_total) || 0, credit: Number(t.credit_total) || 0, debitCount: Number(t.debit_count) || 0, creditCount: Number(t.credit_count) || 0 };
+}
+
 export interface AgingRow {
   contact_id: string; contact_name: string; contact_type: string; d0_30: number; d31_60: number; d61_90: number;
   d91_120: number; d120_plus: number; total_open: number; advance: number; oldest_date: string | null;

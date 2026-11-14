@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
-import { fetchLedgerPosition } from "@/lib/ledger";
+import { fetchNetTotals } from "@/lib/ledger";
 
 export const ALL_FINANCIAL_BRANCHES = "all";
 
@@ -49,7 +49,7 @@ export function useAdminFinancialBranchMetrics() {
           .order("is_system")
           .order("name")
           .order("id")),
-        fetchLedgerPosition(null),
+        fetchNetTotals(null).catch(() => null),
       ]);
 
       const visibleBranches = branchRows.filter((branch) => !branch.is_system || branch.code === "MAIN-TREASURY");
@@ -59,27 +59,28 @@ export function useAdminFinancialBranchMetrics() {
 
       const rows = await Promise.all(ordered.map(async (branch) => {
         const [pos, walletRes] = await Promise.all([
-          fetchLedgerPosition(branch.id),
+          branch.is_system ? Promise.resolve({ debit: 0, credit: 0, debitCount: 0, creditCount: 0 }) : fetchNetTotals(branch.id),
           supabase.rpc("get_branch_wallet_balances", { p_branch_id: branch.id }),
         ]);
         if (walletRes.error) throw walletRes.error;
         const wallet = Array.isArray(walletRes.data) ? walletRes.data[0] : null;
         return {
           ...branch,
-          receivables: pos.customers?.open ?? 0,
-          payables: pos.suppliers?.open ?? 0,
-          customerAdvances: pos.customers?.advances ?? 0,
-          supplierAdvances: pos.suppliers?.advances ?? 0,
+          // owner 2026-11-14: ONE net balance per account (مدين / دائن), never open invoices + advances
+          receivables: pos.debit,
+          payables: pos.credit,
+          customerAdvances: 0,
+          supplierAdvances: 0,
           cash: Number((wallet as any)?.total_balance ?? 0),
         } as BranchFinancialSnapshot;
       }));
 
       setBranches(ordered);
       setDistribution(rows);
-      setCompanyReceivables(company.customers?.open ?? 0);
-      setCompanyPayables(company.suppliers?.open ?? 0);
-      setCustomerAdvances(company.customers?.advances ?? 0);
-      setSupplierAdvances(company.suppliers?.advances ?? 0);
+      setCompanyReceivables(company ? company.debit : rows.reduce((s, r) => s + r.receivables, 0));
+      setCompanyPayables(company ? company.credit : rows.reduce((s, r) => s + r.payables, 0));
+      setCustomerAdvances(0);
+      setSupplierAdvances(0);
     } finally {
       setLoading(false);
     }

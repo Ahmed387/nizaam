@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchLedgerPosition, type LedgerPosition } from "@/lib/ledger";
+import { fetchNetTotals } from "@/lib/ledger";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatEGP, formatDate, formatDateTime } from "@/lib/format";
@@ -36,7 +36,7 @@ export default function BranchProfile() {
   const [views, onView] = useTableViews<"employees" | "products" | "invoices" | "shipments" | "expenses" | "treasury">();
   const [till, setTill] = useState(0);
   const [batchValue, setBatchValue] = useState(0);
-  const [position, setPosition] = useState<LedgerPosition | null>(null);
+  const [position, setPosition] = useState<{ debit: number; credit: number } | null>(null);
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -89,7 +89,7 @@ export default function BranchProfile() {
     setReturns(rets ?? []);
     const [w, pos] = await Promise.all([
       supabase.rpc("get_branch_wallet_balances", { p_branch_id: branchId! }),
-      fetchLedgerPosition(branchId!).catch(() => null),
+      fetchNetTotals(branchId!).catch(() => null),
     ]);
     const wr = Array.isArray(w.data) ? (w.data as any[])[0] : (w.data as any);
     setTill(Number(wr?.total_balance ?? 0));
@@ -145,10 +145,8 @@ export default function BranchProfile() {
       { البيان: "الإيداعات في الخزنة", القيمة: stats.cashIn },
       { البيان: "السحوبات من الخزنة", القيمة: stats.cashOut },
       { البيان: "رصيد الخزنة الحالي", القيمة: stats.safeBalance },
-      { البيان: "مدين — لنا عند العملاء (الفرع)", القيمة: position?.customers?.open ?? 0 },
-      { البيان: "دائن — مقدمات عملاء (الفرع)", القيمة: position?.customers?.advances ?? 0 },
-      { البيان: "دائن — علينا للموردين (الفرع)", القيمة: position?.suppliers?.open ?? 0 },
-      { البيان: "مدين — مقدمات عند الموردين (الفرع)", القيمة: position?.suppliers?.advances ?? 0 },
+      { البيان: "إجمالي المدين — لنا (الفرع)", القيمة: position?.debit ?? 0 },
+      { البيان: "إجمالي الدائن — علينا (الفرع)", القيمة: position?.credit ?? 0 },
     ];
     exportToExcel(`فرع ${branch.name}`, [
       { name: "ملخص", rows: summary },
@@ -228,7 +226,7 @@ export default function BranchProfile() {
         <StatCard label="المصاريف التشغيلية" value={formatEGP(stats.totalExpenses)} icon={<DollarSign className="w-5 h-5" />} accent="warning" />
         <StatCard label="فواتير الشراء" value={formatEGP(stats.totalShipments)} icon={<Truck className="w-5 h-5" />} accent="secondary" />
         <StatCard label="رصيد الخزنة" value={formatEGP(stats.safeBalance)} icon={<Wallet className="w-5 h-5" />} accent={stats.safeBalance >= 0 ? "success" : "warning"} />
-        <StatCard label="مدين — لنا عند العملاء" value={formatEGP(position?.customers?.open ?? 0)} hint={`دائن — علينا للموردين ${formatEGP(position?.suppliers?.open ?? 0)}${(position?.customers?.internal_open ?? 0) > 0.005 ? ` • منها على فروعنا ${formatEGP(position?.customers?.internal_open ?? 0)}` : ""}`} icon={<TrendingUp className="w-5 h-5" />} accent="success" />
+        <StatCard label="إجمالي المدين (لنا)" value={formatEGP(position?.debit ?? 0)} hint={`إجمالي الدائن (علينا) ${formatEGP(position?.credit ?? 0)}`} icon={<TrendingUp className="w-5 h-5" />} accent="success" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

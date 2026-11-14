@@ -4,14 +4,16 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
-import { formatEGP, formatDate } from "@/lib/format";
-import { fetchAllContactsPage, fetchContactMoney, type ContactPageRow, type Side } from "@/lib/ledger";
+import { formatEGP } from "@/lib/format";
+import { fetchAllContactsPage, type ContactPageRow, type Side } from "@/lib/ledger";
+import { netOf } from "@/lib/netBalance";
+import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { Search } from "lucide-react";
 
 /**
- * Money held on account, from the unified ledger (Step 6C): customer advances (2150) and our advances
- * with suppliers (1460) are two separate lists — never added together and never netted against a debt
- * of the other side. Each row opens the unused money movements of that contact and side.
+ * Accounts by their ONE current-account balance (owner 2026-11-14 «نقفل حوار الفواتير المفتوحة والمغلقة»):
+ * side "customer" = accounts دائن (علينا ليهم), side "supplier" = accounts مدين (لنا عندهم) — the two cards of the main
+ * till. No «unused money» / open invoices: the number is the account's balance, the row opens the account file.
  */
 interface Props {
   open: boolean;
@@ -23,95 +25,63 @@ const typeLabel = (type: string) => (type === "customer" ? "عميل" : type ===
 
 export function ContactCreditBalancesDrawer({ open, onOpenChange, side }: Props) {
   const nav = useNavigate();
+  const credit = side === "customer";
   const [rows, setRows] = useState<ContactPageRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [detail, setDetail] = useState<{ id: string; name: string; lines: any[] } | null>(null);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     setLoading(true);
-    setDetail(null);
-    fetchAllContactsPage({ branchId: null, type: "all", balance: [side === "customer" ? "customer_advance" : "supplier_advance"] })
+    fetchAllContactsPage({ branchId: null, type: "all", balance: [credit ? "credit" : "debit"] })
       .then((p) => { if (!cancelled) setRows(p.rows); })
       .catch(() => { if (!cancelled) setRows([]); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [open, side]);
+  }, [open, credit]);
 
-  const advanceOf = (r: ContactPageRow) => (side === "customer" ? r.customer_advance : r.supplier_advance);
+  const amountOf = (r: ContactPageRow) => Math.abs(netOf(r.customer_balance, r.supplier_balance));
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("ar-EG");
     return rows
       .filter((r) => !q || `${r.name} ${r.phone ?? ""}`.toLocaleLowerCase("ar-EG").includes(q))
-      .sort((a, b) => advanceOf(b) - advanceOf(a));
-  }, [rows, search, side]);
-  const total = Math.round(filtered.reduce((s, r) => s + advanceOf(r), 0) * 100) / 100;
-
-  const openDetail = async (r: ContactPageRow) => {
-    const money = await fetchContactMoney(r.id, side).catch(() => []);
-    setDetail({ id: r.id, name: r.name, lines: money.filter((m) => m.status === "active" && m.effect === "settle" && m.unallocated > 0.005) });
-  };
+      .sort((a, b) => amountOf(b) - amountOf(a));
+  }, [rows, search]);
+  const total = Math.round(filtered.reduce((s, r) => s + amountOf(r), 0) * 100) / 100;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="left" className="w-full sm:max-w-3xl overflow-y-auto" dir="rtl">
         <SheetHeader>
-          <SheetTitle>{side === "customer" ? "مقدمات العملاء عندنا (2150)" : "مقدماتنا عند الموردين (1460)"}</SheetTitle>
+          <SheetTitle>{credit ? "حسابات دائنة — علينا ليهم" : "حسابات مدينة — لنا عندهم"}</SheetTitle>
           <SheetDescription>
-            {side === "customer"
-              ? "عملاء رصيدهم دائن: دفعوا فلوس أكتر من فواتيرهم، فالفرق علينا ليهم في حسابهم الجاري."
-              : "موردين رصيدهم مدين: دفعنالهم أكتر من فواتيرهم، فالفرق لينا عندهم في حسابهم الجاري."}
-            {" "}الجانبين منفصلين تماماً.
+            {credit ? "كل حساب رصيده الحالي دائن في كل الفروع (حساب جاري)." : "كل حساب رصيده الحالي مدين في كل الفروع (حساب جاري)."}
+            {" "}الإجمالي: <b>{formatEGP(total)}</b> — {filtered.length} حساب.
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-4 flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pr-9" placeholder="ابحث بالاسم أو التليفون" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <div className="text-sm whitespace-nowrap">الإجمالي: <b>{formatEGP(total)}</b></div>
+          <Search className="w-4 h-4 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث بالاسم أو التليفون" />
         </div>
 
-        {!detail ? (
-          <div className="mt-4">
-            <DataTable
-              loading={loading}
-              rows={filtered}
-              empty="مفيش مقدمات"
-              onRowClick={(r: any) => openDetail(r)}
-              columns={[
-                { key: "name", header: "الجهة", render: (r: any) => <div><div className="font-semibold">{r.name}</div><div className="text-xs text-muted-foreground">{typeLabel(r.type)}</div></div> },
-                { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
-                { key: "adv", header: "المقدم المتاح", render: (r: any) => <b className="text-primary">{formatEGP(advanceOf(r))}</b> },
-                { key: "go", header: "", render: (r: any) => (
-                  <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/admin/contacts/${r.id}`); }}>الملف</Button>
-                ) },
-              ]}
-            />
-          </div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="font-bold">{detail.name} — الحركات اللي لسه ليها رصيد</div>
-              <Button size="sm" variant="ghost" onClick={() => setDetail(null)}>رجوع</Button>
-            </div>
-            <DataTable
-              rows={detail.lines}
-              empty="مفيش حركات"
-              columns={[
-                { key: "d", header: "التاريخ", render: (m: any) => formatDate(m.movement_date) },
-                { key: "k", header: "النوع", render: (m: any) => m.kind_label },
-                { key: "b", header: "الفرع", render: (m: any) => m.branch_name ?? "—" },
-                { key: "r", header: "المرجع", render: (m: any) => m.reference ?? "—" },
-                { key: "a", header: "المبلغ", render: (m: any) => formatEGP(m.amount) },
-                { key: "u", header: "المتبقي منه", render: (m: any) => <b className="text-primary">{formatEGP(m.unallocated)}</b> },
-              ]}
-            />
-          </div>
-        )}
+        <div className="mt-4">
+          <DataTable
+            loading={loading}
+            rows={filtered}
+            empty="مفيش حسابات"
+            onRowClick={(r: any) => nav(`/admin/contacts/${r.id}`)}
+            columns={[
+              { key: "name", header: "اسم الحساب", render: (r: any) => <div><div className="font-semibold">{r.name}<InternalBranchBadge id={r.id} /></div><div className="text-xs text-muted-foreground">{typeLabel(r.type)}</div></div> },
+              { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
+              { key: "bal", header: "الرصيد الحالى", render: (r: any) => <b className={credit ? "text-destructive" : "text-success"}>{formatEGP(amountOf(r))} {credit ? "دائن" : "مدين"}</b> },
+              { key: "go", header: "", render: (r: any) => (
+                <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); nav(`/admin/contacts/${r.id}`); }}>الملف</Button>
+              ) },
+            ]}
+          />
+        </div>
       </SheetContent>
     </Sheet>
   );
