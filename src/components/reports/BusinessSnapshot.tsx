@@ -9,6 +9,7 @@ import { formatEGP } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StockMovementReport } from "@/components/reports/StockMovementReport";
+import { fetchNetTotals } from "@/lib/ledger";
 
 type Row = {
   branch_id: string; branch: string; invoices: number; sales: number; returns: number; net_sales: number; cogs: number;
@@ -41,6 +42,20 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
     });
     return () => { off = true; };
   }, [from, to]);
+
+  // owner 2026-11-14: «إجمالي المدين (لنا)» from the accounts' current balance (today), not unpaid invoices of the period
+  const [debit, setDebit] = useState<{ all: number | null; byBranch: Record<string, number> }>({ all: null, byBranch: {} });
+  useEffect(() => {
+    let off = false;
+    const ids = (data?.branches ?? []).map((b) => b.branch_id).filter(Boolean) as string[];
+    Promise.all([fetchNetTotals(null).catch(() => null), ...ids.map((id) => fetchNetTotals(id).catch(() => null))]).then(([all, ...per]) => {
+      if (off) return;
+      const byBranch: Record<string, number> = {};
+      ids.forEach((id, i) => { byBranch[id] = per[i]?.debit ?? 0; });
+      setDebit({ all: all ? all.debit : per.reduce((x, p) => x + (p?.debit ?? 0), 0), byBranch });
+    });
+    return () => { off = true; };
+  }, [data]);
 
   const t = data?.total as (Snapshot["total"] & { collected?: number; open_credit?: number }) | undefined;
   const winning = (t?.net_profit ?? 0) >= 0;
@@ -78,7 +93,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Kpi icon={<Receipt />} label="المبيعات (صافي)" value={t?.net_sales} hint={`${t?.invoices ?? 0} فاتورة − مرتجعات ${formatEGP(t?.returns ?? 0)}${(t?.internal_sales ?? 0) > 0.005 ? ` • منها بين الفروع ${formatEGP(t?.internal_sales ?? 0)}` : ""}`} />
         <Kpi icon={<HandCoins />} label="المحصّل فعلاً في الإيد" value={t?.collected} hint="كاش + بنك + محفظة دخلت من العملاء في الفترة، ناقص اللي اترد لهم" />
-        <Kpi icon={<Clock />} label="الآجل الباقي على العملاء" value={t?.open_credit} hint={`اللي لسه ما اتدفعش من فواتير الفترة دي لحد النهارده${(t?.internal_open ?? 0) > 0.005 ? ` • منها على فروعنا ${formatEGP(t?.internal_open ?? 0)}` : ""}`} />
+        <Kpi icon={<Clock />} label="إجمالي المدين (لنا)" value={debit.all ?? undefined} hint="مجموع أرصدة الحسابات المدينة النهارده (حساب جاري) — نفس كارت صفحة العملاء والموردين" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -97,7 +112,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
         <PermTable className="w-full text-sm">
           <thead className="bg-surface-2">
             <tr className="text-xs">
-              {["الفرع", "صافي المبيعات", "المحصّل فعلاً", "الآجل الباقي", "تكلفة المباع", "مجمل الربح", "المصروفات", "إيرادات أخرى", "فروقات الجرد", "صافي الربح", "قيمة البضاعة الآن", "عدد القطع"].map((h) => (
+              {["الفرع", "صافي المبيعات", "المحصّل فعلاً", "المدين (لنا)", "تكلفة المباع", "مجمل الربح", "المصروفات", "إيرادات أخرى", "فروقات الجرد", "صافي الربح", "قيمة البضاعة الآن", "عدد القطع"].map((h) => (
                 <th key={h} className="px-3 py-2.5 font-extrabold text-center">{h}</th>
               ))}
             </tr>
@@ -108,7 +123,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
                 <td className="px-3 py-2 text-right font-semibold">{b.branch}</td>
                 <td className="px-3 py-2">{formatEGP(b.net_sales)}</td>
                 <td className="px-3 py-2 text-success">{formatEGP(b.collected ?? 0)}</td>
-                <td className="px-3 py-2 text-warning">{formatEGP(b.open_credit ?? 0)}</td>
+                <td className="px-3 py-2 text-success">{formatEGP(debit.byBranch[b.branch_id] ?? 0)}</td>
                 <td className="px-3 py-2">{formatEGP(b.cogs)}</td>
                 <td className="px-3 py-2">{formatEGP(b.gross_profit)}</td>
                 <td className="px-3 py-2">{formatEGP(b.expenses)}</td>
