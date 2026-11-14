@@ -389,15 +389,16 @@ export async function fetchIntegrityAudit(): Promise<IntegrityFinding[]> {
 // ---------------------------------------------------------------- books vs ledger (6D)
 export interface GlReconciliation {
   from: string;
-  branches: { branch_id: string; branch: string; till: number; gl_cash: number; difference: number; inter_branch_1910: number }[];
+  branches: { branch_id: string; branch: string; till: number; gl_cash: number; difference: number; inter_branch_1910: number;
+    /** 0213: customers − suppliers in the books (1200 − 2100) vs Σ the accounts' balances in that branch */
+    accounts_gl: number; accounts_ledger: number; accounts_difference: number }[];
   inter_branch_1910_total: number;
-  customer_advances: { ledger: number; gl_2150: number };
-  supplier_advances: { ledger: number; gl_1460: number };
+  /** 0212: the old advance pools — must be 0 */
+  pools: { "2150": number; "1460": number };
+  accounts: { gl: number; ledger: number };
   not_posted: { movements: number; allocations: number; closed_period_skipped: number };
   old_entries_still_standing: number;
   retired_old_entries: number;
-  /** journal = the books on 1 Jan 2026 = books_2025 (entries dated before it) + opening_entries */
-  opening: { ledger: Record<string, number>; journal: Record<string, number>; books_2025?: Record<string, number>; opening_entries?: Record<string, number> };
 }
 export async function fetchGlReconciliation(): Promise<GlReconciliation> {
   return numDeep(await call<any>("ledger_gl_reconciliation", { p_tenant: null }));

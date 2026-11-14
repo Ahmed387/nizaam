@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { fetchGlReconciliation, previewOpeningMatch, applyOpeningMatch, type GlReconciliation, type OpeningMatchPreview } from "@/lib/ledger";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +45,8 @@ export default function OpeningBalances() {
   const [openingDate, setOpeningDate] = useState("2026-01-01");
   const [cash, setCash] = useState<Record<string, string>>({});
   const [contactBal, setContactBal] = useState<Record<string, string>>({});
+  // 0206 / 0213: each account's opening sits on ONE branch (its «سهل» branch by default)
+  const [contactBranch, setContactBranch] = useState<Record<string, string>>({});
   const [inv, setInv] = useState<Record<string, { quantity: string; cost_price: string }>>({});
   const [postedAt, setPostedAt] = useState<string | null>(null);
   const [invLocked, setInvLocked] = useState(false);
@@ -53,9 +54,6 @@ export default function OpeningBalances() {
 
   const [contactSearch, setContactSearch] = useState("");
   const [sp] = useSearchParams();
-  // the books vs the ledger for the opening balances of contacts (G2 / G7 of the integrity check)
-  const [glOpen, setGlOpen] = useState<GlReconciliation["opening"] | null>(null);
-  const [postingContacts, setPostingContacts] = useState(false);
   const [productSearch, setProductSearch] = useState("");
 
   const load = async () => {
@@ -81,42 +79,17 @@ export default function OpeningBalances() {
     (s.cash ?? []).forEach((r: any) => { if (r.branch_id) cashMap[r.branch_id] = String(r.amount ?? ""); });
     setCash(cashMap);
     const cMap: Record<string, string> = {};
-    (s.contacts ?? []).forEach((r: any) => { cMap[r.contact_id] = String(r.amount ?? ""); });
+    const bMap: Record<string, string> = {};
+    (s.contacts ?? []).forEach((r: any) => { cMap[r.contact_id] = String(r.amount ?? ""); if (r.branch_id) bMap[r.contact_id] = r.branch_id; });
     setContactBal(cMap);
+    setContactBranch(bMap);
     const iMap: Record<string, { quantity: string; cost_price: string }> = {};
     (s.inventory ?? []).forEach((r: any) => {
       iMap[r.product_id] = { quantity: String(r.quantity ?? ""), cost_price: String(r.cost_price ?? "") };
     });
     setInv(iMap);
-    fetchGlReconciliation().then((g) => setGlOpen(g.opening)).catch(() => setGlOpen(null));
     setLoading(false);
   };
-
-  // contacts' opening balances vs the books on 1 Jan 2026 (G2 / G7): one entry for the difference only —
-  // the full opening when 2025 is not in the books, nothing when they already agree (never counted twice)
-  const [matchPreview, setMatchPreview] = useState<OpeningMatchPreview | null>(null);
-  const previewMatch = async () => {
-    setPostingContacts(true);
-    try { setMatchPreview(await previewOpeningMatch()); }
-    catch (e: any) { toast.error("تعذر حساب الفرق", { description: e.message }); }
-    finally { setPostingContacts(false); }
-  };
-  const applyMatch = async () => {
-    setPostingContacts(true);
-    try {
-      const r = await applyOpeningMatch();
-      toast.success("اتطابقت القيود مع الدفتر الموحد", { description: `${r.entry_id ? "اتسجل قيد مطابقة بتاريخ 2026-01-01" : "مفيش فرق يتسجل"}${r.reversed ? ` • اتعكس ${r.reversed} قيد مطابقة سابق` : ""}` });
-      setMatchPreview(null);
-      await load();
-    } catch (e: any) {
-      toast.error("فشلت المطابقة", { description: e.message });
-    } finally {
-      setPostingContacts(false);
-    }
-  };
-  const openingMismatch = glOpen
-    ? Object.keys(glOpen.ledger ?? {}).some((k) => Math.abs((glOpen.ledger?.[k] ?? 0) - (glOpen.journal?.[k] ?? 0)) > 0.005)
-    : false;
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [tenantId]);
 
@@ -137,6 +110,9 @@ export default function OpeningBalances() {
     }
     return { ar, cAdv, ap, sAdv };
   }, [contactBal, contacts]);
+  // «حساب جاري»: + = مدين (لنا عنده), − = دائن (علينا له), whatever the account's type
+  const debitTotal = Object.values(contactBal).reduce((t, v) => t + Math.max(Number(v) || 0, 0), 0);
+  const creditTotal = Object.values(contactBal).reduce((t, v) => t + Math.max(-(Number(v) || 0), 0), 0);
   const arTotal = sideTotals.ar;
   const apTotal = sideTotals.ap;
   const invTotal = useMemo(
@@ -166,7 +142,7 @@ export default function OpeningBalances() {
         .map(([branch_id, v]) => ({ branch_id, amount: Number(v) }));
       const payloadContacts = Object.entries(contactBal)
         .filter(([, v]) => Number(v) !== 0 && v !== "")
-        .map(([contact_id, v]) => ({ contact_id, amount: Number(v) }));
+        .map(([contact_id, v]) => ({ contact_id, amount: Number(v), ...(contactBranch[contact_id] ? { branch_id: contactBranch[contact_id] } : {}) }));
       const payloadInv = Object.entries(inv)
         .filter(([, v]) => Number(v.quantity) > 0)
         .map(([product_id, v]) => ({
@@ -217,13 +193,11 @@ export default function OpeningBalances() {
         subtitle="إدخال أرصدة بداية التشغيل: نقدية الخزن، أرصدة العملاء والموردين، وكميات وتكلفة المخزون — وترحيلها تلقائيًا لقيود اليومية."
       />
 
-      <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-7 mb-4">
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-5 mb-4">
         {[
           { l: "النقدية", v: cashTotal },
-          { l: "مديونية العملاء (1200)", v: sideTotals.ar },
-          { l: "مقدمات العملاء (2150)", v: sideTotals.cAdv },
-          { l: "مستحقات الموردين (2100)", v: sideTotals.ap },
-          { l: "مقدماتنا عند الموردين (1460)", v: sideTotals.sAdv },
+          { l: "إجمالي المدين (لنا)", v: debitTotal },
+          { l: "إجمالي الدائن (علينا)", v: creditTotal },
           { l: "قيمة المخزون", v: invTotal },
         ].map((c) => (
           <Card key={c.l}>
@@ -243,78 +217,13 @@ export default function OpeningBalances() {
 
       <Card className="mb-4 border-primary/30 bg-primary/5">
         <CardContent className="p-4 text-sm space-y-1">
-          <div>• أرصدة العملاء والموردين الافتتاحية بتتسجل على <b>{mainTreasury?.name ?? "الخزنة الرئيسية"}</b> وبتظهر في الصفحة الرئيسية وصفحة الخزائن.</div>
-          <div>• حساب العميل وحساب المورد منفصلين: الرصيد بيروح للجانب حسب نوع الجهة (للجهة اللي عميل ومورد: الموجب على جانب العميل، والسالب على جانب المورد).</div>
+          <div>• كل حساب رصيده الافتتاحي بيتسجل في <b>فرعه</b> (العمود «الفرع»)، وبيظهر في رصيد الحساب في الفرع ده بس — زي «سهل».</div>
+          <div>• الرصيد يا إما <b className="text-success">مدين</b> (لنا عنده) يا إما <b className="text-destructive">دائن</b> (علينا له)، والقيد بيروح على حساب العملاء أو الموردين مباشرة (مفيش حساب مقدمات).</div>
+          <div>• نقدية كل فرع بتتسجل في خزنة الفرع نفسه.</div>
           <div>• إعادة الترحيل مش بتمسح حاجة: القيود السابقة بتتعكس بقيود عكسية، والنقدية بتتسجل في خزنة كل فرع.</div>
           {invLocked && <div className="text-warning font-semibold">• مخزون أول المدة اتباع أو اتحول منه بالفعل، فمش هيتعاد ترحيله — أي تعديل في الكميات يبقى بتسوية مخزون.</div>}
         </CardContent>
       </Card>
-
-      {glOpen && (
-        <Card className={`mb-4 ${openingMismatch ? "border-warning/60 bg-warning/5" : "border-success/40"}`}>
-          <CardContent className="p-4 space-y-3 text-sm">
-            <div className="font-semibold">{openingMismatch ? "أرصدة العملاء والموردين في القيود يوم 2026-01-01 مش مطابقة للدفتر الموحد" : "✓ أرصدة العملاء والموردين في القيود يوم 2026-01-01 مطابقة للدفتر الموحد"}</div>
-            <div className="text-xs text-muted-foreground">
-              «القيود يوم 2026-01-01» = قيود 2025 الموجودة على السيستم + القيود الافتتاحية. لازم تساوي اللي في الدفتر (الأرصدة الافتتاحية للجهات).
-              لو شغل 2025 مش على السيستم، الفرق هو الرصيد الافتتاحي كله؛ ولو موجود، الفرق بس هو اللي ناقص أو زيادة — عشان مفيش حاجة تتحسب مرتين.
-            </div>
-            <Table>
-              <TableHeader><TableRow>
-                <TableHead className="text-right">الحساب</TableHead>
-                <TableHead className="text-right">في الدفتر (أرصدة الجهات)</TableHead>
-                <TableHead className="text-right">قيود 2025</TableHead>
-                <TableHead className="text-right">قيود افتتاحية ومطابقة</TableHead>
-                <TableHead className="text-right">الفرق</TableHead>
-              </TableRow></TableHeader>
-              <TableBody>
-                {[["1200", "مديونية عملاء"], ["2150", "مقدمات عملاء"], ["2100", "مستحقات موردين"], ["1460", "مقدماتنا عند الموردين"]].map(([k, label]) => {
-                  const diff = (glOpen.ledger?.[k] ?? 0) - (glOpen.journal?.[k] ?? 0);
-                  return (
-                    <TableRow key={k}>
-                      <TableCell>{label} ({k})</TableCell>
-                      <TableCell>{fmt(glOpen.ledger?.[k] ?? 0)}</TableCell>
-                      <TableCell>{fmt(glOpen.books_2025?.[k] ?? 0)}</TableCell>
-                      <TableCell>{fmt(glOpen.opening_entries?.[k] ?? 0)}</TableCell>
-                      <TableCell className={Math.abs(diff) > 0.005 ? "text-destructive font-semibold" : "text-success"}>{Math.abs(diff) > 0.005 ? fmt(diff) : "✓"}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-            {openingMismatch && (
-              <div className="space-y-2">
-                <div className="text-xs text-muted-foreground">
-                  الأول اتأكد إن أرصدة الجهات في تبويب «العملاء والموردين» صح (ولو فيه فواتير بتاريخ 2025 اتسجلت بعد بداية السيستم — تنبيه L7 — صحّحها الأول).
-                  بعدها «طابق»: بيتسجل قيد واحد بتاريخ 2026-01-01 بالفرق بس قصاد 3950، وأي قيد مطابقة قديم بيتعكس (مفيش حذف). النقدية والمخزون مش بيتلمسوا.
-                </div>
-                {!matchPreview ? (
-                  <Button onClick={previewMatch} disabled={postingContacts || loading} variant="outline">
-                    <Scale className="h-4 w-4 me-2" /> اعرض قيد المطابقة
-                  </Button>
-                ) : (
-                  <div className="rounded-md border p-3 space-y-2">
-                    <div className="font-medium">قيد المطابقة اللي هيتسجل (2026-01-01):</div>
-                    {matchPreview.lines.length === 0 ? <div className="text-xs">مفيش فرق.</div> : (
-                      <Table>
-                        <TableHeader><TableRow><TableHead className="text-right">الحساب</TableHead><TableHead className="text-right">مدين</TableHead><TableHead className="text-right">دائن</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                          {matchPreview.lines.map((l, i) => (
-                            <TableRow key={i}><TableCell>{l.account_code} — {l.description}</TableCell><TableCell>{l.debit ? fmt(l.debit) : ""}</TableCell><TableCell>{l.credit ? fmt(l.credit) : ""}</TableCell></TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                    <div className="flex gap-2">
-                      <Button onClick={applyMatch} disabled={postingContacts || loading}><Users className="h-4 w-4 me-2" /> طابق القيود مع الدفتر</Button>
-                      <Button variant="ghost" onClick={() => setMatchPreview(null)} disabled={postingContacts}>إلغاء</Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       <Card className="mb-4">
         <CardContent className="p-4 flex flex-wrap items-end gap-4">
@@ -382,7 +291,7 @@ export default function OpeningBalances() {
                   onChange={e => setContactSearch(e.target.value)} />
               </div>
               <p className="text-xs text-muted-foreground">
-                الموجب = الجهة عليها فلوس لنا (للعميل: مديونية · للمورد: مقدم دفعناه له). السالب = إحنا علينا للجهة (للعميل: مقدم دفعه لنا · للمورد: مستحق له).
+                اكتب المبلغ واختار <b className="text-success">مدين</b> (لنا عنده) أو <b className="text-destructive">دائن</b> (علينا له)، واختار الفرع اللي الحساب ده رصيده فيه.
               </p>
             </CardHeader>
             <CardContent className="p-0">
@@ -392,7 +301,8 @@ export default function OpeningBalances() {
                     <TableHead>الاسم</TableHead>
                     <TableHead>النوع</TableHead>
                     <TableHead>الهاتف</TableHead>
-                    <TableHead className="w-56">الرصيد الافتتاحي</TableHead>
+                    <TableHead className="w-48">الفرع</TableHead>
+                    <TableHead className="w-72">الرصيد الافتتاحي</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -408,12 +318,31 @@ export default function OpeningBalances() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{c.phone ?? "—"}</TableCell>
                         <TableCell>
-                          <Input
-                            type="number" step="0.01" inputMode="decimal" placeholder="0.00"
-                            className={v > 0 ? "border-primary/50" : v < 0 ? "border-destructive/50" : ""}
-                            value={contactBal[c.id] ?? ""}
-                            onChange={e => setContactBal(s => ({ ...s, [c.id]: e.target.value }))}
-                          />
+                          <select className="h-9 w-full rounded-md border bg-background px-2 text-sm" value={contactBranch[c.id] ?? ""}
+                            onChange={(e) => setContactBranch((s) => ({ ...s, [c.id]: e.target.value }))}>
+                            <option value="">فرعه الأساسي</option>
+                            {branches.filter((b) => !/^(MAIN-TREASURY|PARTNER-CASH)$/.test(b.code ?? "")).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                          </select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number" step="0.01" min="0" inputMode="decimal" placeholder="0.00"
+                              className={v > 0 ? "border-success/60" : v < 0 ? "border-destructive/60" : ""}
+                              value={contactBal[c.id] ? String(Math.abs(Number(contactBal[c.id]) || 0) || contactBal[c.id]).replace(/^-/, "") : ""}
+                              onChange={e => {
+                                const amt = Math.abs(Number(e.target.value) || 0);
+                                const neg = (Number(contactBal[c.id]) || 0) < 0;
+                                setContactBal(s => ({ ...s, [c.id]: e.target.value === "" ? "" : String(neg ? -amt : amt) }));
+                              }}
+                            />
+                            <select aria-label="مدين أو دائن" className={`h-9 rounded-md border bg-background px-2 text-sm font-bold ${v < 0 ? "text-destructive" : "text-success"}`}
+                              value={v < 0 ? "credit" : "debit"}
+                              onChange={(e) => setContactBal(s => ({ ...s, [c.id]: String((e.target.value === "credit" ? -1 : 1) * Math.abs(Number(s[c.id]) || 0)) }))}>
+                              <option value="debit">مدين</option>
+                              <option value="credit">دائن</option>
+                            </select>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

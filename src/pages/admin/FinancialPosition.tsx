@@ -261,7 +261,7 @@ export default function FinancialPosition() {
             <ActionButton
               to="/admin/accounting/balance-sheet"
               icon={<PieChart className="w-4 h-4" />}
-              title="الميزانية العمومية"
+              title="قائمة المركز المالي"
               note="بتقولك الشركة عندها إيه (أصول) وعليها إيه (التزامات) في تاريخ معين."
             />
             <ActionButton
@@ -275,6 +275,18 @@ export default function FinancialPosition() {
               icon={<Activity className="w-4 h-4" />}
               title="التدفقات النقدية"
               note="الفلوس دخلت من فين وخرجت لفين خلال الفترة."
+            />
+            <ActionButton
+              to="/admin/accounting/equity-changes"
+              icon={<Scale className="w-4 h-4" />}
+              title="التغيرات في حقوق الملكية"
+              note="رأس مال الشركاء والأرباح المحتجزة: أول الفترة، زاد إيه ونقص إيه، وآخر الفترة."
+            />
+            <ActionButton
+              to="/admin/accounting/cogs-statement"
+              icon={<Package className="w-4 h-4" />}
+              title="تكلفة البضاعة المباعة"
+              note="مخزون أول المدة + المشتريات − مخزون آخر المدة = تكلفة اللي اتباع."
             />
             <ActionButton
               to="/admin/accounting/aging"

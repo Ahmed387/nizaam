@@ -1,11 +1,10 @@
 import { useTableViews } from "@/hooks/useListFilter";
 import { useEffect, useState } from "react";
 import { PermCard } from "@/contexts/PermCustomize";
-import { PermTable } from "@/components/PermTable";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
-import { fetchGlReconciliation, fetchOpeningReconciliation, fetchDuplicateFees, repairDuplicateFees, type GlReconciliation, type OpeningReconRow, type DuplicateFeeRow } from "@/lib/ledger";
+import { fetchGlReconciliation, fetchDuplicateFees, repairDuplicateFees, type GlReconciliation, type DuplicateFeeRow } from "@/lib/ledger";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
 import { exportToExcel } from "@/lib/export";
@@ -17,20 +16,18 @@ import { Loader2, RefreshCcw, Scale, Download } from "lucide-react";
  *     supplier payment is booked in the branch that received or paid it);
  *   - the inter-branch current account 1910 (money received in one branch for another branch's invoice)
  *     per branch, and its company total, which must be zero;
- *   - customer advances (2150) and our advances with suppliers (1460) against the ledger;
- *   - opening balances: the ledger's opening amounts against the opening entries, and per contact.
+ *   - current account (0212 / 0213): per branch, customers − suppliers in the books (1200 − 2100) against the
+ *     accounts' balances, and the old advance pools 2150 / 1460, which must stay 0.
  */
 const ok = (v: number) => Math.abs(v) <= 0.05;
 
 export function GlReconciliationPanel() {
   const nav = useNavigate();
   // what each table shows after its Excel filters: the Excel sheets export that
-  const [views, onView] = useTableViews<"branches" | "opening">();
+  const [views, onView] = useTableViews<"branches">();
   const [gl, setGl] = useState<GlReconciliation | null>(null);
-  const [opening, setOpening] = useState<OpeningReconRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showOpening, setShowOpening] = useState(false);
   const [fees, setFees] = useState<DuplicateFeeRow[]>([]);
   const [feeBusy, setFeeBusy] = useState(false);
 
@@ -39,11 +36,10 @@ export function GlReconciliationPanel() {
     setError(null);
     try {
       // each part on its own: a failure of one never hides the other
-      const [g, o, f] = await Promise.allSettled([fetchGlReconciliation(), fetchOpeningReconciliation(), fetchDuplicateFees()]);
+      const [g, f] = await Promise.allSettled([fetchGlReconciliation(), fetchDuplicateFees()]);
       if (g.status === "fulfilled") setGl(g.value);
-      if (o.status === "fulfilled") setOpening(o.value);
       if (f.status === "fulfilled") setFees(f.value.filter((x) => !x.already_corrected));
-      const err = [g, o].find((x) => x.status === "rejected") as PromiseRejectedResult | undefined;
+      const err = [g].find((x) => x.status === "rejected") as PromiseRejectedResult | undefined;
       if (err) setError((err.reason as any)?.message ?? "تعذر تحميل جزء من المطابقة");
     } catch (e: any) {
       setError(e?.message ?? "تعذر تحميل المطابقة");
@@ -53,13 +49,6 @@ export function GlReconciliationPanel() {
   };
   useEffect(() => { run(); }, []);
 
-  const openingAccounts: { code: string; label: string }[] = [
-    { code: "1200", label: "مديونية عملاء (1200)" },
-    { code: "2150", label: "مقدمات عملاء (2150)" },
-    { code: "2100", label: "مستحقات موردين (2100)" },
-    { code: "1460", label: "مقدماتنا عند الموردين (1460)" },
-  ];
-  const openingIssues = opening.filter((r) => r.status !== "ok");
 
   return (
     <div className="rounded-2xl border p-4 space-y-4" id="books">
@@ -68,15 +57,13 @@ export function GlReconciliationPanel() {
           <Scale className="w-5 h-5 text-primary" />
           <div>
             <div className="font-bold">مطابقة القيود مع الخزن والدفتر الموحد</div>
-            <div className="text-xs text-muted-foreground">من 1 يناير 2026 — قراءة بس. فلوس العملاء والموردين بتتقيد من الدفتر الموحد، والفلوس اللي بتعدّي بين الفروع بتتقيد على الحساب الجاري 1910.</div>
+            <div className="text-xs text-muted-foreground">من 1 يناير 2026 — قراءة بس. فلوس العملاء والموردين بتتقيد على حساباتهم مباشرة (حساب جاري)، والتحويلات بين الفروع على حساب جاري الفروع 1910.</div>
           </div>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" disabled={!gl} onClick={() => gl && exportToExcel("مطابقة_القيود", [
-            { name: "الفروع", rows: (views.branches ?? gl.branches).map((b: any) => ({ الفرع: b.branch, الخزنة: b.till, "النقدية في القيود": b.gl_cash, الفرق: b.difference, "حساب جاري الفروع 1910": b.inter_branch_1910 })) },
-            { name: "الأرصدة الافتتاحية", rows: (views.opening ?? opening).map((r: any) => ({ الجهة: r.contact_name, الحساب: r.side === "customer" ? "عميل" : "مورد",
-              "الرصيد الافتتاحي": r.opening_in_contact, "في الدفتر": r.opening_in_ledger, "الرصيد المسبق القديم": r.old_prepaid_credit ?? "",
-              "المقدم الحالي": r.ledger_advance_now, الحالة: r.status })) },
+            { name: "الفروع", rows: (views.branches ?? gl.branches).map((b: any) => ({ الفرع: b.branch, الخزنة: b.till, "النقدية في القيود": b.gl_cash, الفرق: b.difference,
+              "حسابات العملاء والموردين (القيود)": b.accounts_gl, "أرصدة الحسابات": b.accounts_ledger, "فرق الحسابات": b.accounts_difference, "حساب جاري الفروع 1910": b.inter_branch_1910 })) },
           ])}><Download className="w-4 h-4 ml-1" /> Excel</Button>
           <Button size="sm" onClick={run} disabled={loading}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <RefreshCcw className="w-4 h-4 ml-1" />} تحديث
@@ -94,19 +81,19 @@ export function GlReconciliationPanel() {
               <div className="text-lg font-bold">{formatEGP(gl.inter_branch_1910_total)}</div>
               <div className="text-[11px] text-muted-foreground">{ok(gl.inter_branch_1910_total) ? "✓ صفر زي ما لازم" : "لازم يكون صفر"}</div>
             </div></PermCard>
-            <PermCard label="مقدمات العملاء"><div className={`rounded-lg border p-3 ${ok(gl.customer_advances.ledger - gl.customer_advances.gl_2150) ? "" : "border-warning/50 bg-warning/5"}`}>
-              <div className="text-xs text-muted-foreground">مقدمات العملاء</div>
-              <div className="text-lg font-bold">{formatEGP(gl.customer_advances.ledger)}</div>
-              <div className="text-[11px] text-muted-foreground">القيود (2150): {formatEGP(gl.customer_advances.gl_2150)}</div>
+            <PermCard label="حسابات العملاء والموردين"><div className={`rounded-lg border p-3 ${ok(gl.accounts.gl - gl.accounts.ledger) ? "" : "border-destructive/50 bg-destructive/5"}`}>
+              <div className="text-xs text-muted-foreground">حسابات العملاء والموردين (الصافي)</div>
+              <div className="text-lg font-bold">{formatEGP(Math.abs(gl.accounts.ledger))} {gl.accounts.ledger >= 0 ? "مدين" : "دائن"}</div>
+              <div className="text-[11px] text-muted-foreground">{ok(gl.accounts.gl - gl.accounts.ledger) ? "✓ القيود = أرصدة الحسابات" : `القيود: ${formatEGP(Math.abs(gl.accounts.gl))}`}</div>
             </div></PermCard>
-            <PermCard label="مقدماتنا عند الموردين"><div className={`rounded-lg border p-3 ${ok(gl.supplier_advances.ledger - gl.supplier_advances.gl_1460) ? "" : "border-warning/50 bg-warning/5"}`}>
-              <div className="text-xs text-muted-foreground">مقدماتنا عند الموردين</div>
-              <div className="text-lg font-bold">{formatEGP(gl.supplier_advances.ledger)}</div>
-              <div className="text-[11px] text-muted-foreground">القيود (1460): {formatEGP(gl.supplier_advances.gl_1460)}</div>
+            <PermCard label="حسابات المقدمات القديمة"><div className={`rounded-lg border p-3 ${ok(gl.pools["2150"]) && ok(gl.pools["1460"]) ? "" : "border-destructive/50 bg-destructive/5"}`}>
+              <div className="text-xs text-muted-foreground">حسابات المقدمات القديمة</div>
+              <div className="text-lg font-bold">{formatEGP(Math.abs(gl.pools["2150"]) + Math.abs(gl.pools["1460"]))}</div>
+              <div className="text-[11px] text-muted-foreground">{ok(gl.pools["2150"]) && ok(gl.pools["1460"]) ? "✓ صفر — الفلوس على الحسابات مباشرة" : "لازم تكون صفر"}</div>
             </div></PermCard>
-            <PermCard label="حركات من غير قيد / قيود قديمة قايمة"><div className={`rounded-lg border p-3 ${gl.not_posted.movements + gl.not_posted.allocations + gl.old_entries_still_standing === 0 ? "" : "border-destructive/50 bg-destructive/5"}`}>
+            <PermCard label="حركات من غير قيد / قيود قديمة قايمة"><div className={`rounded-lg border p-3 ${gl.not_posted.movements + gl.old_entries_still_standing === 0 ? "" : "border-destructive/50 bg-destructive/5"}`}>
               <div className="text-xs text-muted-foreground">حركات من غير قيد / قيود قديمة قايمة</div>
-              <div className="text-lg font-bold">{gl.not_posted.movements + gl.not_posted.allocations} / {gl.old_entries_still_standing}</div>
+              <div className="text-lg font-bold">{gl.not_posted.movements} / {gl.old_entries_still_standing}</div>
               <div className="text-[11px] text-muted-foreground">قيود قديمة اتعكست: {gl.retired_old_entries}{gl.not_posted.closed_period_skipped ? ` · في فترات مقفولة: ${gl.not_posted.closed_period_skipped}` : ""}</div>
             </div></PermCard>
           </div>
@@ -121,6 +108,10 @@ export function GlReconciliationPanel() {
               { key: "t", header: "رصيد الخزنة", render: (r: any) => formatEGP(r.till) },
               { key: "g", header: "النقدية في القيود (11xx)", render: (r: any) => formatEGP(r.gl_cash) },
               { key: "d", header: "الفرق", render: (r: any) => <span className={ok(r.difference) ? "text-success" : "text-destructive font-bold"}>{ok(r.difference) ? "✓ متطابق" : formatEGP(r.difference)}</span> },
+              { key: "acc", header: "حسابات العملاء والموردين", render: (r: any) => (
+                <span className={ok(r.accounts_difference) ? "" : "text-destructive font-bold"} title={`القيود ${formatEGP(r.accounts_gl)} / أرصدة الحسابات ${formatEGP(r.accounts_ledger)}`}>
+                  {ok(r.accounts_difference) ? `✓ ${formatEGP(Math.abs(r.accounts_ledger))} ${r.accounts_ledger >= 0 ? "مدين" : "دائن"}` : `فرق ${formatEGP(r.accounts_difference)}`}
+                </span>) },
               { key: "x", header: "حساب جاري الفروع 1910", render: (r: any) => (
                 <span title="موجب = ليه عند فروع تانية (اتحصل له في فرع تاني) · سالب = عليه لفروع تانية (حصّل فلوس لفرع تاني)">
                   {Math.abs(r.inter_branch_1910) < 0.005 ? "—" : `${formatEGP(Math.abs(r.inter_branch_1910))} ${r.inter_branch_1910 > 0 ? "ليه" : "عليه"}`}
@@ -128,53 +119,6 @@ export function GlReconciliationPanel() {
             ]}
           />
 
-          <div className="rounded-lg border">
-            <div className="px-3 py-2 border-b bg-muted/40 text-sm font-bold flex items-center justify-between">
-              <span>الأرصدة الافتتاحية: الدفتر مقابل القيود</span>
-              <Button size="sm" variant="ghost" onClick={() => setShowOpening((x) => !x)}>
-                {showOpening ? "إخفاء التفاصيل" : `تفاصيل الجهات (${opening.length})${openingIssues.length ? ` — ${openingIssues.length} محتاجين مراجعة` : ""}`}
-              </Button>
-            </div>
-            <PermTable className="w-full text-sm">
-              <thead><tr className="bg-muted/20"><th className="p-2 text-right">الحساب</th><th className="p-2 text-right">الدفتر الموحد</th><th className="p-2 text-right">قيد الرصيد الافتتاحي</th><th className="p-2 text-right">الحالة</th></tr></thead>
-              <tbody>
-                {openingAccounts.map((a) => {
-                  const l = gl.opening?.ledger?.[a.code] ?? 0;
-                  const j = gl.opening?.journal?.[a.code] ?? 0;
-                  return (
-                    <tr key={a.code} className="border-t">
-                      <td className="p-2">{a.label}</td>
-                      <td className="p-2 tabular-nums">{formatEGP(l)}</td>
-                      <td className="p-2 tabular-nums">{formatEGP(j)}</td>
-                      <td className="p-2">{ok(l - j) ? <span className="text-success">✓</span> : <span className="text-destructive font-semibold">فرق {formatEGP(l - j)} — <button className="underline" onClick={() => nav("/admin/accounting/opening-balances?section=contacts")}>طابقها من شاشة الأرصدة الافتتاحية</button></span>}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </PermTable>
-            {showOpening && (
-              <div className="p-2">
-                <DataTable
-                  onView={onView("opening")}
-                  rows={opening}
-                  empty="مفيش أرصدة افتتاحية"
-                  onRowClick={(r: OpeningReconRow) => nav(`/admin/contacts/${r.contact_id}`)}
-                  columns={[
-                    { key: "n", header: "الجهة", render: (r: OpeningReconRow) => <b>{r.contact_name}</b> },
-                    { key: "s", header: "الحساب", render: (r: OpeningReconRow) => (r.side === "customer" ? "حساب العميل" : "حساب المورد") },
-                    { key: "o", header: "الرصيد الافتتاحي", render: (r: OpeningReconRow) => formatEGP(r.opening_in_contact) },
-                    { key: "l", header: "في الدفتر", render: (r: OpeningReconRow) => formatEGP(r.opening_in_ledger) },
-                    { key: "c", header: "الرصيد المسبق القديم", render: (r: OpeningReconRow) => (r.old_prepaid_credit == null ? "—" : formatEGP(Math.abs(r.old_prepaid_credit))) },
-                    { key: "a", header: "المقدم دلوقتي (الدفتر)", render: (r: OpeningReconRow) => formatEGP(r.ledger_advance_now) },
-                    { key: "st", header: "الحالة", render: (r: OpeningReconRow) => (
-                      r.status === "ok" ? <span className="text-success text-xs">✓</span>
-                        : r.status === "ledger_differs" ? <span className="text-destructive text-xs font-bold">الدفتر مختلف عن الرصيد الافتتاحي</span>
-                        : <span className="text-warning text-xs font-bold">الرصيد المسبق القديم كان مختلف — اتظبط على الدفتر</span>) },
-                  ]}
-                />
-              </div>
-            )}
-          </div>
           {fees.length > 0 && (
             <div className="rounded-lg border border-warning/50 bg-warning/5 p-3 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
