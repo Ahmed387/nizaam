@@ -1,0 +1,14 @@
+-- 0210: owner 2026-11-14 «رفعت الملفات … sahl3.zip من يوم 1.11.2026 لحد 11.11.2026 ضيفهم لملفات سهل وارفعهم».
+-- The 14 files of sahl3.zip (bucket `sahl-import`) were staged by the edge function (map sha → branch). This records the tool and the run
+-- (2026-11-14, done through the SQL editor; it loads nothing by itself):
+--   view sahl_import.load3_nr       = staged records of sahl3.zip dated ≤ 2026-11-11 that are NOT in `sahl_import.ops` (any earlier load)
+--   func sahl_import.load3_prepare() = load2_prepare on load3_nr (payload.load3 = '1')
+--   func sahl_import.load3_run(apply) = prepare + run_ops(2026-11-11) + the 3 documents «سهل» changed after the last export
+--        (IN47820 / شلبى 8533 prices of 6 lines 0 → «سهل» prices, total 44,575 → 121,225; RV-6139 / سكة 1217 date 7/11 → 8/11;
+--         PV-7378 / شلبى 14581 100 → 300 — through edit_invoice / edit_voucher as the owner) + doc_source_times + recost_product_sales
+--        (from 1/11) + ledger_sync_safe for the touched accounts; checks tills = GL and unexplained = 0; restores the document number
+--        sequences on a dry-run or any error.
+-- Result: 78 operations, 0 errors — 19 sales, 6 purchases, 3 sale returns, 50 vouchers; 4 new accounts; 33 products re-costed;
+-- 27 accounts synced; tills = GL (0.00 in all three branches), ledger unexplained 0, cross-branch allocations 0.
+-- Documents dated 12/11 in the files were NOT loaded (owner: «لحد 11.11.2026»). 3 «تحويل إلى الخزينة» receipts were already in as transfers.
+SELECT 1;
