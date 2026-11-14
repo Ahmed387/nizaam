@@ -21,6 +21,7 @@ import { Loader2, Save, Building2, Receipt, Boxes, KeyRound, AlertTriangle, Wall
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PaymentFeesTab } from "@/components/PaymentFeesTab";
 import { BackupTab } from "@/components/BackupTab";
+import { EtaConnectionWizard } from "@/components/settings/EtaConnectionWizard";
 import { TwoFactorTab } from "@/components/TwoFactorTab";
 import { VoucherCategoriesTab } from "@/components/VoucherCategoriesTab";
 import { TemplatesPermissions } from "@/components/permissions/TemplatesPermissions";
@@ -220,6 +221,7 @@ export default function Settings() {
         const items: { v: string; icon: any; label: string; group: string }[] = [
           { v: "company", icon: Building2, label: "بيانات الشركة", group: "company" },
           { v: "invoice", icon: Receipt, label: "شكل الفاتورة والطباعة", group: "company" },
+          ...(isOwner ? [{ v: "eta", icon: Receipt, label: "الربط مع الفاتورة الإلكترونية", group: "company" }] : []),
           { v: "inventory", icon: Boxes, label: "المخزون", group: "sales" },
           { v: "discount", icon: Percent, label: "الخصم وحد البيع", group: "sales" },
           ...(isOwner ? [{ v: "return-policy", icon: AlertTriangle, label: "سياسة الإرجاع", group: "sales" }] : []),
@@ -280,6 +282,12 @@ export default function Settings() {
       <Tabs value={settingsTab} onValueChange={setSettingsTab} className="w-full">
         <div className="w-full">
 
+
+        {isOwner && (
+          <TabsContent value="eta" className="mt-4">
+            <EtaConnectionWizard />
+          </TabsContent>
+        )}
 
         <TabsContent value="shift-schedules" className="mt-4">
           <ShiftSchedulesTab />

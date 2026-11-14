@@ -34,38 +34,87 @@ Deno.serve(async (req) => {
   const url = Deno.env.get("SUPABASE_URL")!;
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
-  const cron = req.headers.get("x-cron-secret") ?? "";
-  const { data: tok } = await admin.from("system_cron_tokens").select("token").eq("name", "eta-sync").maybeSingle();
-  if (!tok?.token || cron.length < 16 || tok.token !== cron) return json({ error: "Unauthorized" }, 401);
-
   const body = await req.json().catch(() => ({}));
-  const tenantId = String(body?.tenant_id ?? "");
+  const mode = body?.mode === "test" ? "test" : "sync";
+  let tenantId = String(body?.tenant_id ?? "");
+
+  // who: the hourly job / eta_sync_now (x-cron-secret) — or, for «اختبار الاتصال» only, the signed-in owner / admin
+  const cron = req.headers.get("x-cron-secret") ?? "";
+  let viaCron = false;
+  if (cron.length >= 16) {
+    const { data: tok } = await admin.from("system_cron_tokens").select("token").eq("name", "eta-sync").maybeSingle();
+    viaCron = !!tok?.token && tok.token === cron;
+  }
+  if (!viaCron) {
+    if (mode !== "test") return json({ error: "Unauthorized" }, 401);
+    const auth = req.headers.get("Authorization");
+    if (!auth) return json({ error: "Unauthorized" }, 401);
+    const authClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
+    const { data: claims } = await authClient.auth.getClaims(auth.replace("Bearer ", ""));
+    const uid = claims?.claims?.sub as string | undefined;
+    if (!uid) return json({ error: "Unauthorized" }, 401);
+    const { data: roles } = await admin.from("user_roles").select("tenant_id").eq("user_id", uid).in("role", ["owner", "admin"]);
+    const mine = [...new Set((roles ?? []).map((r: any) => r.tenant_id).filter(Boolean))] as string[];
+    if (mine.length !== 1) return json({ error: "اختبار الاتصال للمالك أو المدير بس" }, 403);
+    tenantId = mine[0];
+  }
   if (!/^[0-9a-f-]{36}$/.test(tenantId)) return json({ error: "tenant_id مطلوب" }, 400);
 
   const { data: cred, error: credErr } = await admin.rpc("eta_credentials", { p_tenant: tenantId });
-  if (credErr || !cred) return json({ error: credErr?.message ?? "no settings" }, 400);
-  if (!cred.enabled || !cred.client_id || !cred.client_secret) return json({ ok: true, skipped: "disabled" });
+  if (credErr || !cred) return json({ ok: false, error: "احفظ Client ID و Client Secret الأول" }, mode === "test" ? 200 : 400);
+  if (!cred.client_id || !cred.client_secret) return json({ ok: false, error: "احفظ Client ID و Client Secret الأول" });
+  if (mode === "sync" && !cred.enabled) return json({ ok: true, skipped: "disabled" });
   const host = HOSTS[(cred.env === "preprod" ? "preprod" : "prod") as keyof typeof HOSTS];
+
+  const getToken = async (): Promise<string> => {
+    const form = new URLSearchParams({
+      grant_type: "client_credentials", client_id: cred.client_id, client_secret: cred.client_secret, scope: "InvoicingAPI",
+    });
+    let tr: Response;
+    try {
+      tr = await fetch(`${host.id}/connect/token`, {
+        method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form,
+      });
+    } catch {
+      throw new Error("مش قادرين نوصل لسيرفر الضرايب دلوقتي — جرّب تاني بعد شوية");
+    }
+    if (!tr.ok) {
+      const t = await tr.text().catch(() => "");
+      throw new Error(tr.status === 400 || tr.status === 401
+        ? `Client ID أو Client Secret غلط، أو النظام مش متسجّل في بيئة «${cred.env === "preprod" ? "التجريبية" : "الحقيقية"}» على البوابة`
+        : `سيرفر الضرايب رد بـ ${tr.status}: ${t.slice(0, 200)}`);
+    }
+    const t = (await tr.json())?.access_token as string;
+    if (!t) throw new Error("سيرفر الضرايب مرجّعش مفتاح دخول");
+    return t;
+  };
+
+  if (mode === "test") {
+    let ok = false; let msg: string | null = null; let sample = 0;
+    try {
+      const accessToken = await getToken();
+      const q = new URLSearchParams({ direction: "Received", pageSize: "10",
+        issueDateFrom: new Date(Date.now() - 30 * DAY).toISOString(), issueDateTo: new Date().toISOString() });
+      const r = await fetch(`${host.api}/api/v1.0/documents/search?${q}`, {
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+      });
+      if (r.status === 403) throw new Error("الدخول نجح بس النظام مالوش صلاحية يقرا الفواتير — راجع صلاحيات نظام الـ ERP على البوابة");
+      if (!r.ok) throw new Error(`البحث في الفواتير رد بـ ${r.status}`);
+      const page = await r.json();
+      sample = (page?.result ?? []).length;
+      ok = true;
+    } catch (e) {
+      msg = errText(e);
+    }
+    await admin.rpc("eta_record_test", { p_tenant: tenantId, p_ok: ok, p_error: msg });
+    return json({ ok, error: msg ?? undefined, sample });
+  }
 
   const docs: unknown[] = [];
   let until: string | null = null;
   let failure: string | null = null;
   try {
-    // ---- token ----
-    const form = new URLSearchParams({
-      grant_type: "client_credentials", client_id: cred.client_id, client_secret: cred.client_secret, scope: "InvoicingAPI",
-    });
-    const tr = await fetch(`${host.id}/connect/token`, {
-      method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form,
-    });
-    if (!tr.ok) {
-      const t = await tr.text().catch(() => "");
-      throw new Error(tr.status === 400 || tr.status === 401
-        ? "Client ID أو Client Secret غلط، أو نظام الـ ERP مش متفعّل على البوابة"
-        : `ETA token ${tr.status}: ${t.slice(0, 200)}`);
-    }
-    const accessToken = (await tr.json())?.access_token as string;
-    if (!accessToken) throw new Error("ETA: no access_token");
+    const accessToken = await getToken();
 
     // ---- windows ----
     const now = Date.now();
