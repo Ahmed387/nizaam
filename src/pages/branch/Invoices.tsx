@@ -45,7 +45,7 @@ import { CancelReturnButton, CancelReturnDialog, type CancelReturnTarget } from 
 import { InlineVoucherDate } from "@/components/InlineVoucherDate";
 import { ReturnEditDialog } from "@/components/ReturnEditDialog";
 import { fetchDocumentPayView } from "@/lib/ledger";
-import { SETTLE_COLS, type SalePayState } from "@/hooks/useSalesInvoices";
+import { SETTLE_COLS } from "@/hooks/useSalesInvoices";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { UnifiedDocumentMetrics } from "@/components/documents/UnifiedDocumentMetrics";
 import { TransferDetails } from "@/components/documents/TransferDetails";
@@ -350,7 +350,9 @@ export default function Invoices() {
       }
       data = data.map((x: any) => {
         const p = prof.get(x.id);
-        return p ? { ...x, __profit: Number(p.profit), __sales: Number(p.sales), __cost: Number(p.cost) - Number(p.returned_cost), __returned: Number(p.returned) } : x;
+        return p ? { ...x, __profit: Number(p.profit), __sales: Number(p.sales), __costFull: Number(p.cost),
+          __gross: Math.round((Number(p.sales) - Number(p.cost)) * 100) / 100,
+          __returned: Number(p.returned), __returnedCost: Number(p.returned_cost) } : x;
       });
     }
     if ((tab === "sale" || tab === "purchase") && data.length) {
@@ -536,16 +538,10 @@ export default function Invoices() {
             <ClassBadge value={r.__class} />
           </button>
         ) : <ClassBadge value={r.__class} /> },
-    { key: "__paid_rem", header: "المدفوع / المتبقي", align: "center", className: "min-w-[150px]", render: (r: any) => r.status !== "cancelled" ? (
-      <span className="flex flex-col items-center gap-1 text-xs tabular-nums leading-tight">
-        <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-0.5 font-bold text-success">
-          <span className="text-[10px] font-extrabold text-muted-foreground">مدفوع</span>
-          {formatEGP(r.__paid ?? 0)}
-        </span>
-        <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 font-bold ${Number(r.__remaining) > 0 ? "bg-warning/10 text-warning" : "text-muted-foreground"}`}>
-          <span className="text-[10px] font-extrabold text-muted-foreground">متبقي</span>
-          {formatEGP(r.__remaining ?? 0)}
-        </span>
+    // owner 2026-11-14 «الغي التوزيع»: a document shows only the money paid ON it; what is still owed is the account's balance
+    { key: "__paid_rem", header: "المدفوع معاها", align: "center", className: "min-w-[120px]", numeric: true, render: (r: any) => r.status !== "cancelled" ? (
+      <span className="flex flex-col items-center gap-0.5 tabular-nums">
+        <span className={Number(r.__paid) > 0 ? "font-bold text-success" : "text-muted-foreground"}>{formatEGP(r.__paid ?? 0)}</span>
         {Number(r.__after) > 0.01 && (
           <span className="text-[10px] text-info font-semibold whitespace-nowrap" title="اتدفع بعد آخر يوم في الفترة — مش محسوب في المدفوع ولا في أعمدة طريقة الدفع">
             اتدفع بعد الفترة {formatEGP(r.__after)}{r.__afterFrom ? ` من ${formatDate(r.__afterFrom)}` : ""}
@@ -553,7 +549,6 @@ export default function Invoices() {
         )}
       </span>
     ) : <span className="text-muted-foreground">—</span> },
-    { key: "__pay_state", header: "حالة السداد", align: "center", className: "min-w-[130px]", render: (r: any) => r.status !== "cancelled" ? <SalePayBadge state={r.__payState} remaining={Number(r.__remaining) || 0} /> : <span className="text-muted-foreground">—</span> },
     { key: "__b_cash", header: "كاش", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.cash) },
     { key: "__b_instapay", header: "انستاباي", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.instapay) },
     { key: "__b_wallet", header: "محفظة", align: "center", className: "min-w-[100px]", numeric: true, render: (r: any) => bucketCell(r.__byBucket?.wallet) },
@@ -624,11 +619,17 @@ export default function Invoices() {
             return <span className="flex max-w-[230px] items-center"><span className="truncate font-semibold" title={name}>{name}</span><InternalBranchBadge id={r.contact_id} name={r.contacts?.name} /></span>;
           } },
           { key: "total", header: "المبلغ", align: "center", className: "min-w-[110px]", numeric: true, render: (r: any) => formatEGP(r.total) },
-          // «ربح الفاتورة» (0211): sale − cost, after its returns; only with «رؤية صافي الربح»
-          ...(canProfit ? [{ key: "__profit", header: "ربح الفاتورة", align: "center" as const, className: "min-w-[110px]", numeric: true,
-            render: (r: any) => r.status === "cancelled" || r.__profit == null ? <span className="text-muted-foreground">—</span>
-              : <span className={Number(r.__profit) < 0 ? "text-destructive" : "text-success"}
-                  title={`البيع ${formatEGP(r.__sales ?? 0)} − التكلفة ${formatEGP(r.__cost ?? 0)}${Number(r.__returned) ? ` · مرتجع ${formatEGP(r.__returned)}` : ""}`}>{formatEGP(r.__profit)}</span> }] : []),
+          // «ربح الفاتورة» (0211): before returns · what came back · the net after them — recomputed on every read
+          ...(canProfit ? [
+            { key: "__gross", header: "ربح الفاتورة", align: "center" as const, className: "min-w-[110px]", numeric: true,
+              render: (r: any) => r.status === "cancelled" || r.__gross == null ? <span className="text-muted-foreground">—</span>
+                : <span className={Number(r.__gross) < 0 ? "text-destructive" : "text-success"} title={`البيع ${formatEGP(r.__sales ?? 0)} − التكلفة ${formatEGP(r.__costFull ?? 0)}`}>{formatEGP(r.__gross)}</span> },
+            { key: "__returned", header: "المرتجع", align: "center" as const, className: "min-w-[100px]", numeric: true,
+              render: (r: any) => Number(r.__returned) > 0 ? <span className="text-warning" title={`تكلفة اللي رجع ${formatEGP(r.__returnedCost ?? 0)}`}>{formatEGP(r.__returned)}</span> : <span className="text-muted-foreground">—</span> },
+            { key: "__profit", header: "صافي الربح بعد المرتجع", align: "center" as const, className: "min-w-[120px]", numeric: true,
+              render: (r: any) => r.status === "cancelled" || r.__profit == null ? <span className="text-muted-foreground">—</span>
+                : <span className={`font-bold ${Number(r.__profit) < 0 ? "text-destructive" : "text-success"}`}>{formatEGP(r.__profit)}</span> },
+          ] : []),
           ...settleColumns("sale"),
           { key: "status", header: "الحالة", align: "center", className: "min-w-[80px]", render: (r: any) => r.status === "active" ? "نشطة" : "ملغاة" },
           { key: "__recipient", header: "المستلم", align: "center", className: "min-w-[120px]", render: (r: any) => textCell(r.recipient_name) },
@@ -988,9 +989,8 @@ export default function Invoices() {
         if (c.key === "actions") continue;
         if (settled && BUCKET_KEY[c.key]) { out[c.header] = Number(r.__byBucket?.[BUCKET_KEY[c.key]]) || 0; continue; }
         if (settled && c.key === "__class") { out[c.header] = r.status === "cancelled" ? "" : r.__class === "cash" ? "نقدي" : "آجل"; continue; }
-        if (settled && c.key === "__pay_state") { out[c.header] = r.status === "cancelled" ? "" : r.__payState === "paid" ? "مدفوعة بالكامل" : r.__payState === "partial" ? "سداد جزئي" : "لم يتم الدفع"; continue; }
         if (settled && c.key === "__paid_rem") {
-          out["المدفوع"] = r.__paid ?? 0; out["المتبقي"] = r.__remaining ?? 0;
+          out["المدفوع معاها"] = r.__paid ?? 0;
           if (statusAsOf) { out["اتدفع بعد الفترة"] = r.__after ?? 0; out["من يوم"] = r.__afterFrom ?? ""; }
           continue;
         }
@@ -1086,7 +1086,6 @@ export default function Invoices() {
     { value: "bank", label: "بنكي" },
   ];
   const classOptions = [{ value: "cash", label: "نقدي (اتدفعت كلها وقت البيع)" }, { value: "credit", label: "آجل" }];
-  const payStateOptions = [{ value: "paid", label: "مدفوعة بالكامل" }, { value: "partial", label: "سداد جزئي" }, { value: "unpaid", label: "لم يتم الدفع" }];
 
   // ----- The bar on top and the column arrows are one set of filters (lib/documentFilterLinks): the bar's period,
   // amount, التصنيف, حالة السداد, طريقة الدفع, نوع السند, العميل / المورد, الحالة and الفروع are read from the column
@@ -1267,7 +1266,6 @@ export default function Invoices() {
         statusOptions={active.status ? statusOptions : undefined}
         paymentOptions={active.payment ? paymentOptions : undefined}
         classOptions={active.settle && view !== "cancelled" ? classOptions : undefined}
-        payStateOptions={active.settle && view !== "cancelled" ? payStateOptions : undefined}
         customField={active.category ? (
           <UnifiedDocumentFilters.Field label="نوع السند / التصنيف">
             <UnifiedDocumentFilters.Select value={inputF.categoryId} options={categories.map((c) => ({ value: c.id, label: c.name }))} onChange={(v) => setInputF({ ...inputF, categoryId: v })} />
@@ -1543,18 +1541,6 @@ function ClassBadge({ value }: { value?: string | null }) {
     : <span className="inline-flex rounded-full border border-warning/40 bg-warning/15 px-2.5 py-0.5 text-[11px] font-bold text-warning">آجل</span>;
 }
 
-function SalePayBadge({ state, remaining }: { state: SalePayState; remaining: number }) {
-  const cls = state === "paid" ? "bg-success/15 text-success border-success/40"
-    : state === "partial" ? "bg-warning/15 text-warning border-warning/40"
-    : "bg-destructive/15 text-destructive border-destructive/40";
-  const label = state === "paid" ? "مدفوعة بالكامل" : state === "partial" ? "سداد جزئي" : "لم يتم الدفع";
-  return (
-    <span className={`inline-flex flex-col items-center rounded-full border px-2 py-0.5 text-[11px] font-bold ${cls}`}>
-      {label}
-      {state === "partial" && <span className="font-semibold tabular-nums opacity-90">متبقي {formatEGP(remaining)}</span>}
-    </span>
-  );
-}
 
 /** The arrow under a voucher: whose account, which document, what it paid and what stayed on account. */
 function VoucherDetailsRow({ v, income, branchId }: { v: any; income: boolean; branchId: string }) {

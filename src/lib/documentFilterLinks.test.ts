@@ -18,19 +18,9 @@ const edit = (tab: Parameters<typeof barFromColumns>[0], f: F, patch: Partial<Do
 };
 
 describe("the bar on top and the column arrows are one set of filters", () => {
-  it("«حالة السداد» on top = that value ticked in the column, and back", () => {
-    const f = edit("sale", {}, { payState: "paid" });
-    expect(f).toEqual({ __pay_state: { kind: "values", values: ["مدفوعة بالكامل"] } });
-    expect(barFromColumns("sale", f, ctx).payState).toBe("paid");
-    // «الكل» on top clears the column
-    expect(edit("sale", f, { payState: "" })).toEqual({});
-  });
-
-  it("two values ticked in the column: the bar says «الكل», and editing another bar field leaves them alone", () => {
-    const f: F = { __pay_state: { kind: "values", values: ["سداد جزئي", "لم يتم الدفع"] } };
-    expect(barFromColumns("sale", f, ctx).payState).toBe("");
-    const next = edit("sale", f, { amountMin: "1000" });
-    expect(next.__pay_state).toEqual(f.__pay_state);
+  it("no «حالة السداد» link any more (owner 2026-11-14 «الغي التوزيع»)", () => {
+    expect(edit("sale", {}, { payState: "paid" })).toEqual({});
+    const next = edit("sale", {}, { amountMin: "1000" });
     expect(next.total).toEqual({ kind: "number", op: "gte", a: 1000 });
   });
 
@@ -56,7 +46,6 @@ describe("the bar on top and the column arrows are one set of filters", () => {
     const own: F = { __b_cash: { kind: "number", op: "gt", a: 1000 } };
     expect(barFromColumns("sale", own, ctx).payment).toBe("");
     expect(edit("sale", own, { payment: "instapay" })).toEqual({ ...own, __b_instapay: { kind: "number", op: "gt", a: 0 } });
-    expect(edit("sale", {}, { payment: "return" })).toEqual({ __b_other: { kind: "number", op: "gt", a: 0 } });
   });
 
   it("the period is the date column's from / to; picked days stay", () => {

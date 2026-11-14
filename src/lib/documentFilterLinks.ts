@@ -155,8 +155,8 @@ const partyLink = (col: string) => valueLink("partyId", col, (id, c) => c.partyN
 
 export function linksOf(tab: DocTab): Link[] {
   switch (tab) {
-    case "sale": return [dateLink("invoice_date"), amountLink("total"), mapLink("settleClass", "__class", CLASS_LABEL), mapLink("payState", "__pay_state", PAY_STATE_LABEL), paymentBucketLink];
-    case "purchase": return [dateLink("invoice_date"), amountLink("total_cost"), mapLink("settleClass", "__class", CLASS_LABEL), mapLink("payState", "__pay_state", PAY_STATE_LABEL), paymentBucketLink];
+    case "sale": return [dateLink("invoice_date"), amountLink("total"), mapLink("settleClass", "__class", CLASS_LABEL), paymentBucketLink];
+    case "purchase": return [dateLink("invoice_date"), amountLink("total_cost"), mapLink("settleClass", "__class", CLASS_LABEL), paymentBucketLink];
     case "sale_return": return [dateLink("invoice_date"), amountLink("total_refund"), partyLink("customer")];
     case "purchase_return": return [dateLink("invoice_date"), amountLink("total_amount"), partyLink("supplier")];
     case "income":

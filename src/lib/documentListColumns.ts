@@ -1,5 +1,5 @@
 import type { ListColumn } from "@/lib/tableFilter";
-import { CLASS_LABEL, PAY_STATE_LABEL, TRANSFER_STATUS_LABEL, type DocTab } from "@/lib/documentFilterLinks";
+import { CLASS_LABEL, TRANSFER_STATUS_LABEL, type DocTab } from "@/lib/documentFilterLinks";
 import { payMethodLabel, SRC_LABEL } from "@/lib/treasuryLinks";
 
 /**
@@ -64,20 +64,12 @@ const date = (key: string, label: string, get: (r: any) => unknown): Col => ({ k
 function settleCols(k: "sale" | "purchase"): Col[] {
   return [
     text("__class", "التصنيف", (r) => (live(r) ? CLASS_LABEL[r.__class === "cash" ? "cash" : "credit"] : null)),
-    // one cell shows paid AND remaining: its filter is on what is still open, its total says both
-    money("__paid_rem", "المتبقي", (r) => (live(r) ? n(r.__remaining) : null), {
-      total: (rows) => {
-        const act = rows.filter(live);
-        return `مدفوع ${fmt(act.reduce((s, r) => s + n(r.__paid), 0))} · متبقي ${fmt(act.reduce((s, r) => s + n(r.__remaining), 0))}`;
-      },
-    }),
-    text("__pay_state", "حالة السداد", (r) => (live(r) ? PAY_STATE_LABEL[r.__payState] ?? PAY_STATE_LABEL.unpaid : null)),
+    // owner 2026-11-14 «الغي التوزيع»: only the money paid ON the document; what is owed is the account's balance
+    money("__paid_rem", "المدفوع معاها", (r) => (live(r) ? n(r.__paid) : null)),
     money("__b_cash", "كاش", (r) => pos(r.__byBucket?.cash)),
     money("__b_instapay", "انستاباي", (r) => pos(r.__byBucket?.instapay)),
     money("__b_wallet", "محفظة", (r) => pos(r.__byBucket?.wallet)),
     money("__b_bank", "بنكي", (r) => pos(r.__byBucket?.bank)),
-    money("__b_account", k === "sale" ? "من تحت حسابه" : "من تحت حسابنا", (r) => pos(r.__byBucket?.account)),
-    money("__b_other", "من مرتجع", (r) => pos(r.__byBucket?.other)),
   ];
 }
 
@@ -109,7 +101,11 @@ export function documentListColumns(tab: DocTab, view: "active" | "cancelled", c
         text("invoice_number", "رقم", (r) => r.invoice_number),
         text("customer", "العميل", (r) => r.contacts?.name ?? "نقدي"),
         money("total", "المبلغ", (r) => n(r.total)),
-        ...(ctx.profit ? [money("__profit", "ربح الفاتورة", (r) => (live(r) && r.__profit != null ? n(r.__profit) : null))] : []),
+        ...(ctx.profit ? [
+          money("__gross", "ربح الفاتورة", (r) => (live(r) && r.__gross != null ? n(r.__gross) : null)),
+          money("__returned", "المرتجع", (r) => (live(r) && n(r.__returned) > 0 ? n(r.__returned) : null)),
+          money("__profit", "صافي الربح بعد المرتجع", (r) => (live(r) && r.__profit != null ? n(r.__profit) : null)),
+        ] : []),
         ...settleCols("sale"),
         text("status", "الحالة", (r) => (r.status === "active" ? "نشطة" : "ملغاة")),
         text("__recipient", "المستلم", (r) => r.recipient_name),

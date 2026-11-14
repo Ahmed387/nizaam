@@ -14,8 +14,8 @@ describe("UnifiedDocumentMetrics — no allocation breakdown", () => {
       const { container } = render(<MemoryRouter><UnifiedDocumentMetrics kind={kind} metrics={metrics} loading={false} selected={null} onSelect={() => {}} /></MemoryRouter>);
       const text = container.textContent ?? "";
       for (const gone of ["من تحت حساب", "من مرتجع", "اتسدد بفلوس", "لم يتم الدفع"]) expect(text).not.toContain(gone);
-      expect(text).toContain("المتبقي");
-      expect(text).toContain("420");
+      // owner 2026-11-14 «الغي التوزيع»: no «المتبقي» either — what is owed is the accounts' balance
+      expect(text).not.toContain("المتبقي");
     });
   }
 });

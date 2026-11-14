@@ -11,6 +11,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { useFormDraft } from "@/hooks/useFormDraft";
 import { DraftRestoreBar } from "@/components/DraftRestoreBar";
 import { Button } from "@/components/ui/button";
+import { fetchSideBalance } from "@/lib/ledger";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,6 +74,18 @@ export default function NewSaleReturn() {
 
   const [invoice, setInvoice] = useState<any>(null);
   const [customer, setCustomer] = useState<any>(null);
+  // the customer's ONE balance in this branch (+ = مدين لنا عنده) — owner 2026-11-14: the cashier asks him whether he
+  // takes the money back or it comes off what he owes
+  const [accountNet, setAccountNet] = useState<number | null>(null);
+  useEffect(() => {
+    let live = true;
+    setAccountNet(null);
+    if (!customer?.id) return;
+    fetchSideBalance(customer.id, branchId).then((b) => {
+      if (live && b) setAccountNet(Math.round(((b.customer_balance ?? 0) - (b.supplier_balance ?? 0)) * 100) / 100);
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [customer?.id, branchId]);
   const [lines, setLines] = useState<Line[]>([]);
 
   const [reasonPick, setReasonPick] = useState(COMMON_REASONS[0]);
@@ -314,6 +327,7 @@ export default function NewSaleReturn() {
         return toast.error("أدخل رقم العملية للتحويل");
       if (refundMode === "balance" && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
       if (refundMode === "mixed" && balancePart > 0 && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
+      if (refundMode === "mixed" && cashPart > 0 && transferPart > 0) return toast.error("الفلوس اللي هتترجع بطريقة واحدة (كاش أو تحويل) — والباقي ينزل من حسابه");
 
       // Return-window policy (skipped when this call is already an approved owner override, and for an edit:
       // the return already exists and only the owner edits)
@@ -339,7 +353,9 @@ export default function NewSaleReturn() {
 
     setBusy(true);
     try {
-      const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
+      // the money part goes out by ONE method (one till row); «مختلط» = that money + the rest on his account
+      const refundMethodFinal = refundMode === "transfer" ? transferMethod
+        : refundMode === "mixed" ? (transferPart > 0 ? transferMethod : "cash") : refundMode;
       const proofSince = proofClock();
       const itemsPayload = activeLines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, refund: l.quantity * l.unit_refund }));
       if (editId) {
@@ -594,8 +610,8 @@ export default function NewSaleReturn() {
             {invoice && (
               <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
                 {customer?.phone && <span dir="ltr" className="font-mono">{customer.phone}</span>}
-                {customer && (
-                  <span>حساب العميل: <b className={Number(customer.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(Math.abs(Number(customer.balance ?? 0)))} {Number(customer.balance) > 0.005 ? "لنا عليه" : Number(customer.balance) < -0.005 ? "مقدم منه" : ""}</b></span>
+                {customer && accountNet != null && (
+                  <span>رصيد حسابه: <b className={accountNet > 0.005 ? "text-success" : accountNet < -0.005 ? "text-destructive" : ""}>{formatEGP(Math.abs(accountNet))} {accountNet > 0.005 ? "مدين (لنا عنده)" : accountNet < -0.005 ? "دائن (علينا له)" : "صفر"}</b></span>
                 )}
                 <span>فاتورة: <b className="font-mono text-primary">{invoice.invoice_number}</b></span>
                 <span>الإجمالي: <b className="text-primary">{formatEGP(invoice.total)}</b></span>
@@ -715,12 +731,18 @@ export default function NewSaleReturn() {
             </div>
 
             <div className="space-y-3">
-              <Label>طريقة الاسترداد *</Label>
+              <Label>{customer ? `العميل هياخد ${formatEGP(total)} فلوس، ولا تنزل من حسابه؟ *` : "طريقة الاسترداد *"}</Label>
+              {customer && accountNet != null && accountNet > 0.005 && refundMode !== "balance" && (cashPart + transferPart) > 0 && (
+                <div className="rounded-md border border-warning/50 bg-warning/10 p-2 text-xs flex flex-wrap items-center justify-between gap-2">
+                  <span>العميل عليه <b>{formatEGP(accountNet)}</b> — الأفضل تنزل المرتجع من حسابه بدل ما ترجعله فلوس.</span>
+                  <Button type="button" size="sm" variant="outline" className="h-7" onClick={() => setRefundMode("balance")}>نزّلها من حسابه</Button>
+                </div>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {([
                   { v: "cash" as RefundMode, lbl: "💵 صرف نقدي" },
                   { v: "transfer" as RefundMode, lbl: "📱 تحويل" },
-                  { v: "balance" as RefundMode, lbl: "📒 على حساب العميل", disabled: !customer },
+                  { v: "balance" as RefundMode, lbl: "📒 تنزل من حسابه", disabled: !customer },
                   { v: "mixed" as RefundMode, lbl: "⚖️ مختلط" },
                 ]).map((o) => (
                   <button
@@ -769,7 +791,7 @@ export default function NewSaleReturn() {
                     <Input type="number" step="0.01" value={transferPart} onChange={(e) => setTransferPart(Number(e.target.value))} className="mt-1.5" />
                   </div>
                   <div>
-                    <Label className="text-xs">على حساب العميل</Label>
+                    <Label className="text-xs">ينزل من حسابه</Label>
                     <Input type="number" step="0.01" value={balancePart} disabled={!customer} onChange={(e) => setBalancePart(Number(e.target.value))} className="mt-1.5" />
                   </div>
                   <div className={`md:col-span-3 text-xs ${mixedValid ? "text-success" : "text-destructive"} flex items-center gap-1`}>

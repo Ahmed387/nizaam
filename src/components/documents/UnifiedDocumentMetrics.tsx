@@ -153,8 +153,8 @@ const SPLIT_METHODS: { key: CollectionBucket; label: string; sale?: string; purc
 /** Under «نقدي» / «آجل»: how the money of those documents came, and (آجل) what is still open. */
 function SplitLines({ kind, split, side, countLine }: { kind: DocKind; split?: import("@/hooks/useDocumentMetrics").PaySplit; side: "cash" | "credit"; countLine?: ReactNode }) {
   const fmt = (v: number) => v.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  // owner 2026-11-14 «نقفل حوار الفواتير المفتوحة والمغلقة»: «آجل» shows its count and what is still left (= the «المتبقي»
-  // column), never how it was settled (from account / from a return); «نقدي» shows how it was paid
+  // owner 2026-11-14 «الغي التوزيع»: «آجل» shows its count and total only (what is owed is the accounts' balance);
+  // «نقدي» shows how it was paid
   const rows = side === "credit" ? [] : SPLIT_METHODS;
   return (
     <div className="space-y-1">
@@ -163,12 +163,6 @@ function SplitLines({ kind, split, side, countLine }: { kind: DocKind; split?: i
         {rows.map((m) => (
           <div key={m.key} className="flex justify-between gap-2"><span>{(kind === "purchase" ? m.purchase : m.sale) ?? m.label}</span><span className="tabular-nums font-semibold text-foreground">{fmt(split?.byBucket[m.key] ?? 0)}</span></div>
         ))}
-        {side === "credit" && (
-          <div className="flex justify-between gap-2 border-t border-border/60 pt-0.5">
-            <span>المتبقي</span>
-            <span className="tabular-nums font-bold text-warning">{fmt(split?.remaining ?? 0)}</span>
-          </div>
-        )}
         {(split?.after ?? 0) > 0.01 && (
           <div className="flex justify-between gap-2 text-[11px]" title="اتدفع على الفواتير دي بعد آخر يوم في الفترة — مش داخل في الأرقام اللي فوق">
             <span>اتدفع بعد الفترة</span>

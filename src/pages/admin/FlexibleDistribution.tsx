@@ -45,7 +45,7 @@ const monthAgo = () => {
 };
 
 export default function FlexibleDistribution() {
-  const { tenantId } = useAuth();
+  const { tenantId, isOwner } = useAuth();
   const [fromDate, setFromDate] = useState(monthAgo());
   const [toDate, setToDate] = useState(today());
   const [customAmount, setCustomAmount] = useState<string>("");
@@ -134,6 +134,20 @@ export default function FlexibleDistribution() {
       return;
     }
     toast.success("تم التوزيع — القيود اتسجّلت في دفتر الأستاذ");
+    // owner 2026-11-14 «ب»: after the distribution the system ASKS to lock those days (0218 — a lock, no closing entry)
+    if (isOwner && toDate < cairoTodayDay()) {
+      const lock = await confirmAlert({
+        title: "تقفل الفترة دي؟",
+        description: `من ${fromDate} لحد ${toDate}: بعد القفل محدش يقدر يضيف أو يعدّل أو يلغي أي مستند أو سند في الأيام دي. الأرقام والتقارير زي ما هي.`,
+        confirmLabel: "أيوه، اقفلها",
+        cancelLabel: "لأ، سيبها مفتوحة",
+        tone: "warning",
+      });
+      if (lock) {
+        const { error: lErr } = await (supabase.rpc as any)("lock_distributed_period", { p_from: fromDate, p_to: toDate, p_reason: notes || null });
+        if (lErr) toast.error(lErr.message); else toast.success(`الفترة ${fromDate} ← ${toDate} اتقفلت`);
+      }
+    }
     setPreview(null);
     setNotes("");
     setCustomAmount("");

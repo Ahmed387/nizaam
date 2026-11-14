@@ -19,7 +19,7 @@ describe("what each column of the documents screen shows", () => {
     };
     expect(cellsOf("sale", row)).toMatchObject({
       invoice_number: "IN05108", customer: "اسامة الراعى الصالح", total: 70600, __class: "آجل",
-      __paid_rem: 20600, __pay_state: "سداد جزئي", __b_cash: 50000, __b_instapay: null, status: "نشطة",
+      __paid_rem: 50000, __b_cash: 50000, __b_instapay: null, status: "نشطة",
       __recipient: null, __notes: "تسليم المخزن",
       // 22:30 UTC on Oct 1 is 01:30 on Oct 2 in Cairo (UTC+3 in October 2026)
       invoice_date: "2026-10-02",
@@ -30,16 +30,17 @@ describe("what each column of the documents screen shows", () => {
 
   it("a cancelled document: the payment columns are «—», and the cancelled view drops them", () => {
     const row = { invoice_number: "IN1", status: "cancelled", total: 10, __class: "cash", __payState: "paid", invoice_date: "2026-10-01" };
-    expect(cellsOf("sale", row)).toMatchObject({ __class: null, __paid_rem: null, __pay_state: null, status: "ملغاة" });
+    expect(cellsOf("sale", row)).toMatchObject({ __class: null, __paid_rem: null, status: "ملغاة" });
     const keys = documentListColumns("sale", "cancelled", ctx).map((c) => c.key);
     keys.forEach((k) => expect(ACTIVE_ONLY.has(k)).toBe(false));
     expect(keys).toContain("__b_cash");
   });
 
-  it("the totals cell of «المدفوع / المتبقي» says both", () => {
-    const col = documentListColumns("sale", "active", ctx).find((c) => c.key === "__paid_rem")!;
-    expect(col.total!([{ status: "active", __paid: 100, __remaining: 50 }, { status: "active", __paid: 0.5, __remaining: 1000 }]))
-      .toBe("مدفوع 100.5 ج.م · متبقي 1,050 ج.م");
+  it("«المدفوع معاها» = only the money paid on the document; no «المتبقي» / «حالة السداد» columns (owner 2026-11-14)", () => {
+    const cols = documentListColumns("sale", "active", ctx);
+    const col = cols.find((c) => c.key === "__paid_rem")!;
+    expect(col.label).toBe("المدفوع معاها");
+    expect(cols.some((c) => c.key === "__pay_state")).toBe(false);
   });
 
   it("a return: its class and how the refund went", () => {
