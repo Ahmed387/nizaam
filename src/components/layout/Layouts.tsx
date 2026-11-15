@@ -2,7 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
   ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck, Inbox, TrendingUp, Percent, Trash2, History,
-Wand2, Building2 } from "lucide-react";
+Wand2, Building2, EyeOff } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useParams } from "react-router-dom";
@@ -112,7 +112,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       ],
     ),
-    ...only(allow("admin_contacts.view"), { to: "/admin/contacts", label: "الحسابات", hint: "كل ما يتعلق بالعملاء والموردين وأرصدتهم وبياناتهم", icon: <Factory className="w-4 h-4" />, group: "العمليـات" }),
+    ...only(allow("admin_contacts.view"), { to: "/admin/contacts", label: "الحسابات", hint: "كل ما يتعلق بالعملاء والموردين وأرصدتهم وبياناتهم", icon: <Factory className="w-4 h-4" />, group: "العمليـات",
+      // «الحسابات المخفية» — the company owner only (migration 0226)
+      children: isOwner ? [{ to: "/admin/hidden-contacts", label: "الحسابات المخفية", icon: <EyeOff className="w-4 h-4" /> }] : undefined }),
 
     // ===== المالية =====
     ...only(allow("admin_financial_position.view", { ownerOnly: true }), {

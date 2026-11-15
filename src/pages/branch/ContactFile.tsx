@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
 import { SettleWithoutMoneyButton } from "@/components/contact/SettleWithoutMoneyButton";
 import { MergeContactButton } from "@/components/contact/MergeContactButton";
+import { HideContactButton } from "@/components/contact/HideContactButton";
 import { useNavigate, useParams } from "react-router-dom";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -168,6 +169,9 @@ export default function ContactFile() {
             {c && contactId && !c.is_archived && (
               <MergeContactButton contactId={contactId} contactName={c.name} openingBalance={Number(c.opening_balance ?? 0)}
                 onDone={(kept) => { if (kept === contactId) { loadOverview(); } else nav(isAdminView ? `/admin/contacts/${kept}` : `/branch/${routeBranchId}/contacts/${kept}`); }} />
+            )}
+            {c && contactId && !c.is_archived && (
+              <HideContactButton contactId={contactId} contactName={c.name} internalBranch={!!(c as any).internal_branch_id} />
             )}
             {isAdmin && <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
             {isAdmin && <Button variant="outline" className="text-destructive" onClick={() => setArchiveOpen(true)}><Archive className="w-4 h-4 ml-1" /> أرشفة</Button>}
