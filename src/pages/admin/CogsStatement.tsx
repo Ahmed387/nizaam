@@ -1,15 +1,11 @@
 import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
-import { PageHeader } from "@/components/layout/AppShell";
+import { Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
-import { cairoTodayDay } from "@/lib/cairoDate";
+import type { StatementProps } from "@/lib/financialAnalysis";
 import { rpcErrorText } from "@/lib/rpcError";
-import { useBranchScope } from "@/lib/branchScope";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 
 /**
@@ -22,18 +18,14 @@ type Data = Record<string, number>;
 const n = (v: unknown) => Number(v) || 0;
 
 export default function CogsStatement() {
-  const { filterBranches } = useBranchScope();
-  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
-  const [branch, setBranch] = useState("");
-  const [from, setFrom] = useState(`${cairoTodayDay().slice(0, 7)}-01`);
-  const [to, setTo] = useState(cairoTodayDay());
+  return <Navigate to="/admin/financial-statements?tab=cogs" replace />;
+}
+
+/** tab «تكلفة البضاعة المباعة» of «القوائم المالية» — period and branch come from the page filter */
+export function CogsStatementView({ from, to, branch }: StatementProps) {
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    supabase.from("branches").select("id,name").eq("is_system", false).then(({ data }) => setBranches(filterBranches((data ?? []) as any) as any));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   useEffect(() => {
     let live = true;
     setError(null);
@@ -54,17 +46,12 @@ export default function CogsStatement() {
   const diff = d ? Math.round((n(d.cogs) - n(d.cogs_books)) * 100) / 100 : 0;
 
   return (
-    <AdminLayout>
-      <PageHeader title="قائمة تكلفة البضاعة المباعة" subtitle="المخزون أول وآخر الفترة والمشتريات، وبيطلع منها تكلفة اللي اتباع — من القيود." />
+    <div>
       <Card className="mb-4">
         <CardContent className="p-4 flex flex-wrap items-end gap-4">
-          <div className="space-y-1"><Label>من</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-44" /></div>
-          <div className="space-y-1"><Label>إلى</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-44" /></div>
-          <div className="space-y-1"><Label>الفرع</Label>
-            <select className="h-10 rounded-md border bg-background px-3 text-sm" value={branch} onChange={(e) => setBranch(e.target.value)}>
-              <option value="">كل الفروع</option>
-              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+          <div className="text-sm">
+            <div className="font-semibold">قائمة تكلفة البضاعة المباعة — من القيود</div>
+            <div className="text-xs text-muted-foreground">المخزون أول وآخر الفترة والمشتريات، وبيطلع منها تكلفة اللي اتباع.</div>
           </div>
           {d && (
             <div className={`ms-auto flex items-center gap-2 text-sm font-semibold ${Math.abs(diff) <= 0.05 ? "text-success" : "text-destructive"}`}>
@@ -95,6 +82,6 @@ export default function CogsStatement() {
           </CardContent>
         </Card>
       )}
-    </AdminLayout>
+    </div>
   );
 }

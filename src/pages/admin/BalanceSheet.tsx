@@ -1,87 +1,70 @@
 import { useEffect, useMemo, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { Navigate } from "react-router-dom";
 import { fin } from "@/lib/financeTerms";
-import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { Scale } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
-import { cairoTodayDay } from "@/lib/cairoDate";
+import { rpcErrorText } from "@/lib/rpcError";
+import type { StatementProps } from "@/lib/financialAnalysis";
 
-type Line = {
-  debit: number;
-  credit: number;
-  chart_of_accounts: {
-    id: string; code: string; name: string; name_ar: string | null;
-    account_type: "asset" | "liability" | "equity" | "revenue" | "expense";
-    normal_balance: "debit" | "credit";
-  };
-  journal_entries: { entry_date: string; status: string };
-};
-
-type Row = { id: string; code: string; label: string; amount: number };
-
-const typeLabels: Record<string, string> = {
-  asset: "الأصول", liability: "الخصوم", equity: "حقوق الملكية",
-};
-
+/**
+ * قائمة المركز المالي — tab «المركز المالي» of «القوائم المالية» (migration 0227): `balance_sheet(as_of = the filter's «إلى»,
+ * branch)` sums every account on the server (it used to read every journal line into the browser). Customers / suppliers
+ * are the accounts' balances (Σ مدين / Σ دائن), not the gross 1200 / 2100 of the current account (0212) — only their
+ * difference is a balance, and it equals Σ مدين − Σ دائن to the piaster, so the statement still balances.
+ */
 export default function BalanceSheet() {
+  return <Navigate to="/admin/financial-statements?tab=balance" replace />;
+}
+
+type Acc = { code: string; name: string; type: "asset" | "liability" | "equity"; amount: number };
+type Data = { as_of: string; accounts: Acc[]; net_income: number; receivables: number; payables: number };
+type Row = { id: string; label: string; amount: number; hint?: string };
+
+const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const sum = (rows: Row[]) => rows.reduce((s, r) => s + r.amount, 0);
+
+export function BalanceSheetView({ to, branch }: StatementProps) {
   const { tenantId } = useAuth();
-  const [asOf, setAsOf] = useState<string>(() => cairoTodayDay());
-  const [lines, setLines] = useState<Line[]>([]);
+  const [data, setData] = useState<Data | null>(null);
+  const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
-    setLoading(true);
-    fetchAllRows<any>(() => supabase.from("journal_entry_lines" as any)
-      .select("id,debit,credit,chart_of_accounts!inner(id,code,name,name_ar,account_type,normal_balance),journal_entries!inner(entry_date,status,tenant_id)")
-      .eq("journal_entries.tenant_id", tenantId)
-      .eq("journal_entries.status", "posted")
-      .lte("journal_entries.entry_date", asOf)
-      .order("id"))
-      .then((data) => { setLines((data ?? []) as any); })
-      .catch(() => setLines([]))
-      .finally(() => setLoading(false));
-  }, [tenantId, asOf]);
+    let off = false;
+    setLoading(true); setErr(null);
+    (supabase.rpc as any)("balance_sheet", { p_as_of: to, p_branch: branch }).then(({ data, error }: any) => {
+      if (off) return;
+      setLoading(false);
+      if (error) { setErr(rpcErrorText(error, "المركز المالي")); setData(null); return; }
+      setData(data as Data);
+    });
+    return () => { off = true; };
+  }, [tenantId, to, branch]);
 
-  const { assets, liabilities, equity, netIncome } = useMemo(() => {
-    const map = new Map<string, { code: string; label: string; type: string; nb: string; d: number; c: number }>();
-    for (const l of lines) {
-      const a = l.chart_of_accounts;
-      if (!a) continue;
-      const key = a.id;
-      const cur = map.get(key) || { code: a.code, label: a.name_ar || a.name, type: a.account_type, nb: a.normal_balance, d: 0, c: 0 };
-      cur.d += Number(l.debit || 0);
-      cur.c += Number(l.credit || 0);
-      map.set(key, cur);
-    }
-    const assets: Row[] = [], liabilities: Row[] = [], equity: Row[] = [];
-    let rev = 0, exp = 0;
-    for (const [id, v] of map) {
-      const bal = v.nb === "debit" ? v.d - v.c : v.c - v.d;
-      if (v.type === "asset" && bal !== 0) assets.push({ id, code: v.code, label: v.label, amount: bal });
-      else if (v.type === "liability" && bal !== 0) liabilities.push({ id, code: v.code, label: v.label, amount: bal });
-      else if (v.type === "equity" && bal !== 0) equity.push({ id, code: v.code, label: v.label, amount: bal });
-      else if (v.type === "revenue") rev += bal;
-      else if (v.type === "expense") exp += bal;
-    }
-    const netIncome = rev - exp;
-    assets.sort((a, b) => a.code.localeCompare(b.code));
-    liabilities.sort((a, b) => a.code.localeCompare(b.code));
-    equity.sort((a, b) => a.code.localeCompare(b.code));
-    return { assets, liabilities, equity, netIncome };
-  }, [lines]);
+  const { assets, liabilities, equity } = useMemo(() => {
+    const acc = data?.accounts ?? [];
+    const row = (a: Acc): Row => ({ id: a.code, label: a.name, amount: Number(a.amount) });
+    return {
+      assets: [
+        ...acc.filter((a) => a.type === "asset" && a.code < "1200").map(row),
+        { id: "rec", label: "العملاء — مدين (لنا عندهم)", amount: Number(data?.receivables ?? 0), hint: "مجموع أرصدة الحسابات اللي عليها (مدين)" },
+        ...acc.filter((a) => a.type === "asset" && a.code > "1200").map(row),
+      ],
+      liabilities: [
+        { id: "pay", label: "الموردين — دائن (علينا ليهم)", amount: Number(data?.payables ?? 0), hint: "مجموع أرصدة الحسابات اللي ليها (دائن)" },
+        ...acc.filter((a) => a.type === "liability").map(row),
+      ],
+      equity: acc.filter((a) => a.type === "equity").map(row),
+    };
+  }, [data]);
 
-  const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const sum = (rows: Row[]) => rows.reduce((s, r) => s + r.amount, 0);
-
+  const netIncome = Number(data?.net_income ?? 0);
   const totalAssets = sum(assets);
   const totalLiab = sum(liabilities);
   const totalEquity = sum(equity) + netIncome;
@@ -92,32 +75,29 @@ export default function BalanceSheet() {
     <Card>
       <CardHeader className="pb-3"><CardTitle className="text-lg">{title}</CardTitle></CardHeader>
       <CardContent>
-        <Table>
+        <Table noFilter>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right w-24">الكود</TableHead>
               <TableHead className="text-right">الحساب</TableHead>
-              <TableHead className="text-right w-40">الرصيد</TableHead>
+              <TableHead className="text-center w-44">الرصيد</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(r => (
+            {rows.map((r) => (
               <TableRow key={r.id}>
-                <TableCell className="font-mono">{r.code}</TableCell>
-                <TableCell>{r.label}</TableCell>
-                <TableCell className="font-mono">{fmt(r.amount)}</TableCell>
+                <TableCell>{r.label}{r.hint && <div className="text-[11px] text-muted-foreground">{r.hint}</div>}</TableCell>
+                <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(r.amount)}</TableCell>
               </TableRow>
             ))}
             {showNI && (
               <TableRow>
-                <TableCell className="font-mono">—</TableCell>
-                <TableCell className="italic text-muted-foreground">صافي الربح (Net Profit) للفترة = المبيعات (Revenue) − المصروفات (Expenses)</TableCell>
-                <TableCell className={"font-mono " + (netIncome >= 0 ? "text-success" : "text-destructive")}>{fmt(netIncome)}</TableCell>
+                <TableCell className="italic text-muted-foreground">أرباح لسه ماتقفلتش (المبيعات − المصروفات لحد التاريخ ده)</TableCell>
+                <TableCell className={"text-center font-mono tabular-nums whitespace-nowrap " + (netIncome >= 0 ? "text-success" : "text-destructive")}>{fmt(netIncome)}</TableCell>
               </TableRow>
             )}
             <TableRow className="font-bold bg-muted/50">
-              <TableCell colSpan={2}>إجمالي {title}</TableCell>
-              <TableCell className="font-mono">{fmt(total)}</TableCell>
+              <TableCell>إجمالي {title}</TableCell>
+              <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(total)}</TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -126,45 +106,43 @@ export default function BalanceSheet() {
   );
 
   return (
-    <AdminLayout>
-      <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title={fin("balanceSheet")} subtitle={`الأصول (Assets) = الخصوم (Liabilities) + ${fin("equity")}`} />
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2"><Scale className="w-5 h-5" /> كما في تاريخ</CardTitle>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2"><Scale className="w-5 h-5" /> {fin("balanceSheet")} في {to}</CardTitle>
+          {data && (
             <Badge variant={isBalanced ? "default" : "destructive"} className={isBalanced ? "bg-green-500/15 text-green-600 border-green-500/30" : ""}>
               {isBalanced ? "متوازنة ✓" : "غير متوازنة ✗"}
             </Badge>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-            <div>
-              <Label>التاريخ</Label>
-              <Input type="date" value={asOf} onChange={e => setAsOf(e.target.value)} />
-            </div>
-            <div className="p-3 rounded-lg bg-muted/40">
-              <div className="text-xs text-muted-foreground">إجمالي الأصول</div>
-               <FinancialAmount value={fmt(totalAssets)} size="md" className="justify-start" />
-            </div>
-            <div className="p-3 rounded-lg bg-muted/40">
-              <div className="text-xs text-muted-foreground">إجمالي الخصوم + حقوق الملكية</div>
-               <FinancialAmount value={fmt(totalLE)} size="md" className="justify-start" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {loading ? (
-          <div className="text-center text-muted-foreground py-8">جاري التحميل...</div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Section title={typeLabels.asset} rows={assets} total={totalAssets} />
-            <div className="space-y-6">
-              <Section title={typeLabels.liability} rows={liabilities} total={totalLiab} />
-              <Section title={typeLabels.equity} rows={equity} total={totalEquity} showNI />
-            </div>
+          )}
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+          <div className="p-3 rounded-lg bg-muted/40">
+            <div className="text-xs text-muted-foreground">إجمالي الأصول</div>
+            <FinancialAmount value={fmt(totalAssets)} size="md" className="justify-start" />
           </div>
-        )}
-      </div>
-    </AdminLayout>
+          <div className="p-3 rounded-lg bg-muted/40">
+            <div className="text-xs text-muted-foreground">إجمالي الالتزامات + حقوق الملكية</div>
+            <FinancialAmount value={fmt(totalLE)} size="md" className="justify-start" />
+          </div>
+          <div className="md:col-span-2 text-xs text-muted-foreground">
+            المركز المالي في آخر يوم من الفترة اللي فوق. العملاء والموردين هنا = أرصدة الحسابات زي صفحة «أرصدة المدين والدائن».
+          </div>
+        </CardContent>
+      </Card>
+
+      {err && <div className="text-sm text-destructive">{err}</div>}
+      {loading ? (
+        <div className="text-center text-muted-foreground py-8">جاري التحميل...</div>
+      ) : data && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Section title="الأصول" rows={assets} total={totalAssets} />
+          <div className="space-y-6">
+            <Section title="الالتزامات" rows={liabilities} total={totalLiab} />
+            <Section title="حقوق الملكية" rows={equity} total={totalEquity} showNI />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

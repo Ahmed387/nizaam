@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
-import { PageHeader } from "@/components/layout/AppShell";
+import { Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEGP } from "@/lib/format";
-import { cairoTodayDay } from "@/lib/cairoDate";
+import type { StatementProps } from "@/lib/financialAnalysis";
 import { rpcErrorText } from "@/lib/rpcError";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 
@@ -31,8 +28,11 @@ const src = (s: string) => SOURCE_LABEL[s] ?? s;
 const n = (v: unknown) => Number(v) || 0;
 
 export default function EquityChanges() {
-  const [from, setFrom] = useState(`${cairoTodayDay().slice(0, 4)}-01-01`);
-  const [to, setTo] = useState(cairoTodayDay());
+  return <Navigate to="/admin/financial-statements?tab=equity" replace />;
+}
+
+/** tab «التغيرات في حقوق الملكية» of «القوائم المالية» — company-wide (equity belongs to the company, not to a branch) */
+export function EquityChangesView({ from, to, branch }: StatementProps) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -52,12 +52,14 @@ export default function EquityChanges() {
   const diff = data ? Math.round((n(data.total.closing) - n(data.balance_sheet.equity)) * 100) / 100 : 0;
 
   return (
-    <AdminLayout>
-      <PageHeader title="قائمة التغيرات في حقوق الملكية" subtitle="حقوق الشركاء أول الفترة، وإيه اللي زاد ونقص، وربح الفترة، والرصيد آخر الفترة — من القيود." />
+    <div>
       <Card className="mb-4">
         <CardContent className="p-4 flex flex-wrap items-end gap-4">
-          <div className="space-y-1"><Label>من</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-44" /></div>
-          <div className="space-y-1"><Label>إلى</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-44" /></div>
+          <div className="text-sm">
+            <div className="font-semibold">قائمة التغيرات في حقوق الملكية — من القيود</div>
+            <div className="text-xs text-muted-foreground">حقوق الشركاء أول الفترة، وإيه اللي زاد ونقص، وربح الفترة، والرصيد آخر الفترة.</div>
+            {branch && <div className="text-xs text-warning mt-1">القائمة دي للشركة كلها — حقوق الملكية مش بتتقسم على الفروع.</div>}
+          </div>
           {data && (
             <div className={`ms-auto flex items-center gap-2 text-sm font-semibold ${Math.abs(diff) <= 0.05 ? "text-success" : "text-destructive"}`}>
               {Math.abs(diff) <= 0.05 ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
@@ -116,6 +118,6 @@ export default function EquityChanges() {
           </Table>
         </CardContent>
       </Card>
-    </AdminLayout>
+    </div>
   );
 }

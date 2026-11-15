@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { Navigate } from "react-router-dom";
 import { fin } from "@/lib/financeTerms";
-import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowDownRight, ArrowUpRight, Wallet } from "lucide-react";
-import { cairoTodayDay } from "@/lib/cairoDate";
+import { rpcErrorText } from "@/lib/rpcError";
+import type { StatementProps } from "@/lib/financialAnalysis";
 
 /**
  * Cash Flow Statement — Indirect approach via cash-touching journal entries.
@@ -40,10 +38,6 @@ type Entry = {
 
 const CASH_CODES = new Set(["1100", "1110"]);
 
-function firstOfMonth() {
-  const d = new Date(); d.setDate(1);
-  return d.toISOString().slice(0, 10);
-}
 
 type Bucket = "operating" | "investing" | "financing";
 function classify(code: string, type: string): Bucket {
@@ -56,9 +50,15 @@ function classify(code: string, type: string): Bucket {
 }
 
 export default function CashFlowStatement() {
+  return <Navigate to="/admin/financial-statements?tab=cashflow" replace />;
+}
+
+const dayBefore = (d: string) => new Date(new Date(`${d}T00:00:00Z`).getTime() - 86_400_000).toISOString().slice(0, 10);
+
+/** tab «التدفقات النقدية» of «القوائم المالية» — period and branch come from the page filter */
+export function CashFlowStatementView({ from, to, branch }: StatementProps) {
   const { tenantId } = useAuth();
-  const [from, setFrom] = useState<string>(firstOfMonth());
-  const [to, setTo] = useState<string>(() => cairoTodayDay());
+  const [err, setErr] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [openingCash, setOpeningCash] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -67,20 +67,12 @@ export default function CashFlowStatement() {
     if (!tenantId) return;
     setLoading(true);
     (async () => {
-      // 1. Opening cash balance (before `from`)
-      const openLines = await fetchAllRows<any>(() => supabase.from("journal_entry_lines" as any)
-        .select("id,debit,credit,chart_of_accounts!inner(code),journal_entries!inner(entry_date,status,tenant_id)")
-        .eq("journal_entries.tenant_id", tenantId)
-        .eq("journal_entries.status", "posted")
-        .lt("journal_entries.entry_date", from)
-        .order("id")).catch(() => [] as any[]);
-      let open = 0;
-      for (const l of (openLines ?? []) as any[]) {
-        if (l.chart_of_accounts && CASH_CODES.has(l.chart_of_accounts.code)) {
-          open += Number(l.debit || 0) - Number(l.credit || 0);
-        }
-      }
-      setOpeningCash(open);
+      // 1. Opening cash = cash accounts at the end of the day before (server sum, migration 0227 — it used to read every line)
+      const { data: bs, error: bsErr } = await (supabase.rpc as any)("balance_sheet", { p_as_of: dayBefore(from), p_branch: branch });
+      if (bsErr) { setErr(rpcErrorText(bsErr, "التدفقات النقدية")); setLoading(false); return; }
+      setErr(null);
+      setOpeningCash(((bs?.accounts ?? []) as { code: string; amount: number }[])
+        .filter((a) => CASH_CODES.has(a.code)).reduce((s, a) => s + Number(a.amount || 0), 0));
 
       // 2. Entries in the period with all lines
       const ents = await fetchAllRows<any>(() => supabase.from("journal_entries" as any)
@@ -89,11 +81,12 @@ export default function CashFlowStatement() {
         .eq("status", "posted")
         .gte("entry_date", from)
         .lte("entry_date", to)
+        .match(branch ? { branch_id: branch } : {})
         .order("id")).catch(() => [] as any[]);
       setEntries((ents ?? []) as any);
       setLoading(false);
     })();
-  }, [tenantId, from, to]);
+  }, [tenantId, from, to, branch]);
 
   const { buckets, netByBucket, totalNet } = useMemo(() => {
     const buckets: Record<Bucket, Map<string, { label: string; amount: number }>> = {
@@ -186,20 +179,15 @@ export default function CashFlowStatement() {
   };
 
   return (
-    <AdminLayout>
-      <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title={fin("cashFlow")} subtitle="التشغيلي (Operating) / الاستثماري (Investing) / التمويلي (Financing)" />
-
+      <div className="space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2"><Wallet className="w-5 h-5" />الفترة</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Wallet className="w-5 h-5" />{fin("cashFlow")} — التشغيلي / الاستثماري / التمويلي</CardTitle>
             <Badge className={totalNet >= 0 ? "bg-green-500/15 text-green-600 border-green-500/30" : "bg-red-500/15 text-red-600 border-red-500/30"}>
               {totalNet >= 0 ? <><ArrowUpRight className="w-3 h-3 inline ml-1" /> صافي داخل</> : <><ArrowDownRight className="w-3 h-3 inline ml-1" /> صافي خارج</>}
             </Badge>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
-            <div><Label>من</Label><Input type="date" value={from} onChange={e => setFrom(e.target.value)} /></div>
-            <div><Label>إلى</Label><Input type="date" value={to} onChange={e => setTo(e.target.value)} /></div>
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div className="p-3 rounded-lg bg-muted/40">
               <div className="text-xs text-muted-foreground">رصيد افتتاحي</div>
               <div className="text-lg font-bold">{fmt(openingCash)}</div>
@@ -215,6 +203,7 @@ export default function CashFlowStatement() {
           </CardContent>
         </Card>
 
+        {err && <div className="text-sm text-destructive">{err}</div>}
         {loading ? (
           <div className="text-center text-muted-foreground py-8">جاري التحميل...</div>
         ) : (
@@ -225,6 +214,5 @@ export default function CashFlowStatement() {
           </div>
         )}
       </div>
-    </AdminLayout>
   );
 }

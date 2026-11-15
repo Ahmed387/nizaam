@@ -1,18 +1,14 @@
 import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/layout/Layouts";
+import { Navigate } from "react-router-dom";
 import { fin } from "@/lib/financeTerms";
-import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 import { FinancialAmount } from "@/components/FinancialAmount";
-import { cairoTodayDay } from "@/lib/cairoDate";
+import type { StatementProps } from "@/lib/financialAnalysis";
 import { rpcErrorText } from "@/lib/rpcError";
 import { accountsOf, statementLines, type ProfitGroup, type ProfitStatement } from "@/lib/profitStatement";
 
@@ -21,28 +17,22 @@ import { accountsOf, statementLines, type ProfitGroup, type ProfitStatement } fr
  * card «الشركة كسبانة / خسرانة» and the profit distribution, so the three numbers are always the same.
  */
 export default function IncomeStatement() {
+  return <Navigate to="/admin/financial-statements?tab=income" replace />;
+}
+
+/** tab «قائمة الدخل» of «القوائم المالية» — period and branch come from the page filter */
+export function IncomeStatementView({ from, to, branch }: StatementProps) {
   const canViewNetProfit = useCanViewNetProfit();
   const { tenantId } = useAuth();
-  const today = cairoTodayDay();
-  const [from, setFrom] = useState<string>(`${today.slice(0, 7)}-01`);
-  const [to, setTo] = useState<string>(today);
-  const [branch, setBranch] = useState<string>("all");
-  const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
   const [data, setData] = useState<ProfitStatement | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
-    supabase.from("branches").select("id, name").eq("is_active", true).eq("is_system", false).order("name")
-      .then(({ data }) => setBranches((data ?? []) as any));
-  }, [tenantId]);
-
-  useEffect(() => {
-    if (!tenantId) return;
     let off = false;
     setLoading(true); setErr(null);
-    supabase.rpc("profit_statement" as any, { p_from: from, p_to: to, p_branch: branch === "all" ? null : branch } as any)
+    supabase.rpc("profit_statement" as any, { p_from: from, p_to: to, p_branch: branch } as any)
       .then(({ data, error }) => {
         if (off) return;
         if (error) { setErr(rpcErrorText(error, "قائمة الدخل")); setData(null); } else setData(data as any);
@@ -59,30 +49,15 @@ export default function IncomeStatement() {
   const detailOf: Partial<Record<string, ProfitGroup>> = { expenses: "expenses", other_income: "other_income", count_diff: "count_diff" };
 
   return (
-    <AdminLayout>
-      <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title={fin("incomeStatement")} subtitle="من الدفاتر — نفس رقم كارت «الشركة كسبانة / خسرانة» وتوزيع الأرباح" />
-
+      <div className="space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>الفترة</CardTitle>
+            <CardTitle>{fin("incomeStatement")} — من الدفاتر</CardTitle>
             <Badge variant="default" className={net >= 0 ? "bg-green-500/15 text-green-600 border-green-500/30" : "bg-red-500/15 text-red-600 border-red-500/30"}>
               {net >= 0 ? "ربح" : "خسارة"}
             </Badge>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-            <div><Label>من</Label><Input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} /></div>
-            <div><Label>إلى</Label><Input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} /></div>
-            <div>
-              <Label>الفرع</Label>
-              <Select value={branch} onValueChange={setBranch}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الفروع</SelectItem>
-                  {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
             <div className="p-3 rounded-lg bg-muted/40">
               <div className="text-xs text-muted-foreground">صافي الربح</div>
               <FinancialAmount value={canViewNetProfit ? fmt(net) : NET_PROFIT_MASK} currency={canViewNetProfit} size="md" className={`justify-start ${!canViewNetProfit ? "text-muted-foreground" : net >= 0 ? "text-success" : "text-destructive"}`} />
@@ -143,7 +118,7 @@ export default function IncomeStatement() {
           </CardContent>
         </Card>
 
-        {branch === "all" && (data?.branches?.length ?? 0) > 1 && (
+        {!branch && (data?.branches?.length ?? 0) > 1 && (
           <Card>
             <CardHeader className="pb-3"><CardTitle className="text-lg">حسب الفرع</CardTitle></CardHeader>
             <CardContent>
@@ -176,6 +151,5 @@ export default function IncomeStatement() {
           </Card>
         )}
       </div>
-    </AdminLayout>
   );
 }

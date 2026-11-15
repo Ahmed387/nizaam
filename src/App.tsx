@@ -211,6 +211,7 @@ const JournalEntryDetail = lazy(() => import("./pages/admin/JournalEntryDetail")
 const GeneralLedger = lazy(() => import("./pages/admin/GeneralLedger"));
 const TrialBalance = lazy(() => import("./pages/admin/TrialBalance"));
 const BalanceSheet = lazy(() => import("./pages/admin/BalanceSheet"));
+const FinancialStatements = lazy(() => import("./pages/admin/FinancialStatements"));
 const IncomeStatement = lazy(() => import("./pages/admin/IncomeStatement"));
 const CashFlowStatement = lazy(() => import("./pages/admin/CashFlowStatement"));
 const EquityChanges = lazy(() => import("./pages/admin/EquityChanges"));
@@ -344,6 +345,7 @@ const App = () => (
             <Route path="/admin/accounting/journal/:id" element={<ProtectedRoute perm="admin_acc_books.view" adminOnly><JournalEntryDetail /></ProtectedRoute>} />
             <Route path="/admin/accounting/ledger" element={<ProtectedRoute perm="admin_acc_books.view" adminOnly><GeneralLedger /></ProtectedRoute>} />
             <Route path="/admin/accounting/trial-balance" element={<ProtectedRoute perm="admin_acc_books.view" adminOnly><TrialBalance /></ProtectedRoute>} />
+            <Route path="/admin/financial-statements" element={<ProtectedRoute perm="admin_acc_statements.view" adminOnly><FinancialStatements /></ProtectedRoute>} />
             <Route path="/admin/accounting/balance-sheet" element={<ProtectedRoute perm="admin_acc_statements.view" adminOnly><BalanceSheet /></ProtectedRoute>} />
             <Route path="/admin/accounting/income-statement" element={<ProtectedRoute perm="admin_acc_statements.view" adminOnly><IncomeStatement /></ProtectedRoute>} />
             <Route path="/admin/accounting/cash-flow" element={<ProtectedRoute perm="admin_acc_statements.view" adminOnly><CashFlowStatement /></ProtectedRoute>} />

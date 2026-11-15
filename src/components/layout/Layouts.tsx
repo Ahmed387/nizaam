@@ -136,6 +136,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         ...(allow("admin_finance.view", { adminOnly: true }) ? [{ to: "/admin/accounting/branch-capital", label: "تحويل فلوس للفروع", icon: <Building2 className="w-4 h-4" /> }] : []),
       ],
     ),
+    // «القوائم المالية» — every statement + the analysis in one page (migration 0227)
+    ...only(allow("admin_acc_statements.view", { adminOnly: true }), {
+      to: "/admin/financial-statements", label: "القوائم المالية", icon: <ScrollText className="w-4 h-4" />, group: "الماليـة",
+    }),
     ...section(
       allow("admin_reports_hub.view"),
       { to: "/admin/reports-hub?tab=central", label: "التقارير", icon: <BarChart3 className="w-4 h-4" />, group: "الماليـة" },

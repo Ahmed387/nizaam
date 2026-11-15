@@ -23,7 +23,7 @@ export const ACC_PAGE_PERM: Record<string, string> = {
   "/admin/accounting/ledger": "admin_acc_books.view", "/admin/accounting/trial-balance": "admin_acc_books.view",
   "/admin/accounting/balance-sheet": "admin_acc_statements.view", "/admin/accounting/income-statement": "admin_acc_statements.view",
   "/admin/accounting/cash-flow": "admin_acc_statements.view", "/admin/accounting/equity-changes": "admin_acc_statements.view",
-  "/admin/accounting/cogs-statement": "admin_acc_statements.view",
+  "/admin/accounting/cogs-statement": "admin_acc_statements.view", "/admin/financial-statements": "admin_acc_statements.view",
   "/admin/accounting/aging": "admin_acc_aging.view", "/admin/accounting/opening-balances": "admin_acc_opening.view",
   "/admin/accounting/bank-reconciliation": "admin_acc_bank.view", "/admin/accounting/fiscal-closing": "admin_acc_closing.view",
   "/admin/accounting/flexible-distribution": "admin_acc_closing.view", "/admin/accounting/fixed-assets": "admin_acc_assets.view",
@@ -251,7 +251,7 @@ export default function FinancialPosition() {
         {/* Financial statements */}
         <Card>
           <CardHeader>
-            <CardTitle>القوائم المالية والتحليل</CardTitle>
+            <CardTitle>القوائم المالية والتقارير</CardTitle>
             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
               <Info className="w-3.5 h-3.5" />
               التقارير الكبيرة اللي بتقولك الشركة ماشية إزاي وبتكسب ولا لأ.
@@ -259,34 +259,10 @@ export default function FinancialPosition() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <ActionButton
-              to="/admin/accounting/balance-sheet"
-              icon={<PieChart className="w-4 h-4" />}
-              title="قائمة المركز المالي"
-              note="بتقولك الشركة عندها إيه (أصول) وعليها إيه (التزامات) في تاريخ معين."
-            />
-            <ActionButton
-              to="/admin/accounting/income-statement"
+              to="/admin/financial-statements"
               icon={<LineChart className="w-4 h-4" />}
-              title="قائمة الدخل"
-              note="بتقولك كسبت كام وصرفت كام، والصافي في الآخر ربح ولا خسارة."
-            />
-            <ActionButton
-              to="/admin/accounting/cash-flow"
-              icon={<Activity className="w-4 h-4" />}
-              title="التدفقات النقدية"
-              note="الفلوس دخلت من فين وخرجت لفين خلال الفترة."
-            />
-            <ActionButton
-              to="/admin/accounting/equity-changes"
-              icon={<Scale className="w-4 h-4" />}
-              title="التغيرات في حقوق الملكية"
-              note="رأس مال الشركاء والأرباح المحتجزة: أول الفترة، زاد إيه ونقص إيه، وآخر الفترة."
-            />
-            <ActionButton
-              to="/admin/accounting/cogs-statement"
-              icon={<Package className="w-4 h-4" />}
-              title="تكلفة البضاعة المباعة"
-              note="مخزون أول المدة + المشتريات − مخزون آخر المدة = تكلفة اللي اتباع."
+              title="القوائم المالية"
+              note="الدخل، والمركز المالي، والتدفقات النقدية، والتغيرات في حقوق الملكية، وتكلفة البضاعة المباعة، وتحليلها — في صفحة واحدة."
             />
             <ActionButton
               to="/admin/accounting/aging"
