@@ -12,7 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { Loader2, RefreshCw, AlarmClock, TrendingDown, Layers, ChevronDown, HandCoins } from "lucide-react";
+import { Loader2, RefreshCw, AlarmClock, TrendingDown, Layers, ChevronDown, HandCoins, DoorClosed } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { shiftPaymentBreakdown, ShiftPaymentLine, overrideShiftOpening, fetchShiftHandovers, recordMidShiftHandover, ShiftHandover } from "@/lib/shifts";
 import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
@@ -42,7 +43,8 @@ interface Row {
 }
 
 export default function ShiftsHistory({ embedded = false }: { embedded?: boolean } = {}) {
-  const { branches } = useAuth();
+  const { branches, isAdmin } = useAuth();
+  const nav = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [branchId, setBranchId] = useState("");
@@ -302,6 +304,17 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
                           </TooltipTrigger>
                           <TooltipContent>وسائل الدفع في الوردية</TooltipContent>
                         </Tooltip>
+                        {r.status === "open" && isAdmin && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="قفل الوردية"
+                                onClick={() => nav(`/branch/${r.branch_id}/shifts/close?shift=${r.id}`)}>
+                                <DoorClosed className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>قفل الوردية (تكتب الكاش الفعلي في الدرج)</TooltipContent>
+                          </Tooltip>
+                        )}
                         {r.status === "open" && (
                           <Tooltip>
                             <TooltipTrigger asChild>

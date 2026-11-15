@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,12 @@ const PREPAID_METHODS = ["credit_balance", "credit_applied"];
 export default function ShiftClose() {
   const { id: branchId = "" } = useParams();
   const nav = useNavigate();
+  // ?shift=<id> (owner 2026-11-15 «ضيف»): the owner / an admin closes ANOTHER cashier's open shift from «سجل الورديات»;
+  // close_cashier_shift allows the shift's cashier or an admin. Without it: the user's own open shift, as before.
+  const [sp] = useSearchParams();
+  const otherShiftId = sp.get("shift");
+  const { isAdmin } = useAuth();
+  const [cashierName, setCashierName] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -69,7 +77,23 @@ export default function ShiftClose() {
     if (!branchId) return;
     (async () => {
       try {
-        const s = await getOpenShift(branchId);
+        let s: CashierShift | null = null;
+        if (otherShiftId) {
+          if (!isAdmin) { toast.error("قفل وردية حد تاني للمالك أو المدير بس"); nav("/admin/shifts", { replace: true }); return; }
+          const { data, error } = await supabase.from("cashier_shifts" as any).select("*").eq("id", otherShiftId).maybeSingle();
+          if (error) throw error;
+          const row = data as any;
+          if (!row || row.status !== "open" || row.branch_id !== branchId) {
+            toast.error("الوردية دي مش مفتوحة");
+            nav("/admin/shifts", { replace: true });
+            return;
+          }
+          s = row as CashierShift;
+          const { data: prof } = await supabase.from("profiles").select("name").eq("id", row.cashier_id).maybeSingle();
+          setCashierName((prof as any)?.name ?? null);
+        } else {
+          s = await getOpenShift(branchId);
+        }
         if (!s) {
           toast.error("مفيش وردية مفتوحة لك في هذا الفرع");
           nav(`/branch/${branchId}/shifts/open`, { replace: true });
@@ -91,7 +115,7 @@ export default function ShiftClose() {
         setLoading(false);
       }
     })();
-  }, [branchId, nav]);
+  }, [branchId, nav, otherShiftId, isAdmin]);
 
   const expected = shift ? Number(shift.opening_cash) + cashSales : 0;
   const variance = Number(closingCash) - expected;
@@ -106,7 +130,7 @@ export default function ShiftClose() {
       if (Math.abs(v) < 0.01) toast.success("تم قفل الوردية — الدرج مطابق");
       else if (v > 0) toast.success(`تم قفل الوردية — زيادة ${formatEGP(v)}`);
       else toast.error(`تم قفل الوردية — عجز ${formatEGP(Math.abs(v))}`);
-      nav(`/branch/${branchId}/dashboard`, { replace: true });
+      nav(otherShiftId ? "/admin/shifts" : `/branch/${branchId}/dashboard`, { replace: true });
     } catch (e: any) {
       toast.error(e.message ?? "فشل قفل الوردية");
     } finally {
@@ -121,7 +145,8 @@ export default function ShiftClose() {
 
   return (
     <BranchLayout>
-      <PageHeader title="قفل الوردية" subtitle="عدّ الكاش الفعلي في الدرج قبل القفل" />
+      <PageHeader title={otherShiftId ? `قفل وردية ${cashierName ?? "الكاشير"}` : "قفل الوردية"}
+        subtitle={otherShiftId ? "بتقفل وردية كاشير تاني — اكتب الكاش الفعلي اللي في الدرج" : "عدّ الكاش الفعلي في الدرج قبل القفل"} />
       <Card className="p-6 max-w-2xl mx-auto space-y-5">
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div><div className="text-muted-foreground">فُتحت في</div><div className="font-semibold">{new Date(shift.opened_at).toLocaleString("ar-EG")}</div></div>
@@ -189,14 +214,14 @@ export default function ShiftClose() {
           </div>
         )}
 
-        <div className="rounded-lg border border-border p-3 flex flex-wrap items-center justify-between gap-2">
+        {!otherShiftId && <div className="rounded-lg border border-border p-3 flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs text-muted-foreground max-w-sm">
             ظرف طارئ ومضطر تمشي قبل نهاية الوردية؟ سلّم الكاش لمدير الفرع وسجّل التسليم — الوردية هتفضل مفتوحة.
           </div>
           <Button type="button" variant="outline" size="sm" onClick={openHandover}>
             <HandCoins className="w-4 h-4 me-2" />تسليم عهدة طارئ
           </Button>
-        </div>
+        </div>}
 
 
         <form onSubmit={submit} className="space-y-4 pt-2 border-t">
@@ -231,7 +256,7 @@ export default function ShiftClose() {
           <label className="flex items-start gap-2 text-sm cursor-pointer rounded-lg border border-border p-3">
             <input type="checkbox" className="mt-1" checked={autoCheckout} onChange={(e) => setAutoCheckout(e.target.checked)} />
             <span>
-              <span className="font-semibold">سجّل انصرافي تلقائي بتوقيت قفل الوردية</span>
+              <span className="font-semibold">{otherShiftId ? "سجّل انصراف الكاشير تلقائي بتوقيت قفل الوردية" : "سجّل انصرافي تلقائي بتوقيت قفل الوردية"}</span>
               <span className="block text-xs text-muted-foreground">لو سجلت انصرافك يدوي النهارده، مش هيتغير.</span>
             </span>
           </label>
