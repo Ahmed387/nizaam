@@ -28,7 +28,7 @@ import { docSuccess, docError } from "@/lib/docToast";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
-import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck, ShoppingCart, User as UserIcon, Minus, Wallet, Package, ChevronDown, ChevronUp, CreditCard, FileText } from "lucide-react";
+import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck, ShoppingCart, User as UserIcon, Minus, Wallet, Package, ChevronDown, ChevronUp, CreditCard, FileText, DoorClosed } from "lucide-react";
 import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { computeInvoiceTotals } from "@/lib/invoiceCalc";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -205,9 +205,15 @@ export default function NewSale() {
 
   // Guard: block sales without an open cashier shift (admins are exempt)
   const [shiftReady, setShiftReady] = useState<boolean>(false);
+  // «قفل الوردية» in the header (owner 2026-11-15 «زرار اغلاق الوردية مش موجود»): shown while THIS user has an open shift
+  const [myShiftOpen, setMyShiftOpen] = useState(false);
   useEffect(() => {
     if (!branchId || !user?.id) return;
-    if (isAdmin) { setShiftReady(true); return; }
+    if (isAdmin) {
+      setShiftReady(true);
+      import("@/lib/shifts").then(({ getOpenShift }) => getOpenShift(branchId)).then((s) => setMyShiftOpen(!!s)).catch(() => setMyShiftOpen(false));
+      return;
+    }
     (async () => {
       const { getOpenShift } = await import("@/lib/shifts");
       const { fetchSchedules, hoursOpen } = await import("@/lib/branchSchedule");
@@ -235,6 +241,7 @@ export default function NewSale() {
           nav(`/branch/${branchId}/shifts/open`, { replace: true });
           return;
         }
+        setMyShiftOpen(true);
         setShiftReady(true);
 
       } catch (e: any) {
@@ -1129,7 +1136,12 @@ export default function NewSale() {
 
   return (
     <BranchLayout>
-      <PageHeader title="فاتورة بيع جديدة" subtitle="نقطة البيع" />
+      <PageHeader title="فاتورة بيع جديدة" subtitle="نقطة البيع"
+        actions={myShiftOpen ? (
+          <Button variant="outline" onClick={() => nav(`/branch/${branchId}/shifts/close`)}>
+            <DoorClosed className="w-4 h-4 me-1" /> قفل الوردية
+          </Button>
+        ) : undefined} />
 
       {localDraft.draft && !localDraftDismissed && items.length === 0 && (
         <DraftRestoreBar

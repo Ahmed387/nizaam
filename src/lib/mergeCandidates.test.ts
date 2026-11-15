@@ -43,6 +43,10 @@ describe("keepAdvice", () => {
     expect(keepAdvice(0, { opening_balance: 5000, name: "ب" }, "أ")).toMatchObject({ keepThis: false, blocked: false });
     expect(keepAdvice(5000, { opening_balance: 0, name: "ب" }, "أ")).toMatchObject({ keepThis: true, blocked: false });
   });
-  it("both with an opening → blocked", () => expect(keepAdvice(10, { opening_balance: -3, name: "ب" }, "أ").blocked).toBe(true));
+  it("both with an opening → allowed since 0230 (each on its branch, same branch added)", () => {
+    const r = keepAdvice(10, { opening_balance: -3, name: "ب" }, "أ");
+    expect(r.blocked).toBe(false);
+    expect(r.note).toMatch(/بيتجمعوا في افتتاحي واحد/);
+  });
   it("none → keep this one, no note", () => expect(keepAdvice(0, { opening_balance: 0, name: "ب" }, "أ")).toEqual({ keepThis: true, blocked: false, note: null }));
 });

@@ -42,13 +42,13 @@ export function mergeNameToSend(choice: string, custom: string): string {
 }
 
 /**
- * Which account should stay: the one with an opening balance (merge_contacts refuses to archive an account that carries
- * one). Both with an opening → the merge will be refused; say so before the owner presses anything.
+ * Which account stays by default: the one with an opening balance. Since 0230 both may carry one: each opening stays
+ * on its own branch, and two openings on the same branch are added into one (owner 2026-11-15 «نجمعهم في افتتاحي واحد»).
  */
 export function keepAdvice(thisOpening: number, other: Pick<MergeCandidate, "opening_balance" | "name">, thisName: string) {
   const a = Math.abs(Number(thisOpening) || 0) > 0.005;
   const b = Math.abs(Number(other.opening_balance) || 0) > 0.005;
-  if (a && b) return { keepThis: true, blocked: true, note: "الحسابين عليهم رصيد افتتاحي — الدمج هيترفض. صفّر الافتتاحي في واحد منهم الأول." };
+  if (a && b) return { keepThis: true, blocked: false, note: "الحسابين عليهم رصيد افتتاحي — كل افتتاحي بيفضل في فرعه، ولو الاتنين في نفس الفرع بيتجمعوا في افتتاحي واحد." };
   if (b) return { keepThis: false, blocked: false, note: `«${other.name}» عليه رصيد افتتاحي، فهو اللي هيفضل.` };
   if (a) return { keepThis: true, blocked: false, note: `«${thisName}» عليه رصيد افتتاحي، فهو اللي هيفضل.` };
   return { keepThis: true, blocked: false, note: null as string | null };

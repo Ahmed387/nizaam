@@ -21,6 +21,12 @@ type Row = {
   customer_balance: number; supplier_balance: number;
 };
 const TYPE: Record<string, string> = { customer: "عميل", supplier: "مورد", both: "عميل ومورد" };
+// one alignment per kind of column, header and cells alike (owner 2026-11-15 «محتاج يكون متحاذي ومتنسق»)
+const C = {
+  text: "text-right align-middle whitespace-nowrap",
+  mid: "text-center align-middle whitespace-nowrap",
+  num: "text-center align-middle whitespace-nowrap tabular-nums",
+};
 const when = (s: string) => new Date(s).toLocaleString("en-GB", { timeZone: "Africa/Cairo", dateStyle: "short", timeStyle: "short" });
 
 export default function HiddenContacts() {
@@ -60,18 +66,18 @@ export default function HiddenContacts() {
               عشان تخفي حساب: افتح ملف العميل أو المورد ودوس «إخفاء». الحساب المخفي مش بيظهر لحد غيرك في القوايم ولا البحث ولا التقارير
               ولا الخزنة، ومحدش غيرك يقدر يعمل له فاتورة أو سند.
             </div>
-            <Table permTable="hidden_contacts">
+            <Table permTable="hidden_contacts" className="min-w-[900px]">
               <TableHeader>
-                <TableRow>
-                  <TableHead className="whitespace-nowrap">رقم الحساب</TableHead>
-                  <TableHead>اسم الحساب</TableHead>
-                  <TableHead className="whitespace-nowrap">طبيعة الحساب</TableHead>
-                  <TableHead className="whitespace-nowrap">الفرع</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">الرصيد الحالي</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">المستندات</TableHead>
-                  <TableHead className="whitespace-nowrap">اتخفى</TableHead>
-                  <TableHead>السبب</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">إجراءات</TableHead>
+                <TableRow className="bg-muted/40">
+                  <TableHead className={`${C.num} w-24`}>رقم الحساب</TableHead>
+                  <TableHead className={C.text}>اسم الحساب</TableHead>
+                  <TableHead className={`${C.mid} w-28`}>طبيعة الحساب</TableHead>
+                  <TableHead className={`${C.mid} w-44`}>الفرع</TableHead>
+                  <TableHead className={`${C.num} w-40`}>الرصيد الحالي</TableHead>
+                  <TableHead className={`${C.num} w-24`}>المستندات</TableHead>
+                  <TableHead className={`${C.mid} w-36`}>اتخفى</TableHead>
+                  <TableHead className={C.text}>السبب</TableHead>
+                  <TableHead className={`${C.mid} w-28`}>إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -83,16 +89,21 @@ export default function HiddenContacts() {
                   const net = netOf(Number(r.customer_balance), Number(r.supplier_balance));
                   return (
                     <TableRow key={r.contact_id}>
-                      <TableCell className="tabular-nums">{r.account_no ?? "—"}</TableCell>
-                      <TableCell className="font-medium"><Link className="underline" to={`/admin/contacts/${r.contact_id}`}>{r.name}</Link></TableCell>
-                      <TableCell className="whitespace-nowrap">{TYPE[r.contact_type] ?? r.contact_type}</TableCell>
-                      <TableCell className="whitespace-nowrap">{r.branch_name ?? "—"}</TableCell>
-                      <TableCell className={`text-center font-mono tabular-nums whitespace-nowrap ${netTone(net)}`}>{netText(net)}</TableCell>
-                      <TableCell className="text-center tabular-nums">{r.documents}</TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{when(r.hidden_at)}{r.hidden_by_name ? <div className="text-muted-foreground">{r.hidden_by_name}</div> : null}</TableCell>
-                      <TableCell className="text-sm max-w-[260px]">{r.reason || <span className="text-muted-foreground">—</span>}</TableCell>
-                      <TableCell className="text-center">
-                        <Button size="sm" variant="outline" disabled={!!busy} onClick={() => show(r)}>
+                      <TableCell className={C.num}>{r.account_no ?? "—"}</TableCell>
+                      <TableCell className={`${C.text} font-medium`}>
+                        <Link className="hover:underline text-primary" to={`/admin/contacts/${r.contact_id}`}>{r.name}</Link>
+                      </TableCell>
+                      <TableCell className={C.mid}>{TYPE[r.contact_type] ?? r.contact_type}</TableCell>
+                      <TableCell className={C.mid}><span className="block truncate max-w-[11rem] mx-auto" title={r.branch_name ?? ""}>{r.branch_name ?? "—"}</span></TableCell>
+                      <TableCell className={`${C.num} font-semibold ${netTone(net)}`}>{netText(net)}</TableCell>
+                      <TableCell className={C.num}>{r.documents}</TableCell>
+                      <TableCell className={`${C.mid} text-xs`}>
+                        <div className="tabular-nums">{when(r.hidden_at)}</div>
+                        {r.hidden_by_name ? <div className="text-muted-foreground">{r.hidden_by_name}</div> : null}
+                      </TableCell>
+                      <TableCell className={`${C.text} text-sm`}><span className="block max-w-[260px] truncate" title={r.reason ?? ""}>{r.reason || <span className="text-muted-foreground">—</span>}</span></TableCell>
+                      <TableCell className={C.mid}>
+                        <Button size="sm" variant="outline" className="h-8" disabled={!!busy} onClick={() => show(r)}>
                           {busy === r.contact_id ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <Eye className="w-4 h-4 ml-1" />}إظهار
                         </Button>
                       </TableCell>
