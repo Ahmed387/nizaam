@@ -150,11 +150,30 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
   await page.getByRole("button", { name: /^الكل \(/ }).click(); await page.waitForTimeout(300);
 
   // lines dialog
-  await page.locator("tbody tr").first().getByTitle("بنود الفاتورة").click(); await settle(page);
+  await page.locator("tbody tr").first().getByTitle("تفاصيل الفاتورة").click(); await settle(page);
   const dlg = await page.locator("[role=dialog]").innerText();
   check("lines dialog shows the item, qty and VAT", dlg.includes("غسالة حوض واحد 5ك شطورة") && dlg.includes("2,762.28") && dlg.includes("1,933.60"));
+  check("details dialog: supplier, tax id, totals, purchase in the system", dlg.includes("الرقم الضريبي") && dlg.includes("200301950") && dlg.includes("15,745.00") && dlg.includes("PO24941") && dlg.includes("بنود الفاتورة"));
   await shot(page, "eta-2-lines");
   await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+
+  // click anywhere on a row (not a button) opens the details and marks a new invoice seen
+  await page.locator("tbody tr", { hasText: "9405743485" }).locator("td").nth(1).click(); await settle(page);
+  const dlgRow = await page.locator("[role=dialog]").innerText().catch(() => "");
+  check("row click opens the details", dlgRow.includes("9405743485") && dlgRow.includes("92,237.02"));
+  check("opening a new invoice marks it seen", db.calls.some((c) => c.rpc === "eta_mark_seen" && Array.isArray(c.body.p_ids) && c.body.p_ids[0] === "d2"));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+
+  // a notification link (?doc=) opens that invoice's details straight away, then the address is cleaned
+  await page.goto(`${BASE}/admin/eta-invoices?doc=d3`); await settle(page);
+  const dlgN = await page.locator("[role=dialog]").innerText().catch(() => "");
+  check("?doc= from a notification opens the invoice", dlgN.includes("INV/2026/12243") && dlgN.includes("صادكو"));
+  check("?doc= removed from the address after opening", !page.url().includes("doc="));
+  await shot(page, "eta-8-from-notification");
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  await page.goto(`${BASE}/admin/eta-invoices?doc=nope`); await settle(page);
+  check("?doc= of a missing invoice shows a message", (await page.locator("body").innerText()).includes("مش موجودة في الفواتير الواردة"));
+  await page.goto(`${BASE}/admin/eta-invoices`); await settle(page);
 
   // link dialog on the missing فريش invoice
   const missingRow = page.locator("tbody tr", { hasText: "9405743485" });

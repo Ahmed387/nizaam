@@ -8,7 +8,7 @@
 //                   linking runs the automatic pairing (amount ± 1 pound, our invoice 10 days before → 30 days after).
 // Credentials live in settings → «الربط مع الفاتورة الإلكترونية» (EtaConnectionWizard).
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,6 +58,8 @@ export default function EtaInvoices() {
   const [syncing, setSyncing] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [detailDoc, setDetailDoc] = useState<EtaDoc | null>(null);
+  const [params, setParams] = useSearchParams();
+  const wantedDoc = params.get("doc");
   const [linkDoc, setLinkDoc] = useState<EtaDoc | null>(null);
   const [backfillOpen, setBackfillOpen] = useState(false);
 
@@ -79,6 +81,27 @@ export default function EtaInvoices() {
     if (!i.error) setIssuers((i.data as EtaIssuer[]) ?? []);
   };
   useEffect(() => { load(); }, [tenantId, from, to]);
+  // open an invoice's details (row click, ?doc= from a notification); opening it marks it seen
+  const openDoc = (d: EtaDoc) => {
+    setDetailDoc(d);
+    if (!d.seen_at && canWrite) {
+      supabase.rpc("eta_mark_seen" as any, { p_ids: [d.id] }).then(({ error }) => {
+        if (!error) {
+          const now = new Date().toISOString();
+          setDocs(prev => prev.map(x => (x.id === d.id ? { ...x, seen_at: now } : x)));
+          setSettings(prev => (prev ? { ...prev, unseen: Math.max(0, (prev.unseen ?? 0) - 1) } : prev));
+        }
+      });
+    }
+  };
+  useEffect(() => {
+    if (!wantedDoc || loading) return;
+    const d = docs.find(x => x.id === wantedDoc);
+    if (d) openDoc(d);
+    else if (from || to) { setFrom(""); setTo(""); return; } // outside the period shown: read every period, then open it
+    else toast.error("الفاتورة دي مش موجودة في الفواتير الواردة");
+    setParams(p => { p.delete("doc"); return p; }, { replace: true });
+  }, [wantedDoc, loading, docs]);
   const wait = manualWait((settings as EtaSyncSettings | null)?.manual_ready_at, now);
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), wait > 0 ? 1000 : 30_000);
@@ -275,7 +298,9 @@ export default function EtaInvoices() {
                     const s = STATUS[d.status ?? ""] ?? { label: d.status ?? "—", cls: "bg-muted" };
                     const es = etaState(d);
                     return (
-                      <TableRow key={d.id} className={d.seen_at ? "" : "bg-primary/5"}>
+                      <TableRow key={d.id} className={`cursor-pointer hover:bg-muted/40 ${d.seen_at ? "" : "bg-primary/5"}`}
+                        title="اضغط لتفاصيل الفاتورة"
+                        onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a, input, [role=checkbox]")) openDoc(d); }}>
                         <TableCell className="whitespace-nowrap">
                           <div>{etaTypeLabel(d.type_name)}{!d.seen_at && <Badge className="mr-2">جديد</Badge>}</div>
                           <div className="font-mono text-xs text-muted-foreground">{d.internal_id || "—"}</div>
@@ -303,7 +328,7 @@ export default function EtaInvoices() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-0.5">
-                            <Button size="sm" variant="ghost" title="بنود الفاتورة" onClick={() => setDetailDoc(d)}><ListTree className="w-4 h-4" /></Button>
+                            <Button size="sm" variant="ghost" title="تفاصيل الفاتورة" onClick={() => openDoc(d)}><ListTree className="w-4 h-4" /></Button>
                             {d.public_url && <Button size="sm" variant="ghost" title="افتحها على البوابة" asChild><a href={d.public_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4" /></a></Button>}
                             {canWrite && d.status === "Valid" && !d.match && d.match_mode !== "ignored" && (
                               <>
@@ -452,7 +477,42 @@ function DetailDialog({ doc, canFetch, onClose }: { doc: EtaDoc | null; canFetch
   return (
     <Dialog open={!!doc} onOpenChange={o => !o && onClose()}>
       <DialogContent dir="rtl" className="max-w-5xl">
-        <DialogHeader><DialogTitle>{etaTypeLabel(doc?.type_name ?? null)} {doc?.internal_id} — {doc?.issuer_name} — {day(doc?.date_issued)}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{etaTypeLabel(doc?.type_name ?? null)} رقم {doc?.internal_id || "—"}</DialogTitle></DialogHeader>
+        {doc && (() => {
+          const es = etaState(doc);
+          const st = STATUS[doc.status ?? ""] ?? { label: doc.status ?? "—", cls: "bg-muted" };
+          const Item = ({ k, children }: { k: string; children: React.ReactNode }) => (
+            <div className="min-w-0"><div className="text-xs text-muted-foreground">{k}</div><div className="font-medium truncate">{children}</div></div>
+          );
+          return (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-md border p-3">
+                <Item k="المورد"><span title={doc.issuer_name ?? ""}>{doc.issuer_name || "—"}</span></Item>
+                <Item k="الرقم الضريبي"><span className="font-mono">{doc.issuer_id || "—"}</span></Item>
+                <Item k="تاريخ الفاتورة"><span className="tabular-nums">{day(doc.date_issued)}</span></Item>
+                <Item k="وصلت المنظومة"><span className="tabular-nums">{day(doc.date_received)}</span></Item>
+                <Item k="قبل الضريبة"><span className="font-mono tabular-nums">{fmt(doc.net_amount)}</span></Item>
+                <Item k="الضريبة"><span className="font-mono tabular-nums">{fmt(doc.vat)}</span></Item>
+                <Item k="الإجمالي"><span className="font-mono tabular-nums font-bold">{fmt(doc.total)}</span></Item>
+                <Item k="على المنظومة"><span className={`px-2 py-0.5 rounded text-xs ${st.cls}`} title={doc.status_reason ?? ""}>{st.label}</span></Item>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 rounded-md border p-3">
+                <span className="text-muted-foreground">في السيستم:</span>
+                <span className={`px-2 py-0.5 rounded text-xs ${ETA_STATE[es].tone}`}>{ETA_STATE[es].label}</span>
+                {doc.match && (
+                  <span>
+                    <Link className="underline font-mono" to={`/branch/${doc.match.branch_id}/shipments/${doc.match.shipment_id}`}>{doc.match.number}</Link>
+                    {" "}— {doc.match.branch} — {day(doc.match.date)} — {fmt(doc.match.total)}
+                    {Math.abs(doc.match.diff) >= 0.01 && <span className="text-muted-foreground"> (فرق {fmt(doc.match.diff)})</span>}
+                  </span>
+                )}
+                {doc.match_note && doc.match_note !== ETA_STATE[es].label && <span className="text-muted-foreground">{doc.match_note}</span>}
+                {(doc.cancel_requested || doc.reject_requested) && doc.status === "Valid" && <span className="text-warning">{doc.cancel_requested ? "المورد طلب إلغاءها" : "مطلوب رفضها"}</span>}
+              </div>
+              <div className="font-semibold">بنود الفاتورة</div>
+            </div>
+          );
+        })()}
         {busy && <div className="py-8 text-center"><Loader2 className="w-5 h-5 animate-spin inline" /> بنجيب البنود من المنظومة…</div>}
         {err && <div className="text-destructive text-sm">{err}</div>}
         {!busy && detail && (

@@ -14,8 +14,16 @@ interface Notification {
   body: string | null;
   type: string;
   link: string | null;
+  related_entity?: string | null;
+  related_entity_id?: string | null;
   is_read: boolean;
   created_at: string;
+}
+
+/** Where a notification opens: an e-invoice opens that invoice's details on its page (owner 2026-11-15), else its link. */
+export function notificationTarget(n: Pick<Notification, "link" | "related_entity" | "related_entity_id">): string | null {
+  if (n.related_entity === "eta_documents" && n.related_entity_id) return `/admin/eta-invoices?doc=${encodeURIComponent(n.related_entity_id)}`;
+  return n.link;
 }
 
 export function NotificationBell() {
@@ -78,7 +86,8 @@ export function NotificationBell() {
   const onClick = async (n: Notification) => {
     if (!n.is_read) await markRead(n.id);
     setOpen(false);
-    if (n.link) nav(n.link);
+    const target = notificationTarget(n);
+    if (target) nav(target);
   };
 
   return (
