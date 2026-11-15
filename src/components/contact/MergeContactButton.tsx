@@ -9,12 +9,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { PermTable } from "@/components/PermTable";
+import { rpcErrorText } from "@/lib/rpcError";
+import { netText, netTone } from "@/lib/netBalance";
+import { candidateNet, contactTypeName, keepAdvice, splitCandidates, type MergeCandidate, type MergeCandidates } from "@/lib/mergeCandidates";
 
 /**
  * «دمج حساب تاني» in the contact file — owner only (migration 0185, `merge_contacts`).
  * The owner picks the second account, sees the PREVIEW (the server runs the real merge and rolls it back, so the numbers
  * shown are exactly what «تأكيد الدمج» does), then confirms. Documents move to the kept account, the other one is archived
  * (never deleted). No money, till, stock or profit moves.
+ * Search (migration 0223, owner 2026-11-15 «البحث فى دمج الحسابات مش متظبط», answer «ب»): `merge_contact_candidates` —
+ * written the system's way (ة = ه, ى = ي, أ = ا), any words in any order, name / phone / account number; with nothing typed
+ * it lists accounts whose name shares a word with this one. Every branch is listed (own branch first) with account number,
+ * branch, type, balance and documents; an account of another branch is shown for information and cannot be picked —
+ * the merge stays inside one branch.
  */
 interface MergeSide { id: string; name: string; type: string; customer_balance: number; supplier_balance: number }
 interface MergePreview {
@@ -23,9 +31,9 @@ interface MergePreview {
   documents: { key: string; label: string; count: number; total: number | null }[];
   balanced: boolean; applied: boolean; difference: { customer: number; supplier: number };
 }
-interface Hit { id: string; name: string; type: string }
+type Hit = MergeCandidate;
 
-const typeName = (t: string) => (t === "customer" ? "عميل" : t === "supplier" ? "مورد" : "عميل ومورد");
+const typeName = contactTypeName;
 /** One side balance in plain words (customer + = he owes us; supplier + = we owe him). */
 const sideText = (side: "customer" | "supplier", v: number) => {
   const a = Math.abs(Number(v) || 0);
@@ -34,13 +42,15 @@ const sideText = (side: "customer" | "supplier", v: number) => {
   return v > 0 ? `${formatEGP(a)} علينا له (دائن)` : `${formatEGP(a)} مقدم دفعناه له (مدين)`;
 };
 
-export function MergeContactButton({ contactId, contactName, branchId, onDone }: {
-  contactId: string; contactName: string; branchId: string | null; onDone?: (keptId: string) => void;
+export function MergeContactButton({ contactId, contactName, openingBalance = 0, onDone }: {
+  contactId: string; contactName: string; branchId?: string | null; openingBalance?: number; onDone?: (keptId: string) => void;
 }) {
   const { isOwner } = useAuth();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
+  const [mode, setMode] = useState<"search" | "similar">("similar");
+  const [searching, setSearching] = useState(false);
   const [other, setOther] = useState<Hit | null>(null);
   const [keepThis, setKeepThis] = useState(true);
   const [preview, setPreview] = useState<MergePreview | null>(null);
@@ -49,16 +59,18 @@ export function MergeContactButton({ contactId, contactName, branchId, onDone }:
   useEffect(() => {
     if (!open || other) return;
     const term = q.trim();
-    if (term.length < 2) { setHits([]); return; }
+    if (term.length === 1) return; // one letter: wait for the next
     const timer = setTimeout(async () => {
-      let query = (supabase.from("contacts") as any).select("id,name,type").ilike("name", `%${term}%`)
-        .eq("is_archived", false).is("internal_branch_id", null).neq("id", contactId).order("name").limit(20);
-      query = branchId ? query.eq("branch_id", branchId) : query;
-      const { data } = await query;
-      setHits((data ?? []) as Hit[]);
-    }, 250);
+      setSearching(true);
+      const { data, error } = await (supabase.rpc as any)("merge_contact_candidates", { p_contact: contactId, p_query: term || null });
+      setSearching(false);
+      if (error) { toast.error(rpcErrorText(error)); setHits([]); return; }
+      const res = data as MergeCandidates;
+      setMode(res?.mode ?? "search");
+      setHits(res?.results ?? []);
+    }, term ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [q, open, other, contactId, branchId]);
+  }, [q, open, other, contactId]);
 
   if (!isOwner) return null;
 
@@ -77,13 +89,32 @@ export function MergeContactButton({ contactId, contactName, branchId, onDone }:
         setOpen(false); onDone?.(intoId);
       } else setPreview(res);
     } catch (e: any) {
-      toast.error(e?.message ?? "تعذر الدمج");
+      toast.error(rpcErrorText(e) || "تعذر الدمج");
     } finally {
       setBusy(false);
     }
   };
 
-  const start = () => { setQ(""); setHits([]); setOther(null); setKeepThis(true); setPreview(null); setOpen(true); };
+  const start = () => { setQ(""); setHits([]); setMode("similar"); setOther(null); setKeepThis(true); setPreview(null); setOpen(true); };
+  const pick = (h: Hit) => { setOther(h); setKeepThis(keepAdvice(openingBalance, h, contactName).keepThis); setPreview(null); };
+  const advice = other ? keepAdvice(openingBalance, other, contactName) : null;
+  const { mergeable, elsewhere } = splitCandidates(hits);
+  const row = (h: Hit, enabled: boolean) => {
+    const n = candidateNet(h);
+    return (
+      <button key={h.id} type="button" disabled={!enabled}
+        className={`w-full text-right px-3 py-2 text-sm grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 ${enabled ? "hover:bg-muted" : "opacity-60 cursor-not-allowed"}`}
+        onClick={() => enabled && pick(h)} title={h.why_not ?? undefined}>
+        <span className="font-medium">{h.name}</span>
+        <span className={`text-xs tabular-nums ${netTone(n)}`}>{netText(n)}</span>
+        <span className="text-xs text-muted-foreground">
+          {h.account_no != null && <>رقم {h.account_no} · </>}{typeName(h.type)} · {h.branch_name ?? "—"}{h.phone ? <> · {h.phone}</> : null}
+        </span>
+        <span className="text-xs text-muted-foreground">{h.documents} مستند{Math.abs(h.opening_balance) > 0.005 ? " · عليه افتتاحي" : ""}</span>
+        {!enabled && h.why_not && <span className="col-span-2 text-xs text-warning">{h.why_not}</span>}
+      </button>
+    );
+  };
   const moved = (preview?.documents ?? []).filter((d) => d.count > 0);
 
   return (
@@ -100,16 +131,26 @@ export function MergeContactButton({ contactId, contactName, branchId, onDone }:
 
           {!other ? (
             <div className="space-y-2">
-              <Label>اختار الحساب التاني (نفس الفرع)</Label>
-              <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="اكتب جزء من الاسم…" />
-              <div className="max-h-64 overflow-y-auto divide-y rounded border">
-                {hits.map((h) => (
-                  <button key={h.id} type="button" className="w-full text-right px-3 py-2 hover:bg-muted text-sm flex justify-between gap-3"
-                    onClick={() => { setOther(h); setPreview(null); }}>
-                    <span>{h.name}</span><span className="text-xs text-muted-foreground">{typeName(h.type)}</span>
-                  </button>
-                ))}
-                {hits.length === 0 && <div className="px-3 py-4 text-sm text-muted-foreground">{q.trim().length < 2 ? "اكتب حرفين على الأقل" : "مفيش حساب بالاسم ده"}</div>}
+              <Label>اختار الحساب التاني</Label>
+              <Input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="اكتب أي جزء من الاسم أو التليفون أو رقم الحساب — بأي ترتيب" />
+              <p className="text-xs text-muted-foreground">
+                البحث مش بيفرّق بين ة وه ولا ى وي ولا أ وا. الدمج بيكون مع حساب في نفس الفرع بس — حسابات الفروع التانية بتظهر للمعلومة.
+              </p>
+              <div className="max-h-80 overflow-y-auto rounded border">
+                {mode === "similar" && hits.length > 0 && <div className="px-3 py-1.5 text-xs font-semibold bg-muted/50">حسابات اسمها قريب من «{contactName}»</div>}
+                {searching && <div className="px-3 py-4 text-sm text-muted-foreground">بدوّر…</div>}
+                {!searching && mergeable.length > 0 && <div className="divide-y">{mergeable.map((h) => row(h, true))}</div>}
+                {!searching && elsewhere.length > 0 && (
+                  <>
+                    <div className="px-3 py-1.5 text-xs font-semibold bg-muted/50 border-t">في فروع تانية (مينفعش تتدمج)</div>
+                    <div className="divide-y">{elsewhere.map((h) => row(h, false))}</div>
+                  </>
+                )}
+                {!searching && hits.length === 0 && (
+                  <div className="px-3 py-4 text-sm text-muted-foreground">
+                    {q.trim().length === 0 ? "مفيش حسابات اسمها قريب — اكتب جزء من اسم الحساب التاني" : q.trim().length === 1 ? "اكتب حرف كمان" : "مفيش حساب بالكلام ده"}
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -124,6 +165,7 @@ export function MergeContactButton({ contactId, contactName, branchId, onDone }:
                   <div className="font-bold">{keepThis ? contactName : other.name}</div>
                 </div>
               </div>
+              {advice?.note && <p className={`text-xs ${advice.blocked ? "text-destructive font-semibold" : "text-muted-foreground"}`}>{advice.note}</p>}
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" disabled={busy} onClick={() => { setKeepThis((v) => !v); setPreview(null); }}>
                   <ArrowLeftRight className="w-4 h-4 ml-1" /> اعكس (مين يفضل)

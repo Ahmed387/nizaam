@@ -166,7 +166,7 @@ export default function ContactFile() {
                 defaultBranch={scopeBranch ?? routeBranchId ?? null} onDone={() => { loadOverview(); }} />
             )}
             {c && contactId && !c.is_archived && (
-              <MergeContactButton contactId={contactId} contactName={c.name} branchId={c.branch_id ?? null}
+              <MergeContactButton contactId={contactId} contactName={c.name} openingBalance={Number(c.opening_balance ?? 0)}
                 onDone={(kept) => { if (kept === contactId) { loadOverview(); } else nav(isAdminView ? `/admin/contacts/${kept}` : `/branch/${routeBranchId}/contacts/${kept}`); }} />
             )}
             {isAdmin && <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
