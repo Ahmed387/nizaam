@@ -32,10 +32,10 @@ import { rpcErrorText } from "@/lib/rpcError";
 import type { EtaSettings } from "@/lib/etaWizard";
 import { ETA_STATE, etaLines, etaState, etaTotals, etaTypeLabel, type EtaDoc, type EtaIssuer, type EtaState } from "@/lib/etaInvoices";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { etaSyncView, manualWait, mmss, type EtaSyncSettings } from "@/lib/etaSyncStatus";
 
 const fmt = (n: number | null | undefined) => Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const day = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("en-GB", { timeZone: "Africa/Cairo" }) : "—");
-const when = (s: string | null | undefined) => (s ? new Date(s).toLocaleString("en-GB", { timeZone: "Africa/Cairo" }) : "لسه");
 const firstOfMonth = () => cairoTodayDay().slice(0, 8) + "01";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -56,6 +56,7 @@ export default function EtaInvoices() {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("docs");
   const [syncing, setSyncing] = useState(false);
+  const [now, setNow] = useState(() => new Date());
   const [detailDoc, setDetailDoc] = useState<EtaDoc | null>(null);
   const [linkDoc, setLinkDoc] = useState<EtaDoc | null>(null);
   const [backfillOpen, setBackfillOpen] = useState(false);
@@ -78,6 +79,16 @@ export default function EtaInvoices() {
     if (!i.error) setIssuers((i.data as EtaIssuer[]) ?? []);
   };
   useEffect(() => { load(); }, [tenantId, from, to]);
+  const wait = manualWait((settings as EtaSyncSettings | null)?.manual_ready_at, now);
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), wait > 0 ? 1000 : 30_000);
+    return () => clearInterval(id);
+  }, [wait > 0]);
+  // a page left open picks up the hourly run by itself
+  useEffect(() => {
+    const id = setInterval(() => { if (!document.hidden && !syncing) load(); }, 10 * 60_000);
+    return () => clearInterval(id);
+  }, [tenantId, from, to, syncing]);
 
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -88,12 +99,36 @@ export default function EtaInvoices() {
   const t = useMemo(() => etaTotals(docs), [docs]);
   const st = useMemo(() => etaTotals(shown), [shown]);
 
+  // «اسحب دلوقتي»: eta_sync_now starts the pull (one per 2 min); we watch last_sync_at until the run writes it (≤ 2.5 min)
   const syncNow = async () => {
+    const before = settings?.last_sync_at ?? null;
+    const docsBefore = settings?.documents ?? 0;
     setSyncing(true);
     const { error } = await supabase.rpc("eta_sync_now" as any);
-    if (error) { setSyncing(false); toast.error(rpcErrorText(error)); return; }
-    toast.success("بيتحدث… الفواتير الجديدة هتظهر خلال دقيقة");
-    setTimeout(() => { setSyncing(false); load(); }, 45_000);
+    if (error) { setSyncing(false); toast.error(rpcErrorText(error)); load(); return; }
+    toast.message("بيسحب من المنظومة… بياخد من ثواني لدقيقتين");
+    const started = Date.now();
+    for (;;) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const { data } = await supabase.rpc("eta_settings_get" as any);
+      const s2 = data as EtaSettings | null;
+      if (s2 && s2.last_sync_at && s2.last_sync_at !== before) {
+        setSyncing(false);
+        await load();
+        if (s2.last_error) toast.error("السحب ماكملش — شوف السبب فوق الجدول");
+        else {
+          const added = Math.max(0, (s2.documents ?? 0) - docsBefore);
+          toast.success(added ? `اتسحب — ${added} فاتورة جديدة` : "اتسحب — مفيش فواتير جديدة");
+        }
+        return;
+      }
+      if (Date.now() - started > 150_000) {
+        setSyncing(false);
+        await load();
+        toast.error("السحب أخد وقت أطول من العادي — هيظهر لوحده أول ما يخلص، أو جرّب تاني بعد دقيقتين");
+        return;
+      }
+    }
   };
   const markAllSeen = async () => {
     const { error } = await supabase.rpc("eta_mark_seen" as any, { p_ids: null });
@@ -132,19 +167,46 @@ export default function EtaInvoices() {
           actions={
             <div className="flex flex-wrap gap-2">
               {settings?.unseen ? <Button variant="outline" onClick={markAllSeen}><CheckCheck className="w-4 h-4 ml-2" />علّم الكل اتشاف ({settings.unseen})</Button> : null}
-              {settings?.enabled && <Button variant="outline" onClick={syncNow} disabled={syncing}><RefreshCw className={`w-4 h-4 ml-2 ${syncing ? "animate-spin" : ""}`} />حدّث دلوقتي</Button>}
               {settings?.is_owner && settings.enabled && <Button variant="outline" onClick={() => setBackfillOpen(true)}><History className="w-4 h-4 ml-2" />هات فواتير أقدم</Button>}
               {settings?.is_owner && <Button variant="outline" asChild><Link to="/admin/settings?tab=eta"><Settings2 className="w-4 h-4 ml-2" />إعدادات الربط</Link></Button>}
             </div>
           }
         />
 
-        {settings && (
-          <div className="text-sm text-muted-foreground">
-            {settings.enabled ? "الاستقبال شغّال — بيتحدث كل ساعة." : "الاستقبال متوقف."} آخر تحديث: {when(settings.last_sync_at)}
-            {settings.last_error && <span className="text-destructive"> — آخر مشكلة: {settings.last_error}</span>}
-          </div>
-        )}
+        {settings && (() => {
+          const v = etaSyncView(settings as EtaSyncSettings, now);
+          const border = v.tone === "error" ? "border-destructive/50 bg-destructive/5" : v.tone === "warn" ? "border-warning/60 bg-warning/5" : v.tone === "off" ? "border-border bg-muted/30" : "border-border";
+          return (
+            <Card className={border}>
+              <CardContent className="py-3 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="text-sm flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className={`inline-block w-2 h-2 rounded-full ${v.tone === "ok" ? "bg-success" : v.tone === "error" ? "bg-destructive" : v.tone === "warn" ? "bg-warning" : "bg-muted-foreground"}`} />
+                    <span>آخر سحب من المنظومة: <b className="tabular-nums">{v.last}</b></span>
+                    {v.next && <span className="text-muted-foreground">— السحب الجاي <b className="tabular-nums">{v.next}</b> (كل ساعة لوحده)</span>}
+                    {syncing && <span className="text-primary">— بيسحب دلوقتي…</span>}
+                  </div>
+                  {settings.enabled && (
+                    <Button size="sm" variant="outline" onClick={syncNow} disabled={syncing || wait > 0}
+                      title={wait > 0 ? "المنظومة بتقفل الطلبات الكتير ورا بعض — مرة كل دقيقتين" : "اسحب الفواتير الجديدة من المنظومة دلوقتي"}>
+                      {syncing ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <RefreshCw className="w-4 h-4 ml-2" />}
+                      {syncing ? "بيسحب…" : wait > 0 ? `اسحب دلوقتي (استنى ${mmss(wait)})` : "اسحب دلوقتي"}
+                    </Button>
+                  )}
+                </div>
+                {v.problem && (
+                  <div className={`text-sm rounded-md p-2 space-y-1 ${v.tone === "error" ? "bg-destructive/10" : "bg-muted/50"}`}>
+                    <div><b>{v.tone === "error" ? "السحب فشل:" : v.tone === "off" ? "متوقف:" : "تنبيه:"}</b> {v.problem.reason}</div>
+                    <div><b>تعمل إيه:</b> {v.problem.todo}</div>
+                    {v.tone === "error" && settings.is_owner && /إعدادات الربط/.test(v.problem.todo) && (
+                      <Button size="sm" variant="link" className="h-auto p-0" asChild><Link to="/admin/settings?tab=eta">افتح إعدادات الربط</Link></Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <MetricCardWithHint label="الفواتير الصحيحة" value={t.count} currency={false} icon={<FileText />}

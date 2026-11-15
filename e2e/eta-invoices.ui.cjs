@@ -39,7 +39,8 @@ const ISSUERS = [
 const DETAIL = { document: { invoiceLines: [{ description: "غسالة حوض واحد 5ك شطورة", internalCode: "000000000500001928", itemCode: "6221103003994", quantity: 5, unitType: "EA",
   unitValue: { amountEGP: 2762.28 }, discount: { amount: 0 }, itemsDiscount: 0, netTotal: 13811.4, total: 15745, taxableItems: [{ amount: 1933.6, rate: 14 }] }] } };
 const SETTINGS = { env: "prod", unseen: 1, enabled: true, is_owner: true, client_id: "3dfe848b-xxxx", documents: 35, has_secret: true, last_error: null,
-  last_sync_at: "2026-11-15T06:07:02Z", synced_until: "2026-11-15T06:07:02Z", connection_error: null, connection_ok_at: "2026-11-14T23:48:51Z", connection_checked_at: "2026-11-14T23:48:51Z" };
+  last_sync_at: new Date(Date.now() - 18 * 60_000).toISOString(), synced_until: "2026-11-15T06:07:02Z", connection_error: null,
+  next_sync_at: new Date(Date.now() + 42 * 60_000).toISOString(), manual_ready_at: null, connection_ok_at: "2026-11-14T23:48:51Z", connection_checked_at: "2026-11-14T23:48:51Z" };
 
 function makeDb() {
   return {
@@ -86,6 +87,12 @@ async function open(browser, db) {
       const name = path.split("/").pop(); let body = {}; try { body = req.postDataJSON() || {}; } catch {}
       db.calls.push({ rpc: name, body });
       if (name === "eta_settings_get") return json(SETTINGS);
+      if (name === "eta_sync_now") {
+        // the pull finishes "on the server": the next read sees a new last pull, one more document, and the 2-minute wait
+        setTimeout(() => { SETTINGS.last_sync_at = new Date().toISOString(); SETTINGS.documents = 36; }, 1500);
+        SETTINGS.manual_ready_at = new Date(Date.now() + 120_000).toISOString();
+        return json({ ok: true });
+      }
       if (name === "eta_documents_list") return json(DOCS);
       if (name === "eta_issuers") return json(ISSUERS);
       if (name === "eta_document_detail") return json({ eta_uuid: "x", detail: DETAIL, detail_at: "2026-11-15T06:00:00Z" });
@@ -124,7 +131,9 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
   await shot(page, "eta-1-list");
   const body = await page.locator("body").innerText();
   check("page title", body.includes("الفواتير الإلكترونية الواردة"));
-  check("receiving status line", body.includes("الاستقبال شغّال"));
+  check("status: last pull today + next pull", body.includes("آخر سحب من المنظومة: النهارده") && body.includes("السحب الجاي"));
+  check("status: no problem shown when ok", !body.includes("السحب فشل") && !body.includes("تنبيه:"));
+  check("«اسحب دلوقتي» button enabled", await page.getByRole("button", { name: /^اسحب دلوقتي$/ }).isEnabled());
   check("card: valid count = 5", /الفواتير الصحيحة[\s\S]{0,40}5/.test(body));
   check("recorded row shows its purchase", body.includes("PO24941") && body.includes("متسجلة عندنا"));
   check("missing row", body.includes("مش متسجلة عندنا"));
@@ -180,6 +189,29 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
   check("wizard: test calls eta-sync mode test", db.calls.some((c) => c.fn === "eta-sync" && c.body.mode === "test"));
 
   const errs = db.calls.filter((c) => c.pageerror);
+  // «اسحب دلوقتي»: calls eta_sync_now, waits for the run, then shows the result and the 2-minute wait
+  await page.goto(`${BASE}/admin/eta-invoices`); await settle(page);
+  await page.getByRole("button", { name: /^اسحب دلوقتي$/ }).click();
+  check("sync calls eta_sync_now", db.calls.some((c) => c.rpc === "eta_sync_now"));
+  await page.getByText("اتسحب — 1 فاتورة جديدة").waitFor({ timeout: 15000 }).then(() => check("sync result toast", true), () => check("sync result toast", false));
+  const waitBtn = page.getByRole("button", { name: /اسحب دلوقتي \(استنى \d:\d\d\)/ });
+  check("button waits 2 minutes after a pull", (await waitBtn.count()) === 1 && (await waitBtn.isDisabled()));
+  await shot(page, "eta-6-synced");
+  // a failed pull: reason + what to do
+  SETTINGS.last_error = "ETA search 503: Service Unavailable"; SETTINGS.manual_ready_at = null;
+  await page.goto(`${BASE}/admin/eta-invoices`); await settle(page);
+  const eb = await page.locator("body").innerText();
+  check("error: reason in plain words", eb.includes("السحب فشل:") && eb.includes("المشكلة عندهم"));
+  check("error: what to do + next try time", eb.includes("تعمل إيه:") && eb.includes("هيحاول تاني لوحده"));
+  await shot(page, "eta-7-error");
+  SETTINGS.last_error = "Client ID أو Client Secret غلط، أو النظام مش متسجّل في بيئة «الحقيقية» على البوابة";
+  await page.goto(`${BASE}/admin/eta-invoices`); await settle(page);
+  check("error: wrong credentials → link to settings", (await page.getByRole("link", { name: "افتح إعدادات الربط" }).count()) === 1);
+  // stopped: no pull for 3 hours
+  SETTINGS.last_error = null; SETTINGS.last_sync_at = new Date(Date.now() - 3 * 3600_000).toISOString();
+  await page.goto(`${BASE}/admin/eta-invoices`); await settle(page);
+  check("stale: «السحب التلقائي واقف»", (await page.locator("body").innerText()).includes("السحب التلقائي واقف"));
+
   check("no page errors", errs.length === 0, errs.map((e) => e.pageerror).join(" | "));
   console.log(results.join("\n"));
   await browser.close();
