@@ -168,6 +168,7 @@ export default function ContactFile() {
             )}
             {c && contactId && !c.is_archived && (
               <MergeContactButton contactId={contactId} contactName={c.name} openingBalance={Number(c.opening_balance ?? 0)}
+                branchId={(c as any).branch_id ?? null} branchName={(c as any).branch_name ?? null}
                 onDone={(kept) => { if (kept === contactId) { loadOverview(); } else nav(isAdminView ? `/admin/contacts/${kept}` : `/branch/${routeBranchId}/contacts/${kept}`); }} />
             )}
             {c && contactId && !c.is_archived && (

@@ -1,4 +1,6 @@
 import { fetchLastPurchaseCosts } from "@/lib/lastPurchaseCost";
+import { useHideZero } from "@/lib/hideZero";
+import { HideZeroToggle } from "@/components/HideZeroToggle";
 import { useEffect, useMemo, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import * as XLSX from "xlsx";
@@ -106,15 +108,19 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   useEffect(() => { load(); }, []);
   useRealtimeRefresh(["products", "branches", "categories"], load);
 
+  // «استبعاد الكميات الصفر» (owner 2026-11-15): a row is one branch's stock, so «صفر» = zero in that branch (the chosen
+  // one, or each branch when all are shown). On by default, remembered; «نفد» chosen himself shows the zeros.
+  const [hideZero, setHideZero] = useHideZero("all-inventory");
   const filtered = useMemo(() => rows.filter((p) => {
     if (search && !productSearchMatch(p as any, search)) return false;
+    if (hideZero && stockFilter !== "out" && Math.abs(Number(p.quantity) || 0) <= 0.005) return false;
     if (branchFilter !== "all" && p.branch_id !== branchFilter) return false;
     if (catFilter !== "all" && p.category_id !== catFilter) return false;
     if (stockFilter === "low" && p.quantity > p.low_stock_alert) return false;
     if (stockFilter === "out" && Number(p.quantity) > 0) return false;
     if (stockFilter === "ok" && p.quantity <= p.low_stock_alert) return false;
     return true;
-  }), [rows, search, branchFilter, catFilter, stockFilter]);
+  }), [rows, search, branchFilter, catFilter, stockFilter, hideZero]);
 
   // archived products and system branches are not stock; "out" = nothing left (zero or negative);
   // value = quantity on hand × the branch moving average cost (products.avg_cost, migration 0071)
@@ -338,6 +344,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
             {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        <HideZeroToggle checked={hideZero} onChange={setHideZero} label="استبعاد الكميات الصفر" />
         <Select value={stockFilter} onValueChange={setStockFilter}>
           <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
           <SelectContent>

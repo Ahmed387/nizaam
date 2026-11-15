@@ -37,6 +37,8 @@ import { VoucherDialog } from "@/components/VoucherDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { saveContact, deleteContact } from "@/lib/contactWrites";
 import { fetchAllContactsPage, fetchContactsPage, type BalanceFilter, type ContactPageTotals } from "@/lib/ledger";
+import { balanceFiltersFor, useHideZero } from "@/lib/hideZero";
+import { HideZeroToggle } from "@/components/HideZeroToggle";
 import { Search, Layers } from "lucide-react";
 import { openDocs, OPEN_DOCS_MAX } from "@/lib/openDocs";
 import { printStatements } from "@/lib/bulkPrint";
@@ -99,6 +101,9 @@ export default function Contacts() {
   const [voucherCtx, setVoucherCtx] = useState<{ type: "receipt" | "payment"; contact: any } | null>(null);
   type BalanceKey = BalanceFilter;
   const [balanceFilters, setBalanceFilters] = useState<BalanceKey[]>([]);
+  // «استبعاد الصفر» (owner 2026-11-15): on by default, remembered; a chip he picks himself wins
+  const [hideZero, setHideZero] = useHideZero("contacts");
+  const effBalance = balanceFiltersFor(balanceFilters, hideZero);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const toggleBalance = (k: BalanceKey) =>
     setBalanceFilters((prev) => prev.includes(k) ? prev.filter((x) => x !== k) : [...prev, k]);
@@ -117,12 +122,12 @@ export default function Contacts() {
   const [totals, setTotals] = useState<ContactPageTotals | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => { const t = setTimeout(() => setDebouncedSearch(search.trim()), 300); return () => clearTimeout(t); }, [search]);
-  useEffect(() => { setPage(0); }, [debouncedSearch, filter, balanceFilters, branchId]);
+  useEffect(() => { setPage(0); }, [debouncedSearch, filter, balanceFilters, hideZero, branchId]);
 
   // All filtering, search and paging run in the database (contacts_page RPC, unified ledger) — no 1,000-row cap.
   // Balances are this branch's documents and money; customer and supplier sides are separate (no netting).
   const fetchPage = (limit: number, offset: number) => fetchContactsPage({
-    branchId: branchId!, type: filter, query: debouncedSearch || null, balance: balanceFilters, limit, offset,
+    branchId: branchId!, type: filter, query: debouncedSearch || null, balance: effBalance, limit, offset,
   });
   const reqRef = useRef(0);
   const load = async () => {
@@ -147,9 +152,9 @@ export default function Contacts() {
   // database pages it as before. The tabs, the search and the balance chips stay the database filters; both combine.
   const { pathname } = useLocation();
   const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:${filter}`);
-  const wholeSig = `${branchId}|${filter}|${debouncedSearch}|${balanceFilters.join(",")}`;
+  const wholeSig = `${branchId}|${filter}|${debouncedSearch}|${effBalance.join(",")}`;
   const whole = useWholeList<any>(wholeSig, async () => (await fetchAllContactsPage({
-    branchId: branchId!, type: filter, query: debouncedSearch || null, balance: balanceFilters,
+    branchId: branchId!, type: filter, query: debouncedSearch || null, balance: effBalance,
   })).rows, { auto: isActive(colState) });
   const { result: listRes, adapter: listAdapter, state: colEff, apply } = useListFilter({
     rows: whole.rows, columns: CONTACT_COLS, state: colState, onChange: setColState, ensureRows: whole.ensure,
@@ -157,7 +162,7 @@ export default function Contacts() {
   const wholeMode = isActive(colEff);
   const colSig = JSON.stringify(colEff);
   useEffect(() => { setPage(0); }, [colSig]);
-  useEffect(() => { if (!wholeMode) load(); /* eslint-disable-next-line */ }, [branchId, wholeMode ? 0 : page, debouncedSearch, filter, balanceFilters, wholeMode]);
+  useEffect(() => { if (!wholeMode) load(); /* eslint-disable-next-line */ }, [branchId, wholeMode ? 0 : page, debouncedSearch, filter, balanceFilters, hideZero, wholeMode]);
 
   // Realtime: refresh on contact changes AND on any transaction that affects balance (triggers will update contacts row)
   useRealtimeRefresh(["contacts", "invoices", "invoice_payments", "returns", "shipments", "supplier_payments", "purchase_returns", "vouchers", "payment_transactions", "customer_credit_log"], () => { whole.refresh(); if (!wholeMode) load(); });
@@ -168,7 +173,7 @@ export default function Contacts() {
 
   // Selection (owner request 2026-10-16): open as tabs, print statements, export — kept across pages
   const [selected, setSelected] = useState<Map<string, any>>(new Map());
-  useEffect(() => { setSelected(new Map()); }, [debouncedSearch, filter, balanceFilters, branchId, colSig]);
+  useEffect(() => { setSelected(new Map()); }, [debouncedSearch, filter, balanceFilters, hideZero, branchId, colSig]);
   const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, r); return n; });
   const selRows = Array.from(selected.values());
   const exportSelected = () => exportToExcel("جهات-محددة", [{
@@ -485,6 +490,7 @@ export default function Contacts() {
               )}
             </PopoverContent>
           </Popover>
+          <HideZeroToggle checked={hideZero} onChange={setHideZero} label="استبعاد الأرصدة الصفر" />
           <div className="relative w-full sm:w-80">
             <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input

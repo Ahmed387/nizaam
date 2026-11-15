@@ -16,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
+import { useHideZero } from "@/lib/hideZero";
+import { HideZeroToggle } from "@/components/HideZeroToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { PackSizeButton, packOf, packText } from "@/components/PackUnits";
 import { logAudit } from "@/lib/roles";
@@ -70,6 +72,8 @@ export default function Inventory() {
   const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  // «استبعاد الكميات الصفر» (owner 2026-11-15): on by default, remembered; «نفد» chosen himself shows the zeros
+  const [hideZero, setHideZero] = useHideZero("inventory");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
   const [defaultLowStock, setDefaultLowStock] = useState<number>(5);
@@ -491,6 +495,7 @@ export default function Inventory() {
     const isArchived = !!p.archived_at;
     if (showArchived ? !isArchived : isArchived) return false;
     if (search && !productSearchMatch(p as any, search)) return false;
+    if (hideZero && filter !== "out" && Math.abs(Number(p.quantity) || 0) <= 0.005) return false;
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
     if (filter === "ok" && p.quantity <= p.low_stock_alert) return false;
@@ -742,6 +747,7 @@ export default function Inventory() {
                 <X className="w-4 h-4 ml-1" /> مسح الفترة
               </Button>
             )}
+            <HideZeroToggle checked={hideZero} onChange={setHideZero} label="استبعاد الكميات الصفر" />
             <Button
               variant={showArchived ? "default" : "outline"}
               size="sm"

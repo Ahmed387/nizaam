@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { candidateNet, keepAdvice, splitCandidates, type MergeCandidate } from "./mergeCandidates";
+import { candidateNet, keepAdvice, mergeBranchOptions, mergeNameOptions, mergeNameToSend, splitCandidates, type MergeCandidate } from "./mergeCandidates";
 
 const c = (o: Partial<MergeCandidate>): MergeCandidate => ({
   id: "x", name: "نقابة المعلمين", account_no: 629, phone: null, type: "customer", branch_id: "b2", branch_name: "عبدالمنعم",
@@ -8,10 +8,26 @@ const c = (o: Partial<MergeCandidate>): MergeCandidate => ({
 });
 
 describe("splitCandidates", () => {
-  it("same branch is mergeable, other branches are for information", () => {
-    const s = splitCandidates([c({ id: "a", can_merge: true, same_branch: true, why_not: null }), c({ id: "b" })]);
-    expect(s.mergeable.map((x) => x.id)).toEqual(["a"]);
+  it("groups by branch: own branch first, other branches after (both can be merged since 0229)", () => {
+    const s = splitCandidates([c({ id: "a", can_merge: true, same_branch: true, why_not: null }), c({ id: "b", can_merge: true, why_not: null })]);
+    expect(s.sameBranch.map((x) => x.id)).toEqual(["a"]);
     expect(s.elsewhere.map((x) => x.id)).toEqual(["b"]);
+  });
+});
+
+describe("merge name / branch choices (0229)", () => {
+  it("offers both names once, kept one first", () => {
+    expect(mergeNameOptions("نقابة المعلمين", "النقابة المعلمين")).toEqual(["نقابة المعلمين", "النقابة المعلمين"]);
+    expect(mergeNameOptions("احمد", " احمد ")).toEqual(["احمد"]);
+  });
+  it("offers both branches once, kept account's branch first", () => {
+    expect(mergeBranchOptions({ id: "b4", name: "عبدالمنعم" }, { id: "b3", name: "سكة" })).toEqual([{ id: "b4", name: "عبدالمنعم" }, { id: "b3", name: "سكة" }]);
+    expect(mergeBranchOptions({ id: "b4", name: "عبدالمنعم" }, { id: "b4", name: "عبدالمنعم" })).toHaveLength(1);
+    expect(mergeBranchOptions({ id: null, name: null }, { id: "b3", name: "سكة" })).toEqual([{ id: "b3", name: "سكة" }]);
+  });
+  it("sends the typed name only for «اسم تاني», spaces tidied", () => {
+    expect(mergeNameToSend("__custom", "  نقابة   المعلمين ")).toBe("نقابة المعلمين");
+    expect(mergeNameToSend("احمد معتز", "x")).toBe("احمد معتز");
   });
 });
 

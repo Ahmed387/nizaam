@@ -15,9 +15,30 @@ export const contactTypeName = (t: string) => (t === "customer" ? "عميل" : t
 /** The account's balance the way every screen shows it (netOf: supplier − customer → دائن / مدين). */
 export const candidateNet = (c: Pick<MergeCandidate, "customer_balance" | "supplier_balance">) => netOf(c.customer_balance, c.supplier_balance);
 
-/** Same branch first (mergeable), then the other branches for information only. */
+/**
+ * Same branch first, then the other branches. Since 0229 an account of another branch can be merged too (owner
+ * 2026-11-15): every document keeps its own branch, only the account becomes one.
+ */
 export function splitCandidates(list: MergeCandidate[]) {
-  return { mergeable: list.filter((c) => c.can_merge), elsewhere: list.filter((c) => !c.can_merge) };
+  return { sameBranch: list.filter((c) => c.same_branch), elsewhere: list.filter((c) => !c.same_branch) };
+}
+
+/** The names the owner can keep after the merge: the kept account's, the other one's (if different), or his own. */
+export function mergeNameOptions(keptName: string, goneName: string): string[] {
+  const a = keptName.trim(), b = goneName.trim();
+  return a === b || !b ? [a] : [a, b];
+}
+
+/** The branches the merged account can belong to: the kept account's first, then the other one's (if different). */
+export function mergeBranchOptions(kept: { id: string | null; name: string | null }, gone: { id: string | null; name: string | null }) {
+  const out: { id: string; name: string }[] = [];
+  for (const b of [kept, gone]) if (b.id && !out.some((o) => o.id === b.id)) out.push({ id: b.id, name: b.name ?? "—" });
+  return out;
+}
+
+/** The name sent to merge_contacts: the typed one when «اسم تاني» is chosen, else the picked option. */
+export function mergeNameToSend(choice: string, custom: string): string {
+  return (choice === "__custom" ? custom : choice).replace(/\s+/g, " ").trim();
 }
 
 /**

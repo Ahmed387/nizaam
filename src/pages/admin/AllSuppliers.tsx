@@ -30,6 +30,8 @@ import { FinancialAmount } from "@/components/FinancialAmount";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { saveContact, deleteContact } from "@/lib/contactWrites";
 import { fetchAllContactsPage, type BalanceFilter, type ContactPageTotals } from "@/lib/ledger";
+import { useHideZero } from "@/lib/hideZero";
+import { HideZeroToggle } from "@/components/HideZeroToggle";
 
 interface Supplier {
   id: string;
@@ -142,8 +144,11 @@ export default function AllSuppliers() {
     });
   }, [suppliers, shipSums, branchFilter]);
 
+  // «استبعاد الصفر» (owner 2026-11-15): on by default, remembered; choosing «صفر» himself shows the zeros
+  const [hideZero, setHideZero] = useHideZero("all-suppliers");
   const filtered = useMemo(() => enriched.filter((s) => {
     if (search && !searchMatch(search, s.name, s.contact_person)) return false;
+    if (hideZero && balanceFilter !== "zero" && Math.abs(netOf(s.customer_balance, s.supplier_balance)) <= 0.005) return false;
     // same rules as the server filter (contacts_page): open documents and unused advances are looked at
     // separately, so a contact with an open invoice AND an advance shows under both
     const co = Number(s.customer_open) || 0, ca = Number(s.customer_advance) || 0;
@@ -161,7 +166,7 @@ export default function AllSuppliers() {
       case "settled": return co <= 0.005 && ca <= 0.005 && so <= 0.005 && sa <= 0.005;
       default: return true;
     }
-  }), [enriched, search, balanceFilter]);
+  }), [enriched, search, balanceFilter, hideZero]);
 
   const typeCounts = counts;
 
@@ -459,6 +464,7 @@ export default function AllSuppliers() {
 
       <div className="flex gap-3 mb-4 flex-wrap">
         <Input placeholder="ابحث بالاسم أو المسؤول" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
+        <HideZeroToggle checked={hideZero} onChange={setHideZero} label="استبعاد الأرصدة الصفر" />
         <Select value={branchFilter} onValueChange={setBranchFilter}>
           <SelectTrigger className="w-44"><SelectValue placeholder="الفرع" /></SelectTrigger>
           <SelectContent>
