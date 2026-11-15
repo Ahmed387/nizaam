@@ -19,6 +19,8 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { FinancialAmount } from "@/components/FinancialAmount";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { closedTotals, fullDateTime, openingDiff, shiftFigures, shortDateTime, type LiveFigures } from "@/lib/shiftRows";
 
 interface Row {
   id: string;
@@ -35,6 +37,8 @@ interface Row {
   closing_cash: number | null;
   variance: number | null;
   status: string;
+  reported_opening_cash?: number | null;
+  expected_opening_cash?: number | null;
 }
 
 export default function ShiftsHistory({ embedded = false }: { embedded?: boolean } = {}) {
@@ -53,6 +57,7 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
   const [hoAmount, setHoAmount] = useState<number>(0);
   const [hoNotes, setHoNotes] = useState("");
   const [hoBusy, setHoBusy] = useState(false);
+  const [live, setLive] = useState<Record<string, LiveFigures>>({});
 
   const loadHandovers = async (id: string) => {
     try {
@@ -134,6 +139,12 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
     if (error) toast.error(error.message);
     setRows((data ?? []) as any);
     setLoading(false);
+    // open shifts: cash sales / expected up to now (stored only on closing) — migration 0224
+    const openIds = (data ?? []).filter((r: any) => r.status === "open").map((r: any) => r.id);
+    if (openIds.length) {
+      const { data: lf, error: le } = await (supabase.rpc as any)("shift_live_figures", { p_ids: openIds });
+      if (!le) setLive(Object.fromEntries(((lf ?? []) as any[]).map((x) => [x.shift_id, x])));
+    } else setLive({});
   };
 
   useEffect(() => { load(); }, [branchId, from, to]);
@@ -234,59 +245,80 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
         {loading ? (
           <div className="flex justify-center p-10"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
         ) : (
+          <TooltipProvider delayDuration={200}>
           <PermTable className="w-full text-sm">
             <thead className="bg-muted/50">
-              <tr className="text-right">
+              <tr className="text-right whitespace-nowrap">
                 <th className="p-3">الكاشير</th>
                 <th className="p-3">الفرع</th>
                 <th className="p-3">الفتح</th>
                 <th className="p-3">القفل</th>
                 <th className="p-3">قفلها</th>
-                <th className="p-3">افتتاحي</th>
-                <th className="p-3">مبيعات نقدية</th>
-                <th className="p-3">متوقع</th>
-                <th className="p-3">فعلي</th>
-                <th className="p-3">الفرق</th>
-                <th className="p-3">الحالة</th>
-                <th className="p-3">تفاصيل</th>
+                <th className="p-3 text-center">افتتاحي</th>
+                <th className="p-3 text-center">فرق الافتتاح</th>
+                <th className="p-3 text-center">مبيعات كاش</th>
+                <th className="p-3 text-center">متوقع</th>
+                <th className="p-3 text-center">فعلي</th>
+                <th className="p-3 text-center">الفرق</th>
+                <th className="p-3 text-center">الحالة</th>
+                <th className="p-3 text-center">إجراءات</th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={12} className="p-6 text-center text-muted-foreground">لا توجد ورديات</td></tr>}
-              {rows.slice((page - 1) * PAGE, page * PAGE).map((r) => (
+              {rows.length === 0 && <tr><td colSpan={13} className="p-6 text-center text-muted-foreground">لا توجد ورديات</td></tr>}
+              {rows.slice((page - 1) * PAGE, page * PAGE).map((r) => {
+                const f = shiftFigures(r, live[r.id]);
+                const od = openingDiff(r);
+                const money = (v: number | null | undefined) => (v == null ? <span className="text-muted-foreground">—</span> : formatEGP(v));
+                const tone = (v: number | null | undefined) => (Number(v ?? 0) < -0.005 ? "text-destructive" : Number(v ?? 0) > 0.005 ? "text-success" : "");
+                return (
                 <Fragment key={r.id}>
-                  <tr className="border-t border-border">
+                  <tr className="border-t border-border whitespace-nowrap">
                     <td className="p-3 font-semibold">{r.cashier_name ?? "—"}</td>
                     <td className="p-3">{r.branch_name ?? "—"}</td>
-                    <td className="p-3 text-xs">{formatDateTime(r.opened_at)}</td>
-                    <td className="p-3 text-xs">{r.closed_at ? formatDateTime(r.closed_at) : "—"}</td>
+                    <td className="p-3 text-xs tabular-nums" title={fullDateTime(r.opened_at)}>{shortDateTime(r.opened_at)}</td>
+                    <td className="p-3 text-xs tabular-nums" title={fullDateTime(r.closed_at)}>{shortDateTime(r.closed_at)}</td>
                     <td className="p-3 text-xs">{r.closed_by_name ?? (r.status === "auto_closed" ? "النظام (تلقائي)" : "—")}</td>
-                    <td className="p-3">{formatEGP(r.opening_cash)}</td>
-                    <td className="p-3">{r.cash_sales != null ? formatEGP(r.cash_sales) : "—"}</td>
-                    <td className="p-3">{r.expected_cash != null ? formatEGP(r.expected_cash) : "—"}</td>
-                    <td className="p-3">{r.closing_cash != null ? formatEGP(r.closing_cash) : "—"}</td>
-                    <td className={`p-3 font-bold ${Number(r.variance ?? 0) < 0 ? "text-destructive" : Number(r.variance ?? 0) > 0 ? "text-success" : ""}`}>
-                      {r.variance != null ? formatEGP(r.variance) : "—"}
+                    <td className="p-3 text-center tabular-nums">{formatEGP(r.opening_cash)}</td>
+                    <td className={`p-3 text-center tabular-nums font-semibold ${od != null && Math.abs(od) > 0.005 ? "text-destructive" : ""}`}
+                        title={od != null ? `الكاشير عدّ ${formatEGP(Number(r.reported_opening_cash ?? 0))} — السيستم متوقع ${formatEGP(Number(r.expected_opening_cash ?? 0))}` : undefined}>
+                      {od == null ? <span className="text-muted-foreground">—</span> : formatEGP(od)}
                     </td>
-                    <td className="p-3">{statusBadge(r.status)}</td>
+                    <td className="p-3 text-center tabular-nums">{money(f.cash_sales)}</td>
+                    <td className="p-3 text-center tabular-nums">{money(f.expected_cash)}</td>
+                    <td className="p-3 text-center tabular-nums">{money(f.closing_cash)}</td>
+                    <td className={`p-3 text-center tabular-nums font-bold ${tone(f.variance)}`}>{money(f.variance)}</td>
+                    <td className="p-3 text-center">
+                      {statusBadge(r.status)}
+                      {f.live && <div className="text-[10px] text-muted-foreground mt-1">الأرقام لحد دلوقتي</div>}
+                    </td>
                     <td className="p-3">
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => toggleRow(r.id)}>
-                          <ChevronDown className={`w-4 h-4 transition-transform ${expanded === r.id ? "rotate-180" : ""}`} />
-                          وسائل الدفع
-                        </Button>
+                      <div className="flex items-center justify-center gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="وسائل الدفع" onClick={() => toggleRow(r.id)}>
+                              <ChevronDown className={`w-4 h-4 transition-transform ${expanded === r.id ? "rotate-180" : ""}`} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>وسائل الدفع في الوردية</TooltipContent>
+                        </Tooltip>
                         {r.status === "open" && (
-                          <Button variant="ghost" size="sm" onClick={() => { setHoShift(r); setHoAmount(0); setHoNotes(""); }}>
-                            <HandCoins className="w-4 h-4 me-1" />
-                            تسليم عهدة طارئ
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="تسليم عهدة طارئ"
+                                onClick={() => { setHoShift(r); setHoAmount(0); setHoNotes(""); }}>
+                                <HandCoins className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>تسليم عهدة طارئ أثناء الوردية</TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
                     </td>
                   </tr>
                   {expanded === r.id && (
                     <tr className="bg-muted/30 border-t border-border">
-                      <td colSpan={12} className="p-3 space-y-3">
+                      <td colSpan={13} className="p-3 space-y-3">
                         {!breakdowns[r.id] ? (
                           <div className="text-xs text-muted-foreground">جاري التحميل…</div>
                         ) : breakdowns[r.id].length === 0 ? (
@@ -325,10 +357,32 @@ export default function ShiftsHistory({ embedded = false }: { embedded?: boolean
 
                   )}
                 </Fragment>
-              ))}
+                );
+              })}
             </tbody>
+            {rows.length > 0 && (() => {
+              const t = closedTotals(rows);
+              return (
+                <tfoot>
+                  <tr className="border-t-2 border-border bg-muted/40 font-bold whitespace-nowrap">
+                    <td className="p-3" colSpan={5}>
+                      مجموع الورديات المقفولة ({t.count})
+                      {t.open > 0 && <span className="text-xs font-normal text-muted-foreground"> — من غير {t.open} مفتوحة</span>}
+                    </td>
+                    <td className="p-3 text-center tabular-nums">{formatEGP(t.opening_cash)}</td>
+                    <td className="p-3 text-center tabular-nums">{formatEGP(t.opening_diff)}</td>
+                    <td className="p-3 text-center tabular-nums">{formatEGP(t.cash_sales)}</td>
+                    <td className="p-3 text-center tabular-nums">{formatEGP(t.expected_cash)}</td>
+                    <td className="p-3 text-center tabular-nums">{formatEGP(t.closing_cash)}</td>
+                    <td className={`p-3 text-center tabular-nums ${t.variance < -0.005 ? "text-destructive" : t.variance > 0.005 ? "text-success" : ""}`}>{formatEGP(t.variance)}</td>
+                    <td className="p-3" colSpan={2} />
+                  </tr>
+                </tfoot>
+              );
+            })()}
 
           </PermTable>
+          </TooltipProvider>
         )}
         {rows.length > PAGE && (
           <div className="flex items-center justify-center gap-2 p-3 text-sm">

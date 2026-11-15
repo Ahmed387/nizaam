@@ -195,15 +195,15 @@ export default function EtaInvoices() {
               <Table permTable="eta_docs">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>الفاتورة</TableHead>
+                    <TableHead className="whitespace-nowrap">الفاتورة</TableHead>
                     <TableHead>المورد</TableHead>
-                    <TableHead>التاريخ</TableHead>
-                    <TableHead className="text-left">الإجمالي</TableHead>
-                    <TableHead>في السيستم</TableHead>
-                    <TableHead className="text-left">قبل الضريبة</TableHead>
-                    <TableHead className="text-left">الضريبة</TableHead>
-                    <TableHead>على المنظومة</TableHead>
-                    <TableHead>إجراءات</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">التاريخ</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">الإجمالي</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">في السيستم</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">قبل الضريبة</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">الضريبة</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">على المنظومة</TableHead>
+                    <TableHead className="text-center whitespace-nowrap">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -218,10 +218,10 @@ export default function EtaInvoices() {
                           <div>{etaTypeLabel(d.type_name)}{!d.seen_at && <Badge className="mr-2">جديد</Badge>}</div>
                           <div className="font-mono text-xs text-muted-foreground">{d.internal_id || "—"}</div>
                         </TableCell>
-                        <TableCell className="min-w-[180px]"><div>{d.issuer_name || "—"}</div><div className="text-xs text-muted-foreground font-mono">{d.issuer_id}</div></TableCell>
-                        <TableCell className="whitespace-nowrap">{day(d.date_issued)}</TableCell>
-                        <TableCell className="text-left font-mono font-medium whitespace-nowrap">{fmt(d.total)}</TableCell>
-                        <TableCell className="min-w-[190px]">
+                        <TableCell className="min-w-[200px] max-w-[320px]"><div className="truncate" title={d.issuer_name ?? ""}>{d.issuer_name || "—"}</div><div className="text-xs text-muted-foreground font-mono">{d.issuer_id}</div></TableCell>
+                        <TableCell className="text-center tabular-nums whitespace-nowrap">{day(d.date_issued)}</TableCell>
+                        <TableCell className="text-center font-mono tabular-nums font-semibold whitespace-nowrap">{fmt(d.total)}</TableCell>
+                        <TableCell className="min-w-[190px] text-center">
                           <span className={`px-2 py-0.5 rounded text-xs whitespace-nowrap ${ETA_STATE[es].tone}`}>{ETA_STATE[es].label}</span>
                           {d.match && (
                             <div className="text-xs mt-1">
@@ -233,14 +233,14 @@ export default function EtaInvoices() {
                           )}
                           {d.match_note && d.match_note !== ETA_STATE[es].label && <div className="text-xs text-muted-foreground mt-1">{d.match_note}</div>}
                         </TableCell>
-                        <TableCell className="text-left font-mono whitespace-nowrap">{fmt(d.net_amount)}</TableCell>
-                        <TableCell className="text-left font-mono whitespace-nowrap">{fmt(d.vat)}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(d.net_amount)}</TableCell>
+                        <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(d.vat)}</TableCell>
+                        <TableCell className="text-center">
                           <span className={`px-2 py-0.5 rounded text-xs whitespace-nowrap ${s.cls}`} title={d.status_reason ?? ""}>{s.label}</span>
                           {(d.cancel_requested || d.reject_requested) && d.status === "Valid" && <div className="text-xs text-warning mt-1">{d.cancel_requested ? "المورد طلب إلغاءها" : "مطلوب رفضها"}</div>}
                         </TableCell>
                         <TableCell>
-                          <div className="flex flex-wrap gap-1">
+                          <div className="flex items-center justify-center gap-0.5">
                             <Button size="sm" variant="ghost" title="بنود الفاتورة" onClick={() => setDetailDoc(d)}><ListTree className="w-4 h-4" /></Button>
                             {d.public_url && <Button size="sm" variant="ghost" title="افتحها على البوابة" asChild><a href={d.public_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4" /></a></Button>}
                             {canWrite && d.status === "Valid" && !d.match && d.match_mode !== "ignored" && (
@@ -262,9 +262,9 @@ export default function EtaInvoices() {
                   <TableFooter>
                     <TableRow>
                       <TableCell colSpan={3}>الإجمالي ({st.count} صحيحة، الإشعارات الدائنة بالسالب)</TableCell>
-                      <TableCell className="text-left font-mono whitespace-nowrap">{fmt(st.total)}</TableCell>
+                      <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(st.total)}</TableCell>
                       <TableCell colSpan={2} />
-                      <TableCell className="text-left font-mono whitespace-nowrap">{fmt(st.vat)}</TableCell>
+                      <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(st.vat)}</TableCell>
                       <TableCell colSpan={2} />
                     </TableRow>
                   </TableFooter>
@@ -311,8 +311,8 @@ function IssuersTab({ issuers, branchId, canWrite, onChanged }: { issuers: EtaIs
           <TableRow>
             <TableHead>المورد على المنظومة</TableHead>
             <TableHead>الرقم الضريبي</TableHead>
-            <TableHead className="text-left">عدد</TableHead>
-            <TableHead className="text-left">الإجمالي</TableHead>
+            <TableHead className="text-center whitespace-nowrap">عدد</TableHead>
+            <TableHead className="text-center whitespace-nowrap">الإجمالي</TableHead>
             <TableHead>متسجلة / فاضل</TableHead>
             <TableHead>مربوط بحساب</TableHead>
           </TableRow>
@@ -325,8 +325,8 @@ function IssuersTab({ issuers, branchId, canWrite, onChanged }: { issuers: EtaIs
               <TableRow key={i.issuer_id}>
                 <TableCell className="font-medium">{i.issuer_name}</TableCell>
                 <TableCell className="font-mono text-xs">{i.issuer_id}</TableCell>
-                <TableCell className="text-left">{i.count}</TableCell>
-                <TableCell className="text-left font-mono">{fmt(i.total)}</TableCell>
+                <TableCell className="text-center whitespace-nowrap">{i.count}</TableCell>
+                <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(i.total)}</TableCell>
                 <TableCell className="whitespace-nowrap">
                   <span className="text-success">{i.matched}</span> / <span className={i.open ? "text-destructive" : ""}>{i.open}</span>
                   {i.ignored ? <span className="text-muted-foreground"> · {i.ignored} مش مشتريات</span> : null}
@@ -399,28 +399,28 @@ function DetailDialog({ doc, canFetch, onClose }: { doc: EtaDoc | null; canFetch
               <TableHeader>
                 <TableRow>
                   <TableHead>#</TableHead><TableHead>الصنف</TableHead><TableHead>الكود</TableHead>
-                  <TableHead className="text-left">الكمية</TableHead><TableHead className="text-left">سعر الوحدة</TableHead>
-                  <TableHead className="text-left">الخصم</TableHead><TableHead className="text-left">الصافي</TableHead>
-                  <TableHead className="text-left">الضريبة</TableHead><TableHead className="text-left">الإجمالي</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">الكمية</TableHead><TableHead className="text-center whitespace-nowrap">سعر الوحدة</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">الخصم</TableHead><TableHead className="text-center whitespace-nowrap">الصافي</TableHead>
+                  <TableHead className="text-center whitespace-nowrap">الضريبة</TableHead><TableHead className="text-center whitespace-nowrap">الإجمالي</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lines.map((l, i) => (
                   <TableRow key={i}>
                     <TableCell>{i + 1}</TableCell><TableCell>{l.description}</TableCell><TableCell className="font-mono text-xs">{l.code}</TableCell>
-                    <TableCell className="text-left">{l.quantity}</TableCell><TableCell className="text-left font-mono">{fmt(l.price)}</TableCell>
-                    <TableCell className="text-left font-mono">{fmt(l.discount)}</TableCell><TableCell className="text-left font-mono">{fmt(l.net)}</TableCell>
-                    <TableCell className="text-left font-mono">{fmt(l.vat)}</TableCell><TableCell className="text-left font-mono">{fmt(l.total)}</TableCell>
+                    <TableCell className="text-center whitespace-nowrap">{l.quantity}</TableCell><TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.price)}</TableCell>
+                    <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.discount)}</TableCell><TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.net)}</TableCell>
+                    <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.vat)}</TableCell><TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.total)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
               <TableFooter>
                 <TableRow>
                   <TableCell colSpan={5}>الإجمالي ({lines.length} بند)</TableCell>
-                  <TableCell className="text-left font-mono">{fmt(sum("discount"))}</TableCell>
-                  <TableCell className="text-left font-mono">{fmt(sum("net"))}</TableCell>
-                  <TableCell className="text-left font-mono">{fmt(sum("vat"))}</TableCell>
-                  <TableCell className="text-left font-mono">{fmt(sum("total"))}</TableCell>
+                  <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(sum("discount"))}</TableCell>
+                  <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(sum("net"))}</TableCell>
+                  <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(sum("vat"))}</TableCell>
+                  <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(sum("total"))}</TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
@@ -467,7 +467,7 @@ function LinkDialog({ doc, onClose, onLink }: { doc: EtaDoc | null; onClose: () 
         <div className="max-h-[50vh] overflow-auto">
           <Table noFilter>
             <TableHeader>
-              <TableRow><TableHead>فاتورة الشراء</TableHead><TableHead>المورد</TableHead><TableHead>الفرع</TableHead><TableHead>التاريخ</TableHead><TableHead className="text-left">الإجمالي</TableHead><TableHead className="text-left">الفرق</TableHead><TableHead>ربط</TableHead></TableRow>
+              <TableRow><TableHead>فاتورة الشراء</TableHead><TableHead>المورد</TableHead><TableHead>الفرع</TableHead><TableHead>التاريخ</TableHead><TableHead className="text-center whitespace-nowrap">الإجمالي</TableHead><TableHead className="text-center whitespace-nowrap">الفرق</TableHead><TableHead>ربط</TableHead></TableRow>
             </TableHeader>
             <TableBody>
               {busy && <TableRow><TableCell colSpan={7} className="text-center py-4"><Loader2 className="w-4 h-4 animate-spin inline" /></TableCell></TableRow>}
@@ -475,8 +475,8 @@ function LinkDialog({ doc, onClose, onLink }: { doc: EtaDoc | null; onClose: () 
               {!busy && rows.map(r => (
                 <TableRow key={r.shipment_id}>
                   <TableCell className="font-mono">{r.number}</TableCell><TableCell>{r.contact}</TableCell><TableCell>{r.branch}</TableCell>
-                  <TableCell>{day(r.date)}</TableCell><TableCell className="text-left font-mono">{fmt(r.total)}</TableCell>
-                  <TableCell className={`text-left font-mono ${Math.abs(r.diff) < 1 ? "text-success" : ""}`}>{fmt(r.diff)}</TableCell>
+                  <TableCell>{day(r.date)}</TableCell><TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(r.total)}</TableCell>
+                  <TableCell className={`text-center font-mono tabular-nums whitespace-nowrap ${Math.abs(r.diff) < 1 ? "text-success" : ""}`}>{fmt(r.diff)}</TableCell>
                   <TableCell>{r.taken ? <span className="text-xs text-muted-foreground">مربوطة بفاتورة تانية</span> : <Button size="sm" onClick={() => onLink(r.shipment_id, note)}>اربط</Button>}</TableCell>
                 </TableRow>
               ))}
