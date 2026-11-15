@@ -1,6 +1,7 @@
 // «الفواتير الإلكترونية الواردة» (migration 0220, owner 2026-11-14 «عاوز استقبل بس»). RECEIVE ONLY.
 // Called by pg_cron (eta_sync_all → nizam_cron_call, x-cron-secret = system_cron_tokens 'eta-sync') or by
-// eta_sync_now (same path). Reads the company's ETA credentials (secret from Vault, through eta_credentials, service role),
+// eta_sync_now (same path); modes 'test' (connection check) and 'detail' (one document's lines, kept in
+// eta_documents.detail) are also open to the signed-in owner / admin of the company. Reads the company's ETA credentials (secret from Vault, through eta_credentials, service role),
 // gets a token from the ETA identity server, searches the documents RECEIVED by the company
 // (GET /api/v1.0/documents/search?direction=Received, windows of ≤ 30 days, pages with continuationToken, one request
 // every 2.1 s — the ETA limit), and hands them to eta_ingest (upsert + notifications). Nothing is ever sent to the ETA.
@@ -35,7 +36,7 @@ Deno.serve(async (req) => {
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
   const body = await req.json().catch(() => ({}));
-  const mode = body?.mode === "test" ? "test" : "sync";
+  const mode = body?.mode === "test" ? "test" : body?.mode === "detail" ? "detail" : "sync";
   let tenantId = String(body?.tenant_id ?? "");
 
   // who: the hourly job / eta_sync_now (x-cron-secret) — or, for «اختبار الاتصال» only, the signed-in owner / admin
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
     viaCron = !!tok?.token && tok.token === cron;
   }
   if (!viaCron) {
-    if (mode !== "test") return json({ error: "Unauthorized" }, 401);
+    if (mode === "sync") return json({ error: "Unauthorized" }, 401);
     const auth = req.headers.get("Authorization");
     if (!auth) return json({ error: "Unauthorized" }, 401);
     const authClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: auth } } });
@@ -55,7 +56,7 @@ Deno.serve(async (req) => {
     if (!uid) return json({ error: "Unauthorized" }, 401);
     const { data: roles } = await admin.from("user_roles").select("tenant_id").eq("user_id", uid).in("role", ["owner", "admin"]);
     const mine = [...new Set((roles ?? []).map((r: any) => r.tenant_id).filter(Boolean))] as string[];
-    if (mine.length !== 1) return json({ error: "اختبار الاتصال للمالك أو المدير بس" }, 403);
+    if (mine.length !== 1) return json({ error: "للمالك أو المدير بس" }, 403);
     tenantId = mine[0];
   }
   if (!/^[0-9a-f-]{36}$/.test(tenantId)) return json({ error: "tenant_id مطلوب" }, 400);
@@ -88,6 +89,28 @@ Deno.serve(async (req) => {
     if (!t) throw new Error("سيرفر الضرايب مرجّعش مفتاح دخول");
     return t;
   };
+
+  if (mode === "detail") {
+    const docUuid = String(body?.uuid ?? "");
+    if (!/^[A-Za-z0-9]{10,40}$/.test(docUuid)) return json({ ok: false, error: "رقم الفاتورة غلط" }, 400);
+    const { data: own } = await admin.from("eta_documents").select("id").eq("tenant_id", tenantId).eq("eta_uuid", docUuid).maybeSingle();
+    if (!own) return json({ ok: false, error: "الفاتورة مش موجودة" }, 404);
+    try {
+      const accessToken = await getToken();
+      const r = await fetch(`${host.api}/api/v1.0/documents/${docUuid}/raw`, {
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+      });
+      if (!r.ok) throw new Error(`منظومة الضرايب رجّعت ${r.status} وهي بتجيب تفاصيل الفاتورة`);
+      const raw = await r.json();
+      let doc = raw?.document ?? raw;
+      if (typeof doc === "string") { try { doc = JSON.parse(doc); } catch { /* keep the text */ } }
+      const detail = { document: doc, validation: raw?.validationResults?.status ?? null };
+      await admin.rpc("eta_save_detail", { p_tenant: tenantId, p_uuid: docUuid, p_detail: detail });
+      return json({ ok: true, detail });
+    } catch (e) {
+      return json({ ok: false, error: errText(e) });
+    }
+  }
 
   if (mode === "test") {
     let ok = false; let msg: string | null = null; let sample = 0;
