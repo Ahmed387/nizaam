@@ -8,7 +8,7 @@
 //                   linking runs the automatic pairing (amount ± 1 pound, our invoice 10 days before → 30 days after).
 // Credentials live in settings → «الربط مع الفاتورة الإلكترونية» (EtaConnectionWizard).
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,17 +32,11 @@ import { rpcErrorText } from "@/lib/rpcError";
 import type { EtaSettings } from "@/lib/etaWizard";
 import { ETA_STATE, etaLines, etaState, etaTotals, etaTypeLabel, type EtaDoc, type EtaIssuer, type EtaState } from "@/lib/etaInvoices";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { LinkDialog, STATUS, day, fmt } from "@/components/eta/EtaDocParts";
 import { etaSyncView, manualWait, mmss, type EtaSyncSettings } from "@/lib/etaSyncStatus";
 
-const fmt = (n: number | null | undefined) => Number(n || 0).toLocaleString("en-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const day = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("en-GB", { timeZone: "Africa/Cairo" }) : "—");
 const firstOfMonth = () => cairoTodayDay().slice(0, 8) + "01";
 
-const STATUS: Record<string, { label: string; cls: string }> = {
-  Valid: { label: "صحيحة", cls: "bg-success/15 text-success" },
-  Cancelled: { label: "ملغاة", cls: "bg-muted text-muted-foreground" },
-  Rejected: { label: "مرفوضة", cls: "bg-destructive/15 text-destructive" },
-};
 
 export default function EtaInvoices() {
   const { tenantId, branches } = useAuth();
@@ -57,9 +51,9 @@ export default function EtaInvoices() {
   const [tab, setTab] = useState("docs");
   const [syncing, setSyncing] = useState(false);
   const [now, setNow] = useState(() => new Date());
-  const [detailDoc, setDetailDoc] = useState<EtaDoc | null>(null);
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const wantedDoc = params.get("doc");
+  const navigate = useNavigate();
   const [linkDoc, setLinkDoc] = useState<EtaDoc | null>(null);
   const [backfillOpen, setBackfillOpen] = useState(false);
 
@@ -81,27 +75,9 @@ export default function EtaInvoices() {
     if (!i.error) setIssuers((i.data as EtaIssuer[]) ?? []);
   };
   useEffect(() => { load(); }, [tenantId, from, to]);
-  // open an invoice's details (row click, ?doc= from a notification); opening it marks it seen
-  const openDoc = (d: EtaDoc) => {
-    setDetailDoc(d);
-    if (!d.seen_at && canWrite) {
-      supabase.rpc("eta_mark_seen" as any, { p_ids: [d.id] }).then(({ error }) => {
-        if (!error) {
-          const now = new Date().toISOString();
-          setDocs(prev => prev.map(x => (x.id === d.id ? { ...x, seen_at: now } : x)));
-          setSettings(prev => (prev ? { ...prev, unseen: Math.max(0, (prev.unseen ?? 0) - 1) } : prev));
-        }
-      });
-    }
-  };
-  useEffect(() => {
-    if (!wantedDoc || loading) return;
-    const d = docs.find(x => x.id === wantedDoc);
-    if (d) openDoc(d);
-    else if (from || to) { setFrom(""); setTo(""); return; } // outside the period shown: read every period, then open it
-    else toast.error("الفاتورة دي مش موجودة في الفواتير الواردة");
-    setParams(p => { p.delete("doc"); return p; }, { replace: true });
-  }, [wantedDoc, loading, docs]);
+  // an invoice opens on its own page (owner 2026-11-15 «تفتح في صفحة كاملة»); an old «?doc=» address goes there too
+  const openDoc = (d: EtaDoc) => navigate(`/admin/eta-invoices/${d.id}`);
+  useEffect(() => { if (wantedDoc) navigate(`/admin/eta-invoices/${encodeURIComponent(wantedDoc)}`, { replace: true }); }, [wantedDoc]);
   const wait = manualWait((settings as EtaSyncSettings | null)?.manual_ready_at, now);
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), wait > 0 ? 1000 : 30_000);
@@ -365,7 +341,6 @@ export default function EtaInvoices() {
           </TabsContent>
         </Tabs>
 
-        <DetailDialog doc={detailDoc} canFetch={canWrite} onClose={() => setDetailDoc(null)} />
         <LinkDialog doc={linkDoc} onClose={() => setLinkDoc(null)} onLink={async (id, note) => { if (linkDoc && await setMatch(linkDoc, "link", id, note)) setLinkDoc(null); }} />
         <BackfillDialog open={backfillOpen} onClose={() => setBackfillOpen(false)} onDone={() => setTimeout(load, 60_000)} />
       </div>
@@ -450,163 +425,6 @@ function IssuersTab({ issuers, branchId, canWrite, onChanged }: { issuers: EtaIs
         </TableBody>
       </Table>
     </CardContent></Card>
-  );
-}
-
-function DetailDialog({ doc, canFetch, onClose }: { doc: EtaDoc | null; canFetch: boolean; onClose: () => void }) {
-  const [detail, setDetail] = useState<any>(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  useEffect(() => {
-    if (!doc) return;
-    setDetail(null); setErr("");
-    (async () => {
-      setBusy(true);
-      const { data, error } = await supabase.rpc("eta_document_detail" as any, { p_doc: doc.id });
-      if (error) { setBusy(false); setErr(rpcErrorText(error)); return; }
-      if ((data as any)?.detail) { setDetail((data as any).detail); setBusy(false); return; }
-      if (!canFetch) { setBusy(false); setErr("البنود لسه ماتجابتش من المنظومة — المالك أو المدير يفتحها مرة وهتتحفظ"); return; }
-      const r = await supabase.functions.invoke("eta-sync", { body: { mode: "detail", uuid: doc.eta_uuid } });
-      setBusy(false);
-      if (r.error || !(r.data as any)?.ok) { setErr((r.data as any)?.error ?? "مقدرناش نجيب البنود من المنظومة دلوقتي — جرّب تاني"); return; }
-      setDetail((r.data as any).detail);
-    })();
-  }, [doc?.id]);
-  const lines = etaLines(detail);
-  const sum = (k: "net" | "vat" | "total" | "discount") => lines.reduce((s, l) => s + l[k], 0);
-  return (
-    <Dialog open={!!doc} onOpenChange={o => !o && onClose()}>
-      <DialogContent dir="rtl" className="max-w-5xl">
-        <DialogHeader><DialogTitle>{etaTypeLabel(doc?.type_name ?? null)} رقم {doc?.internal_id || "—"}</DialogTitle></DialogHeader>
-        {doc && (() => {
-          const es = etaState(doc);
-          const st = STATUS[doc.status ?? ""] ?? { label: doc.status ?? "—", cls: "bg-muted" };
-          const Item = ({ k, children }: { k: string; children: React.ReactNode }) => (
-            <div className="min-w-0"><div className="text-xs text-muted-foreground">{k}</div><div className="font-medium truncate">{children}</div></div>
-          );
-          return (
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 rounded-md border p-3">
-                <Item k="المورد"><span title={doc.issuer_name ?? ""}>{doc.issuer_name || "—"}</span></Item>
-                <Item k="الرقم الضريبي"><span className="font-mono">{doc.issuer_id || "—"}</span></Item>
-                <Item k="تاريخ الفاتورة"><span className="tabular-nums">{day(doc.date_issued)}</span></Item>
-                <Item k="وصلت المنظومة"><span className="tabular-nums">{day(doc.date_received)}</span></Item>
-                <Item k="قبل الضريبة"><span className="font-mono tabular-nums">{fmt(doc.net_amount)}</span></Item>
-                <Item k="الضريبة"><span className="font-mono tabular-nums">{fmt(doc.vat)}</span></Item>
-                <Item k="الإجمالي"><span className="font-mono tabular-nums font-bold">{fmt(doc.total)}</span></Item>
-                <Item k="على المنظومة"><span className={`px-2 py-0.5 rounded text-xs ${st.cls}`} title={doc.status_reason ?? ""}>{st.label}</span></Item>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 rounded-md border p-3">
-                <span className="text-muted-foreground">في السيستم:</span>
-                <span className={`px-2 py-0.5 rounded text-xs ${ETA_STATE[es].tone}`}>{ETA_STATE[es].label}</span>
-                {doc.match && (
-                  <span>
-                    <Link className="underline font-mono" to={`/branch/${doc.match.branch_id}/shipments/${doc.match.shipment_id}`}>{doc.match.number}</Link>
-                    {" "}— {doc.match.branch} — {day(doc.match.date)} — {fmt(doc.match.total)}
-                    {Math.abs(doc.match.diff) >= 0.01 && <span className="text-muted-foreground"> (فرق {fmt(doc.match.diff)})</span>}
-                  </span>
-                )}
-                {doc.match_note && doc.match_note !== ETA_STATE[es].label && <span className="text-muted-foreground">{doc.match_note}</span>}
-                {(doc.cancel_requested || doc.reject_requested) && doc.status === "Valid" && <span className="text-warning">{doc.cancel_requested ? "المورد طلب إلغاءها" : "مطلوب رفضها"}</span>}
-              </div>
-              <div className="font-semibold">بنود الفاتورة</div>
-            </div>
-          );
-        })()}
-        {busy && <div className="py-8 text-center"><Loader2 className="w-5 h-5 animate-spin inline" /> بنجيب البنود من المنظومة…</div>}
-        {err && <div className="text-destructive text-sm">{err}</div>}
-        {!busy && detail && (
-          <div className="max-h-[60vh] overflow-auto">
-            <Table noFilter>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead><TableHead>الصنف</TableHead><TableHead>الكود</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">الكمية</TableHead><TableHead className="text-center whitespace-nowrap">سعر الوحدة</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">الخصم</TableHead><TableHead className="text-center whitespace-nowrap">الصافي</TableHead>
-                  <TableHead className="text-center whitespace-nowrap">الضريبة</TableHead><TableHead className="text-center whitespace-nowrap">الإجمالي</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lines.map((l, i) => (
-                  <TableRow key={i}>
-                    <TableCell>{i + 1}</TableCell><TableCell>{l.description}</TableCell><TableCell className="font-mono text-xs">{l.code}</TableCell>
-                    <TableCell className="text-center whitespace-nowrap">{l.quantity}</TableCell><TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.price)}</TableCell>
-                    <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.discount)}</TableCell><TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.net)}</TableCell>
-                    <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.vat)}</TableCell><TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(l.total)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-              <TableFooter>
-                <TableRow>
-                  <TableCell colSpan={5}>الإجمالي ({lines.length} بند)</TableCell>
-                  <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(sum("discount"))}</TableCell>
-                  <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(sum("net"))}</TableCell>
-                  <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(sum("vat"))}</TableCell>
-                  <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(sum("total"))}</TableCell>
-                </TableRow>
-              </TableFooter>
-            </Table>
-          </div>
-        )}
-        <DialogFooter>
-          {doc?.public_url && <Button variant="outline" asChild><a href={doc.public_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4 ml-2" />افتحها على البوابة</a></Button>}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-type Cand = { shipment_id: string; number: string; branch: string; contact: string; date: string; total: number; diff: number; taken: boolean };
-function LinkDialog({ doc, onClose, onLink }: { doc: EtaDoc | null; onClose: () => void; onLink: (shipment: string, note?: string) => void }) {
-  const [rows, setRows] = useState<Cand[]>([]);
-  const [search, setSearch] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState("");
-  useEffect(() => { if (doc) { setSearch(""); setNote(""); } }, [doc?.id]);
-  useEffect(() => {
-    if (!doc) return;
-    const h = setTimeout(async () => {
-      setBusy(true);
-      const { data, error } = await supabase.rpc("eta_shipment_candidates" as any, { p_doc: doc.id, p_search: search || null });
-      setBusy(false);
-      if (error) { toast.error(rpcErrorText(error)); return; }
-      setRows((data as Cand[]) ?? []);
-    }, 300);
-    return () => clearTimeout(h);
-  }, [doc?.id, search]);
-  return (
-    <Dialog open={!!doc} onOpenChange={o => !o && onClose()}>
-      <DialogContent dir="rtl" className="max-w-4xl">
-        <DialogHeader><DialogTitle>اربط {doc?.internal_id} ({fmt(doc?.total)}) بفاتورة شراء عندنا</DialogTitle></DialogHeader>
-        <div className="text-sm text-muted-foreground leading-6">
-          {doc?.linked ? "دي فواتير الشراء بتاعة الحسابات المربوطة بالمورد ده" : "المورد ده مش مربوط بحساب — دي فواتير الشراء من كل الموردين"} في الفترة ± 60 يوم، الأقرب في المبلغ الأول.
-          الربط مش بيغيّر أي حاجة في فاتورة الشراء ولا في الحسابات.
-        </div>
-        <div className="grid md:grid-cols-2 gap-2">
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="ابحث برقم فاتورة الشراء أو اسم المورد" />
-          <Input value={note} onChange={e => setNote(e.target.value)} placeholder="ملاحظة (اختياري) — مثلًا: اتسجلت مع فاتورة تانية" />
-        </div>
-        <div className="max-h-[50vh] overflow-auto">
-          <Table noFilter>
-            <TableHeader>
-              <TableRow><TableHead>فاتورة الشراء</TableHead><TableHead>المورد</TableHead><TableHead>الفرع</TableHead><TableHead>التاريخ</TableHead><TableHead className="text-center whitespace-nowrap">الإجمالي</TableHead><TableHead className="text-center whitespace-nowrap">الفرق</TableHead><TableHead>ربط</TableHead></TableRow>
-            </TableHeader>
-            <TableBody>
-              {busy && <TableRow><TableCell colSpan={7} className="text-center py-4"><Loader2 className="w-4 h-4 animate-spin inline" /></TableCell></TableRow>}
-              {!busy && rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-4">مفيش فواتير شراء قريبة — يمكن لسه ماتسجلتش</TableCell></TableRow>}
-              {!busy && rows.map(r => (
-                <TableRow key={r.shipment_id}>
-                  <TableCell className="font-mono">{r.number}</TableCell><TableCell>{r.contact}</TableCell><TableCell>{r.branch}</TableCell>
-                  <TableCell>{day(r.date)}</TableCell><TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(r.total)}</TableCell>
-                  <TableCell className={`text-center font-mono tabular-nums whitespace-nowrap ${Math.abs(r.diff) < 1 ? "text-success" : ""}`}>{fmt(r.diff)}</TableCell>
-                  <TableCell>{r.taken ? <span className="text-xs text-muted-foreground">مربوطة بفاتورة تانية</span> : <Button size="sm" onClick={() => onLink(r.shipment_id, note)}>اربط</Button>}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 

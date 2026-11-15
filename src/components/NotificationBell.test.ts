@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { notificationTarget } from "./NotificationBell";
 
 describe("notificationTarget", () => {
-  it("an e-invoice notification opens that invoice's details", () => {
+  it("an e-invoice notification opens that invoice's page", () => {
     expect(notificationTarget({ link: "/admin/eta-invoices", related_entity: "eta_documents", related_entity_id: "d-1" }))
-      .toBe("/admin/eta-invoices?doc=d-1");
+      .toBe("/admin/eta-invoices/d-1");
   });
   it("other notifications keep their link", () => {
     expect(notificationTarget({ link: "/admin/approvals", related_entity: "approval_requests", related_entity_id: "x" })).toBe("/admin/approvals");

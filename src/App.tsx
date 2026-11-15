@@ -216,6 +216,7 @@ const CashFlowStatement = lazy(() => import("./pages/admin/CashFlowStatement"));
 const EquityChanges = lazy(() => import("./pages/admin/EquityChanges"));
 const CogsStatement = lazy(() => import("./pages/admin/CogsStatement"));
 const EtaInvoices = lazy(() => import("./pages/admin/EtaInvoices"));
+const EtaInvoiceDetail = lazy(() => import("./pages/admin/EtaInvoiceDetail"));
 const AgingReport = lazy(() => import("./pages/admin/AgingReport"));
 const BankReconciliation = lazy(() => import("./pages/admin/BankReconciliation"));
 const BankReconciliationDetail = lazy(() => import("./pages/admin/BankReconciliationDetail"));
@@ -347,6 +348,7 @@ const App = () => (
             <Route path="/admin/accounting/cash-flow" element={<ProtectedRoute perm="admin_acc_statements.view" adminOnly><CashFlowStatement /></ProtectedRoute>} />
             <Route path="/admin/accounting/equity-changes" element={<ProtectedRoute perm="admin_acc_statements.view" adminOnly><EquityChanges /></ProtectedRoute>} />
             <Route path="/admin/eta-invoices" element={<ProtectedRoute perm="admin_eta.view" adminOnly><EtaInvoices /></ProtectedRoute>} />
+            <Route path="/admin/eta-invoices/:id" element={<ProtectedRoute perm="admin_eta.view" adminOnly><EtaInvoiceDetail /></ProtectedRoute>} />
             <Route path="/admin/accounting/cogs-statement" element={<ProtectedRoute perm="admin_acc_statements.view" adminOnly><CogsStatement /></ProtectedRoute>} />
             <Route path="/admin/accounting/aging" element={<ProtectedRoute perm="admin_acc_aging.view" adminOnly><AgingReport /></ProtectedRoute>} />
             <Route path="/admin/accounting/bank-reconciliation" element={<ProtectedRoute perm="admin_acc_bank.view" adminOnly><BankReconciliation /></ProtectedRoute>} />

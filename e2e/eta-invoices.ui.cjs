@@ -1,5 +1,5 @@
 // UI test of «الفواتير الإلكترونية الواردة» (/admin/eta-invoices, migrations 0220–0222): cards, state chips, the
-// «في السيستم» column (recorded with its purchase / missing / supplier not linked / credit note), the lines dialog,
+// «في السيستم» column (recorded with its purchase / missing / supplier not linked / credit note), the invoice page (summary, lines, actions),
 // the link dialog (calls eta_set_match with the chosen purchase), «مش فاتورة شراء», the suppliers tab (a suggestion
 // links the ETA supplier: eta_link_issuer), and the settings wizard page. Database faked in the browser with the
 // shapes the real RPCs returned on 2026-11-15.
@@ -149,30 +149,35 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
   check("chip «مش متسجلة عندنا» filters to 1 row", rowsMissing === 1, `rows=${rowsMissing}`);
   await page.getByRole("button", { name: /^الكل \(/ }).click(); await page.waitForTimeout(300);
 
-  // lines dialog
+  // the details button opens the invoice on its own page: summary, state in the system, lines
   await page.locator("tbody tr").first().getByTitle("تفاصيل الفاتورة").click(); await settle(page);
-  const dlg = await page.locator("[role=dialog]").innerText();
-  check("lines dialog shows the item, qty and VAT", dlg.includes("غسالة حوض واحد 5ك شطورة") && dlg.includes("2,762.28") && dlg.includes("1,933.60"));
-  check("details dialog: supplier, tax id, totals, purchase in the system", dlg.includes("الرقم الضريبي") && dlg.includes("200301950") && dlg.includes("15,745.00") && dlg.includes("PO24941") && dlg.includes("بنود الفاتورة"));
-  await shot(page, "eta-2-lines");
-  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  check("details button opens /admin/eta-invoices/<id>", page.url().endsWith("/admin/eta-invoices/d1"));
+  const pg = await page.locator("main, body").first().innerText();
+  check("page: lines with item, qty and VAT", pg.includes("غسالة حوض واحد 5ك شطورة") && pg.includes("2,762.28") && pg.includes("1,933.60"));
+  check("page: supplier, tax id, total, purchase in the system", pg.includes("الرقم الضريبي") && pg.includes("200301950") && pg.includes("15,745.00") && pg.includes("PO24941") && pg.includes("بنود الفاتورة"));
+  check("page: not a dialog", (await page.locator("[role=dialog]").count()) === 0);
+  await shot(page, "eta-2-page");
+  await page.getByRole("link", { name: /كل الفواتير الواردة/ }).click(); await settle(page);
+  check("back button returns to the list", page.url().endsWith("/admin/eta-invoices"));
 
-  // click anywhere on a row (not a button) opens the details and marks a new invoice seen
+  // click anywhere on a row (not a button) opens its page and marks a new invoice seen
   await page.locator("tbody tr", { hasText: "9405743485" }).locator("td").nth(1).click(); await settle(page);
-  const dlgRow = await page.locator("[role=dialog]").innerText().catch(() => "");
-  check("row click opens the details", dlgRow.includes("9405743485") && dlgRow.includes("92,237.02"));
+  const pgRow = await page.locator("body").innerText();
+  check("row click opens the invoice page", page.url().endsWith("/admin/eta-invoices/d2") && pgRow.includes("9405743485") && pgRow.includes("92,237.02"));
   check("opening a new invoice marks it seen", db.calls.some((c) => c.rpc === "eta_mark_seen" && Array.isArray(c.body.p_ids) && c.body.p_ids[0] === "d2"));
-  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  // its actions are on the page: link to a purchase, «مش فاتورة شراء», and the supplier linker
+  check("page: link / ignore actions", pgRow.includes("اربطها بفاتورة شراء") && pgRow.includes("مش فاتورة شراء (مصروف)"));
 
-  // a notification link (?doc=) opens that invoice's details straight away, then the address is cleaned
-  await page.goto(`${BASE}/admin/eta-invoices?doc=d3`); await settle(page);
-  const dlgN = await page.locator("[role=dialog]").innerText().catch(() => "");
-  check("?doc= from a notification opens the invoice", dlgN.includes("INV/2026/12243") && dlgN.includes("صادكو"));
-  check("?doc= removed from the address after opening", !page.url().includes("doc="));
+  // a notification opens the invoice page directly (/admin/eta-invoices/<id>); an old «?doc=» address goes there too
+  await page.goto(`${BASE}/admin/eta-invoices/d3`); await settle(page);
+  const pgN = await page.locator("body").innerText();
+  check("notification address opens the invoice page", pgN.includes("INV/2026/12243") && pgN.includes("صادكو"));
+  check("unlinked supplier: linker with suggestion on the page", pgN.includes("المورد ده عندنا") && pgN.includes("اربط بحساب مورد"));
   await shot(page, "eta-8-from-notification");
-  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
-  await page.goto(`${BASE}/admin/eta-invoices?doc=nope`); await settle(page);
-  check("?doc= of a missing invoice shows a message", (await page.locator("body").innerText()).includes("مش موجودة في الفواتير الواردة"));
+  await page.goto(`${BASE}/admin/eta-invoices?doc=d3`); await settle(page);
+  check("old ?doc= address redirects to the page", page.url().endsWith("/admin/eta-invoices/d3"));
+  await page.goto(`${BASE}/admin/eta-invoices/nope`); await settle(page);
+  check("missing invoice shows a message", (await page.locator("body").innerText()).includes("مش موجودة في الفواتير الواردة"));
   await page.goto(`${BASE}/admin/eta-invoices`); await settle(page);
 
   // link dialog on the missing فريش invoice

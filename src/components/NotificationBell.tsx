@@ -20,9 +20,9 @@ interface Notification {
   created_at: string;
 }
 
-/** Where a notification opens: an e-invoice opens that invoice's details on its page (owner 2026-11-15), else its link. */
+/** Where a notification opens: an e-invoice opens that invoice's own page (owner 2026-11-15), else its link. */
 export function notificationTarget(n: Pick<Notification, "link" | "related_entity" | "related_entity_id">): string | null {
-  if (n.related_entity === "eta_documents" && n.related_entity_id) return `/admin/eta-invoices?doc=${encodeURIComponent(n.related_entity_id)}`;
+  if (n.related_entity === "eta_documents" && n.related_entity_id) return `/admin/eta-invoices/${encodeURIComponent(n.related_entity_id)}`;
   return n.link;
 }
 
