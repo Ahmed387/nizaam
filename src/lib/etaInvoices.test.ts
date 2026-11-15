@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { etaLines, etaState, etaTotals, etaTypeLabel, type EtaDoc } from "./etaInvoices";
+import { etaInView, etaLines, etaState, etaTotals, etaTypeLabel, type EtaDoc } from "./etaInvoices";
 
 const doc = (o: Partial<EtaDoc>): EtaDoc => ({
   id: "1", eta_uuid: "U", internal_id: "X", type_name: "I", issuer_id: "200", issuer_name: "فريش", date_issued: "2026-11-04",
@@ -35,8 +35,37 @@ describe("etaTotals", () => {
     expect(t.vat).toBe(14 + 28 - 7 + 1);
     expect(t.recorded).toEqual({ count: 1, total: 114 });
     expect(t.notRecorded).toEqual({ count: 2, total: 238 });
+    expect(t.unlinked).toEqual({ count: 1, total: 10 });
     expect(t.unlinkedSuppliers).toBe(1);
     expect(t.credit.count).toBe(1);
+  });
+});
+
+describe("cards show their own invoices", () => {
+  // owner 2026-11-15: 33 invoices «مش متسجلة عندنا», all of suppliers not linked yet — the card filtered «missing» only and showed none
+  const docs = [
+    doc({ id: "a", match: m }),
+    doc({ id: "b", total: 228, vat: 28 }),
+    doc({ id: "c", type_name: "C", total: 57, vat: 7 }),
+    doc({ id: "d", status: "Cancelled", total: 1000 }),
+    doc({ id: "e", linked: false, issuer_id: "300", total: 10, vat: 1 }),
+    doc({ id: "f", linked: false, issuer_id: "300", total: 20, vat: 2 }),
+    doc({ id: "g", match_mode: "ignored", total: 5 }),
+  ];
+  const t = etaTotals(docs);
+  const rows = (v: Parameters<typeof etaInView>[1]) => docs.filter(d => etaInView(d, v));
+  it("each card's count = the rows its click shows", () => {
+    expect(rows("valid").length).toBe(t.count);
+    expect(rows("recorded").length).toBe(t.recorded.count);
+    expect(rows("not_recorded").length).toBe(t.notRecorded.count);
+    expect(rows("unlinked").length).toBe(t.unlinked.count);
+  });
+  it("«مش متسجلة عندنا» includes suppliers not linked; never cancelled / ignored / recorded", () => {
+    expect(rows("not_recorded").map(d => d.id)).toEqual(["b", "e", "f"]);
+  });
+  it("total / VAT cards show the valid invoices (cancelled left out)", () => {
+    expect(rows("valid").map(d => d.id)).not.toContain("d");
+    expect(rows("all").length).toBe(docs.length);
   });
 });
 

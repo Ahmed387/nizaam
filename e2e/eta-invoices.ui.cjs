@@ -149,6 +149,28 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
   check("chip «مش متسجلة عندنا» filters to 1 row", rowsMissing === 1, `rows=${rowsMissing}`);
   await page.getByRole("button", { name: /^الكل \(/ }).click(); await page.waitForTimeout(300);
 
+  // every top card shows its own invoices (same rule as its number), with a «بتعرض: …» line and «اعرض الكل»
+  const cardRows = async (label) => {
+    await page.getByText(label, { exact: true }).first().click(); await page.waitForTimeout(600);
+    const n = await page.locator("tbody tr").count();
+    const banner = (await page.locator("body").innerText()).match(/بتعرض: [^\n]*— (\d+) فاتورة/);
+    return { n, banner: banner ? Number(banner[1]) : null };
+  };
+  const nr = await cardRows("مش متسجلة عندنا");
+  check("card «مش متسجلة عندنا» shows missing + supplier not linked", nr.n === 2 && nr.banner === 2, JSON.stringify(nr));
+  await shot(page, "eta-9-card-filter");
+  await page.getByRole("button", { name: "اعرض الكل" }).click(); await page.waitForTimeout(300);
+  const rc = await cardRows("متسجلة عندنا");
+  check("card «متسجلة عندنا» shows the recorded one", rc.n === 1 && rc.banner === 1, JSON.stringify(rc));
+  await page.getByRole("button", { name: "اعرض الكل" }).click(); await page.waitForTimeout(300);
+  const vt = await cardRows("الإجمالي شامل الضريبة");
+  check("card «الإجمالي» shows the valid invoices", vt.n === 5 && vt.banner === 5, JSON.stringify(vt));
+  const again = await cardRows("الإجمالي شامل الضريبة");
+  check("second click on the same card shows all again", again.banner === null);
+  const un = await cardRows("موردين مش مربوطين");
+  check("card «موردين مش مربوطين» shows their invoices", un.n === 1 && un.banner === 1, JSON.stringify(un));
+  await page.getByRole("button", { name: "اعرض الكل" }).click(); await page.waitForTimeout(300);
+
   // the details button opens the invoice on its own page: summary, state in the system, lines
   await page.locator("tbody tr").first().getByTitle("تفاصيل الفاتورة").click(); await settle(page);
   check("details button opens /admin/eta-invoices/<id>", page.url().endsWith("/admin/eta-invoices/d1"));

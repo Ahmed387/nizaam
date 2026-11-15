@@ -41,11 +41,25 @@ export function etaState(d: Pick<EtaDoc, "status" | "type_name" | "match_mode" |
   return d.linked ? "missing" : "unlinked";
 }
 
+/** What the list shows: one state, or the rows behind a top card (owner 2026-11-15 «لما ادوس علي اي كارت يظهرلي الفواتير
+ *  المتعلقة بالكارت ده»). A card counts exactly the rows its view shows — `etaTotals` uses the same predicates. */
+export type EtaView = EtaState | "all" | "valid" | "not_recorded";
+export const ETA_VIEW_LABEL: Record<"valid" | "not_recorded", string> = {
+  valid: "الفواتير الصحيحة",
+  not_recorded: "مش متسجلة عندنا (ومنها المورد مش مربوط)",
+};
+export function etaInView(d: EtaDoc, v: EtaView): boolean {
+  if (v === "all") return true;
+  if (v === "valid") return d.status === "Valid";
+  if (v === "not_recorded") return d.status === "Valid" && ["missing", "unlinked"].includes(etaState(d));
+  return etaState(d) === v;
+}
+
 export function etaTotals(docs: EtaDoc[]) {
-  const valid = docs.filter(d => d.status === "Valid");
+  const valid = docs.filter(d => etaInView(d, "valid"));
   const sum = (xs: EtaDoc[], f: (d: EtaDoc) => number) => Math.round(xs.reduce((s, d) => s + f(d), 0) * 100) / 100;
   const byState = (s: EtaState) => valid.filter(d => etaState(d) === s);
-  const notIn = valid.filter(d => ["missing", "unlinked"].includes(etaState(d)));
+  const notIn = docs.filter(d => etaInView(d, "not_recorded"));
   return {
     count: valid.length,
     total: sum(valid, d => etaSign(d.type_name) * Number(d.total || 0)),
@@ -54,6 +68,7 @@ export function etaTotals(docs: EtaDoc[]) {
     recorded: { count: byState("recorded").length, total: sum(byState("recorded"), d => Number(d.total || 0)) },
     notRecorded: { count: notIn.length, total: sum(notIn, d => Number(d.total || 0)) },
     unlinkedSuppliers: new Set(byState("unlinked").map(d => d.issuer_id)).size,
+    unlinked: { count: byState("unlinked").length, total: sum(byState("unlinked"), d => Number(d.total || 0)) },
     credit: { count: byState("credit").length, total: sum(byState("credit"), d => Number(d.total || 0)) },
   };
 }

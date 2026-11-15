@@ -7,7 +7,7 @@
 //   tab «الموردين»: the ETA suppliers by tax id, linked to one or more of our supplier accounts (suggestions by name);
 //                   linking runs the automatic pairing (amount ± 1 pound, our invoice 10 days before → 30 days after).
 // Credentials live in settings → «الربط مع الفاتورة الإلكترونية» (EtaConnectionWizard).
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { rpcErrorText } from "@/lib/rpcError";
 import type { EtaSettings } from "@/lib/etaWizard";
-import { ETA_STATE, etaLines, etaState, etaTotals, etaTypeLabel, type EtaDoc, type EtaIssuer, type EtaState } from "@/lib/etaInvoices";
+import { ETA_STATE, ETA_VIEW_LABEL, etaInView, etaState, etaTotals, etaTypeLabel, type EtaDoc, type EtaIssuer, type EtaView } from "@/lib/etaInvoices";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { LinkDialog, STATUS, day, fmt } from "@/components/eta/EtaDocParts";
 import { etaSyncView, manualWait, mmss, type EtaSyncSettings } from "@/lib/etaSyncStatus";
@@ -46,7 +46,8 @@ export default function EtaInvoices() {
   const [loading, setLoading] = useState(true);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [stateFilter, setStateFilter] = useState<EtaState | "all">("all");
+  const [stateFilter, setStateFilter] = useState<EtaView>("all");
+  const tableRef = useRef<HTMLDivElement>(null);
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("docs");
   const [syncing, setSyncing] = useState(false);
@@ -92,7 +93,7 @@ export default function EtaInvoices() {
   const shown = useMemo(() => {
     const term = q.trim().toLowerCase();
     return docs.filter(d =>
-      (stateFilter === "all" || etaState(d) === stateFilter) &&
+      etaInView(d, stateFilter) &&
       (!term || [d.internal_id, d.issuer_name, d.issuer_id, d.match?.number].some(x => (x ?? "").toLowerCase().includes(term))));
   }, [docs, stateFilter, q]);
   const t = useMemo(() => etaTotals(docs), [docs]);
@@ -141,7 +142,12 @@ export default function EtaInvoices() {
     load();
     return true;
   };
-  const filterBy = (s: EtaState | "all") => { setTab("docs"); setStateFilter(prev => (prev === s ? "all" : s)); };
+  // a top card shows its invoices: the list switches to that card's rows and scrolls to them; a second click shows all again
+  const filterBy = (s: EtaView) => {
+    setTab("docs");
+    setStateFilter(prev => (prev === s ? "all" : s));
+    setTimeout(() => tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
 
   if (settings && !settings.enabled && docs.length === 0 && !loading) {
     return (
@@ -209,20 +215,23 @@ export default function EtaInvoices() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <MetricCardWithHint label="الفواتير الصحيحة" value={t.count} currency={false} icon={<FileText />}
-            active={stateFilter === "all"} onClick={() => filterBy("all")}
+            active={stateFilter === "valid"} onClick={() => filterBy("valid")}
             metricHint={{ meaning: "عدد الفواتير والإشعارات الصحيحة اللي وصلت باسم الشركة في الفترة.", source: "منظومة الفاتورة الإلكترونية.", formula: "عدد المستندات بحالة «صحيحة»" }} />
           <MetricCardWithHint label="الإجمالي شامل الضريبة" value={t.total} currency icon={<Receipt />}
+            active={stateFilter === "valid"} onClick={() => filterBy("valid")} footer={<span>{t.count} فاتورة صحيحة</span>}
             metricHint={{ meaning: "قيمة الفواتير بالضريبة، والإشعارات الدائنة بتتطرح.", source: "منظومة الفاتورة الإلكترونية.", formula: "Σ الفواتير − Σ الإشعارات الدائنة (الصحيحة بس)" }} />
           <MetricCardWithHint label="ضريبة القيمة المضافة عليها" value={t.vat} currency icon={<Percent />}
+            active={stateFilter === "valid"} onClick={() => filterBy("valid")} footer={<span>{t.count} فاتورة صحيحة</span>}
             metricHint={{ meaning: "الضريبة اللي الموردين حطوها على الفواتير دي (ضريبة مدخلات).", source: "منظومة الفاتورة الإلكترونية.", formula: "Σ (الإجمالي − الصافي) للفواتير − نفس الحساب للإشعارات الدائنة" }} />
           <MetricCardWithHint label="متسجلة عندنا" value={t.recorded.total} currency tone="success" icon={<FileCheck2 />}
             footer={<span>{t.recorded.count} فاتورة</span>} active={stateFilter === "recorded"} onClick={() => filterBy("recorded")}
             metricHint={{ meaning: "فواتير لقينا لها فاتورة شراء عندنا بنفس المبلغ.", source: "الربط بين المنظومة وفواتير الشراء.", formula: "مجموع الفواتير المربوطة بفاتورة شراء" }} />
           <MetricCardWithHint label="مش متسجلة عندنا" value={t.notRecorded.total} currency tone="destructive" icon={<FileWarning />}
-            footer={<span>{t.notRecorded.count} فاتورة</span>} active={stateFilter === "missing"} onClick={() => filterBy("missing")}
+            footer={<span>{t.notRecorded.count} فاتورة</span>} active={stateFilter === "not_recorded"} onClick={() => filterBy("not_recorded")}
             metricHint={{ meaning: "فواتير على المنظومة ملقيناش لها فاتورة شراء عندنا، أو المورد لسه مش مربوط بحساب عندنا.", source: "الربط بين المنظومة وفواتير الشراء.", formula: "الفواتير الصحيحة اللي مش مربوطة ومش متعلّمة «مش فاتورة شراء»" }} />
           <MetricCardWithHint label="موردين مش مربوطين" value={t.unlinkedSuppliers} currency={false} tone="warning" icon={<Users />}
-            onClick={() => setTab("issuers")}
+            footer={<span>{t.unlinked.count} فاتورة بتاعتهم</span>}
+            active={stateFilter === "unlinked"} onClick={() => filterBy("unlinked")}
             metricHint={{ meaning: "موردين على المنظومة لسه ماقلتلناش هما أنهي حساب عندنا.", source: "تبويب «الموردين».", formula: "عدد الأرقام الضريبية من غير حساب مورد مربوط" }} />
         </div>
 
@@ -240,6 +249,13 @@ export default function EtaInvoices() {
               <Button variant="ghost" size="sm" onClick={() => { setFrom(""); setTo(""); }}>كل الفترات</Button>
               <div className="flex-1 min-w-[220px]"><Label>بحث</Label><Input value={q} onChange={e => setQ(e.target.value)} placeholder="رقم الفاتورة، المورد، الرقم الضريبي، رقم فاتورة الشراء" /></div>
             </div>
+            <div ref={tableRef} className="scroll-mt-4" />
+            {stateFilter !== "all" && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+                <span>بتعرض: <b>{stateFilter === "valid" || stateFilter === "not_recorded" ? ETA_VIEW_LABEL[stateFilter] : ETA_STATE[stateFilter].label}</b> — {shown.length} فاتورة</span>
+                <Button size="sm" variant="ghost" onClick={() => setStateFilter("all")}><X className="w-4 h-4 ml-1" />اعرض الكل</Button>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               {(["all", "missing", "unlinked", "recorded", "credit", "ignored", "void"] as const).map(k => {
                 const n = k === "all" ? docs.length : docs.filter(d => etaState(d) === k).length;
