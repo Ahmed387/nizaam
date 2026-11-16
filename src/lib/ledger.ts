@@ -172,7 +172,7 @@ export interface ContactOverview {
   supplier: SideOverview | null;
 }
 
-const numDeep = (v: any): any => {
+export const numDeep = (v: any): any => {
   if (v == null) return v;
   if (Array.isArray(v)) return v.map(numDeep);
   if (typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, k === "by_method" ? Object.fromEntries(Object.entries(x as any ?? {}).map(([a, b]) => [a, n(b)])) : numDeep(x)]));

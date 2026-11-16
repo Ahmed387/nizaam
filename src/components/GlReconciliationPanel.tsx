@@ -1,10 +1,12 @@
 import { useTableViews } from "@/hooks/useListFilter";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { numDeep } from "@/lib/ledger";
 import { PermCard } from "@/contexts/PermCustomize";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/DataTable";
-import { fetchGlReconciliation, fetchDuplicateFees, repairDuplicateFees, type GlReconciliation, type DuplicateFeeRow } from "@/lib/ledger";
+import { fetchDuplicateFees, repairDuplicateFees, type GlReconciliation, type DuplicateFeeRow } from "@/lib/ledger";
+import { checkedText, useSavedCheck } from "@/lib/systemChecks";
 import { toast } from "sonner";
 import { formatEGP } from "@/lib/format";
 import { exportToExcel } from "@/lib/export";
@@ -25,29 +27,19 @@ export function GlReconciliationPanel() {
   const nav = useNavigate();
   // what each table shows after its Excel filters: the Excel sheets export that
   const [views, onView] = useTableViews<"branches">();
-  const [gl, setGl] = useState<GlReconciliation | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // saved result of the background run (0233): ledger_gl_reconciliation runs ≈ 6 s live, too close to the 8 s limit
+  const saved = useSavedCheck<{ audit: any[]; gl: any }>("company");
+  const gl: GlReconciliation | null = useMemo(() => (saved.check?.data?.gl ? numDeep(saved.check.data.gl) : null), [saved.check?.data?.gl]);
+  const loading = saved.loading;
+  const glError = saved.check?.error?.startsWith("مطابقة القيود") ? saved.check.error : null;
+  const error = saved.error ?? glError;
   const [fees, setFees] = useState<DuplicateFeeRow[]>([]);
   const [feeBusy, setFeeBusy] = useState(false);
-
-  const run = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // each part on its own: a failure of one never hides the other
-      const [g, f] = await Promise.allSettled([fetchGlReconciliation(), fetchDuplicateFees()]);
-      if (g.status === "fulfilled") setGl(g.value);
-      if (f.status === "fulfilled") setFees(f.value.filter((x) => !x.already_corrected));
-      const err = [g].find((x) => x.status === "rejected") as PromiseRejectedResult | undefined;
-      if (err) setError((err.reason as any)?.message ?? "تعذر تحميل جزء من المطابقة");
-    } catch (e: any) {
-      setError(e?.message ?? "تعذر تحميل المطابقة");
-    } finally {
-      setLoading(false);
-    }
+  const loadFees = async () => {
+    try { setFees((await fetchDuplicateFees()).filter((x) => !x.already_corrected)); } catch { /* the fees list is optional */ }
   };
-  useEffect(() => { run(); }, []);
+  useEffect(() => { loadFees(); }, []);
+  const run = async () => { loadFees(); await saved.runNow(); };
 
 
   return (
@@ -57,6 +49,11 @@ export function GlReconciliationPanel() {
           <Scale className="w-5 h-5 text-primary" />
           <div>
             <div className="font-bold">مطابقة القيود مع الخزن والدفتر الموحد</div>
+            <div className="text-xs mt-0.5">
+              {saved.waiting
+                ? <span className="text-primary font-semibold"><Loader2 className="w-3 h-3 animate-spin inline ml-1" />المطابقة شغالة في الخلفية — النتيجة هتظهر لوحدها</span>
+                : <span className="text-muted-foreground">{checkedText(saved.check?.gl_at ?? null)}</span>}
+            </div>
             <div className="text-xs text-muted-foreground">من 1 يناير 2026 — قراءة بس. فلوس العملاء والموردين بتتقيد على حساباتهم مباشرة (حساب جاري)، والتحويلات بين الفروع على حساب جاري الفروع 1910.</div>
           </div>
         </div>
@@ -65,8 +62,8 @@ export function GlReconciliationPanel() {
             { name: "الفروع", rows: (views.branches ?? gl.branches).map((b: any) => ({ الفرع: b.branch, الخزنة: b.till, "النقدية في القيود": b.gl_cash, الفرق: b.difference,
               "حسابات العملاء والموردين (القيود)": b.accounts_gl, "أرصدة الحسابات": b.accounts_ledger, "فرق الحسابات": b.accounts_difference, "حساب جاري الفروع 1910": b.inter_branch_1910 })) },
           ])}><Download className="w-4 h-4 ml-1" /> Excel</Button>
-          <Button size="sm" onClick={run} disabled={loading}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <RefreshCcw className="w-4 h-4 ml-1" />} تحديث
+          <Button size="sm" onClick={run} disabled={loading || saved.waiting}>
+            {saved.waiting ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <RefreshCcw className="w-4 h-4 ml-1" />} تحديث
           </Button>
         </div>
       </div>

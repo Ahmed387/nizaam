@@ -14,6 +14,7 @@ import { fetchProfitWindow } from "@/lib/profitEngine";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
 import { SystemAuditWidgets } from "@/components/SystemAuditWidgets";
 import { PartnerContributionAlerts } from "@/components/PartnerContributionAlerts";
+import { checkedText } from "@/lib/systemChecks";
 
 
 
@@ -45,6 +46,23 @@ export default function SystemHealth() {
   const [anomalyRunning, setAnomalyRunning] = useState(false);
   const [anomalyCount, setAnomalyCount] = useState<number | null>(null);
   const runningRef = useRef(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  // «فحص دلوقتي»: ask the background job, then read again every 5 s until the new result lands (≤ 3 min)
+  const runNow = async () => {
+    setPending(true);
+    const { error } = await supabase.rpc("system_health_request" as any);
+    if (error) { setPending(false); toast({ title: "مقدرناش نطلب الفحص", description: error.message, variant: "destructive" }); return; }
+    const start = Date.now();
+    const asked = new Date();
+    while (Date.now() - start < 180_000) {
+      await new Promise((r) => setTimeout(r, 5_000));
+      const { data } = await supabase.rpc("system_health_get" as any);
+      const d = data as any;
+      if (d && !d.pending && d.checked_at && new Date(d.checked_at).getTime() >= asked.getTime() - 60_000) { await load(true); return; }
+    }
+    setPending(false);
+  };
 
   const runAnomalies = async () => {
     setAnomalyRunning(true);
@@ -96,15 +114,20 @@ export default function SystemHealth() {
     if (!silent) setLoading(true);
     setErr(null);
     try {
+      // saved result of the background run (0233): system_health_check takes ≈ 9 s live, over the 8 s limit
       const [{ data, error }] = await Promise.all([
-        supabase.rpc("system_health_check" as any),
+        supabase.rpc("system_health_get" as any),
         loadPartnerNet(),
       ]);
       if (error) {
         setErr(error.message);
         if (!silent) toast({ title: "الفحص وقع", description: error.message, variant: "destructive" });
       } else {
-        setData(data);
+        const d = data as any;
+        setData(d?.result ?? null);
+        setSavedAt(d?.checked_at ?? null);
+        setPending(!!d?.pending);
+        setErr(d?.error ?? null);
         setLastRun(new Date());
       }
     } finally {
@@ -203,8 +226,9 @@ export default function SystemHealth() {
                 <Radio className="w-3 h-3 animate-pulse" />
                 تحديث تلقائي
               </Badge>
-              <Button size="sm" variant="outline" onClick={() => load(false)} disabled={loading}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <RefreshCcw className="w-4 h-4 ml-2" />}
+              <span className="text-xs text-muted-foreground">{pending ? "الفحص شغال في الخلفية…" : checkedText(savedAt)}</span>
+              <Button size="sm" variant="outline" onClick={runNow} disabled={loading || pending}>
+                {loading || pending ? <Loader2 className="w-4 h-4 animate-spin ml-2" /> : <RefreshCcw className="w-4 h-4 ml-2" />}
                 فحص دلوقتي
               </Button>
             </div>

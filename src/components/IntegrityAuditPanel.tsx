@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/DataTable";
-import { fetchIntegrityAudit, type IntegrityFinding } from "@/lib/ledger";
+import { type IntegrityFinding } from "@/lib/ledger";
+import { checkedText, useSavedCheck } from "@/lib/systemChecks";
 import { exportToExcel } from "@/lib/export";
 import { formatEGP } from "@/lib/format";
 import { Loader2, RefreshCcw, ShieldCheck, Download } from "lucide-react";
@@ -28,26 +29,16 @@ const SEV: Record<string, { t: string; c: string }> = {
 
 export function IntegrityAuditPanel() {
   const nav = useNavigate();
-  const [rows, setRows] = useState<IntegrityFinding[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // saved result of the background run (0233) — the live audit takes longer than the browser's 8 s limit
+  const saved = useSavedCheck<{ audit: any[]; gl: any }>("company");
+  const rows: IntegrityFinding[] = useMemo(
+    () => (saved.check?.data?.audit ?? []).map((r: any) => ({ ...r, amount: r.amount == null ? null : Number(r.amount) })),
+    [saved.check?.data?.audit]);
+  const loading = saved.loading;
+  const error = saved.error ?? (saved.check?.error && !saved.check.error.startsWith("مطابقة القيود") ? saved.check.error : null);
+  const neverRan = !saved.loading && !(saved.check?.data?.audit?.length) && !saved.check?.checked_at;
   const [area, setArea] = useState<string>("all");
   const [sev, setSev] = useState<string>("all");
-  const [ranAt, setRanAt] = useState<Date | null>(null);
-
-  const run = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setRows(await fetchIntegrityAudit());
-      setRanAt(new Date());
-    } catch (e: any) {
-      setError(e?.message ?? "تعذر تشغيل الفحص");
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => { run(); }, []);
 
   const counts = useMemo(() => ({
     error: rows.filter((r) => r.severity === "error").length,
@@ -80,7 +71,12 @@ export function IntegrityAuditPanel() {
           <ShieldCheck className="w-5 h-5 text-primary" />
           <div>
             <div className="font-bold">فحص سلامة البيانات (الأرصدة والمستندات والخزنة والمخزون)</div>
-            <div className="text-xs text-muted-foreground">قراءة بس — الفحص ما بيعدلش أي حاجة. {ranAt ? `آخر تشغيل: ${ranAt.toLocaleTimeString("ar-EG")}` : ""}</div>
+            <div className="text-xs text-muted-foreground">قراءة بس — الفحص ما بيعدلش أي حاجة. بيشتغل لوحده كل ساعة.</div>
+            <div className="text-xs mt-0.5">
+              {saved.waiting
+                ? <span className="text-primary font-semibold"><Loader2 className="w-3 h-3 animate-spin inline ml-1" />الفحص شغال في الخلفية — النتيجة هتظهر لوحدها (أقل من دقيقتين)</span>
+                : <span className="text-muted-foreground">{checkedText(saved.check?.checked_at ?? null)}</span>}
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
@@ -88,8 +84,8 @@ export function IntegrityAuditPanel() {
             الكود: r.check_code, الدرجة: SEV[r.severity]?.t ?? r.severity, المجال: AREA_LABEL[r.area] ?? r.area, البند: r.title, التفاصيل: r.details ?? "",
             الجهة: r.contact_name ?? "", الفرع: r.branch_name ?? "", المستند: r.doc_number ?? "", المبلغ: r.amount ?? "",
           })) }])} disabled={!rows.length}><Download className="w-4 h-4 ml-1" /> Excel</Button>
-          <Button size="sm" onClick={run} disabled={loading}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <RefreshCcw className="w-4 h-4 ml-1" />} افحص دلوقتي
+          <Button size="sm" onClick={saved.runNow} disabled={loading || saved.waiting}>
+            {saved.waiting ? <Loader2 className="w-4 h-4 animate-spin ml-1" /> : <RefreshCcw className="w-4 h-4 ml-1" />} افحص دلوقتي
           </Button>
         </div>
       </div>
@@ -109,7 +105,10 @@ export function IntegrityAuditPanel() {
       </div>
 
       {error && <div className="text-sm text-destructive">{error}</div>}
-      {!error && !loading && rows.length === 0 && (
+      {!error && !loading && neverRan && (
+        <div className="text-sm text-muted-foreground">الفحص لسه ما اشتغلش — دوس «افحص دلوقتي».</div>
+      )}
+      {!error && !loading && !neverRan && rows.length === 0 && (
         <div className="text-sm text-success font-semibold">✓ مفيش أي ملاحظات — الأرصدة والمستندات متطابقة.</div>
       )}
 
