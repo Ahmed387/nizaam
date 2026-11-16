@@ -14,9 +14,11 @@ export type FollowUps = {
   internal_sales_month: { count: number; amount: number };
   partner_advances: { count: number; amount: number };
   period_shares_missing: { from: string; to: string } | null;
+  /** 0234: automatic jobs that stopped (backup, e-invoices, hourly checks, …) */
+  jobs_failing?: { count: number; labels: string[] };
 };
 
-export type FollowUpKey = "approvals" | "money" | "stock" | "other_income" | "count_diff" | "internal" | "advances" | "shares";
+export type FollowUpKey = "jobs" | "approvals" | "money" | "stock" | "other_income" | "count_diff" | "internal" | "advances" | "shares";
 export type FollowUpItem = {
   key: FollowUpKey; label: string; value: number; money: boolean; hint: string; to: string;
   attention: boolean; meaning: string; formula: string;
@@ -50,6 +52,14 @@ export function followUpItems(d: FollowUps): FollowUpItem[] {
   ];
   // a waiting stock transfer is handled inside its branch — the card shows only while there is one
   const out = items.filter((it) => it.key !== "stock" || it.value > 0);
+  // an automatic job that stopped comes FIRST, and only while there is one (owner 2026-11-16)
+  const jobs = n(d.jobs_failing?.count);
+  if (jobs > 0) {
+    out.unshift({ key: "jobs", label: "مهام أوتوماتيك وقفت", value: jobs, money: false,
+      hint: (d.jobs_failing?.labels ?? []).slice(0, 3).join(" • ") || "افتح «فحص السيستم»", to: "/admin/system-health#jobs", attention: true,
+      meaning: "مهمة بتشتغل لوحدها (زي النسخة الاحتياطية أو سحب الفواتير الإلكترونية أو الفحص كل ساعة) آخر مرة فشلت أو وقفت",
+      formula: "عدد المهام اللي آخر تشغيل ليها فشل أو بقالها أكتر من ميعادها ما اشتغلتش" });
+  }
   if (d.period_shares_missing) {
     out.push({ key: "shares", label: "حصص التشغيل لسه متسجلتش", value: 0, money: false,
       hint: `فترة ${d.period_shares_missing.from} → ${d.period_shares_missing.to}`, to: "/admin/financial-position?tab=partners", attention: true,
@@ -62,6 +72,7 @@ export function followUpItems(d: FollowUps): FollowUpItem[] {
 /** One line for a notification / the top of the page: what needs the owner now. */
 export function followUpSummary(d: FollowUps): string {
   const parts: string[] = [];
+  if (Number(d.jobs_failing?.count) > 0) parts.push(`${d.jobs_failing!.count} مهمة أوتوماتيك وقفت`);
   if (Number(d.approvals_pending) > 0) parts.push(`${d.approvals_pending} طلب موافقة`);
   if (Number(d.money_transfers_pending?.count) > 0) parts.push(`${formatEGP(d.money_transfers_pending.amount)} تحويل مستني`);
   if (Number(d.partner_advances?.amount) > 0) parts.push(`سلف شركاء ${formatEGP(d.partner_advances.amount)}`);

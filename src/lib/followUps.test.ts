@@ -27,4 +27,13 @@ describe("«متابعة» cards", () => {
     expect(items.find((i) => i.key === "count_diff")?.attention).toBe(true);
     expect(items.find((i) => i.key === "other_income")?.attention).toBe(false);
   });
+  it("a stopped automatic job comes first and only while there is one (0234)", () => {
+    expect(followUpItems(base).map((i) => i.key)).not.toContain("jobs");
+    const d = { ...base, jobs_failing: { count: 2, labels: ["النسخة الاحتياطية (النتيجة)", "سحب الفواتير الإلكترونية"] } };
+    const items = followUpItems(d);
+    expect(items[0].key).toBe("jobs");
+    expect(items[0].attention).toBe(true);
+    expect(items[0].to).toBe("/admin/system-health#jobs");
+    expect(followUpSummary(d)).toMatch(/^2 مهمة أوتوماتيك وقفت/);
+  });
 });

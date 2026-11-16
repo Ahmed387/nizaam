@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeftRight, Calculator, ClipboardCheck, HandCoins, Package, Scale, Store, Wallet } from "lucide-react";
+import { ArrowLeftRight, Calculator, ClipboardCheck, HandCoins, Package, Scale, ServerCrash, Store, Wallet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard } from "@/components/StatCard";
 import { formatEGP } from "@/lib/format";
 import { followUpItems, type FollowUps } from "@/lib/followUps";
 
-const ICONS = { approvals: ClipboardCheck, money: Wallet, stock: Package, other_income: ArrowLeftRight, count_diff: Scale, internal: Store, advances: HandCoins, shares: Calculator };
+const ICONS = { jobs: ServerCrash, approvals: ClipboardCheck, money: Wallet, stock: Package, other_income: ArrowLeftRight, count_diff: Scale, internal: Store, advances: HandCoins, shares: Calculator };
 
 /**
  * «متابعة» (migration 0147): one card per thing the owner agreed to follow — filled by the server by itself, each card

@@ -1,3 +1,4 @@
+import { friendlyError } from "./friendlyError";
 /**
  * A function the screen calls doesn't exist in the database the site is connected to
  * (PostgREST PGRST202 "Could not find the function … in the schema cache"): the site's code is newer
@@ -13,5 +14,5 @@ export function rpcErrorText(error: { code?: string; message?: string } | null |
   if (isMissingRpc(error)) {
     return `${what} لسه مش متفعّل في قاعدة البيانات اللي الموقع متوصل بيها — تحديثات قاعدة البيانات (migrations) الجديدة محتاجة تتطبّق عليها الأول. باقي السيستم شغال عادي.`;
   }
-  return error.message ?? "حصل خطأ";
+  return friendlyError(error.message, error.code);
 }

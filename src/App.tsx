@@ -29,6 +29,7 @@ function AdminRedirectToContact() {
 }
 
 import { GlobalColumnResize } from "@/components/table/ColumnResize";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ConfirmDialogHost } from "@/components/ConfirmDialog";
 import ShiftAlertBar from "@/components/ShiftAlertBar";
@@ -254,6 +255,7 @@ const App = () => (
           <PaidCelebration />
           <ShiftAlertBar />
           <DesktopNotifications />
+          <GlobalSearch />
           <PermCustomizeProvider>
           <RouteGuard>
           <Suspense fallback={<RouteLoading />}>

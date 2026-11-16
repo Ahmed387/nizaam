@@ -7,6 +7,7 @@ import { Store, LogOut, Menu, X, ChevronsRight, ChevronsLeft, UserCog, Download,
 import { useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/NotificationBell";
+import { GlobalSearchButton } from "@/components/GlobalSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { OfflineQueueIndicator } from "@/components/OfflineQueueIndicator";
 import { HelpButton } from "@/components/HelpButton";
@@ -426,6 +427,7 @@ export function AppShell({
         </div>
         <div className="font-bold truncate">{title}</div>
         <div className="flex items-center gap-1">
+          <GlobalSearchButton />
           <OfflineQueueIndicator />
           <HelpButton />
           <ThemeToggle />
@@ -477,6 +479,7 @@ export function AppShell({
               </Button>
             </div>
             <div className="flex items-center gap-1">
+              <GlobalSearchButton />
               <OfflineQueueIndicator />
               <HelpButton />
               <ThemeToggle />

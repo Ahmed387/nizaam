@@ -65,6 +65,20 @@ export function useFormDraft<T>(
     return () => clearTimeout(id);
   }, [value, enabled]);
 
+  // Write at once when the page is closed / hidden (the 500 ms debounce could miss the last change).
+  const valueRef = useRef(value); valueRef.current = value;
+  const enabledRef = useRef(enabled); enabledRef.current = enabled;
+  useEffect(() => {
+    const flush = () => {
+      if (!enabledRef.current || !loadedRef.current) return;
+      try { localStorage.setItem(keyRef.current, JSON.stringify({ savedAt: Date.now(), data: valueRef.current } as Stored<T>)); } catch { /* ignore */ }
+    };
+    const onVis = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
+    return () => { window.removeEventListener("pagehide", flush); document.removeEventListener("visibilitychange", onVis); };
+  }, []);
+
   return {
     draft,
     dismiss: () => setDraft(null),

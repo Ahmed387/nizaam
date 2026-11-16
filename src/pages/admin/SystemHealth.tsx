@@ -3,6 +3,7 @@ import { PermTable } from "@/components/PermTable";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { IntegrityAuditPanel } from "@/components/IntegrityAuditPanel";
+import { BackgroundJobsCard } from "@/components/BackgroundJobsCard";
 import { GlReconciliationPanel } from "@/components/GlReconciliationPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -236,6 +237,7 @@ export default function SystemHealth() {
         />
 
         {/* Automatic integrity checks of the unified ledger, documents, till, stock and journal (Step 6C) */}
+        <BackgroundJobsCard />
         <IntegrityAuditPanel />
         <GlReconciliationPanel />
 

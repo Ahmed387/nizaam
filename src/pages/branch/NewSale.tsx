@@ -147,7 +147,9 @@ export default function NewSale() {
   const [invoiceDiscountInput, setInvoiceDiscountInput] = useState<number>(0);
 
   // ===== Local autosave (crash / accidental reload safety net) =====
-  const localSnapshot = { items, customerId, invoiceDate, vatEnabled, vatRate, invoiceNotes, invoiceDiscountMode, invoiceDiscountInput };
+  // owner 2026-11-16: the payments (without the receipt photos — files can't be stored) and آجل come back too
+  const localSnapshot = { items, customerId, invoiceDate, vatEnabled, vatRate, invoiceNotes, invoiceDiscountMode, invoiceDiscountInput,
+    payments: payments.map(({ proof_files: _f, ...p }) => p), creditMode };
   const localDraft = useFormDraft<typeof localSnapshot>(
     "sale",
     [user?.id, branchId],
@@ -155,6 +157,12 @@ export default function NewSale() {
     items.length > 0 && !busy,
   );
   const [localDraftDismissed, setLocalDraftDismissed] = useState(false);
+  const hadItemsRef = useRef(false);
+  useEffect(() => {
+    if (items.length > 0) hadItemsRef.current = true;
+    else if (hadItemsRef.current) { hadItemsRef.current = false; localDraft.clear(); } // emptied on purpose → no old draft next time
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length]);
   const [restoringLocal, setRestoringLocal] = useState(false);
   const restoreLocalDraft = async () => {
     const d = localDraft.draft?.data;
@@ -183,6 +191,8 @@ export default function NewSale() {
       setInvoiceNotes(d.invoiceNotes ?? "");
       setInvoiceDiscountMode(d.invoiceDiscountMode ?? "amount");
       setInvoiceDiscountInput(d.invoiceDiscountInput ?? 0);
+      if (Array.isArray(d.payments) && d.payments.length) setPayments(d.payments as PaymentSplit[]);
+      if (d.creditMode) setCreditMode(true);
       if (shortages.length) toast.warning(`تم استبعاد أصناف غير متاحة الآن: ${shortages.join("، ")}`);
       setLocalDraftDismissed(true);
       localDraft.dismiss();

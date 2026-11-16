@@ -3,8 +3,12 @@ import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
 import "./index.css";
 import { initOfflineSync } from "@/lib/offlineQueue";
+import { toast } from "sonner";
+import { installFriendlyToasts } from "@/lib/friendlyError";
 
 initOfflineSync();
+// English server errors (timeout, network, JWT, permission, …) show as Arabic with what to do (owner 2026-11-16).
+installFriendlyToasts(toast);
 
 // Reload once when a lazily-loaded file is gone after a new deploy (stale chunk cache).
 const CHUNK_KEY = "nizam-chunk-reload";
