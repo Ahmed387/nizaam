@@ -240,7 +240,7 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
                         <div className="grid sm:grid-cols-2 gap-2">
                           <div>
                             <Label className="text-xs">حسابنا اللي اتحول منه *</Label>
-                            <VesselAccountSelect method={sp.method} className="mt-1 h-9" value={sp.transfer_from_account}
+                            <VesselAccountSelect sending method={sp.method} className="mt-1 h-9" value={sp.transfer_from_account}
                                                  onChange={(v) => updateSplit(sp.id, { transfer_from_account: v })}
                                                  placeholder="حسابنا اللي اتحول منه" />
                           </div>

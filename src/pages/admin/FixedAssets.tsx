@@ -1,3 +1,4 @@
+import { VesselAccountSelect, useHasVesselAccounts } from "@/components/payments/VesselAccountSelect";
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -64,6 +65,11 @@ export default function FixedAssets() {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [disposal, setDisposal] = useState({ disposal_date: cairoTodayDay(), disposal_amount: "0", method: "cash" });
+  // 0245: the vessel account the money left from (purchase) / came to (sale)
+  const [buyAcc, setBuyAcc] = useState("");
+  const [sellAcc, setSellAcc] = useState("");
+  const buyHasAcc = useHasVesselAccounts(form.method);
+  const sellHasAcc = useHasVesselAccounts(disposal.method);
 
   const load = async () => {
     if (!tenantId) return;
@@ -106,6 +112,7 @@ export default function FixedAssets() {
       toast.error("اكتب الاسم والتكلفة والعمر، واختار الفرع وطريقة الحصول على الأصل");
       return;
     }
+    if (form.funding === "paid" && buyHasAcc && !buyAcc) { toast.error("اختار الحساب اللي الفلوس اتحولت منه"); return; }
     setSaving(true);
     const { data, error } = await supabase.rpc("add_fixed_asset" as any, {
       p_name: form.name,
@@ -118,7 +125,8 @@ export default function FixedAssets() {
       p_funding: form.funding,
       p_method: form.method,
       p_notes: form.notes || null,
-    });
+      ...(form.funding === "paid" && buyHasAcc && buyAcc ? { p_account: buyAcc } : {}),
+    } as any);
     setSaving(false);
     if (error) { toast.error(rpcErrorText(error)); return; }
     const d = (data as any)?.depreciation;
@@ -144,12 +152,14 @@ export default function FixedAssets() {
 
   const dispose = async () => {
     if (!disposeOpen) return;
+    if (Number(disposal.disposal_amount) > 0 && sellHasAcc && !sellAcc) { toast.error("اختار الحساب اللي الفلوس وصلت عليه"); return; }
     const { error } = await supabase.rpc("dispose_fixed_asset" as any, {
       _asset_id: disposeOpen.id,
       _disposal_date: disposal.disposal_date,
       _disposal_amount: Number(disposal.disposal_amount || 0),
       _method: disposal.method,
-    });
+      ...(Number(disposal.disposal_amount) > 0 && sellHasAcc && sellAcc ? { _account: sellAcc } : {}),
+    } as any);
     if (error) { toast.error(rpcErrorText(error)); return; }
     toast.success("تم التخلص من الأصل");
     setDisposeOpen(null);
@@ -234,10 +244,11 @@ export default function FixedAssets() {
                     </div>
                     {form.funding === "paid" && (
                       <div className="col-span-2"><Label>اتدفع من *</Label>
-                        <Select value={form.method} onValueChange={v => setForm({ ...form, method: v })}>
+                        <Select value={form.method} onValueChange={v => { setForm({ ...form, method: v }); setBuyAcc(""); }}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>{methods.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                         </Select>
+                        {buyHasAcc && <div className="mt-2"><Label>الحساب اللي اتحول منه *</Label><VesselAccountSelect sending method={form.method} value={buyAcc} onChange={setBuyAcc} /></div>}
                       </div>
                     )}
                     <div className="col-span-2"><Label>ملاحظات</Label><Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
@@ -319,10 +330,11 @@ export default function FixedAssets() {
               <div><Label>سعر البيع / التحصيل</Label><Input type="number" value={disposal.disposal_amount} onChange={e => setDisposal({ ...disposal, disposal_amount: e.target.value })} /></div>
               {Number(disposal.disposal_amount) > 0 && (
                 <div><Label>الفلوس دخلت في</Label>
-                  <Select value={disposal.method} onValueChange={v => setDisposal({ ...disposal, method: v })}>
+                  <Select value={disposal.method} onValueChange={v => { setDisposal({ ...disposal, method: v }); setSellAcc(""); }}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{methods.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                   </Select>
+                  {sellHasAcc && <div className="mt-2"><Label>الحساب اللي وصلت عليه *</Label><VesselAccountSelect method={disposal.method} value={sellAcc} onChange={setSellAcc} /></div>}
                 </div>
               )}
               {disposeOpen && (() => {

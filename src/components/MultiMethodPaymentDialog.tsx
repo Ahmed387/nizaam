@@ -335,7 +335,7 @@ export function MultiMethodPaymentDialog({
                           {direction === "in" ? methodSenderLabel(l.method) : "حسابنا (المُحوَّل منه)"}
                         </Label>
                         {direction === "out" ? (
-                          <VesselAccountSelect method={l.method} className="mt-1 h-9" value={l.transfer_from_account}
+                          <VesselAccountSelect sending method={l.method} className="mt-1 h-9" value={l.transfer_from_account}
                                                onChange={(v) => updateLine(l.id, { transfer_from_account: v })}
                                                placeholder="حسابنا اللي اتحول منه" />
                         ) : (

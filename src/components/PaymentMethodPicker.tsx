@@ -50,8 +50,8 @@ interface Props {
   label?: string;
   disabled?: boolean;
   /** 0244: which side is the company's account — "in" (money received → «المستلم») / "out" (paid → «المرسل»);
-   *  "none" = both free text (a move between two branches). */
-  direction?: "in" | "out" | "none";
+   *  "both" = both sides are company accounts (money between two branches, 0245); "none" = both free text. */
+  direction?: "in" | "out" | "none" | "both";
 }
 
 export function PaymentMethodPicker({
@@ -130,9 +130,9 @@ export function PaymentMethodPicker({
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label>{direction === "out" ? "حسابنا اللي اتحول منه" : methodSenderLabel(value.method)} *</Label>
-              {direction === "out" ? (
-                <VesselAccountSelect disabled={disabled} method={value.method} className="mt-1.5"
+              <Label>{direction === "out" || direction === "both" ? "حسابنا اللي اتحول منه" : methodSenderLabel(value.method)} *</Label>
+              {direction === "out" || direction === "both" ? (
+                <VesselAccountSelect disabled={disabled} method={value.method} className="mt-1.5" sending
                                      value={value.transfer_from_account}
                                      onChange={(v) => onChange({ ...value, transfer_from_account: v })}
                                      placeholder="حسابنا اللي اتحول منه" />
@@ -148,8 +148,8 @@ export function PaymentMethodPicker({
               )}
             </div>
             <div>
-              <Label>{direction === "in" ? "حسابنا اللي الفلوس وصلت عليه" : methodReceiverLabel(value.method)} *</Label>
-              {direction === "in" ? (
+              <Label>{direction === "in" ? "حسابنا اللي الفلوس وصلت عليه" : direction === "both" ? "الحساب اللي هتوصل عليه (الفرع التاني)" : methodReceiverLabel(value.method)} *</Label>
+              {direction === "in" || direction === "both" ? (
                 <VesselAccountSelect disabled={disabled} method={value.method} className="mt-1.5"
                                      value={value.transfer_to_account}
                                      onChange={(v) => onChange({ ...value, transfer_to_account: v })}

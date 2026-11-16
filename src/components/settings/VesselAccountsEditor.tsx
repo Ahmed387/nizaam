@@ -30,7 +30,13 @@ export function VesselAccountsEditor({ method }: { method: string }) {
   const [who, setWho] = useState<string>("");          // employee id or "other"
   const [name, setName] = useState("");
   const [number, setNumber] = useState("");
+  const [daily, setDaily] = useState("");
+  const [monthly, setMonthly] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [eDaily, setEDaily] = useState("");
+  const [eMonthly, setEMonthly] = useState("");
+  const lim = (v: string) => (Number(v) > 0 ? Number(v) : null);
 
   const load = async () => {
     const all = await loadVesselAccounts(true);
@@ -63,6 +69,7 @@ export function VesselAccountsEditor({ method }: { method: string }) {
     const { error } = await (supabase.from as any)("vessel_accounts").insert({
       tenant_id: tenantId, payment_method: method, employee_id: who === "other" ? null : who,
       holder_name: name.trim(), account_number: number.trim(), sort_order: rows.length,
+      daily_limit: lim(daily), monthly_limit: lim(monthly),
     });
     setBusy(false);
     if (error) {
@@ -70,13 +77,24 @@ export function VesselAccountsEditor({ method }: { method: string }) {
       return toast.error(rpcErrorText(error, "الحساب"));
     }
     toast.success("الحساب اتضاف");
-    setAdding(false); setWho(""); setName(""); setNumber("");
+    setAdding(false); setWho(""); setName(""); setNumber(""); setDaily(""); setMonthly("");
     load();
   };
 
   const setActive = async (a: VesselAccount, v: boolean) => {
     const { error } = await (supabase.from as any)("vessel_accounts").update({ is_active: v, updated_at: new Date().toISOString() }).eq("id", a.id);
     if (error) return toast.error(rpcErrorText(error, "الحساب"));
+    load();
+  };
+
+  const startEdit = (a: VesselAccount) => {
+    setEditing(a.id); setEDaily(a.daily_limit ? String(a.daily_limit) : ""); setEMonthly(a.monthly_limit ? String(a.monthly_limit) : "");
+  };
+  const saveLimits = async (a: VesselAccount) => {
+    const { error } = await (supabase.from as any)("vessel_accounts")
+      .update({ daily_limit: lim(eDaily), monthly_limit: lim(eMonthly), updated_at: new Date().toISOString() }).eq("id", a.id);
+    if (error) return toast.error(rpcErrorText(error, "الحساب"));
+    setEditing(null);
     load();
   };
 
@@ -109,6 +127,18 @@ export function VesselAccountsEditor({ method }: { method: string }) {
             <div className="flex-1 min-w-0">
               <div className="font-semibold truncate">{a.holder_name}{!a.employee_id && <span className="text-xs text-muted-foreground"> (من بره الشركة)</span>}</div>
               <div className="text-xs text-muted-foreground" dir="ltr" style={{ textAlign: "right" }}>{a.account_number}</div>
+              <div className="text-[11px] text-muted-foreground">
+                ليميت الإرسال: يومي {a.daily_limit ? formatEGP(Number(a.daily_limit)) : "مفتوح"} — شهري {a.monthly_limit ? formatEGP(Number(a.monthly_limit)) : "مفتوح"}
+                {canEdit && editing !== a.id && <button type="button" className="text-primary underline mr-2" onClick={() => startEdit(a)}>تعديل الليميت</button>}
+              </div>
+              {editing === a.id && (
+                <div className="mt-1.5 flex flex-wrap items-end gap-2">
+                  <div><Label className="text-[11px]">يومي</Label><Input className="h-8 w-28" type="number" min={0} value={eDaily} onChange={(e) => setEDaily(e.target.value)} placeholder="مفتوح" /></div>
+                  <div><Label className="text-[11px]">شهري</Label><Input className="h-8 w-28" type="number" min={0} value={eMonthly} onChange={(e) => setEMonthly(e.target.value)} placeholder="مفتوح" /></div>
+                  <Button size="sm" className="h-8" onClick={() => saveLimits(a)}>حفظ</Button>
+                  <Button size="sm" variant="ghost" className="h-8" onClick={() => setEditing(null)}>رجوع</Button>
+                </div>
+              )}
             </div>
             <div className="text-xs text-left">
               <div className="font-bold tabular-nums">{formatEGP(Number(b?.balance ?? 0))}</div>
@@ -149,6 +179,14 @@ export function VesselAccountsEditor({ method }: { method: string }) {
               <div>
                 <Label className="text-xs">الرقم / رقم الحساب</Label>
                 <Input className="mt-1 h-9 text-right" dir="ltr" value={number} onChange={(e) => setNumber(e.target.value)} placeholder="010… أو IBAN" />
+              </div>
+              <div>
+                <Label className="text-xs">ليميت الإرسال اليومي</Label>
+                <Input className="mt-1 h-9" type="number" min={0} value={daily} onChange={(e) => setDaily(e.target.value)} placeholder="فاضي = مفتوح" />
+              </div>
+              <div>
+                <Label className="text-xs">ليميت الإرسال الشهري</Label>
+                <Input className="mt-1 h-9" type="number" min={0} value={monthly} onChange={(e) => setMonthly(e.target.value)} placeholder="فاضي = مفتوح" />
               </div>
             </div>
           )}

@@ -334,6 +334,7 @@ export default function Treasury() {
       p_fee_amount: tPayment.fee_amount,
       p_reference_number: tPayment.reference_number || null,
       p_transfer_to_account: tPayment.transfer_to_account || null,
+      ...(tPayment.transfer_from_account ? { p_transfer_from_account: tPayment.transfer_from_account } : {}),
       p_fee_actually_charged: tPayment.fee_amount > 0 ? tFeeCharged : true,
       p_date: isAdmin && tForm.date ? tForm.date : null,
     } as any);
@@ -790,7 +791,7 @@ export default function Treasury() {
             <div><Label>المبلغ *</Label><Input type="number" value={tForm.amount} onChange={(e) => setTForm({...tForm, amount: e.target.value})} className="mt-1.5" /></div>
             {isAdmin && <div><Label>تاريخ التحويل</Label><Input type="date" value={tForm.date} max={cairoTodayDay()} onChange={(e) => setTForm({ ...tForm, date: e.target.value })} className="mt-1.5" /></div>}
             <div><Label>السبب</Label><Textarea value={tForm.reason} onChange={(e) => setTForm({...tForm, reason: e.target.value})} className="mt-1.5" rows={2} /></div>
-            <PaymentMethodPicker amount={Number(tForm.amount) || 0} value={tPayment} onChange={setTPayment} label="طريقة التنفيذ" direction="none" />
+            <PaymentMethodPicker amount={Number(tForm.amount) || 0} value={tPayment} onChange={setTPayment} label="طريقة التنفيذ" direction="both" />
             {tPayment.fee_amount > 0 && (
               <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-2">
                 <div className="flex items-center justify-between gap-3">

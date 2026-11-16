@@ -15,6 +15,35 @@ export interface VesselAccount {
   is_active: boolean;
   notes?: string | null;
   sort_order?: number;
+  /** 0246: sending limits (null = no limit) */
+  daily_limit?: number | null;
+  monthly_limit?: number | null;
+}
+
+/** 0246: one account's limits, what it sent today / this calendar month, and its balance. */
+export interface AccountUsage {
+  id: string; payment_method: string; holder_name: string; account_number: string; is_active: boolean;
+  daily_limit: number | null; monthly_limit: number | null; sent_today: number; sent_month: number; balance: number;
+}
+
+/** What can still be sent now (min of the two limits); null = no limit. */
+export function allowedNow(u: Pick<AccountUsage, "daily_limit" | "monthly_limit" | "sent_today" | "sent_month">): number | null {
+  const d = u.daily_limit != null ? Number(u.daily_limit) - Number(u.sent_today) : null;
+  const m = u.monthly_limit != null ? Number(u.monthly_limit) - Number(u.sent_month) : null;
+  if (d == null && m == null) return null;
+  return Math.max(0, Math.round(Math.min(d ?? Infinity, m ?? Infinity) * 100) / 100);
+}
+
+/** Percent of a limit used (0–100, capped); null = no limit. */
+export function usedPct(sent: number, limit: number | null | undefined): number | null {
+  if (limit == null || !(Number(limit) > 0)) return null;
+  return Math.min(100, Math.round((Number(sent) / Number(limit)) * 1000) / 10);
+}
+
+export async function loadAccountUsage(ids?: string[]): Promise<AccountUsage[]> {
+  const { data, error } = await (supabase.rpc as any)("vessel_account_usage", { p_ids: ids?.length ? ids : null });
+  if (error) return [];
+  return (data ?? []) as AccountUsage[];
 }
 
 /** Same rule as SQL `vessel_account_key`: Arabic/Persian digits → Latin, lower case, letters and digits only. */
@@ -34,7 +63,7 @@ export const vesselAccountsCache = () => _cache;
 export async function loadVesselAccounts(force = false): Promise<VesselAccount[]> {
   if (!force && _cache && Date.now() - _at < 60_000) return _cache;
   const { data, error } = await (supabase.from as any)("vessel_accounts")
-    .select("id,payment_method,employee_id,holder_name,account_number,is_active,notes,sort_order")
+    .select("id,payment_method,employee_id,holder_name,account_number,is_active,notes,sort_order,daily_limit,monthly_limit")
     .order("sort_order").order("holder_name");
   if (error) return _cache ?? [];
   _cache = (data ?? []) as VesselAccount[];

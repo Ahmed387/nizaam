@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { accountKey, accountOfNumber, activeAccountsOf, vesselAccountError, type VesselAccount } from "./vesselAccounts";
+import { accountKey, accountOfNumber, activeAccountsOf, allowedNow, usedPct, vesselAccountError, type VesselAccount } from "./vesselAccounts";
 
 const acc = (p: Partial<VesselAccount>): VesselAccount => ({
   id: p.id ?? "1", payment_method: p.payment_method ?? "vodafone", employee_id: null,
@@ -24,5 +24,14 @@ describe("vessel accounts", () => {
     expect(vesselAccountError({ method: "vodafone", transfer_from_account: "010 1234 5678" }, l)).toBeNull();
     expect(vesselAccountError({ method: "vodafone", transfer_to_account: "0109" }, l)).not.toBeNull();
     expect(vesselAccountError({ method: "instapay", transfer_to_account: "x" }, l)).toBeNull();
+  });
+  it("works out what can still be sent", () => {
+    expect(allowedNow({ daily_limit: 60000, monthly_limit: 200000, sent_today: 50000, sent_month: 100000 })).toBe(10000);
+    expect(allowedNow({ daily_limit: 60000, monthly_limit: 200000, sent_today: 0, sent_month: 195000 })).toBe(5000);
+    expect(allowedNow({ daily_limit: 100, monthly_limit: null, sent_today: 150, sent_month: 0 })).toBe(0);
+    expect(allowedNow({ daily_limit: null, monthly_limit: null, sent_today: 5, sent_month: 5 })).toBeNull();
+    expect(usedPct(30000, 60000)).toBe(50);
+    expect(usedPct(90000, 60000)).toBe(100);
+    expect(usedPct(5, null)).toBeNull();
   });
 });

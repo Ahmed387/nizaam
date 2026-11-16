@@ -140,11 +140,14 @@ export const fetchPartnerCards = (partnerId: string) => rpc<PartnerCards>("partn
 export function partnerMoney(input: {
   partnerId: string; kind: "contribution" | "withdrawal"; amount: number; source?: WithdrawSource; capitalPart?: number;
   branchId: string; method: string; date: string; notes?: string;
+  /** 0245: the vessel account the money came to / left from */
+  account?: string | null;
 }) {
   return rpc<{ treasury_id: string; capital: number; profit: number; advance: number }>("partner_money", {
     p_partner: input.partnerId, p_kind: input.kind, p_amount: input.amount, p_source: input.source ?? "capital",
     p_capital_part: input.source === "split" ? input.capitalPart ?? 0 : null, p_branch: input.branchId, p_method: input.method,
     p_date: input.date, p_notes: input.notes || null,
+    ...(input.account ? { p_account: input.account } : {}),
   });
 }
 

@@ -1,22 +1,27 @@
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { accountKey, accountText, activeAccountsOf, loadVesselAccounts, vesselAccountsCache, type VesselAccount } from "@/lib/vesselAccounts";
+import { accountKey, accountText, activeAccountsOf, allowedNow, loadAccountUsage, loadVesselAccounts, vesselAccountsCache, type AccountUsage, type VesselAccount } from "@/lib/vesselAccounts";
+import { formatEGP } from "@/lib/format";
 
 /**
  * The company-side account of a transfer (0244). When the vessel has accounts → a required list «أحمد — 010…»
  * (the value is the account number); otherwise the old free-text field.
  */
-export function VesselAccountSelect({ method, value, onChange, placeholder, className, disabled }: {
+export function VesselAccountSelect({ method, value, onChange, placeholder, className, disabled, sending }: {
   method: string;
   value: string | null | undefined;
   onChange: (v: string) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** 0246: money leaves this account → show what each account can still send (its limits) */
+  sending?: boolean;
 }) {
   const [list, setList] = useState<VesselAccount[] | null>(vesselAccountsCache());
+  const [usage, setUsage] = useState<AccountUsage[]>([]);
   useEffect(() => { loadVesselAccounts().then(setList); }, []);
+  useEffect(() => { if (sending) loadAccountUsage().then(setUsage); }, [sending, method]);
   const accounts = activeAccountsOf(method, list);
 
   if (!accounts.length) {
@@ -31,7 +36,11 @@ export function VesselAccountSelect({ method, value, onChange, placeholder, clas
     <Select disabled={disabled} value={current?.account_number ?? ""} onValueChange={onChange}>
       <SelectTrigger className={className}><SelectValue placeholder="اختار الحساب" /></SelectTrigger>
       <SelectContent>
-        {accounts.map((a) => <SelectItem key={a.id} value={a.account_number}>{accountText(a)}</SelectItem>)}
+        {accounts.map((a) => {
+          const u = usage.find((x) => x.id === a.id);
+          const left = u ? allowedNow(u) : null;
+          return <SelectItem key={a.id} value={a.account_number}>{accountText(a)}{left != null ? ` — يقدر يبعت ${formatEGP(left)}` : ""}</SelectItem>;
+        })}
       </SelectContent>
     </Select>
   );

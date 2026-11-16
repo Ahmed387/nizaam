@@ -82,7 +82,7 @@ export function VesselTransferButton({ branchId, onDone }: { branchId: string; o
                   <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>{methods.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                 </Select>
-                {fromHasAcc && <VesselAccountSelect method={from} value={fromAcc} onChange={setFromAcc} className="mt-1.5" />}
+                {fromHasAcc && <VesselAccountSelect sending method={from} value={fromAcc} onChange={setFromAcc} className="mt-1.5" />}
               </div>
               <div>
                 <Label>إلى</Label>

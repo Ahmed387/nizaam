@@ -1,3 +1,4 @@
+import { VesselAccountSelect, useHasVesselAccounts } from "@/components/payments/VesselAccountSelect";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,8 @@ export function PartnerMoneyDialog({ kind, cards, onClose, onDone }: {
   const [methods, setMethods] = useState<PaymentMethodOption[]>([]);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [method, setMethod] = useState("cash");
+  const [account, setAccount] = useState("");
+  const hasAccounts = useHasVesselAccounts(method);
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(today);
   const [source, setSource] = useState<WithdrawSource>("profit");
@@ -49,10 +52,11 @@ export function PartnerMoneyDialog({ kind, cards, onClose, onDone }: {
   const save = async () => {
     const problem = partnerMoneyProblem({ kind, amount: amt, branchId, date, today, source, capitalPart: Number(capitalPart || 0), cards });
     if (problem) return toast.error(problem);
+    if (hasAccounts && !account) return toast.error(kind === "contribution" ? "اختار الحساب اللي الفلوس وصلت عليه" : "اختار الحساب اللي الفلوس اتحولت منه");
     setBusy(true);
     try {
       const r = await partnerMoney({ partnerId: cards.partner.id, kind, amount: amt, source, capitalPart: Number(capitalPart || 0),
-        branchId: branchId!, method, date, notes });
+        branchId: branchId!, method, date, notes, account: hasAccounts ? account : null });
       toast.success(kind === "contribution"
         ? `اتسجلت مساهمة ${formatEGP(amt)} لـ ${name}`
         : `اتسجل سحب ${formatEGP(amt)}: ${withdrawalSentence(r)}`);
@@ -98,7 +102,7 @@ export function PartnerMoneyDialog({ kind, cards, onClose, onDone }: {
             </div>
             <div>
               <Label>الوعاء</Label>
-              <Select value={method} onValueChange={setMethod}>
+              <Select value={method} onValueChange={(v) => { setMethod(v); setAccount(""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(methods.length ? methods : [{ value: "cash", label: "نقدي" } as PaymentMethodOption]).map((m) => (
@@ -106,6 +110,12 @@ export function PartnerMoneyDialog({ kind, cards, onClose, onDone }: {
                   ))}
                 </SelectContent>
               </Select>
+              {hasAccounts && (
+                <div className="mt-2">
+                  <Label className="text-xs">{kind === "contribution" ? "الحساب اللي الفلوس وصلت عليه *" : "الحساب اللي الفلوس اتحولت منه *"}</Label>
+                  <VesselAccountSelect sending={kind !== "contribution"} method={method} value={account} onChange={setAccount} className="mt-1" />
+                </div>
+              )}
             </div>
           </div>
 
