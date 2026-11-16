@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Building2, Users, Store, Receipt, TrendingUp, Loader2, AlertOctagon, CheckCircle2, Power } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { TenantsProfitSection } from "@/components/super/TenantsProfitSection";
+import { PlatformTelegramCard } from "@/components/super/PlatformTelegramCard";
 
 interface Stats {
   tenants: number; activeTenants: number; suspendedTenants: number;
@@ -96,6 +97,8 @@ export default function SuperDashboard() {
               </div>
             ))}
           </div>
+
+          <PlatformTelegramCard />
 
           <TenantsProfitSection tenants={tenants} />
 

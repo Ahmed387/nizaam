@@ -16,6 +16,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
 import { rpcErrorText } from "@/lib/rpcError";
 import { edgeErrorMessage } from "@/lib/edgeError";
+import { TenantOpsCard } from "@/components/super/TenantOpsCard";
+import { TenantSubscriptionCard } from "@/components/super/TenantSubscriptionCard";
 import { BUSINESS_TYPES, DEFAULT_BUSINESS_TYPE, branchLabel, suggestPassword } from "@/lib/businessTypes";
 
 interface TenantRow {
@@ -194,6 +196,10 @@ export default function TenantDetail() {
           </Button>
         </div>
       </section>
+
+      <TenantSubscriptionCard tenantId={t.id} />
+
+      <TenantOpsCard tenantId={t.id} />
 
       <section className="mb-5 grid gap-3">
         <h2 className="text-lg font-extrabold">الفروع ({used} من {t.max_branches ?? 3})</h2>

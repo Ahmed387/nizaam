@@ -34,6 +34,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ConfirmDialogHost } from "@/components/ConfirmDialog";
 import ShiftAlertBar from "@/components/ShiftAlertBar";
 import DesktopNotifications from "@/components/DesktopNotifications";
+import PageVisitTracker from "@/components/PageVisitTracker";
+import SubscriptionBanner from "@/components/SubscriptionBanner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PermCustomizeProvider } from "@/contexts/PermCustomize";
@@ -197,6 +199,7 @@ const SuperTenants = lazy(() => import("./pages/super/Tenants"));
 const SuperUsers = lazy(() => import("./pages/super/AllUsers"));
 const SuperTenantDetail = lazy(() => import("./pages/super/TenantDetail"));
 const SuperBranchRequests = lazy(() => import("./pages/super/BranchRequests"));
+const SuperPlans = lazy(() => import("./pages/super/Plans"));
 const AttachmentsHub = lazy(() => import("./pages/AttachmentsHub"));
 const FinancialPosition = lazy(() => import("./pages/admin/FinancialPosition"));
 const AdminPartnerProfile = lazy(() => import("./pages/admin/PartnerProfile"));
@@ -255,6 +258,8 @@ const App = () => (
           <PaidCelebration />
           <ShiftAlertBar />
           <DesktopNotifications />
+          <PageVisitTracker />
+          <SubscriptionBanner />
           <GlobalSearch />
           <PermCustomizeProvider>
           <RouteGuard>
@@ -282,6 +287,7 @@ const App = () => (
             <Route path="/super/users" element={<ProtectedRoute superAdminOnly><SuperUsers /></ProtectedRoute>} />
             <Route path="/super/tenants/:id" element={<ProtectedRoute superAdminOnly><SuperTenantDetail /></ProtectedRoute>} />
             <Route path="/super/branch-requests" element={<ProtectedRoute superAdminOnly><SuperBranchRequests /></ProtectedRoute>} />
+            <Route path="/super/plans" element={<ProtectedRoute superAdminOnly><SuperPlans /></ProtectedRoute>} />
 
             {/* Admin */}
             <Route path="/admin/dashboard" element={<ProtectedRoute perm="admin_home.view" adminOnly><AdminDashboard /></ProtectedRoute>} />

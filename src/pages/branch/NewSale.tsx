@@ -1056,7 +1056,7 @@ export default function NewSale() {
         p_total: total,
         p_payment_method: primaryMethod,
         p_items: items as any,
-        p_payments: payments.map(({ proof_files: _pf, ...p }) => p), // دائمًا قائمة (قد تكون فارغة) — لا افتراض كاش
+        p_payments: payments.map(({ proof_files: _pf, ...p }) => ({ ...p, received_by_name: profile?.name ?? p.received_by_name })), // دائمًا قائمة (قد تكون فارغة) — لا افتراض كاش؛ المستلم = الحساب اللي داخل (السيرفر بيكتبه برضه)
         p_vat_rate: vatEnabled ? Number(vatRate) || 0 : 0,
         p_vat_amount: vatAmount,
         p_invoice_date: invoiceDate || null,
@@ -1991,13 +1991,9 @@ export default function NewSale() {
                     <div>
                       <Label className="text-xs mb-1 block">
                         الموظف اللي استلم الفلوس
-                        <span className="text-muted-foreground font-normal mr-1">(اسم الكاشير أو المسؤول)</span>
+                        <span className="text-muted-foreground font-normal mr-1">(تلقائي: صاحب الحساب اللي طالع منه الفاتورة)</span>
                       </Label>
-                      <Input
-                        placeholder="اسم المستلم"
-                        value={p.received_by_name}
-                        onChange={(e) => updatePayment(idx, { received_by_name: e.target.value })}
-                      />
+                      <Input value={profile?.name ?? ""} readOnly disabled data-testid="received-by" />
                     </div>
                   </div>
                 ))}

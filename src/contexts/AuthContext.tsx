@@ -1,5 +1,6 @@
 import { withAuthRetry } from "@/lib/authRetry";
-import { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
+import { planAllows, planReadOnly, type PlanState } from "@/lib/planFeatures";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session, User } from "@supabase/supabase-js";
 import { AppRole, fetchUserContext, DEFAULT_ROLE_PERMISSIONS, checkPermission, branchKey, BranchRule } from "@/lib/roles";
@@ -44,6 +45,8 @@ interface AuthCtx {
   canInBranch: (key: string, branchId?: string | null) => boolean;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
+  /** The company's subscription plan (migration 0239); null until read / no company. */
+  planState: PlanState | null;
   /** The company role this user is on («مندوب مبيعات», migration 0115), if any. */
   companyRole: CompanyRole | null;
   /** Ready roles hidden / renamed in this company. */
@@ -68,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userPerms, setUserPerms] = useState<Record<string, boolean>>({});
   const [companyRole, setCompanyRole] = useState<CompanyRole | null>(null);
   const [roleSettings, setRoleSettings] = useState<RoleSetting[]>([]);
+  // the company's subscription plan (migration 0239): pages outside it are closed for everybody, expired = read only
+  const [planState, setPlanState] = useState<PlanState | null>(null);
   // company roles chosen as the template of one of his branches (migration 0122)
   const [branchTemplates, setBranchTemplates] = useState<CompanyRole[]>([]);
   const currentUserIdRef = useRef<string | null>(null);
@@ -298,6 +303,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { read: b.access_level === "read", full: !!b.full_access, role: b.branch_template ? tplRole(b.branch_template) : b.branch_role ?? null };
   };
 
+  useEffect(() => {
+    if (!tenantId || !user) { setPlanState(null); return; }
+    let alive = true;
+    const read = () => (supabase.rpc as any)("tenant_plan_state").then(({ data, error }: any) => {
+      if (alive && !error && data) setPlanState(data as PlanState);
+    }, () => {});
+    read();
+    const t = window.setInterval(read, 30 * 60_000); // the day can change while the app stays open
+    return () => { alive = false; window.clearInterval(t); };
+  }, [tenantId, user?.id]);
+  const planDisabled = useMemo(() => new Set(planState?.disabled ?? []), [planState]);
+  const planRO = planReadOnly(planState);
+
   /** Any permission action that is not a plain view/read. */
   const isWriteKey = (key: string) => {
     const action = key.split(".").pop() ?? "";
@@ -336,6 +354,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isOwner: roles.includes("owner") || (!!user?.id && !!tenant?.owner_user_id && user.id === tenant.owner_user_id),
     hasRole,
     can: (key) => {
+      if (roles.includes("super_admin")) return true;
+      // outside the company's plan: closed for everybody, the owner too (0239); after the grace days: read only
+      if (!planAllows(planDisabled, key) || (planRO && isWriteKey(key))) return false;
       // the company owner is never restricted (migration 0114)
       if (isFullOwner) return true;
       if (!checkPermission(eff.roles as AppRole[], eff.permsByRole, key, userPerms, activeBranchId(), ruleFor(activeBranchId()))) return false;
@@ -346,10 +367,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     branchAccess: (branchId) => (isFullAccess ? "manage" : branchLevel(branchId)),
     isBranchReadOnly: (branchId) => readOnlyBranch(branchId),
     canInBranch: (key, branchId) => {
+      if (roles.includes("super_admin")) return true;
+      if (!planAllows(planDisabled, key) || (planRO && isWriteKey(key))) return false;
       if (isFullOwner) return true;
       if (!checkPermission(eff.roles as AppRole[], eff.permsByRole, key, userPerms, branchId, ruleFor(branchId))) return false;
       return !isWriteKey(key) || !readOnlyBranch(branchId);
     },
+    planState,
     signOut: async () => {
       await supabase.auth.signOut();
     },
