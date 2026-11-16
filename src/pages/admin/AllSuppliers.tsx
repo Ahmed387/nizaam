@@ -483,7 +483,7 @@ export default function AllSuppliers() {
         </Select>
       </div>
 
-      <DataTable loading={loading} rows={filtered} onView={setView}
+      <DataTable mobileCards loading={loading} rows={filtered} onView={setView}
         onRowClick={(r: any) => window.open(`/admin/contacts/${r.id}`, "_blank", "noopener,noreferrer")}
         columns={[
           { key: "account_no", header: "رقم الحساب", render: (r: any) => <span className="font-mono text-xs">{r.account_no ?? "—"}</span> },

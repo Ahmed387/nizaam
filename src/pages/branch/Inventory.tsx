@@ -783,7 +783,7 @@ export default function Inventory() {
             ) : filtered.length === 0 ? (
               <div className="p-12 text-center text-muted-foreground">لا توجد منتجات</div>
             ) : (
-              <PermTable className="w-full min-w-[1150px] text-sm table-fixed">
+              <PermTable mobileCards className="w-full min-w-[1150px] text-sm table-fixed">
                 <colgroup>
                   <col className="w-[4%]" /><col className="w-[4%]" /><col className="w-[27%]" /><col className="w-[8%]" /><col className="w-[9%]" />
                   <col className="w-[9%]" /><col className="w-[10%]" /><col className="w-[9%]" /><col className="w-[6%]" /><col className="w-[14%]" />

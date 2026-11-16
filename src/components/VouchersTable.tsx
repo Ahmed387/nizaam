@@ -548,7 +548,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
           onDone={() => { setSelected(new Map()); load(); }}
         />
       )}
-      <DataTable
+      <DataTable mobileCards
         loading={wholeMode ? !listRes : loading}
         rows={pageRows}
         excel={{ id: `vouchers-${type ?? "all"}`, server: tableAdapter }}

@@ -1,3 +1,4 @@
+import { useCardLabels } from "@/components/table/MobileCards";
 import { useMemo, Fragment, forwardRef, ReactNode, Ref, useEffect, useRef, useState, type CSSProperties } from "react";
 import { ExcelLayer, FilterBar, type ServerAdapter } from "@/components/table/ExcelFilter";
 import { ColumnResizeLayer } from "@/components/table/ColumnResize";
@@ -59,6 +60,8 @@ interface DataTableProps<T> {
    * screen read them, so they export what the person sees (owner 2026-10-26).
    */
   onView?: (rows: T[] | null) => void;
+  /** Below 768 px show each row as a card (src/components/table/MobileCards.tsx); desktop unchanged. */
+  mobileCards?: boolean;
 }
 
 function DataTableInner<T>(
@@ -81,11 +84,13 @@ function DataTableInner<T>(
     permTable,
     excel,
     onView,
+    mobileCards,
   }: DataTableProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
   const [page, setPage] = useState(0);
   const [tableEl, setTableEl] = useState<HTMLTableElement | null>(null);
+  useCardLabels(tableEl, !!mobileCards);
   // column order (owner 2026-11-11 «انقل عمود مكان عمود عن طريق السحب»): drag a header onto another header; the order is
   // remembered per person's browser, per page and table (localStorage `colo:v1:<path>:<table>`), by column key.
   const orderKey = `colo:v1:${typeof window === "undefined" ? "" : window.location.pathname}:${permTable ?? (excel ? excel.id : undefined) ?? "t"}`;
@@ -191,6 +196,7 @@ function DataTableInner<T>(
       <div className={wide ? "w-full overflow-auto lg:overflow-x-hidden max-h-[calc(100vh-8rem)]" : "w-full overflow-x-auto"} data-wide={wide ? "" : undefined}>
         <table
           ref={setTableEl}
+          data-mcard={mobileCards ? "" : undefined}
           className={`w-full text-sm ${wide ? "lg:text-[13px]" : "md:text-base"} border-collapse ${wide ? "table-auto max-lg:[min-width:var(--dt-min-w)]" : "table-fixed"} ${tableClassName ?? ""}`}
           style={wide ? ({ ["--dt-min-w" as any]: minTableWidth } as CSSProperties) : undefined}
         >

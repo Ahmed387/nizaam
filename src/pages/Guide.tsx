@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ShortcutsGuide } from "@/components/ShortcutsGuide";
 import { useAuth } from "@/contexts/AuthContext";
 import { useOnboardingProgress } from "@/hooks/useOnboardingProgress";
 import { Button } from "@/components/ui/button";
@@ -85,6 +87,9 @@ export default function Guide() {
   const { isAdmin, isOwner } = useAuth();
   const { completed, loading, setSectionDone, setGuideSkipped, resetProgress } = useOnboardingProgress();
   const [justCompleted, setJustCompleted] = useState<string | null>(null);
+  // «اختصارات» tab (owner 2026-11-16): /guide?tab=shortcuts
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("tab") === "shortcuts" ? "shortcuts" : "launch";
 
   const isAdminUser = isAdmin || isOwner;
 
@@ -150,6 +155,15 @@ export default function Guide() {
           </div>
         </div>
 
+        <Tabs value={tab} onValueChange={(v) => setParams(v === "launch" ? {} : { tab: v }, { replace: true })} dir="rtl">
+          <TabsList>
+            <TabsTrigger value="launch">دليل الإطلاق</TabsTrigger>
+            <TabsTrigger value="shortcuts">اختصارات</TabsTrigger>
+          </TabsList>
+          <TabsContent value="shortcuts" className="mt-4">
+            <ShortcutsGuide />
+          </TabsContent>
+          <TabsContent value="launch" className="mt-4 space-y-6">
         {/* Hero + progress */}
         <Card className="overflow-hidden border border-border/60 bg-gradient-to-l from-primary/10 via-primary/5 to-transparent animate-scale-in">
           <CardContent className="p-6 md:p-8">
@@ -314,6 +328,8 @@ export default function Guide() {
             </CardContent>
           </Card>
         )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

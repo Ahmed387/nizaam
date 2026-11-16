@@ -23,11 +23,14 @@ import { formatEGP } from "@/lib/format";
 import { searchMatch, filterProductsBySearch } from "@/lib/search";
 import { toast } from "sonner";
 import { useFormDraft } from "@/hooks/useFormDraft";
+import { isTyping, moveIndex, saleShortcut } from "@/lib/saleShortcuts";
+import { ShortcutsGuide } from "@/components/ShortcutsGuide";
 import { DraftRestoreBar } from "@/components/DraftRestoreBar";
 import { docSuccess, docError } from "@/lib/docToast";
 import { enqueueSale, syncPendingSales } from "@/lib/offlineQueue";
 import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
+import { Keyboard } from "lucide-react";
 import { Search, Trash2, Printer, Loader2, ScanLine, BookmarkPlus, Plus, X, AlertTriangle, Camera, UserPlus, CheckCircle2, Clock, ShieldCheck, ShoppingCart, User as UserIcon, Minus, Wallet, Package, ChevronDown, ChevronUp, CreditCard, FileText, DoorClosed } from "lucide-react";
 import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { computeInvoiceTotals } from "@/lib/invoiceCalc";
@@ -93,6 +96,10 @@ export default function NewSale() {
 
   const [search, setSearch] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // keyboard shortcuts (owner 2026-11-16, src/lib/saleShortcuts.ts): highlighted search hit, «?» window, print after save
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const printAfterSaveRef = useRef(false);
   // الصنف المفتوح حاليًا — اللي قبله بيتطوى تلقائي
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
@@ -569,6 +576,10 @@ export default function NewSale() {
     () => filterProductsBySearch(products as any[], search).slice(0, 50),
     [products, search]
   );
+  useEffect(() => { setActiveIdx(0); }, [search]);
+  useEffect(() => {
+    document.querySelector(`[data-sale-hit="${activeIdx}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [activeIdx]);
 
   // Unified totals via shared helper — see src/lib/invoiceCalc.ts
   const totals = useMemo(
@@ -1136,7 +1147,7 @@ export default function NewSale() {
         amount: total,
         action: { label: "فتح الفاتورة", onClick: () => nav(`/branch/${branchId}/sales/${invId}`) },
       });
-      nav(`/branch/${branchId}/sales/${invId}`);
+      nav(`/branch/${branchId}/sales/${invId}${printAfterSaveRef.current ? "?print=1" : ""}`);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -1144,14 +1155,102 @@ export default function NewSale() {
     }
   };
 
+  // ===== Keyboard shortcuts (owner 2026-11-16; keys and texts in src/lib/saleShortcuts.ts) =====
+  const lastKeyRef = useRef<string | null>(null);
+  const canSubmit = !(busy || !items.length || hasLoss || !paymentsValid || (overLimit && isCashierOnly));
+  const lastItemKey = () => {
+    const k = lastKeyRef.current;
+    if (k && items.some((i) => itemKey(i) === k)) return k;
+    return items.length ? itemKey(items[items.length - 1]) : null;
+  };
+  const addFromSearch = () => {
+    const term = search.trim();
+    if (!term) return;
+    const exact = products.find((p: any) => p.sku && String(p.sku).toLowerCase() === term.toLowerCase());
+    const pick = exact ?? filtered[Math.min(activeIdx, filtered.length - 1)];
+    if (!pick) { toast.error(`مفيش صنف بـ «${term}»`); return; }
+    lastKeyRef.current = pick.id;
+    addItem(pick);
+    setSearch("");
+    searchInputRef.current?.focus();
+  };
+  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx((i) => moveIndex(i, 1, filtered.length)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx((i) => moveIndex(i, -1, filtered.length)); }
+    else if (e.key === "Enter") { e.preventDefault(); addFromSearch(); }
+    else if (e.key === "Escape") { e.preventDefault(); if (search) setSearch(""); else (e.target as HTMLInputElement).blur(); }
+    // the search box keeps the focus after adding: while it is EMPTY, + − Delete act on the last item
+    else if (!search && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const action = saleShortcut(e.nativeEvent, false);
+      if (action === "qty_up" || action === "qty_down" || action === "remove_last") { e.preventDefault(); runShortcutRef.current(action); }
+    }
+  };
+  const runShortcut = (action: ReturnType<typeof saleShortcut>) => {
+    switch (action) {
+      case "search":
+        setOpenSections((s) => ({ ...s, products: true }));
+        setTimeout(() => { searchInputRef.current?.focus(); searchInputRef.current?.select(); }, 0);
+        return;
+      case "customer":
+        setOpenSections((s) => ({ ...s, customer: true }));
+        setTimeout(() => (document.querySelector("#sale-customer [role=combobox]") as HTMLElement | null)?.click(), 0);
+        return;
+      case "payment":
+        setOpenSections((s) => ({ ...s, payment: true }));
+        if (!payments.length && total > 0) addPayment();
+        setTimeout(() => { const el = document.querySelector("[data-pay-amount]") as HTMLInputElement | null; el?.focus(); el?.select(); }, 50);
+        return;
+      case "qty_up": case "qty_down": {
+        const k = lastItemKey(); if (!k) return;
+        const it = items.find((i) => itemKey(i) === k)!;
+        updateQty(k, action === "qty_up" ? Number(it.quantity || 0) + 1 : Math.max(1, Number(it.quantity || 0) - 1));
+        return;
+      }
+      case "remove_last": { const k = lastItemKey(); if (k) updateQty(k, 0); return; }
+      case "save": case "save_print":
+        if (!canSubmit) { toast.error(items.length ? "الفاتورة لسه مش جاهزة للحفظ — راجع المبالغ أو الخصم" : "أضف منتجات أولاً"); return; }
+        printAfterSaveRef.current = action === "save_print";
+        submit();
+        return;
+      case "help": setShortcutsOpen(true); return;
+    }
+  };
+  const runShortcutRef = useRef(runShortcut);
+  runShortcutRef.current = runShortcut;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+      // another window (dialog) is open → leave its keys alone, except saving is never triggered from inside one
+      if (document.querySelector("[role=dialog][data-state=open]")) return;
+      const action = saleShortcut(e, isTyping(document.activeElement));
+      if (!action) return;
+      e.preventDefault();
+      runShortcutRef.current(action);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <BranchLayout>
       <PageHeader title="فاتورة بيع جديدة" subtitle="نقطة البيع"
-        actions={myShiftOpen ? (
-          <Button variant="outline" onClick={() => nav(`/branch/${branchId}/shifts/close`)}>
-            <DoorClosed className="w-4 h-4 me-1" /> قفل الوردية
+        actions={<>
+          <Button variant="ghost" onClick={() => setShortcutsOpen(true)} title="اختصارات الكيبورد (?)">
+            <Keyboard className="w-4 h-4 me-1" /> اختصارات
           </Button>
-        ) : undefined} />
+          {myShiftOpen && (
+            <Button variant="outline" onClick={() => nav(`/branch/${branchId}/shifts/close`)}>
+              <DoorClosed className="w-4 h-4 me-1" /> قفل الوردية
+            </Button>
+          )}
+        </>} />
+      <Dialog open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto" dir="rtl">
+          <DialogHeader><DialogTitle>اختصارات شاشة البيع</DialogTitle></DialogHeader>
+          <ShortcutsGuide compact />
+          <div className="text-xs text-muted-foreground">الشرح الكامل: علامة (؟) فوق ← تابة «اختصارات».</div>
+        </DialogContent>
+      </Dialog>
 
       {localDraft.draft && !localDraftDismissed && items.length === 0 && (
         <DraftRestoreBar
@@ -1200,8 +1299,8 @@ export default function NewSale() {
 
             <div className="p-3 space-y-2">
               <div className="grid md:grid-cols-2 gap-3">
-                <div>
-                  <Label className="mb-1 block">العميل</Label>
+                <div id="sale-customer">
+                  <Label className="mb-1 block">العميل <span className="text-[10px] text-muted-foreground" dir="ltr">(F4)</span></Label>
                   <div className="flex gap-2">
                     <CustomerSelect className="flex-1" branchId={branchId} value={customerId} onChange={(id, c) => { setCustomerId(id); if (c) setCustomers((prev) => [...prev.filter((x) => x.id !== c.id), c]); }} />
                     <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
@@ -1321,12 +1420,13 @@ export default function NewSale() {
                 <div className="relative">
                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder="ابحث بالاسم أو الكود..."
+                    placeholder="ابحث بالاسم أو الكود... (F2) — ↓ ↑ ثم Enter للإضافة"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="pr-10 h-12 text-base"
                     autoFocus
                     ref={searchInputRef}
+                    onKeyDown={onSearchKey}
 
                   />
                 </div>
@@ -1363,7 +1463,7 @@ export default function NewSale() {
                 <div className="p-10 text-center text-muted-foreground text-sm">لا توجد منتجات مطابقة</div>
               ) : (
                 <div className="p-4 grid grid-cols-1 gap-3">
-                  {filtered.map((p) => {
+                  {filtered.map((p, hitIdx) => {
                     const avail = availability[p.id] ?? Number(p.quantity || 0);
                     const stock = Number(p.quantity || 0);
                     const reserved = Math.max(0, stock - avail);
@@ -1374,8 +1474,9 @@ export default function NewSale() {
                     return (
                       <button
                         key={p.id}
+                        data-sale-hit={hitIdx}
                         onClick={() => addItem(p)}
-                        className="group text-right rounded-xl border-2 border-border bg-surface-1 hover:border-primary hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:border-border disabled:hover:shadow-none flex items-center gap-3 p-3 overflow-hidden"
+                        className={`${hitIdx === activeIdx ? "ring-2 ring-primary border-primary " : ""}group text-right rounded-xl border-2 border-border bg-surface-1 hover:border-primary hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:border-border disabled:hover:shadow-none flex items-center gap-3 p-3 overflow-hidden`}
                       >
                         <div className="w-12 h-12 shrink-0 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-extrabold text-lg border border-primary/20">
                           {(p.name || "?").trim().charAt(0)}
@@ -1823,6 +1924,7 @@ export default function NewSale() {
                       <Label className="text-xs mb-1.5 block">المبلغ</Label>
                       <Input
                         type="number" min="0" step="0.01" placeholder="0.00"
+                        data-pay-amount={idx}
                         value={p.amount || ""}
                         onChange={(e) => updatePayment(idx, { amount: parseFloat(e.target.value) || 0 })}
                       />
@@ -2113,7 +2215,8 @@ export default function NewSale() {
             <Button
               className="w-full mt-4 h-14 btn-gradient text-base font-extrabold shadow-lg shadow-primary/20 hover:scale-[1.01] active:scale-[0.98] transition-transform"
               disabled={busy || !items.length || hasLoss || !paymentsValid || (overLimit && isCashierOnly)}
-              onClick={submit}
+              onClick={() => { printAfterSaveRef.current = false; submit(); }}
+              title="Ctrl+S حفظ — Ctrl+P حفظ وطباعة"
             >
               {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Printer className="w-4 h-4 ml-2" /> إنشاء وطباعة</>}
             </Button>

@@ -169,7 +169,7 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
         </div>
       )}
 
-      <DataTable
+      <DataTable mobileCards
         loading={loading}
         rows={rows}
         onView={setView as any}

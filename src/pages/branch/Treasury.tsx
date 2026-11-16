@@ -628,7 +628,7 @@ export default function Treasury() {
           <TooltipProvider delayDuration={200}>
           <PermPart page="treasury" part="selection_bar"><TreasurySelectionBar rows={Array.from(selected.values())} branchId={branchId!} onSelectPage={() => setSelected(new Map(filtered.map((r: any) => [r.id, r])))}
                                 onClear={() => setSelected(new Map())} /></PermPart>
-          <DataTable permPage="treasury" permTable="moves" loading={wholeMode ? !listRes : loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} minTableWidth="1500px"
+          <DataTable mobileCards permPage="treasury" permTable="moves" loading={wholeMode ? !listRes : loading} rows={filtered} indexColumn={{ offset: (page - 1) * PAGE_SIZE }} minTableWidth="1500px"
             excel={{ id: reversalView ? "reversals" : "movements", server: tableAdapter }}
             getRowKey={(r: any) => r.id}
             isRowExpanded={(r: any) => expandedId === r.id}

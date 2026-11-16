@@ -1,8 +1,8 @@
 import { packOf, packText } from "@/components/PackUnits";
 import { fetchContactBalance } from "@/lib/contactBalances";
 import { PermTable } from "@/components/PermTable";
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -140,6 +140,20 @@ export default function InvoiceView() {
       }
     })();
   }, [reloadKey, invoiceId]);
+
+  // «حفظ وطباعة» from the sale screen (Ctrl+P / F10, owner 2026-11-16): /sales/:id?print=1 prints the 80mm receipt
+  // once the invoice and its lines are on screen, then drops the flag so a reload does not print again.
+  const [params, setParams] = useSearchParams();
+  const printedRef = useRef(false);
+  useEffect(() => {
+    if (params.get("print") !== "1" || printedRef.current || !inv || !items.length) return;
+    printedRef.current = true;
+    const t = setTimeout(() => {
+      printThermalInvoice();
+      const next = new URLSearchParams(params); next.delete("print"); setParams(next, { replace: true });
+    }, 700);
+    return () => clearTimeout(t);
+  }, [params, inv, items.length, setParams]);
 
   if (error) return <BranchLayout><div className="p-8 text-center text-destructive">⚠️ {error}</div></BranchLayout>;
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;

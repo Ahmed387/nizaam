@@ -1,3 +1,4 @@
+import { useCardLabels } from "@/components/table/MobileCards";
 import { forwardRef, Ref, TableHTMLAttributes, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ExcelLayer } from "@/components/table/ExcelFilter";
 import { ColumnResizeLayer } from "@/components/table/ColumnResize";
@@ -20,13 +21,15 @@ type Props = TableHTMLAttributes<HTMLTableElement> & {
   noFilter?: boolean;
   /** tells apart tables with the same columns on one page (their filters are remembered separately) */
   filterId?: string;
+  /** Below 768 px show each row as a card (src/components/table/MobileCards.tsx); desktop unchanged. */
+  mobileCards?: boolean;
 };
 
 /**
  * Every PermTable also gets the Excel-like filter (owner 2026-10-26, src/components/table/ExcelFilter.tsx): an arrow in
  * each column title, a bar of the active filters and a totals row — read from what the table shows, no setup.
  */
-export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable({ permTable, noFilter, filterId, ...props }, ref) {
+export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable({ permTable, noFilter, filterId, mobileCards, ...props }, ref) {
   const page = useCurrentPermPage();
   const [el, setEl] = useState<HTMLTableElement | null>(null);
   const setRef = useCallback((t: HTMLTableElement | null) => {
@@ -34,6 +37,8 @@ export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable(
     if (typeof ref === "function") ref(t);
     else if (ref) (ref as any).current = t;
   }, [ref]);
+  useCardLabels(el, !!mobileCards);
+  if (mobileCards) (props as any)["data-mcard"] = "";
   return (
     <>
       {!noFilter && <ExcelLayer table={el} storageId={filterId ?? permTable} />}

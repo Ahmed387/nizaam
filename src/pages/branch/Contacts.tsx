@@ -523,7 +523,7 @@ export default function Contacts() {
           </div>
         )}
       </div>
-      <DataTable
+      <DataTable mobileCards
         loading={wholeMode ? !listRes : loading}
         rows={filtered}
         excel={{ id: `contacts-${filter}`, server: tableAdapter }}

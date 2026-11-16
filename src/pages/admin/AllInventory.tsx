@@ -377,7 +377,7 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
         </div>
       )}
 
-      <DataTable loading={loading} rows={filtered} indexColumn onView={setView}
+      <DataTable mobileCards loading={loading} rows={filtered} indexColumn onView={setView}
         columns={[
           {
             key: "select",

@@ -565,3 +565,32 @@ table td .h-9 { height: 2rem; }
 .unicode-isolate {
   unicode-bidi: isolate;
 }
+
+/* ===== Mobile cards (owner 2026-11-16, src/components/table/MobileCards.tsx) =====
+   Below 768 px a table marked `data-mcard` (DataTable / PermTable `mobileCards`) shows each row as a card:
+   «title ........ value» per cell, the column titles as a scrollable strip on top (their Excel arrows still work).
+   Inside the native cascade layer `mcard`, so every UNLAYERED rule still wins: a column hidden by permissions /
+   «الأعمدة» and a row hidden by the Excel filter stay hidden. The `!important` widths here beat the column-resize
+   widths (layered !important > unlayered !important) — only on a phone; desktop never reads any of this. */
+@media (max-width: 767px) {
+  @layer mcard {
+    table[data-mcard] { display: block; width: 100% !important; min-width: 0 !important; max-width: 100% !important; table-layout: auto !important; }
+    *:has(> table[data-mcard]) { max-height: none !important; overflow-x: visible !important; }
+    table[data-mcard] > thead { display: block; }
+    table[data-mcard] > thead > tr { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: .375rem; padding: .5rem; position: static !important; box-shadow: none; }
+    table[data-mcard] > thead > tr:not(:last-child) { display: none; }
+    table[data-mcard] > thead > tr > th { display: flex; align-items: center; gap: .25rem; flex: 0 0 auto; white-space: nowrap; width: auto !important; min-width: 0 !important; max-width: none !important; height: auto !important; padding: .2rem .6rem !important; border: 1px solid hsl(var(--border)); border-radius: 9999px; font-size: 11px !important; letter-spacing: 0; text-transform: none; position: static !important; }
+    table[data-mcard] > thead > tr > th [role=separator] { display: none !important; }
+    table[data-mcard] > tbody, table[data-mcard] > tfoot { display: block; padding: .25rem .5rem .5rem; }
+    table[data-mcard] > tbody > tr, table[data-mcard] > tfoot > tr { display: block; margin-bottom: .5rem; padding: .375rem .75rem; border: 1px solid hsl(var(--border)); border-radius: .75rem; background: hsl(var(--card)); }
+    table[data-mcard] > tbody > tr[hidden] { display: none; }
+    table[data-mcard] > tbody > tr > *, table[data-mcard] > tfoot > tr > * { display: flex; align-items: center; justify-content: space-between; gap: .75rem; width: auto !important; min-width: 0 !important; max-width: none !important; height: auto !important; padding: .3rem 0 !important; border: 0 !important; border-bottom: 1px dashed hsl(var(--border) / .6) !important; white-space: normal !important; overflow: visible !important; text-align: left; position: static !important; }
+    table[data-mcard] > tbody > tr > *:last-child, table[data-mcard] > tfoot > tr > *:last-child { border-bottom: 0 !important; }
+    table[data-mcard] > tbody > tr > *::before, table[data-mcard] > tfoot > tr > *::before { content: attr(data-label); flex-shrink: 0; max-width: 45%; font-size: 11px; font-weight: 600; color: hsl(var(--muted-foreground)); text-align: right; }
+    table[data-mcard] > tbody > tr > [data-label=""]::before, table[data-mcard] > tfoot > tr > [data-label=""]::before { display: none; }
+    table[data-mcard] > tbody > tr > [colspan], table[data-mcard] > tfoot > tr > [colspan] { display: block; }
+    table[data-mcard] > tbody > tr > :empty, table[data-mcard] > tfoot > tr > :empty { display: none; }
+    /* the row number column says nothing on a card */
+    table[data-mcard] > * > tr > [data-label="#"], table[data-mcard] > thead > tr > th:first-child:is([data-label="#"]) { display: none; }
+  }
+}
