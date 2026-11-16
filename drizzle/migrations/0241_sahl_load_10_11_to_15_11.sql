@@ -1,0 +1,17 @@
+-- 0241 (+ 0241b / 0241c): owner 2026-11-16 «في فواتير انا رفعتها من 11 في الشهر لحد يوم 15 اتشك عليها وضيفها في السيستم».
+-- sahl4.zip (bucket `sahl-import`, 15 files: sale / purchase / sale return / receipt / payment per branch for 10/11 → 15/11 + the
+-- شلبى balances report) was staged by the edge function `sahl-import` (map sha → branch, one entry per call).
+-- Checked before loading: every document of 10/11 and 11/11 in the new files equals the one already loaded (only «المتاح», the
+-- stock column, moved); «سهل» reused number 1626 (عبدالمنعم sale) for a NEW 14/11 invoice — the 12/11 one with that number was
+-- never loaded. Tools (same as 0210, no special edits):
+--   view sahl_import.load4_nr        = sahl4.zip records dated ≤ 2026-11-15 not in `sahl_import.ops`
+--   func sahl_import.load4_prepare() = load3_prepare on load4_nr; 0241b: an account typed in the system after go-live with the
+--        same name (system name rule) is USED, never a second one (save_contact refused «مالك عبدالرحمن»)
+--   func sahl_import.load4_run(apply) = prepare + run_ops(2026-11-15) + doc_source_times + recost_product_sales (from 10/11) +
+--        ledger_sync_safe; checks tills = GL and unexplained = 0; puts the sequences back on a dry-run / error.
+--   cfg_cat: receipt item «24» (شلبى 10206, 100 فودافون «من مرعي سعد للمورد العام») → «عمولات تحويل».
+-- Result (applied 2026-11-16): 154 operations, 0 errors — 31 sales (1,563,140), 9 purchases (692,810), 5 sale returns (88,075),
+-- 104 vouchers, 4 receipts linked as payments of their same-day credit invoices (180,000), 1 vessel transfer (عبدالمنعم 1,000);
+-- 3 new accounts, 1 new product, «ابراهيم الندي» → عميل ومورد; 44 products re-costed, 39 accounts synced; every branch total = the
+-- files; tills = GL (0.00 in all three branches), ledger unexplained 0, cross-branch allocations 0.
+SELECT 1;
