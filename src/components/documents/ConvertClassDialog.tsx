@@ -1,3 +1,4 @@
+import { vesselAccountError } from "@/lib/vesselAccounts";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,6 +103,8 @@ export function ConvertClassDialog({ open, onOpenChange, docType, ids, target, o
 
   const save = async () => {
     if (!canSave) return;
+    if (target === "cash" && totals.newAmount > 0) { const accErr = vesselAccountError({ method: pay.method, transfer_to_account: pay.transfer_to_account, transfer_from_account: pay.transfer_from_account });
+      if (accErr) { toast.error(accErr); return; } }
     setSaving(true);
     const { data, error } = await supabase.rpc("document_class_convert" as any, {
       p_doc_type: docType, p_ids: ok.map((r) => r.doc_id), p_target: target,
@@ -181,7 +184,7 @@ export function ConvertClassDialog({ open, onOpenChange, docType, ids, target, o
 
             {needsMethod && (
               <div className="rounded-lg border p-3">
-                <PaymentMethodPicker amount={totals.newAmount} value={pay} onChange={setPay} showTransferFrom label="طريقة الدفعة الجديدة" />
+                <PaymentMethodPicker amount={totals.newAmount} value={pay} onChange={setPay} showTransferFrom label="طريقة الدفعة الجديدة" direction={docType === "invoice" ? "in" : "out"} />
                 {!single && pay.method !== "cash" && (
                   <p className="mt-2 text-[11px] text-muted-foreground">إيصال التحويل لكل فاتورة يترفع بعد كده من 📎 على سندها.</p>
                 )}

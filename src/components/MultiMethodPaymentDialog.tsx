@@ -24,6 +24,7 @@ import {
 import { formatEGP } from "@/lib/format";
 import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
+import { VesselAccountSelect } from "@/components/payments/VesselAccountSelect";
 
 export interface PaymentLine {
   id: string;
@@ -321,7 +322,7 @@ export function MultiMethodPaymentDialog({
                 {requiresRef && (
                   <div className="space-y-2">
                     <div>
-                      <Label className="text-xs">رقم العملية *</Label>
+                      <Label className="text-xs">رقم العملية (اختياري)</Label>
                       <Input
                         value={l.reference_number ?? ""}
                         onChange={(e) => updateLine(l.id, { reference_number: e.target.value })}
@@ -333,23 +334,35 @@ export function MultiMethodPaymentDialog({
                         <Label className="text-xs">
                           {direction === "in" ? methodSenderLabel(l.method) : "حسابنا (المُحوَّل منه)"}
                         </Label>
+                        {direction === "out" ? (
+                          <VesselAccountSelect method={l.method} className="mt-1 h-9" value={l.transfer_from_account}
+                                               onChange={(v) => updateLine(l.id, { transfer_from_account: v })}
+                                               placeholder="حسابنا اللي اتحول منه" />
+                        ) : (
                         <Input
                           dir="ltr" className="text-right mt-1 h-9"
                           value={l.transfer_from_account ?? ""}
                           onChange={(e) => updateLine(l.id, { transfer_from_account: e.target.value })}
-                          placeholder={direction === "in" ? "حساب العميل" : "حسابنا اللي اتحول منه"}
+                          placeholder="حساب العميل"
                         />
+                        )}
                       </div>
                       <div>
                         <Label className="text-xs">
                           {direction === "in" ? "حسابنا (المُستلِم)" : methodReceiverLabel(l.method)}
                         </Label>
+                        {direction === "in" ? (
+                          <VesselAccountSelect method={l.method} className="mt-1 h-9" value={l.transfer_to_account}
+                                               onChange={(v) => updateLine(l.id, { transfer_to_account: v })}
+                                               placeholder="حسابنا اللي وصل عليه" />
+                        ) : (
                         <Input
                           dir="ltr" className="text-right mt-1 h-9"
                           value={l.transfer_to_account ?? ""}
                           onChange={(e) => updateLine(l.id, { transfer_to_account: e.target.value })}
-                          placeholder={direction === "in" ? "حسابنا اللي وصل عليه" : "حساب المورد"}
+                          placeholder="حساب المورد"
                         />
+                        )}
                       </div>
                     </div>
                     <PaymentProofInput compact files={l.proof_files} onChange={(f) => updateLine(l.id, { proof_files: f })} />

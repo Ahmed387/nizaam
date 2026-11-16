@@ -754,7 +754,7 @@ export default function EmployeeProfile() {
             <div><Label>المبلغ *</Label><Input type="number" value={advForm.amount} onChange={(e) => setAdvForm({ ...advForm, amount: e.target.value })} className="mt-1.5" /></div>
             <div><Label>الخصم الشهري *</Label><Input type="number" value={advForm.monthly_deduct} onChange={(e) => setAdvForm({ ...advForm, monthly_deduct: e.target.value })} className="mt-1.5" /></div>
             <div><Label>السبب</Label><Textarea rows={2} value={advForm.reason} onChange={(e) => setAdvForm({ ...advForm, reason: e.target.value })} className="mt-1.5" /></div>
-            <PaymentMethodPicker amount={Number(advForm.amount) || 0} value={advPm} onChange={setAdvPm} />
+            <PaymentMethodPicker amount={Number(advForm.amount) || 0} value={advPm} onChange={setAdvPm} direction="out" />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAdvOpen(false)}>إلغاء</Button>

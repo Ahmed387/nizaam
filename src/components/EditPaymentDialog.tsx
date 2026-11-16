@@ -1,3 +1,4 @@
+import { vesselAccountError } from "@/lib/vesselAccounts";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,8 @@ export function EditPaymentDialog({ open, onOpenChange, target, maxAllowed, invo
   const submit = async () => {
     if (!target) return;
     const amt = Number(amount);
+    { const accErr = vesselAccountError({ method: method.method, transfer_to_account: method.transfer_to_account, transfer_from_account: method.transfer_from_account });
+      if (accErr) { toast.error(accErr); return; } }
     if (!amt || amt <= 0) {
       toast.error("ادخل مبلغ صحيح");
       return;
@@ -139,7 +142,7 @@ export function EditPaymentDialog({ open, onOpenChange, target, maxAllowed, invo
         <div className="space-y-3">
           <div>
             <Label className="text-xs mb-1 block">طريقة الدفع</Label>
-            <PaymentMethodPicker amount={Number(amount) || 0} value={method} onChange={setMethod} showReceivedBy />
+            <PaymentMethodPicker amount={Number(amount) || 0} value={method} onChange={setMethod} showReceivedBy direction={target?.row?.direction === "out" ? "out" : "in"} />
           </div>
           <div>
             <Label className="text-xs mb-1 block">المبلغ</Label>

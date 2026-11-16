@@ -10,6 +10,7 @@ import { BLANK, EMPTY_STATE, periodOfFilter, singleValueOf, withPeriod, withSing
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
+import { VesselAccountBalances } from "@/components/treasury/VesselAccountBalances";
 import { REVERSAL_CATEGORIES } from "@/lib/treasuryReversals";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
@@ -311,6 +312,7 @@ export default function MainTreasury() {
           </Button>
         }
       />
+      <VesselAccountBalances branchId={branchFilter === "all" ? null : branchFilter} />
       <TransferFeeCards branchId={branchFilter === "all" ? null : branchFilter} from={from} to={to} />
 
       <PermCard label="شرح الصفحة (للعرض بس)"><div className="card-elevated p-4 mb-6 border-r-4 border-primary bg-primary/5 text-sm leading-7">

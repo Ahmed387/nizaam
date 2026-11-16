@@ -1,3 +1,4 @@
+import { vesselAccountError } from "@/lib/vesselAccounts";
 import { useEffect, useState, useCallback } from "react";
 import { PermTable } from "@/components/PermTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -480,6 +481,8 @@ function AddInvoicePaymentDialog({
 
   const submit = async () => {
     const amt = Number(amount);
+    { const accErr = vesselAccountError({ method: method.method, transfer_to_account: method.transfer_to_account, transfer_from_account: method.transfer_from_account });
+      if (accErr) { toast.error(accErr); return; } }
     if (!amt || amt <= 0) {
       toast.error("ادخل مبلغ صحيح");
       return;

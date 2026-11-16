@@ -1,3 +1,4 @@
+import { vesselAccountError } from "@/lib/vesselAccounts";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -785,6 +786,8 @@ function PaymentFormDialog({
 
   const submit = () => {
     const amt = Number(amount);
+    { const accErr = vesselAccountError({ method: method.method, transfer_to_account: method.transfer_to_account, transfer_from_account: method.transfer_from_account });
+      if (accErr) { toast.error(accErr); return; } }
     if (!amt || amt <= 0) {
       toast.error("ادخل مبلغ صحيح");
       return;
@@ -834,6 +837,7 @@ function PaymentFormDialog({
               showFeeBearerToggle
               feeOnCustomer={feeOnCustomer}
               onFeeBearerChange={setFeeOnCustomer}
+              direction={initial?.direction === "out" ? "out" : "in"}
             />
           </div>
           <div>

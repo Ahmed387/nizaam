@@ -18,6 +18,7 @@ import {
   methodReceiverLabel,
   methodSenderLabel,
 } from "@/lib/paymentMethods";
+import { VesselAccountSelect } from "@/components/payments/VesselAccountSelect";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 
 export type PayMode = "full" | "partial" | "credit";
@@ -229,7 +230,7 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
                     {requiresRef && (
                       <div className="space-y-2">
                         <div>
-                          <Label className="text-xs">رقم العملية *</Label>
+                          <Label className="text-xs">رقم العملية (اختياري)</Label>
                           <Input
                             value={sp.reference_number ?? ""}
                             onChange={(e) => updateSplit(sp.id, { reference_number: e.target.value })}
@@ -238,12 +239,10 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
                         </div>
                         <div className="grid sm:grid-cols-2 gap-2">
                           <div>
-                            <Label className="text-xs">{methodSenderLabel(sp.method)}</Label>
-                            <Input
-                              dir="ltr" className="text-right mt-1 h-9"
-                              value={sp.transfer_from_account ?? ""}
-                              onChange={(e) => updateSplit(sp.id, { transfer_from_account: e.target.value })}
-                            />
+                            <Label className="text-xs">حسابنا اللي اتحول منه *</Label>
+                            <VesselAccountSelect method={sp.method} className="mt-1 h-9" value={sp.transfer_from_account}
+                                                 onChange={(v) => updateSplit(sp.id, { transfer_from_account: v })}
+                                                 placeholder="حسابنا اللي اتحول منه" />
                           </div>
                           <div>
                             <Label className="text-xs">{methodReceiverLabel(sp.method)}</Label>

@@ -1,3 +1,5 @@
+import { VesselAccountSelect } from "@/components/payments/VesselAccountSelect";
+import { vesselAccountError } from "@/lib/vesselAccounts";
 import { ContactLookup } from "@/components/ContactLookup";
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -70,7 +72,9 @@ export function PreOrderDialog({
     if (!custName) return toast.error("اكتب اسم العميل");
     if (qty < 1) return toast.error("كمية غير صحيحة");
     if (deposit < 0 || deposit > total) return toast.error("مبلغ العربون غير صحيح");
-    if (deposit > 0 && payment !== "cash" && !refNum.trim()) return toast.error("أدخل رقم المرجع/التحويل لطريقة الدفع الإلكترونية");
+    // 0244: رقم العملية optional; our account required when the vessel has accounts
+    if (deposit > 0 && payment !== "cash" && vesselAccountError({ method: payment, transfer_to_account: transferAccount }))
+      return toast.error("اختار حسابنا اللي العربون اتحول عليه");
 
     setBusy(true);
     try {
@@ -236,12 +240,12 @@ export function PreOrderDialog({
               {deposit > 0 && payment !== "cash" && (
                 <>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-medium text-muted-foreground">رقم المرجع *</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">رقم المرجع (اختياري)</Label>
                     <Input value={refNum} dir="ltr" className={`${softInputCls} text-right`} onChange={(e) => setRefNum(e.target.value)} placeholder="رقم العملية" />
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-muted-foreground">حُوّل إلى حساب</Label>
-                    <Input value={transferAccount} dir="ltr" className={`${softInputCls} text-right`} onChange={(e) => setTransferAccount(e.target.value)} placeholder="رقم/اسم الحساب" />
+                    <VesselAccountSelect method={payment} value={transferAccount} className={softInputCls} onChange={setTransferAccount} placeholder="رقم/اسم الحساب" />
                   </div>
                   <div className="space-y-1.5 col-span-2">
                     <Label className="text-xs font-medium text-muted-foreground">المستلم في الفرع</Label>

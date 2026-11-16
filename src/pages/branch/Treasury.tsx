@@ -24,6 +24,7 @@ import { EMPTY_STATE, periodOfFilter, singleValueOf, withPeriod, withSingleValue
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
+import { VesselAccountBalances } from "@/components/treasury/VesselAccountBalances";
 import { VesselTransferButton, VesselTransfersTable } from "@/components/treasury/VesselTransfers";
 import { receiveSplit } from "@/lib/treasuryTransfer";
 import { REVERSAL_CATEGORIES } from "@/lib/treasuryReversals";
@@ -527,6 +528,7 @@ export default function Treasury() {
         </div>
       )}
 
+      {canSeeBalances && <VesselAccountBalances branchId={branchId} />}
       {canSeeBalances && <PermPart page="treasury" part="transfer_fees" group><TransferFeeCards branchId={branchId} from={fromDate || undefined} to={toDate || undefined} /></PermPart>}
 
       {pendingIncoming.length > 0 && (
@@ -788,7 +790,7 @@ export default function Treasury() {
             <div><Label>المبلغ *</Label><Input type="number" value={tForm.amount} onChange={(e) => setTForm({...tForm, amount: e.target.value})} className="mt-1.5" /></div>
             {isAdmin && <div><Label>تاريخ التحويل</Label><Input type="date" value={tForm.date} max={cairoTodayDay()} onChange={(e) => setTForm({ ...tForm, date: e.target.value })} className="mt-1.5" /></div>}
             <div><Label>السبب</Label><Textarea value={tForm.reason} onChange={(e) => setTForm({...tForm, reason: e.target.value})} className="mt-1.5" rows={2} /></div>
-            <PaymentMethodPicker amount={Number(tForm.amount) || 0} value={tPayment} onChange={setTPayment} label="طريقة التنفيذ" />
+            <PaymentMethodPicker amount={Number(tForm.amount) || 0} value={tPayment} onChange={setTPayment} label="طريقة التنفيذ" direction="none" />
             {tPayment.fee_amount > 0 && (
               <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-2">
                 <div className="flex items-center justify-between gap-3">

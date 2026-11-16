@@ -19,6 +19,7 @@ import {
 } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
+import { VesselAccountSelect } from "@/components/payments/VesselAccountSelect";
 
 export interface PaymentMethodValue {
   method: PaymentMethod;
@@ -48,6 +49,9 @@ interface Props {
   /** label override */
   label?: string;
   disabled?: boolean;
+  /** 0244: which side is the company's account — "in" (money received → «المستلم») / "out" (paid → «المرسل»);
+   *  "none" = both free text (a move between two branches). */
+  direction?: "in" | "out" | "none";
 }
 
 export function PaymentMethodPicker({
@@ -61,6 +65,7 @@ export function PaymentMethodPicker({
   onFeeBearerChange,
   label = "طريقة الدفع",
   disabled = false,
+  direction = "in",
 }: Props) {
   const [fees, setFees] = useState<TransferFee[]>([]);
   // 0139: every enabled vessel of the company (built-ins + PayMob, «خصومات / عروض الشركات», …), not only the four built-ins
@@ -114,7 +119,7 @@ export function PaymentMethodPicker({
       {requiresRef && (
         <>
           <div>
-            <Label>رقم العملية *</Label>
+            <Label>رقم العملية (اختياري)</Label>
             <Input
               disabled={disabled}
               value={value.reference_number ?? ""}
@@ -125,7 +130,13 @@ export function PaymentMethodPicker({
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label>{methodSenderLabel(value.method)} *</Label>
+              <Label>{direction === "out" ? "حسابنا اللي اتحول منه" : methodSenderLabel(value.method)} *</Label>
+              {direction === "out" ? (
+                <VesselAccountSelect disabled={disabled} method={value.method} className="mt-1.5"
+                                     value={value.transfer_from_account}
+                                     onChange={(v) => onChange({ ...value, transfer_from_account: v })}
+                                     placeholder="حسابنا اللي اتحول منه" />
+              ) : (
               <Input
                 disabled={disabled}
                 dir="ltr"
@@ -134,9 +145,16 @@ export function PaymentMethodPicker({
                 onChange={(e) => onChange({ ...value, transfer_from_account: e.target.value })}
                 placeholder="الحساب اللي اتحول منه"
               />
+              )}
             </div>
             <div>
-              <Label>{methodReceiverLabel(value.method)} *</Label>
+              <Label>{direction === "in" ? "حسابنا اللي الفلوس وصلت عليه" : methodReceiverLabel(value.method)} *</Label>
+              {direction === "in" ? (
+                <VesselAccountSelect disabled={disabled} method={value.method} className="mt-1.5"
+                                     value={value.transfer_to_account}
+                                     onChange={(v) => onChange({ ...value, transfer_to_account: v })}
+                                     placeholder="الحساب اللي اتحول إليه" />
+              ) : (
               <Input
                 disabled={disabled}
                 dir="ltr"
@@ -145,6 +163,7 @@ export function PaymentMethodPicker({
                 onChange={(e) => onChange({ ...value, transfer_to_account: e.target.value })}
                 placeholder="الحساب اللي اتحول إليه"
               />
+              )}
             </div>
           </div>
 

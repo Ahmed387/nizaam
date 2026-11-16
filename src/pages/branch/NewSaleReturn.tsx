@@ -1,3 +1,5 @@
+import { VesselAccountSelect, useHasVesselAccounts } from "@/components/payments/VesselAccountSelect";
+import { vesselAccountError } from "@/lib/vesselAccounts";
 import { fetchContactBalance } from "@/lib/contactBalances";
 import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
@@ -108,6 +110,7 @@ export default function NewSaleReturn() {
   const [refundRef, setRefundRef] = useState("");
   const [refundProofs, setRefundProofs] = useState<File[]>([]);
   const [refundAccount, setRefundAccount] = useState("");
+  const hasAccounts = useHasVesselAccounts(transferMethod);
   const [cashPart, setCashPart] = useState(0);
   const [transferPart, setTransferPart] = useState(0);
   const [balancePart, setBalancePart] = useState(0);
@@ -323,8 +326,10 @@ export default function NewSaleReturn() {
     if (!asDraft) {
       if (!mixedValid) return toast.error("مجموع التوزيع لازم يساوي إجمالي المرتجع");
       const needsRef = refundMode === "transfer" || (refundMode === "mixed" && transferPart > 0);
-      if (needsRef && methodRequiresReference(transferMethod) && !refundRef.trim())
-        return toast.error("أدخل رقم العملية للتحويل");
+      // 0244: رقم العملية optional; the company account is required when the vessel has accounts
+      if (needsRef && methodRequiresReference(transferMethod)
+          && vesselAccountError({ method: transferMethod, transfer_to_account: refundAccount, transfer_from_account: refundAccount }))
+        return toast.error("اختار حسابنا اللي الفلوس اتحولت منه" );
       if (refundMode === "balance" && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
       if (refundMode === "mixed" && balancePart > 0 && !customer) return toast.error("لا يمكن الإضافة لحساب العميل (الفاتورة نقدي)");
       if (refundMode === "mixed" && cashPart > 0 && transferPart > 0) return toast.error("الفلوس اللي هتترجع بطريقة واحدة (كاش أو تحويل) — والباقي ينزل من حسابه");
@@ -767,15 +772,15 @@ export default function NewSaleReturn() {
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-xs">رقم العملية *</Label>
+                    <Label className="text-xs">رقم العملية (اختياري)</Label>
                     <Input value={refundRef} onChange={(e) => setRefundRef(e.target.value)} className="mt-1.5" placeholder="رقم التحويل" />
                   </div>
                   <div className="col-span-full">
                     <PaymentProofInput compact files={refundProofs} onChange={setRefundProofs} />
                   </div>
                   <div>
-                    <Label className="text-xs">{methodAccountLabel(transferMethod)}</Label>
-                    <Input dir="ltr" className="text-right mt-1.5" value={refundAccount} onChange={(e) => setRefundAccount(e.target.value)} />
+                    <Label className="text-xs">{hasAccounts ? "حسابنا اللي الفلوس اتحولت منه *" : methodAccountLabel(transferMethod)}</Label>
+                    <VesselAccountSelect method={transferMethod} className="mt-1.5" value={refundAccount} onChange={setRefundAccount} />
                   </div>
                 </div>
               )}

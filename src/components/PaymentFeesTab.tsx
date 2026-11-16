@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Loader2, Save, Smartphone, CreditCard, Landmark, Banknote, Plus, Trash2, Wallet } from "lucide-react";
 import { loadTransferFees } from "@/lib/paymentMethods";
 import { confirmAlert } from "@/components/ConfirmDialog";
+import { VesselAccountsEditor } from "@/components/settings/VesselAccountsEditor";
 
 interface FeeRow {
   payment_method: string;
@@ -183,6 +184,7 @@ export function PaymentFeesTab() {
               </div>
               <Switch checked={f.show_in_payments !== false} onCheckedChange={(v) => updateRow(f.payment_method, { show_in_payments: v })} />
             </div>
+            {f.kind !== "virtual" && <VesselAccountsEditor method={f.payment_method} />}
             {!f.is_builtin && (
               <div className="flex items-center justify-between gap-3 mb-3 rounded-md border border-border/60 p-2.5">
                 <div className="text-sm">

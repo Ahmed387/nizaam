@@ -1,3 +1,5 @@
+import { VesselAccountSelect, useHasVesselAccounts } from "@/components/payments/VesselAccountSelect";
+import { accountKey } from "@/lib/vesselAccounts";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,12 @@ export function VesselTransferButton({ branchId, onDone }: { branchId: string; o
   const [date, setDate] = useState(cairoTodayDay());
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  // 0244: the account on each side (required on a vessel that has accounts; two accounts of one vessel allowed)
+  const [fromAcc, setFromAcc] = useState("");
+  const [toAcc, setToAcc] = useState("");
+  const fromHasAcc = useHasVesselAccounts(from);
+  const toHasAcc = useHasVesselAccounts(to);
+  const sameSide = from === to && (!fromHasAcc || !fromAcc || accountKey(fromAcc) === accountKey(toAcc));
 
   useEffect(() => { if (open) loadAllPaymentMethods(true).then((m) => setMethods(m.filter((x) => x.is_enabled))); }, [open]);
   const label = (k: string) => methods.find((m) => m.value === k)?.label ?? k;
@@ -44,16 +52,19 @@ export function VesselTransferButton({ branchId, onDone }: { branchId: string; o
   const submit = async () => {
     const a = Number(amount);
     if (!(a > 0)) return toast.error("اكتب المبلغ");
-    if (from === to) return toast.error("اختار وعاءين مختلفين");
+    if (fromHasAcc && !fromAcc) return toast.error("اختار الحساب اللي هيتحول منه");
+    if (toHasAcc && !toAcc) return toast.error("اختار الحساب اللي هيتحول عليه");
+    if (sameSide) return toast.error("اختار وعاءين مختلفين أو حسابين مختلفين في نفس الوعاء");
     setSaving(true);
     const { error } = await supabase.rpc("transfer_between_vessels" as any, {
       p_branch: branchId, p_from: from, p_to: to, p_amount: a, p_fee_mode: feeMode, p_fee_value: Number(feeValue) || 0,
       p_date: date || null, p_notes: notes.trim() || null,
+      p_from_account: fromHasAcc ? fromAcc : null, p_to_account: toHasAcc ? toAcc : null,
     } as any);
     setSaving(false);
     if (error) return toast.error(rpcErrorText(error, "التحويل بين الأوعية"));
     toast.success(`اتحول ${formatEGP(a)} من ${label(from)} إلى ${label(to)}${fee > 0 ? ` — العمولة ${formatEGP(fee)} مصروف` : ""}`);
-    setOpen(false); setAmount(""); setFeeMode("none"); setFeeValue(""); setNotes(""); setDate(cairoTodayDay());
+    setOpen(false); setAmount(""); setFromAcc(""); setToAcc(""); setFeeMode("none"); setFeeValue(""); setNotes(""); setDate(cairoTodayDay());
     onDone?.();
   };
 
@@ -67,17 +78,19 @@ export function VesselTransferButton({ branchId, onDone }: { branchId: string; o
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>من</Label>
-                <Select value={from} onValueChange={setFrom}>
+                <Select value={from} onValueChange={(v) => { setFrom(v); setFromAcc(""); }}>
                   <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>{methods.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                 </Select>
+                {fromHasAcc && <VesselAccountSelect method={from} value={fromAcc} onChange={setFromAcc} className="mt-1.5" />}
               </div>
               <div>
                 <Label>إلى</Label>
-                <Select value={to} onValueChange={setTo}>
+                <Select value={to} onValueChange={(v) => { setTo(v); setToAcc(""); }}>
                   <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>{methods.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                 </Select>
+                {toHasAcc && <VesselAccountSelect method={to} value={toAcc} onChange={setToAcc} className="mt-1.5" />}
               </div>
             </div>
             <div><Label>المبلغ</Label><Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1.5" /></div>
@@ -96,7 +109,7 @@ export function VesselTransferButton({ branchId, onDone }: { branchId: string; o
             </div>
             {canBackdate && <div><Label>التاريخ</Label><Input type="date" value={date} max={cairoTodayDay()} onChange={(e) => setDate(e.target.value)} className="mt-1.5" /></div>}
             <div><Label>ملاحظات</Label><Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1.5" /></div>
-            {Number(amount) > 0 && from !== to && (
+            {Number(amount) > 0 && !sameSide && (
               <div className="rounded-md border border-primary/30 bg-primary/5 p-2.5 leading-6">
                 {label(from)} هيقل <b>{formatEGP(Number(amount) + fee)}</b>، و{label(to)} هيزيد <b>{formatEGP(Number(amount))}</b>.
                 {fee > 0 && <> العمولة <b>{formatEGP(fee)}</b> هتتسجل مصروف «عمولات تحويل».</>}

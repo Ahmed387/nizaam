@@ -443,7 +443,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
                 )}
               </div>
             )}
-            <PaymentMethodPicker amount={Number(form.amount) || 0} value={pm} onChange={setPm} showTransferFrom />
+            <PaymentMethodPicker amount={Number(form.amount) || 0} value={pm} onChange={setPm} showTransferFrom direction={type === "receipt" ? "in" : "out"} />
 
           </section>
 

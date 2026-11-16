@@ -1,3 +1,5 @@
+import { VesselAccountSelect } from "@/components/payments/VesselAccountSelect";
+import { vesselAccountError } from "@/lib/vesselAccounts";
 import { CustomerSelect } from "@/components/CustomerSelect";
 import { getContactsByIds } from "@/lib/contactLookup";
 import { PermPart } from "@/contexts/PermCustomize";
@@ -974,8 +976,9 @@ export default function NewSale() {
     for (let i = 0; i < payments.length; i++) {
       const p = payments[i];
       if (p.payment_method === "cash" || p.payment_method === "credit_balance") continue;
-      if (!p.reference_number?.trim())
-        return toast.error(`دفعة #${i + 1}: أدخل رقم العملية / المرجع للتحويل`);
+      // 0244: رقم العملية optional; our account = one of the vessel's accounts when it has some
+      const accErr = vesselAccountError({ method: p.payment_method, transfer_to_account: p.transfer_to_account, transfer_from_account: p.transfer_from_account });
+      if (accErr) return toast.error(`دفعة #${i + 1}: ${accErr}`);
       if (!p.transfer_from_account?.trim())
         return toast.error(`دفعة #${i + 1}: أدخل رقم الحساب المحوَّل منه`);
       if (!p.transfer_to_account?.trim())
@@ -1933,7 +1936,7 @@ export default function NewSale() {
                     {p.payment_method !== "cash" && (
                       <div className="space-y-2 p-2.5 rounded-md bg-muted/40 border border-border/60">
                         <div>
-                          <Label className="text-xs mb-1 block">رقم العملية / المرجع</Label>
+                          <Label className="text-xs mb-1 block">رقم العملية / المرجع (اختياري)</Label>
                           <Input
                             placeholder="رقم التحويل أو الإيصال"
                             value={p.reference_number}
@@ -1950,13 +1953,10 @@ export default function NewSale() {
                           />
                         </div>
                         <div>
-                          <Label className="text-xs mb-1 block">رقم الحساب / التليفون المُحوَّل <b>إليه</b> *</Label>
-                          <Input
-                            dir="ltr" className="text-right"
-                            placeholder={defaultBankAccount || "حسابنا اللي وصل عليه"}
-                            value={p.transfer_to_account}
-                            onChange={(e) => updatePayment(idx, { transfer_to_account: e.target.value })}
-                          />
+                          <Label className="text-xs mb-1 block">حسابنا اللي الفلوس وصلت <b>عليه</b> *</Label>
+                          <VesselAccountSelect method={p.payment_method} value={p.transfer_to_account}
+                                               onChange={(v) => updatePayment(idx, { transfer_to_account: v })}
+                                               placeholder={defaultBankAccount || "حسابنا اللي وصل عليه"} />
                         </div>
                         <PaymentProofInput compact files={p.proof_files} onChange={(f) => updatePayment(idx, { proof_files: f })} />
                         {p.fee_amount > 0 && (

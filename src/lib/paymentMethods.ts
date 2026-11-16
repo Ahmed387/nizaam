@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { vesselAccountError } from "@/lib/vesselAccounts";
 
 // Built-in payment method keys (stable, used for icons + legacy data)
 export type BuiltinPaymentMethod = "cash" | "vodafone" | "instapay" | "bank";
@@ -123,7 +124,8 @@ export function vesselTransferFee(amount: number, mode: "none" | "fixed" | "perc
 /**
  * Unified validation for any electronic transfer payment.
  * Returns an error message (Arabic) when invalid, or null when ok.
- * Required fields for non-cash: reference_number, transfer_from_account, transfer_to_account.
+ * Required fields for non-cash: transfer_from_account, transfer_to_account (the company side = one of the vessel's
+ * accounts when it has some — 0244). reference_number is optional.
  */
 export function validateTransferPayment(pm: {
   method: string;
@@ -132,7 +134,9 @@ export function validateTransferPayment(pm: {
   transfer_to_account?: string | null;
 }): string | null {
   if (!methodRequiresReference(pm.method)) return null;
-  if (!pm.reference_number?.toString().trim()) return "أدخل رقم العملية للتحويل";
+  // 0244: «رقم العملية» is optional; the company-side account is required when the vessel has accounts
+  const accErr = vesselAccountError(pm);
+  if (accErr) return accErr;
   if (!pm.transfer_from_account?.toString().trim()) return "أدخل رقم/حساب المُحوَّل منه";
   if (!pm.transfer_to_account?.toString().trim()) return "أدخل رقم/حساب المُحوَّل إليه";
   return null;

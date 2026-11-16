@@ -192,7 +192,7 @@ export function PaySalaryDialog({ employee, month: initialMonth, monthEditable =
                 {adv > 0 && <Row label="قسط السلف" value={adv} tone="text-warning" sign="− " />}
                 <div className="flex justify-between border-t border-border mt-1 pt-2 text-base"><span className="font-bold">الصافي اللي هيخرج من الخزنة</span><b className="tabular-nums text-primary">{formatEGP(net)}</b></div>
               </div>
-              {net > 0 && <PaymentMethodPicker amount={net} value={pm} onChange={setPm} />}
+              {net > 0 && <PaymentMethodPicker amount={net} value={pm} onChange={setPm} direction="out" />}
             </>
           )}
         </div>
