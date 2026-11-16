@@ -1,7 +1,8 @@
 // Telegram alerts to the company owner (migrations 0237 / 0238, owner 2026-11-16). verify_jwt is OFF: every call is
 // checked here.
 //  * Telegram's webhook (header X-Telegram-Bot-Api-Secret-Token = platform_telegram.webhook_secret): «/start <code>»
-//    links the owner's chat (`tg_link_finish`); anything else gets a short answer.
+//    links the owner's private chat (daily report) or the company's GROUP (e-invoices, 0240) — `tg_link_finish`;
+//    a group moved to a supergroup / the bot removed from it → `tg_group_migrated` / `tg_group_left`.
 //  * mode 'setup'  — the platform owner (JWT, super admin): getMe + setWebhook, result in `tg_record_setup`.
 //  * mode 'test'   — the company owner (JWT): one test message to his chat.
 //  * mode 'send'   — cron «telegram-send» (x-cron-secret = system_cron_tokens 'telegram'): the waiting e-invoices
@@ -80,7 +81,7 @@ Deno.serve(async (req) => {
     if (!token) throw new Error("بوت التليجرام مش متجهز");
     const form = new FormData();
     form.append("chat_id", String(chat));
-    form.append("document", new Blob([bytes], { type: "application/pdf" }), name);
+    form.append("document", new Blob([bytes as unknown as BlobPart], { type: "application/pdf" }), name);
     if (caption) { form.append("caption", caption.slice(0, 1000)); form.append("parse_mode", "HTML"); }
     const r = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, { method: "POST", body: form });
     const j = await r.json().catch(() => ({}));
@@ -94,20 +95,33 @@ Deno.serve(async (req) => {
     const upd = await req.json().catch(() => ({}));
     const msg = upd?.message;
     const chat = msg?.chat?.id;
+    const type = String(msg?.chat?.type ?? "");
     const text = String(msg?.text ?? "").trim();
-    if (!chat || msg?.chat?.type !== "private") return json({ ok: true });
-    const m = text.match(/^\/start\s+([a-f0-9]{24})$/);
+    if (!chat) return json({ ok: true });
+    const isGroup = type === "group" || type === "supergroup";
+    const botId = Number(String(token ?? "").split(":")[0]);
     try {
+      // a group that became a supergroup has a new id; the bot taken out of the group
+      if (msg?.migrate_to_chat_id) { await admin.rpc("tg_group_migrated", { p_old: chat, p_new: msg.migrate_to_chat_id }); return json({ ok: true }); }
+      if (isGroup && msg?.left_chat_member?.id === botId) { await admin.rpc("tg_group_left", { p_chat: chat }); return json({ ok: true }); }
+      const m = text.match(/^\/start(?:@\w+)?\s+([a-f0-9]{24})$/);
       if (m) {
-        const { data: res } = await admin.rpc("tg_link_finish", { p_code: m[1], p_chat: chat, p_username: msg?.from?.username ?? null });
+        const { data: res } = await admin.rpc("tg_link_finish", {
+          p_code: m[1], p_chat: chat, p_username: msg?.from?.username ?? null, p_chat_type: type, p_title: msg?.chat?.title ?? null,
+        });
+        const company = String(res?.company ?? "").replace(/[<>&]/g, "");
         await tg("sendMessage", {
           chat_id: chat, parse_mode: "HTML",
           text: res?.ok
-            ? `✅ تم ربط تليجرام بشركة <b>${String(res.company ?? "").replace(/[<>&]/g, "")}</b>.\nهتوصلك هنا الفواتير الإلكترونية وتقرير النشاط اليومي.`
-            : "الكود ده انتهى أو مستخدم قبل كده. ارجع للسيستم ودوس «اربط تليجرام» تاني.",
+            ? (res.group
+                ? `✅ الجروب ده اتربط بشركة <b>${company}</b>.\nأي فاتورة إلكترونية أو إشعار دائن / مدين يتقبل على المنظومة هينزل هنا، وكل اللي في الجروب يشوفه.`
+                : `✅ تم ربط تليجرامك بشركة <b>${company}</b>.\nهيوصلك هنا تقرير النشاط اليومي (ولو مفيش جروب، الفواتير الإلكترونية كمان).`)
+            : res?.reason === "need_group" ? "الكود ده لربط جروب. افتح الرابط من زرار «اربط جروب الفواتير» واختار الجروب."
+            : res?.reason === "need_private" ? "الكود ده لتليجرامك الشخصي، مش للجروب. افتحه من زرار «اربط تليجرامك الشخصي»."
+            : "الكود ده انتهى أو مستخدم قبل كده. ارجع للسيستم ودوس زرار الربط تاني.",
         });
-      } else {
-        await tg("sendMessage", { chat_id: chat, text: "البوت ده للتنبيهات بس. للربط: من السيستم ← الإعدادات ← «بيانات صاحب الشركة» ← «اربط تليجرام»." });
+      } else if (!isGroup) {
+        await tg("sendMessage", { chat_id: chat, text: "البوت ده للتنبيهات بس. للربط: من السيستم ← الإعدادات ← «صاحب الشركة وتليجرام»." });
       }
     } catch (e) { console.error("webhook", errText(e)); }
     return json({ ok: true });
@@ -175,9 +189,11 @@ Deno.serve(async (req) => {
     const tenants = [...new Set((roles ?? []).map((r: any) => r.tenant_id).filter(Boolean))];
     if (tenants.length !== 1) return json({ ok: false, error: "للمالك بس" }, 403);
     const { data: chat } = await admin.rpc("tg_chat_of", { p_tenant: tenants[0] });
-    if (!chat) return json({ ok: false, error: "تليجرام مش مربوط لسه" });
+    const { data: group } = await admin.rpc("tg_group_of", { p_tenant: tenants[0] });
+    if (!chat && !group) return json({ ok: false, error: "تليجرام مش مربوط لسه" });
     try {
-      await tg("sendMessage", { chat_id: chat, text: "👋 رسالة تجربة من السيستم — الربط شغال." });
+      if (chat) await tg("sendMessage", { chat_id: chat, text: "👋 رسالة تجربة من السيستم — تليجرامك الشخصي مربوط (هنا التقرير اليومي)." });
+      if (group) await tg("sendMessage", { chat_id: group, text: "👋 رسالة تجربة من السيستم — الجروب مربوط (هنا الفواتير الإلكترونية)." });
       await admin.rpc("tg_record_send", { p_tenant: tenants[0], p_ok: true, p_error: null, p_what: "تجربة" });
       return json({ ok: true });
     } catch (e) {
@@ -240,7 +256,7 @@ Deno.serve(async (req) => {
         return json({ ok: true, skipped: "no activity" });
       }
       const { data: chat } = await admin.rpc("tg_chat_of", { p_tenant: tenantId });
-      if (!chat) throw new Error("تليجرام مش مربوط");
+      if (!chat) throw new Error("تليجرامك الشخصي مش مربوط — التقرير اليومي بيروح لصاحب الشركة بس");
       const { lib, fontkit } = await pdfLibs();
       const pdf = await buildReportPdf(lib, fontkit, await fonts(), rep);
       await tgFile(chat, `نشاط-${day}.pdf`, pdf, reportCaption(rep));
@@ -257,7 +273,7 @@ Deno.serve(async (req) => {
 
 function tgError(desc: string): string {
   if (/blocked by the user/i.test(desc)) return "صاحب الشركة قفل البوت على تليجرام — يفتحه ويدوس Start";
-  if (/chat not found/i.test(desc)) return "الشات مش موجود — اربط تليجرام من جديد";
+  if (/chat not found|kicked|not a member/i.test(desc)) return "الشات أو الجروب مش موجود أو البوت اتشال منه — اربط من جديد";
   if (/Unauthorized/i.test(desc)) return "مفتاح البوت غلط أو اتغير";
   return desc;
 }
