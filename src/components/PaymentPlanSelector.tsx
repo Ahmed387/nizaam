@@ -12,6 +12,7 @@ import {
   PAYMENT_METHOD_OPTIONS,
   TransferFee,
   loadTransferFees,
+  feeChoosable,
   calculateFee,
   methodRequiresReference,
   methodReceiverLabel,
@@ -132,8 +133,7 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
 
   const enabledOpts = PAYMENT_METHOD_OPTIONS.filter((o) => {
     if (o.value === "cash") return true;
-    const f = fees.find((x) => x.payment_method === (o.value as any));
-    return f ? f.is_enabled !== false : true;
+    return feeChoosable(fees.find((x) => x.payment_method === (o.value as any)));
   });
 
   return (

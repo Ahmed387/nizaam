@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Undo2 } from "lucide-react";
 import { formatEGP } from "@/lib/format";
-import { calculateFee, loadAllPaymentMethods, loadTransferFees, type PaymentMethodOption, type TransferFee } from "@/lib/paymentMethods";
+import { calculateFee, choosable, loadAllPaymentMethods, loadTransferFees, type PaymentMethodOption, type TransferFee } from "@/lib/paymentMethods";
 import type { ExcessChoice, ReturnAction } from "@/lib/documentEdit";
 
 /**
@@ -31,7 +31,7 @@ export function useDocEditQuestions() {
 
   useEffect(() => {
     if (step !== "excess") return;
-    loadAllPaymentMethods().then((m) => setMethods(m.filter((x) => x.is_enabled !== false))).catch(() => setMethods([]));
+    loadAllPaymentMethods().then((m) => setMethods(m.filter(choosable))).catch(() => setMethods([]));
     loadTransferFees().then(setFees).catch(() => setFees([]));
   }, [step]);
 

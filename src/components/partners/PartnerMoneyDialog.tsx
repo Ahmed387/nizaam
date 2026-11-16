@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { formatEGP } from "@/lib/format";
-import { loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
+import { choosable, loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
 import {
   fetchMoneyBranches, partnerMoney, partnerMoneyProblem, splitWithdrawal, withdrawalSentence,
   type PartnerCards, type WithdrawSource,
@@ -39,7 +39,7 @@ export function PartnerMoneyDialog({ kind, cards, onClose, onDone }: {
 
   useEffect(() => {
     fetchMoneyBranches().then(setBranches).catch(() => setBranches([]));
-    loadAllPaymentMethods().then((m) => setMethods(m.filter((x) => x.is_enabled !== false))).catch(() => setMethods([]));
+    loadAllPaymentMethods().then((m) => setMethods(m.filter(choosable))).catch(() => setMethods([]));
   }, []);
 
   const amt = Number(amount || 0);

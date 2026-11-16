@@ -42,7 +42,7 @@ import { InstallmentScheduler, InstallmentRow } from "@/components/InstallmentSc
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
 import { defaultPlan } from "@/components/PaymentPlanSelector";
-import { loadTransferFees, calculateFee, loadAllPaymentMethods, TransferFee, PaymentMethodOption } from "@/lib/paymentMethods";
+import { loadTransferFees, calculateFee, loadAllPaymentMethods, choosable, TransferFee, PaymentMethodOption } from "@/lib/paymentMethods";
 import { notifyMany, notify, getTenantAdmins } from "@/lib/notifications";
 import { getMaxDiscountForBranch } from "@/lib/discountPolicy";
 import { reserveStock, releaseDraftReservations, releaseReservation, releaseDraftBeacon } from "@/lib/reservations";
@@ -318,7 +318,7 @@ export default function NewSale() {
 
   useEffect(() => {
     loadTransferFees().then(setTransferFees);
-    loadAllPaymentMethods().then((opts) => setMethodOptions(opts.filter((o) => o.is_enabled)));
+    loadAllPaymentMethods().then((opts) => setMethodOptions(opts.filter(choosable)));
     // Load VAT default rate from settings
     supabase.from("settings").select("value").eq("key", "vat").maybeSingle().then(({ data }) => {
       const v: any = (data as any)?.value;

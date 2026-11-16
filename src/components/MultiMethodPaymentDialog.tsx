@@ -14,6 +14,7 @@ import {
   TransferFee,
   PAYMENT_METHOD_OPTIONS,
   loadTransferFees,
+  feeChoosable,
   calculateFee,
   methodRequiresReference,
   methodReceiverLabel,
@@ -282,8 +283,7 @@ export function MultiMethodPaymentDialog({
             const requiresRef = methodRequiresReference(l.method);
             const enabledOpts = PAYMENT_METHOD_OPTIONS.filter((o) => {
               if (o.value === "cash") return true;
-              const f = fees.find((x) => x.payment_method === (o.value as any));
-              return f ? f.is_enabled !== false : true;
+              return feeChoosable(fees.find((x) => x.payment_method === (o.value as any)));
             });
             return (
               <div key={l.id} className="card-elevated p-3 space-y-2 bg-muted/30">

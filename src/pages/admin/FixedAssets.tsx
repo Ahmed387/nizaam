@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { Plus, Package, PlayCircle, Trash2, CalendarClock } from "lucide-react";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { cairoTodayDay } from "@/lib/cairoDate";
-import { loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
+import { choosable, loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
 import { rpcErrorText } from "@/lib/rpcError";
 
 const fmt = (n: number) => Number(n || 0).toLocaleString("en-EG", { maximumFractionDigits: 2 });
@@ -71,7 +71,7 @@ export default function FixedAssets() {
       loadAllPaymentMethods().catch(() => [] as PaymentMethodOption[]),
       supabase.from("fixed_assets" as any).select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false }),
     ]);
-    setMethods(m.filter(x => x.is_enabled && x.kind !== "virtual"));
+    setMethods(m.filter(x => choosable(x) && x.kind !== "virtual"));
     const list = (fa.data as any) ?? [];
     setAssets(list);
     // fetch accumulated depreciation totals

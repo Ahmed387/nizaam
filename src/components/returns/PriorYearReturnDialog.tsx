@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ContactLookup } from "@/components/ContactLookup";
 import { formatEGP } from "@/lib/format";
 import { cairoTodayDay } from "@/lib/cairoDate";
-import { loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
+import { choosable, loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
 import { matchProducts } from "@/lib/codeSuggest";
 import { pyrProblem, pyrTotals, type PyrLine } from "@/lib/priorYearReturn";
 
@@ -50,7 +50,7 @@ function PriorYearReturnDialog({ branchId, onClose, onDone }: { branchId: string
     supabase.from("products").select("id, name, sku, legacy_code, brand, model, avg_cost, cost_price, selling_price")
       .eq("branch_id", branchId).is("archived_at", null).order("name").limit(5000)
       .then(({ data }) => setProducts(data ?? []));
-    loadAllPaymentMethods().then((m) => setMethods(m.filter((x) => x.is_enabled !== false))).catch(() => setMethods([]));
+    loadAllPaymentMethods().then((m) => setMethods(m.filter(choosable))).catch(() => setMethods([]));
   }, [branchId]);
 
   const set = (i: number, patch: Partial<PyrLine>) => setLines((ls) => ls.map((l, j) => (j === i ? { ...l, ...patch } : l)));

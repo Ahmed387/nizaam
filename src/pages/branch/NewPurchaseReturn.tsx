@@ -29,7 +29,7 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { Loader2, Link2, Printer, AlertTriangle, FileText, User as UserIcon, Package, CreditCard } from "lucide-react";
 import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
+import { loadAllPaymentMethods, choosable, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
@@ -105,7 +105,7 @@ export default function NewPurchaseReturn() {
   const [savedNumber, setSavedNumber] = useState("");
 
   useEffect(() => {
-    loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => x.is_enabled && x.value !== "cash")));
+    loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => choosable(x) && x.value !== "cash")));
   }, []);
 
   const pickShipment = useCallback(async (shipId: string, editQty?: Record<string, number>) => {

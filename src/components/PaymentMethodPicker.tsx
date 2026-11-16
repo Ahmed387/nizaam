@@ -9,6 +9,8 @@ import {
   calculateFee,
   loadTransferFees,
   loadAllPaymentMethods,
+  choosable,
+  feeChoosable,
   type PaymentMethodOption,
   methodAccountLabel,
   methodReceiverLabel,
@@ -66,13 +68,12 @@ export function PaymentMethodPicker({
 
   useEffect(() => {
     loadTransferFees().then(setFees);
-    loadAllPaymentMethods().then((m) => setOptions(m.filter((o) => o.is_enabled))).catch(() => setOptions(null));
+    loadAllPaymentMethods().then((m) => setOptions(m.filter(choosable))).catch(() => setOptions(null));
   }, []);
 
   const enabledOptions: { value: string; label: string }[] = options ?? PAYMENT_METHOD_OPTIONS.filter((o) => {
     if (o.value === "cash") return true;
-    const f = fees.find((x) => x.payment_method === (o.value as any));
-    return f ? f.is_enabled !== false : true;
+    return feeChoosable(fees.find((x) => x.payment_method === (o.value as any)));
   });
 
 

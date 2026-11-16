@@ -19,6 +19,8 @@ interface FeeRow {
   fee_type: "percentage" | "fixed";
   fee_value: number;
   is_enabled: boolean;
+  /** 0242: offered when choosing how money is paid (off = hidden there, history / balances / transfers stay) */
+  show_in_payments?: boolean;
   is_builtin: boolean;
   /** 0139: «virtual» = a book vessel (e.g. «خصومات / عروض الشركات»): no transfer number, no fee, may go below zero */
   kind?: "wallet" | "virtual";
@@ -43,7 +45,7 @@ export function PaymentFeesTab() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("transfer_fees").select("payment_method,label,fee_type,fee_value,is_enabled,kind" as any);
+    const { data } = await supabase.from("transfer_fees").select("payment_method,label,fee_type,fee_value,is_enabled,kind,show_in_payments" as any);
     const existing: FeeRow[] = [];
     for (const m of ["vodafone", "instapay", "bank"]) {
       const row: any = data?.find((d: any) => d.payment_method === m);
@@ -78,6 +80,7 @@ export function PaymentFeesTab() {
           fee_type: row.fee_type,
           fee_value: row.fee_value,
           is_enabled: row.is_enabled,
+          show_in_payments: row.show_in_payments !== false,
           kind: row.is_builtin ? "wallet" : (row.kind ?? "wallet"),
           updated_by: user!.id,
           updated_at: new Date().toISOString(),
@@ -172,6 +175,13 @@ export function PaymentFeesTab() {
                   <Trash2 className="w-4 h-4 text-destructive" />
                 </Button>
               )}
+            </div>
+            <div className="flex items-center justify-between gap-3 mb-3 rounded-md border border-border/60 p-2.5">
+              <div className="text-sm">
+                <div className="font-semibold">تظهر في اختيارات الدفع</div>
+                <div className="text-xs text-muted-foreground">لو قفلتها: مش هتظهر وإنت بتختار طريقة الدفع في البيع والشراء والمرتجعات والسندات. حركاتها القديمة ورصيدها والتحويل منها بيفضلوا زي ما هما.</div>
+              </div>
+              <Switch checked={f.show_in_payments !== false} onCheckedChange={(v) => updateRow(f.payment_method, { show_in_payments: v })} />
             </div>
             {!f.is_builtin && (
               <div className="flex items-center justify-between gap-3 mb-3 rounded-md border border-border/60 p-2.5">

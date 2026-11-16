@@ -29,7 +29,7 @@ import { useUnsavedChanges } from "@/hooks/useUnsavedChanges";
 import { Loader2, Link2, Printer, AlertTriangle, FileText, User as UserIcon, Package, CreditCard, ShieldAlert } from "lucide-react";
 import { AddAnotherBar } from "@/components/AddAnotherBar";
 import { CollapsibleSection } from "@/components/CollapsibleSection";
-import { loadAllPaymentMethods, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
+import { loadAllPaymentMethods, choosable, PaymentMethodOption, methodRequiresReference, methodAccountLabel } from "@/lib/paymentMethods";
 import { InvoiceDateInput } from "@/components/InvoiceDateInput";
 import { evaluateReturnPolicy } from "@/lib/returnPolicy";
 import { useAuth } from "@/contexts/AuthContext";
@@ -128,7 +128,7 @@ export default function NewSaleReturn() {
   const [pendingDraft, setPendingDraft] = useState<boolean>(false);
 
   useEffect(() => {
-    loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => x.is_enabled && x.value !== "cash")));
+    loadAllPaymentMethods().then((m) => setMethodOptions((m ?? []).filter((x) => choosable(x) && x.value !== "cash")));
   }, []);
 
   const pickInvoice = useCallback(async (invId: string, editQty?: Record<string, number>) => {

@@ -17,6 +17,8 @@ export interface TransferFee {
   fee_type: "percentage" | "fixed";
   fee_value: number;
   is_enabled?: boolean;
+  /** 0242: off = not offered when choosing how money is paid (history, balances, transfers untouched). */
+  show_in_payments?: boolean;
   /** 0139: «virtual» = a book vessel (no transfer number, no fee, may go below zero) */
   kind?: "wallet" | "virtual" | null;
 }
@@ -26,6 +28,8 @@ export interface PaymentMethodOption {
   label: string;          // display label
   is_builtin: boolean;
   is_enabled: boolean;
+  /** 0242: shown in the payment-method choices (sale / purchase / returns / vouchers / payments). */
+  in_payments?: boolean;
   fee_type?: "percentage" | "fixed";
   fee_value?: number;
   kind?: "wallet" | "virtual";
@@ -37,11 +41,16 @@ let _feesCacheAt = 0;
 export async function loadTransferFees(force = false): Promise<TransferFee[]> {
   const now = Date.now();
   if (!force && _feesCache && now - _feesCacheAt < 60_000) return _feesCache;
-  const { data } = await supabase.from("transfer_fees").select("payment_method,label,fee_type,fee_value,is_enabled,kind" as any);
+  const { data } = await supabase.from("transfer_fees").select("payment_method,label,fee_type,fee_value,is_enabled,kind,show_in_payments" as any);
   _feesCache = ((data ?? []) as unknown) as TransferFee[];
   _feesCacheAt = now;
   return _feesCache;
 }
+
+/** A vessel offered when choosing how money is paid / received (0242): enabled AND «تظهر في اختيارات الدفع». */
+export const choosable = (o: PaymentMethodOption) => o.value === "cash" || (o.is_enabled !== false && o.in_payments !== false);
+/** Same for a fee row of a built-in (screens that list PAYMENT_METHOD_OPTIONS). */
+export const feeChoosable = (f: TransferFee | undefined) => (f ? f.is_enabled !== false && f.show_in_payments !== false : true);
 
 /** Full list of payment methods (cash + built-ins + custom rows in transfer_fees). */
 export async function loadAllPaymentMethods(force = false): Promise<PaymentMethodOption[]> {
@@ -58,6 +67,7 @@ export async function loadAllPaymentMethods(force = false): Promise<PaymentMetho
       label: f?.label || BUILTIN_LABELS[b],
       is_builtin: true,
       is_enabled: f ? f.is_enabled !== false : true,
+      in_payments: f ? f.show_in_payments !== false : true,
       fee_type: f?.fee_type,
       fee_value: f ? Number(f.fee_value) || 0 : 0,
     });
@@ -69,6 +79,7 @@ export async function loadAllPaymentMethods(force = false): Promise<PaymentMetho
       label: f.label || f.payment_method,
       is_builtin: false,
       is_enabled: f.is_enabled !== false,
+      in_payments: f.show_in_payments !== false,
       fee_type: f.fee_type,
       fee_value: f.kind === "virtual" ? 0 : Number(f.fee_value) || 0,
       kind: f.kind === "virtual" ? "virtual" : "wallet",

@@ -15,7 +15,7 @@ import { rpcErrorText } from "@/lib/rpcError";
 
 interface Ops {
   daily_report_enabled: boolean; audit_retention_days: number; last_purge_at: string | null; last_purge_rows: number | null;
-  tg_linked: boolean; owner_name: string | null; owner_phone: string | null; owner_email: string | null;
+  tg_linked: boolean; group_linked?: boolean; group_title?: string | null; owner_name: string | null; owner_phone: string | null; owner_email: string | null;
   last_report: { day: string; sent_at: string | null; error: string | null } | null; audit_rows: number;
 }
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("ar-EG", { timeZone: "Africa/Cairo" }) : "—");
@@ -45,13 +45,43 @@ export function TenantOpsCard({ tenantId }: { tenantId: string }) {
     toast.success("اتحفظ");
   };
 
+  const linkGroup = async () => {
+    const { data, error } = await (supabase.rpc as any)("super_tg_link_start", { p_tenant: tenantId });
+    if (error) return toast.error(rpcErrorText(error));
+    window.open((data as any).url, "_blank", "noopener");
+    toast.info("اختار جروب الشركة في تليجرام — هيظهر «مربوط» هنا بعد ثواني");
+    let n = 0;
+    const t = window.setInterval(async () => {
+      n++;
+      const { data: d } = await (supabase.rpc as any)("super_tenant_ops_get", { p_tenant: tenantId });
+      if ((d as any)?.group_linked || n > 120) { window.clearInterval(t); if ((d as any)?.group_linked) { setOps(d as Ops); toast.success("الجروب اتربط"); } }
+    }, 5000);
+  };
+  const unlinkGroup = async () => {
+    if (!window.confirm("تفك ربط جروب الفواتير بتاع الشركة دي؟")) return;
+    const { error } = await (supabase.rpc as any)("super_tg_unlink_group", { p_tenant: tenantId });
+    if (error) return toast.error(rpcErrorText(error));
+    load();
+  };
+
   if (!ops) return <section className="card-elevated p-5 mb-5"><Loader2 className="w-5 h-5 animate-spin" /></section>;
   return (
     <section className="card-elevated p-5 mb-5 grid gap-4">
       <h3 className="font-bold">التقرير اليومي وسجل العمليات</h3>
       <div className="text-sm text-muted-foreground">
         صاحب الشركة: {ops.owner_name ?? "—"} {ops.owner_phone ? `— ${ops.owner_phone}` : ""} {ops.owner_email ? `— ${ops.owner_email}` : ""} —
-        تليجرام: {ops.tg_linked ? "مربوط" : "مش مربوط"}
+        تليجرام صاحب الشركة: {ops.tg_linked ? "مربوط" : "مش مربوط"}
+      </div>
+      <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+        <div>
+          <Label className="font-bold">جروب الفواتير الإلكترونية</Label>
+          <div className="text-xs text-muted-foreground">
+            {ops.group_linked ? `مربوط: «${ops.group_title ?? "الجروب"}»` : "مش مربوط — اعمل الجروب في تليجرام وضيف صاحب الشركة، وبعدين دوس «اربط الجروب» واختاره."}
+          </div>
+        </div>
+        {ops.group_linked
+          ? <Button variant="ghost" size="sm" onClick={unlinkGroup}>فك الربط</Button>
+          : <Button size="sm" onClick={linkGroup}>اربط الجروب</Button>}
       </div>
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
