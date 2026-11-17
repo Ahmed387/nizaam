@@ -17,10 +17,13 @@ import { Building2, PlusCircle, TrendingUp, TrendingDown, Wallet, Package, Users
 import { formatDate } from "@/lib/format";
 import { useBranchScope } from "@/lib/branchScope";
 import { FinancialAmount } from "@/components/FinancialAmount";
-import { cairoTodayDay } from "@/lib/cairoDate";
+import { CapitalMoveDialog, type CapitalMode } from "@/components/capital/CapitalMoveDialog";
+import { capitalKindLabel } from "@/lib/branchCapital";
+import { loadAllPaymentMethods } from "@/lib/paymentMethods";
 
 type Branch = { id: string; name: string; code: string };
-type Allocation = { id: string; branch_id: string; amount: number; allocation_date: string; notes: string | null; created_at: string };
+type Allocation = { id: string; branch_id: string; from_branch_id: string | null; kind: string; payment_method: string | null;
+  from_account: string | null; to_account: string | null; amount: number; allocation_date: string; notes: string | null; created_at: string };
 type Position = {
   branch_id: string;
   allocated_capital: number;
@@ -46,22 +49,16 @@ export default function BranchCapital() {
   const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [positions, setPositions] = useState<Record<string, Position>>({});
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ branch_id: "", amount: "", allocation_date: cairoTodayDay(), notes: "" });
-  const [saving, setSaving] = useState(false);
-  const [partnerCash, setPartnerCash] = useState<number | null>(null);
+  const [mode, setMode] = useState<CapitalMode | null>(null);
+  const [partnerId, setPartnerId] = useState<string | null>(null);
+  const [methodLabels, setMethodLabels] = useState<Record<string, string>>({});
 
-  // رصيد خزينة الشركاء المتاح فعليًا للتحويل (نقدي) — نفس الحساب المستخدم في التحقق بالسيرفر
-  const loadPartnerCash = async () => {
+  // خزينة الشركاء = فرع النظام PARTNER-CASH (المصدر / الوجهة لحركات رأس المال)
+  const loadPartnerId = async () => {
     if (!tenantId) return;
     const { data: pb } = await (supabase.from("branches") as any)
       .select("id").eq("tenant_id", tenantId).eq("code", "PARTNER-CASH").maybeSingle();
-    if (!pb?.id) { setPartnerCash(0); return; }
-    const tx = await fetchAllRows<any>(() => (supabase.from("treasury") as any)
-      .select("id,type,amount").eq("branch_id", pb.id).eq("payment_method", "cash").order("id")).catch(() => [] as any[]);
-    const bal = ((tx ?? []) as any[]).reduce(
-      (s, r) => s + (r.type === "income" ? Number(r.amount || 0) : -Number(r.amount || 0)), 0);
-    setPartnerCash(bal);
+    setPartnerId(pb?.id ?? null);
   };
 
   const load = async () => {
@@ -74,7 +71,8 @@ export default function BranchCapital() {
     const brs = (br ?? []) as Branch[];
     setBranches(filterBranches((brs) as any) as any);
     setAllocations((al ?? []) as any);
-    loadPartnerCash();
+    loadPartnerId();
+    loadAllPaymentMethods().then((m) => setMethodLabels(Object.fromEntries(m.map((x) => [x.value, x.label])))).catch(() => {});
 
     // load positions in parallel
     const results = await Promise.all(
@@ -90,37 +88,6 @@ export default function BranchCapital() {
   useEffect(() => { load(); }, [tenantId]);
 
 
-  const submit = async () => {
-    if (!form.branch_id) return toast.error("اختر الفرع");
-    const amt = Number(form.amount);
-    if (!amt) return toast.error("أدخل المبلغ");
-    if (amt < 0) return toast.error("المبلغ لازم يكون أكبر من صفر");
-    if (partnerCash !== null && amt > partnerCash) {
-      return toast.error(`المبلغ أكبر من اللي موجود في خزينة الشركاء`, {
-        description: `المتاح دلوقتي ${fmt(partnerCash)} ج بس. اكتب مبلغ أقل أو ساوي المتاح.`,
-        duration: 7000,
-      });
-    }
-    const targetName = branches.find((b) => b.id === form.branch_id)?.name ?? "الفرع";
-    setSaving(true);
-    const { error } = await supabase.rpc("allocate_capital_to_branch" as any, {
-      _branch_id: form.branch_id,
-      _amount: amt,
-      _allocation_date: form.allocation_date,
-      _notes: form.notes || null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success(`اتحوّل ${fmt(amt)} ج من خزينة الشركاء لفرع ${targetName}`, {
-      description: "المبلغ اتخصم من خزينة الشركاء واتسجّل في خزنة الفرع، وهيظهر في المركز المالي للفرع على طول.",
-      duration: 8000,
-    });
-    setOpen(false);
-    setForm({ branch_id: "", amount: "", allocation_date: cairoTodayDay(), notes: "" });
-    load();
-  };
-
-
   const totalAllocated = Object.values(positions).reduce((s, p) => s + Number(p?.allocated_capital || 0), 0);
   const totalNetProfit = Object.values(positions).reduce((s, p) => s + Number(p?.net_profit || 0), 0);
   const totalAssets = Object.values(positions).reduce((s, p) => s + Number(p?.total_assets || 0), 0);
@@ -132,16 +99,19 @@ export default function BranchCapital() {
           title="توزيع رأس المال على الفروع"
           subtitle="تخصيص رأس المال والمركز المالي لكل فرع"
           actions={
-            <Button className="btn-gradient" onClick={() => setOpen(true)}>
-              <PlusCircle className="w-4 h-4 ml-1" /> تخصيص جديد
-            </Button>
+            <div className="flex gap-2">
+              <Button className="btn-gradient" onClick={() => setMode("allocate")}>
+                <PlusCircle className="w-4 h-4 ml-1" /> تحويل رأس مال لفرع
+              </Button>
+              <Button variant="outline" onClick={() => setMode("out")}>رجّع / انقل رأس مال</Button>
+            </div>
           }
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm">إجمالي رأس المال الموزع</CardTitle>
+              <CardTitle className="text-sm">إجمالي رأس المال في الفروع</CardTitle>
               <Wallet className="w-5 h-5 text-primary" />
             </CardHeader>
              <CardContent><FinancialAmount value={fmt(totalAllocated)} size="lg" className="justify-start" /></CardContent>
@@ -167,7 +137,7 @@ export default function BranchCapital() {
         <Tabs defaultValue="positions">
           <TabsList>
             <TabsTrigger value="positions">المركز المالي للفروع</TabsTrigger>
-            <TabsTrigger value="history">سجل التخصيصات</TabsTrigger>
+            <TabsTrigger value="history">حركات رأس المال</TabsTrigger>
           </TabsList>
 
           <TabsContent value="positions" className="space-y-4 mt-4">
@@ -196,7 +166,7 @@ export default function BranchCapital() {
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm">
-                      <Row label="رأس المال المخصص" value={p.allocated_capital} icon={<Wallet className="w-4 h-4 text-primary" />} highlight />
+                      <Row label="رأس المال الحالي (دخل − طلع)" value={p.allocated_capital} icon={<Wallet className="w-4 h-4 text-primary" />} highlight />
                       <hr className="my-2" />
                       <Row label="اللي اتباع (صافي المبيعات)" value={p.revenue} icon={<TrendingUp className="w-4 h-4 text-success" />} />
                       <Row label="تكلفة اللي اتباع" value={-p.cogs} icon={<Package className="w-4 h-4 text-muted-foreground" />} />
@@ -219,26 +189,31 @@ export default function BranchCapital() {
 
           <TabsContent value="history" className="mt-4">
             <Card>
-              <CardHeader><CardTitle>سجل التخصيصات</CardTitle></CardHeader>
+              <CardHeader><CardTitle>حركات رأس المال</CardTitle></CardHeader>
               <CardContent>
                 {allocations.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">لا توجد تخصيصات بعد</div>
+                  <div className="text-center text-muted-foreground py-8">مفيش حركات رأس مال لسه</div>
                 ) : (
                   <div className="space-y-2">
                     {allocations.map((a) => {
-                      const br = branches.find((b) => b.id === a.branch_id);
+                      const place = (id: string | null) => (!id || id === partnerId ? "خزينة الشركاء" : branches.find((b) => b.id === id)?.name ?? "—");
                       return (
-                        <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
-                          <div className="flex items-center gap-3">
-                            <Building2 className="w-4 h-4 text-primary" />
-                            <div>
-                              <div className="font-semibold">{br?.name ?? "—"}</div>
-                              <div className="text-xs text-muted-foreground">{formatDate(a.allocation_date)} · {a.notes || "بدون ملاحظات"}</div>
+                        <div key={a.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Building2 className="w-4 h-4 text-primary shrink-0" />
+                            <div className="min-w-0">
+                              <div className="font-semibold">
+                                {capitalKindLabel(a.kind)}: {place(a.from_branch_id)} ← {place(a.branch_id)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatDate(a.allocation_date)} · {methodLabels[a.payment_method || "cash"] ?? a.payment_method ?? "نقدي"}
+                                {a.from_account && <> · من <span dir="ltr">{a.from_account}</span></>}
+                                {a.to_account && <> · على <span dir="ltr">{a.to_account}</span></>}
+                                {" · "}{a.notes || "بدون ملاحظات"}
+                              </div>
                             </div>
                           </div>
-                          <div className={`text-lg font-bold ${a.amount >= 0 ? "text-success" : "text-destructive"}`}>
-                            {a.amount >= 0 ? "+" : ""}{fmt(a.amount)} ج.م
-                          </div>
+                          <div className="text-lg font-bold tabular-nums shrink-0">{fmt(a.amount)} ج.م</div>
                         </div>
                       );
                     })}
@@ -249,52 +224,8 @@ export default function BranchCapital() {
           </TabsContent>
         </Tabs>
 
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent dir="rtl">
-            <DialogHeader><DialogTitle>تخصيص رأس مال لفرع</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div className="rounded-lg border-r-4 border-primary bg-primary/5 p-3 text-sm leading-7">
-                بتحوّل من <b>خزينة الشركاء</b> (الرصيد المتاح:{" "}
-                <b className="tabular-nums">{partnerCash === null ? "..." : fmt(partnerCash)}</b> ج) لفرع{" "}
-                <b>{branches.find((b) => b.id === form.branch_id)?.name ?? "— اختر الفرع —"}</b>.
-                <div className="text-xs text-muted-foreground mt-1">
-                  الفلوس بتتخصم من خزينة الشركاء وتتحط في خزنة الفرع اللي هتختاره.
-                </div>
-              </div>
-              <div>
-                <Label>الفرع *</Label>
-                <Select value={form.branch_id} onValueChange={(v) => setForm({ ...form, branch_id: v })}>
-                  <SelectTrigger className="mt-1.5"><SelectValue placeholder="اختر الفرع" /></SelectTrigger>
-                  <SelectContent>
-                    {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.code})</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>المبلغ (ج.م) *</Label>
-                <Input type="number" step="0.01" min={0} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="mt-1.5" dir="ltr" />
-                {partnerCash !== null && Number(form.amount) > partnerCash && (
-                  <div className="mt-1.5 text-xs text-destructive font-semibold">
-                    المبلغ أكبر من رصيد خزينة الشركاء — المتاح {fmt(partnerCash)} ج بس.
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label>التاريخ</Label>
-                <Input type="date" value={form.allocation_date} onChange={(e) => setForm({ ...form, allocation_date: e.target.value })} className="mt-1.5" />
-              </div>
-              <div>
-                <Label>ملاحظات</Label>
-                <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1.5" rows={2} />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-              <Button className="btn-gradient" onClick={submit} disabled={saving || (partnerCash !== null && Number(form.amount) > partnerCash)}>{saving ? "جاري الحفظ..." : "حفظ"}</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <CapitalMoveDialog mode={mode ?? "allocate"} open={mode !== null} onClose={() => setMode(null)} onDone={load}
+                           branches={branches} partnerId={partnerId} rows={allocations as any} />
       </div>
     </AdminLayout>
   );
