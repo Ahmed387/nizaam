@@ -14,6 +14,9 @@ import { PrintDocButton } from "@/components/documents/MoneyCells";
 import { cancelDoc, type BulkKind } from "@/lib/bulkDocs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { fetchDocMeta, movementMatches, MOVEMENT_PAYMENT_OPTIONS, type DocMeta } from "@/lib/docMeta";
+import { useDocUsers, docUserOptions } from "@/lib/docUsers";
 
 /**
  * The account's movements (owner 2026-11-11, migration 0199): the one table of the contact file —
@@ -59,8 +62,10 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
   const [lines, setLines] = useState<AccountMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  // unified filter (2026-11-18): applied on «بحث» / Enter; the period is read from the ledger, the rest filters the lines
+  const [af, setAf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const from = af.from, to = af.to;
+  const [meta, setMeta] = useState<Record<string, DocMeta>>({});
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [view, setView] = useState<AccountMovement[] | null>(null);
   const [cancelRows, setCancelRows] = useState<AccountMovement[] | null>(null);
@@ -74,9 +79,24 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
     finally { setLoading(false); }
   }, [contactId, branchId, from, to]);
   useEffect(() => { load(); }, [load, reloadKey]);
+  // items / method / recipient of each line's document, for the filter
+  useEffect(() => {
+    let off = false;
+    fetchDocMeta(lines.map((l) => ({ table: l.src_table, id: l.src_id }))).then((m) => { if (!off) setMeta(m); });
+    return () => { off = true; };
+  }, [lines]);
+  const users = useDocUsers(branchId);
+  const recipientOptions = useMemo(() => {
+    if (users.length) return docUserOptions(users);
+    const names = Array.from(new Set(Object.values(meta).map((m) => m.recipient).filter(Boolean))).sort();
+    return names.map((n) => ({ value: n, label: n }));
+  }, [users, meta]);
+  const nonDate = Boolean(af.q.trim() || af.notes.trim() || af.amountMin || af.amountMax || af.payment || af.recipient);
 
   const opening = lines.find((l) => l.line_no === 0) ?? null;
-  const body = useMemo(() => lines.filter((l) => l.line_no !== 0).reverse(), [lines]);
+  const body = useMemo(() => lines.filter((l) => l.line_no !== 0).reverse()
+    .filter((l) => !nonDate || movementMatches({ reference: l.reference, notes: l.notes, amount: l.debit || l.credit },
+      l.src_id ? meta[l.src_id] : undefined, af, true)), [lines, meta, af, nonDate]);
   const rows = useMemo(() => (opening ? [...body, opening] : body), [body, opening]);
   const shown = view ?? rows;
   const totals = useMemo(() => {
@@ -127,10 +147,22 @@ export function ContactMovements({ contactId, contactName, branchId, scopeName, 
 
   return (
     <div className="space-y-3" data-testid="account-movements">
+      <UnifiedDocumentFilters
+        title="الحركات"
+        noun="حركة"
+        shown={{ from: body.length ? 1 : 0, to: body.length, total: body.length }}
+        value={af}
+        onChange={setAf}
+        onReset={() => setAf(EMPTY_DOCUMENT_FILTERS)}
+        hasAnyFilter={Object.values(af).some(Boolean)}
+        showAmount
+        showNotes
+        searchLabel="بحث (رقم المستند، اسم صنف داخل الفاتورة)"
+        searchPlaceholder="رقم المستند أو اسم الصنف..."
+        paymentOptions={MOVEMENT_PAYMENT_OPTIONS}
+        recipientOptions={recipientOptions}
+      />
       <div className="card-elevated p-3 flex flex-wrap items-end gap-3">
-        <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" /></div>
-        <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" /></div>
-        {(from || to) && <Button variant="outline" size="sm" onClick={() => { setFrom(""); setTo(""); }}><X className="w-4 h-4 ml-1" /> كل الفترة</Button>}
         <div className="mr-auto flex flex-wrap gap-4 text-sm">
           <span>لنا: <b className="tabular-nums">{formatEGP(totals.debit)}</b></span>
           <span>علينا: <b className="tabular-nums">{formatEGP(totals.credit)}</b></span>

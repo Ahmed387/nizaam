@@ -1,4 +1,5 @@
 import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { saveDocAnnotations } from "@/lib/docAnnotations";
 import { useEffect, useMemo, useState } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
@@ -71,14 +72,16 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [selfBranchName, setSelfBranchName] = useState<string>("");
   const [allBranches, setAllBranches] = useState<any[]>([]);
   // فلاتر تبويب "ما تم استلامه بالفعل"
-  const [productQuery, setProductQuery] = useState("");
-  const [fromBranchFilter, setFromBranchFilter] = useState<string>("ALL");
-  const [toBranchFilter, setToBranchFilter] = useState<string>("ALL");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "confirmed" | "rejected">("ALL");
+  // unified filter (2026-11-18): applied on «بحث» / Enter; q = the product, status = مستلم / مرفوض
+  const [af, setAf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const productQuery = af.q;
+  const fromBranchFilter = af.fromBranch || "ALL";
+  const toBranchFilter = af.toBranch || "ALL";
+  const statusFilter = (af.status || "ALL") as "ALL" | "confirmed" | "rejected";
   const [hideTarget, setHideTarget] = useState<string | null>(null);
   const [hideBusy, setHideBusy] = useState(false);
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
+  // Cairo days as text (the old Date objects never compared with the day text, so the period did nothing)
+  const dateFrom = af.from, dateTo = af.to;
   // إخفاء بصري فقط — لا يمس قاعدة البيانات إطلاقاً
   const hiddenKey = `stock-transfers-hidden-${branchId ?? ""}`;
   const [hidden, setHidden] = useState<string[]>([]);
@@ -527,145 +530,26 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
         </TabsContent>
 
         <TabsContent value="done" className="mt-4 space-y-3">
-          {/* شريط الفلاتر المتعدد المعايير */}
-          <div className="bg-surface border border-border rounded-lg p-3 space-y-3">
-            <div className="flex flex-wrap items-end gap-2">
-              {/* البحث الذكي بالمنتج */}
-              <div className="flex-1 min-w-[220px]">
-                <Label className="text-xs mb-1.5 block text-muted-foreground">بحث بالمنتج</Label>
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={productQuery}
-                    onChange={(e) => setProductQuery(e.target.value)}
-                    placeholder="بحث بالاسم، الكود، الموديل، الماركة…"
-                    className="pr-9"
-                  />
-                </div>
-              </div>
-
-              {/* الفرع المرسل */}
-              <div className="w-full sm:w-44">
-                <Label className="text-xs mb-1.5 block text-muted-foreground">الفرع المرسل</Label>
-                <Select value={fromBranchFilter} onValueChange={setFromBranchFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="كل الفروع المرسلة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">كل الفروع المرسلة</SelectItem>
-                    {allBranches.map((b) => (
-                      <SelectItem key={`from-${b.id}`} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* الفرع المستلم */}
-              <div className="w-full sm:w-44">
-                <Label className="text-xs mb-1.5 block text-muted-foreground">الفرع المستلم</Label>
-                <Select value={toBranchFilter} onValueChange={setToBranchFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="كل الفروع المستلمة" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">كل الفروع المستلمة</SelectItem>
-                    {allBranches.map((b) => (
-                      <SelectItem key={`to-${b.id}`} value={b.id}>{b.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* فلتر الحالة */}
-              <div className="w-full sm:w-40">
-                <Label className="text-xs mb-1.5 block text-muted-foreground">الحالة</Label>
-                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="الكل" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">الكل</SelectItem>
-                    <SelectItem value="confirmed">مستلم</SelectItem>
-                    <SelectItem value="rejected">مرفوض</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* فلتر التاريخ من / إلى */}
-              <div className="w-full sm:w-auto">
-                <Label className="text-xs mb-1.5 block text-muted-foreground">من تاريخ</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full sm:w-40 justify-start text-right font-normal",
-                        !dateFrom && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="w-4 h-4 ml-2" />
-                      {dateFrom ? formatDateFns(dateFrom, "yyyy/MM/dd") : "اختر تاريخ"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dateFrom}
-                      onSelect={setDateFrom}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="w-full sm:w-auto">
-                <Label className="text-xs mb-1.5 block text-muted-foreground">إلى تاريخ</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full sm:w-40 justify-start text-right font-normal",
-                        !dateTo && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="w-4 h-4 ml-2" />
-                      {dateTo ? formatDateFns(dateTo, "yyyy/MM/dd") : "اختر تاريخ"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dateTo}
-                      onSelect={setDateTo}
-                      initialFocus
-                      className="p-3 pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              {/* زر إعادة ضبط الفلاتر */}
-              {(productQuery || fromBranchFilter !== "ALL" || toBranchFilter !== "ALL" || statusFilter !== "ALL" || dateFrom || dateTo) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setProductQuery("");
-                    setFromBranchFilter("ALL");
-                    setToBranchFilter("ALL");
-                    setStatusFilter("ALL");
-                    setDateFrom(undefined);
-                    setDateTo(undefined);
-                  }}
-                  className="gap-1 text-muted-foreground"
-                >
-                  <X className="w-4 h-4" /> تفريغ الفلاتر
-                </Button>
-              )}
-            </div>
-          </div>
+          <UnifiedDocumentFilters
+            title="تحويلات المخازن"
+            noun="تحويل"
+            shown={{ from: filteredTransferRows.length ? 1 : 0, to: filteredTransferRows.length, total: filteredTransferRows.length }}
+            value={af}
+            onChange={setAf}
+            onReset={() => setAf(EMPTY_DOCUMENT_FILTERS)}
+            hasAnyFilter={Object.values(af).some(Boolean)}
+            searchLabel="بحث بالمنتج (الاسم، الكود، الموديل، الماركة)"
+            searchPlaceholder="بحث بالاسم، الكود، الموديل، الماركة…"
+            statusOptions={[{ value: "confirmed", label: "مستلم" }, { value: "rejected", label: "مرفوض" }]}
+            extraFields={(d, set) => (<>
+              <UnifiedDocumentFilters.Field label="الفرع المرسل">
+                <UnifiedDocumentFilters.Select value={d.fromBranch} options={allBranches.map((b: any) => ({ value: b.id, label: b.name }))} onChange={(v) => set({ fromBranch: v })} />
+              </UnifiedDocumentFilters.Field>
+              <UnifiedDocumentFilters.Field label="الفرع المستلم">
+                <UnifiedDocumentFilters.Select value={d.toBranch} options={allBranches.map((b: any) => ({ value: b.id, label: b.name }))} onChange={(v) => set({ toBranch: v })} />
+              </UnifiedDocumentFilters.Field>
+            </>)}
+          />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5" aria-label="ملخص تحويلات المخازن">
             <MetricCardWithHint

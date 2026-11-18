@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { useDocUsers, docUserOptions } from "@/lib/docUsers";
 import { PermCard, PermPart } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -36,7 +38,7 @@ import { NumberedPagination } from "@/components/NumberedPagination";
 import { useLocation } from "react-router-dom";
 import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
 import { readAll, useWholeList } from "@/hooks/useWholeList";
-import { periodOfFilter, singleValueOf, valuesOf, withPeriod, withSingleValue, withValues, type FilterState, type ListColumn } from "@/lib/tableFilter";
+import { EMPTY_STATE, periodOfFilter, singleValueOf, valuesOf, withPeriod, withSingleValue, withValues, type FilterState, type ListColumn } from "@/lib/tableFilter";
 import { sourceText } from "@/lib/documentListColumns";
 
 const PAGE = 50;
@@ -140,9 +142,25 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
 
   // Cancelled vouchers never sit in the main table — they have their own «الملغاة» view.
   const [showCancelled, setShowCancelled] = useState(false);
-  const [searchInput, setSearchInput] = useState("");
   const [searchText, setSearchText] = useState("");
-  useEffect(() => { const t = setTimeout(() => setSearchText(searchInput.trim()), 300); return () => clearTimeout(t); }, [searchInput]);
+  // unified filter (2026-11-18): amount, notes (البيان) and recipient, applied on «بحث» / Enter with the rest
+  const [amountMin, setAmountMin] = useState("");
+  const [amountMax, setAmountMax] = useState("");
+  const [notesText, setNotesText] = useState("");
+  const [recipientF, setRecipientF] = useState("");
+  const recipientOptions = docUserOptions(useDocUsers(branchId));
+  /** unified filter ↔ this table (status = type, categoryId = ids joined by «,», payState = source, fromBranch = branch) */
+  const barValue: DocumentFilters = {
+    ...EMPTY_DOCUMENT_FILTERS, q: searchText, from: filters.from, to: filters.to, status: filters.type,
+    categoryId: filters.category_ids.join(","), payment: filters.payment_method, payState: filters.source, fromBranch: filters.branch_id,
+    amountMin, amountMax, notes: notesText, recipient: recipientF,
+  };
+  const applyBar = (n: DocumentFilters) => {
+    setSearchText(n.q.trim()); setAmountMin(n.amountMin); setAmountMax(n.amountMax); setNotesText(n.notes); setRecipientF(n.recipient);
+    setFilters({ from: n.from, to: n.to, type: (n.status || "") as any, category_ids: n.categoryId ? n.categoryId.split(",") : [],
+      payment_method: n.payment, source: n.payState, branch_id: n.fromBranch });
+  };
+  const resetBar = () => { applyBar(EMPTY_DOCUMENT_FILTERS); setColState(EMPTY_STATE); };
   const [agg, setAgg] = useState({ totalIn: 0, totalOut: 0, countIn: 0, countOut: 0 });
   const [links, setLinks] = useState<Map<string, TreasuryLink>>(new Map());
   // a row of the whole list carries its own link; a row of the page reads the page's links
@@ -153,7 +171,7 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
   const accountOf = (r: any) => linkOf(r)?.account_name ?? r.party_name ?? null;
   // selection (owner request 2026-10-16) — one voucher type per table
   const [selected, setSelected] = useState<Map<string, any>>(new Map());
-  useEffect(() => { setSelected(new Map()); }, [branchId, type, filters, searchText, showCancelled]);
+  useEffect(() => { setSelected(new Map()); }, [branchId, type, filters, searchText, showCancelled, amountMin, amountMax, notesText, recipientF]);
   const toggleSel = (r: any) => setSelected((prev) => { const n = new Map(prev); if (n.has(r.id)) n.delete(r.id); else n.set(r.id, { ...r, __account: accountOf(r) }); return n; });
 
   /**
@@ -176,6 +194,11 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       const term = searchText.replace(/[,()*%]/g, " ").trim();
       if (term) q = q.or(`voucher_number.ilike.%${term}%,party_name.ilike.%${term}%,description.ilike.%${term}%`);
     }
+    if (amountMin !== "" && !isNaN(Number(amountMin))) q = q.gte("amount", Number(amountMin));
+    if (amountMax !== "" && !isNaN(Number(amountMax))) q = q.lte("amount", Number(amountMax));
+    const nt = notesText.replace(/[,()*%]/g, " ").trim();
+    if (nt) q = q.ilike("description", `%${nt}%`);
+    if (recipientF) q = q.ilike("recipient_name", recipientF.replace(/[%_]/g, " "));
     if (deductibleIds) {
       q = q.eq("type", "payment").eq("status", "active").in("category_id", deductibleIds.length ? deductibleIds : ["00000000-0000-0000-0000-000000000000"]);
     }
@@ -386,126 +409,43 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
       )}
 
       <div className="card-elevated p-4 space-y-3">
-        {part("filters", (<div className="space-y-3">
-        <Input
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="ابحث برقم السند أو اسم الجهة أو البيان"
-          className="h-9"
-          aria-label="بحث في السندات"
-        />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">من تاريخ</Label>
-            <Input type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} className="h-9" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">إلى تاريخ</Label>
-            <Input type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} className="h-9" />
-          </div>
-          {!type && (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">النوع</Label>
-              <Select value={filters.type || "all"} onValueChange={(v) => setFilters({ ...filters, type: v === "all" ? "" : v as any })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">الكل</SelectItem>
-                  <SelectItem value="receipt">قبض</SelectItem>
-                  <SelectItem value="payment">صرف</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">التصنيف</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9 w-full justify-between font-normal">
-                  <span className="truncate">
-                    {filters.category_ids.length === 0
-                      ? "كل التصنيفات"
-                      : filters.category_ids.length === 1
-                        ? (catMap[filters.category_ids[0]] ?? "تصنيف")
-                        : `${filters.category_ids.length} تصنيفات مختارة`}
-                  </span>
-                  <ChevronDown className="w-4 h-4 opacity-60 shrink-0" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" side="bottom" sideOffset={6} avoidCollisions={false} className="w-64 p-2">
-                <div className="flex items-center justify-between px-2 py-1 mb-1 border-b">
-                  <button
-                    type="button"
-                    className="text-xs text-primary hover:underline"
-                    onClick={() => setFilters({ ...filters, category_ids: [] })}
-                  >مسح الاختيار</button>
-                  <button
-                    type="button"
-                    className="text-xs text-primary hover:underline"
-                    onClick={() => setFilters({ ...filters, category_ids: cats.map(c => c.id) })}
-                  >تحديد الكل</button>
-                </div>
-                <div className="max-h-64 overflow-y-auto space-y-0.5">
-                  {cats.map((c) => {
-                    const checked = filters.category_ids.includes(c.id);
-                    return (
-                      <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
-                        <Checkbox
-                          checked={checked}
-                          onCheckedChange={(v) => {
-                            setFilters({
-                              ...filters,
-                              category_ids: v
-                                ? [...filters.category_ids, c.id]
-                                : filters.category_ids.filter((id) => id !== c.id),
-                            });
-                          }}
-                        />
-                        <span className="flex-1">{c.name}</span>
-                        {checked && <Check className="w-3 h-3 text-primary" />}
-                      </label>
-                    );
-                  })}
-                  {cats.length === 0 && <div className="text-xs text-muted-foreground p-2">لا يوجد تصنيفات</div>}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">طريقة الدفع</Label>
-            <Select value={filters.payment_method || "all"} onValueChange={(v) => setFilters({ ...filters, payment_method: v === "all" ? "" : v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">الكل</SelectItem>
-                {Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">المصدر</Label>
-            <Select value={filters.source || "all"} onValueChange={(v) => setFilters({ ...filters, source: v === "all" ? "" : v })}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">الكل</SelectItem>
-                <SelectItem value="manual">يدوي</SelectItem>
-                <SelectItem value="system">تلقائي</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {adminAllBranches && (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">الفرع</Label>
-              <Select value={filters.branch_id || "all"} onValueChange={(v) => setFilters({ ...filters, branch_id: v === "all" ? "" : v })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">كل الفروع</SelectItem>
-                  {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-
-        </div>))}
+        {part("filters", (
+        <UnifiedDocumentFilters
+          title={type === "receipt" ? "سندات القبض" : type === "payment" ? "سندات الصرف" : "السندات"}
+          noun="سند"
+          shown={{ from: count ? (page - 1) * 50 + 1 : 0, to: Math.min(page * 50, count), total: count }}
+          value={barValue}
+          onChange={applyBar}
+          onReset={resetBar}
+          hasAnyFilter={Object.values(barValue).some(Boolean)}
+          showAmount
+          showNotes
+          searchLabel="بحث شامل (رقم السند، اسم الجهة، البيان)"
+          searchPlaceholder="رقم السند، اسم الجهة، البيان..."
+          paymentOptions={Object.entries(PAYMENT_METHOD_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+          recipientOptions={recipientOptions}
+          recipientLabel="المستلم"
+          customField={(d, set) => (<>
+            {!type && (
+              <UnifiedDocumentFilters.Field label="النوع">
+                <UnifiedDocumentFilters.Select value={d.status} options={[{ value: "receipt", label: "قبض" }, { value: "payment", label: "صرف" }]} onChange={(v) => set({ status: v })} />
+              </UnifiedDocumentFilters.Field>
+            )}
+            <UnifiedDocumentFilters.Field label="التصنيف">
+              <CategoryMulti cats={cats} value={d.categoryId ? d.categoryId.split(",") : []} onChange={(ids) => set({ categoryId: ids.join(",") })} />
+            </UnifiedDocumentFilters.Field>
+          </>)}
+          extraFields={(d, set) => (<>
+            <UnifiedDocumentFilters.Field label="المصدر">
+              <UnifiedDocumentFilters.Select value={d.payState} options={[{ value: "manual", label: "يدوي" }, { value: "system", label: "تلقائي" }]} onChange={(v) => set({ payState: v })} />
+            </UnifiedDocumentFilters.Field>
+            {adminAllBranches && (
+              <UnifiedDocumentFilters.Field label="الفرع">
+                <UnifiedDocumentFilters.Select value={d.fromBranch} options={branches.map((b) => ({ value: b.id, label: b.name }))} onChange={(v) => set({ fromBranch: v })} />
+              </UnifiedDocumentFilters.Field>
+            )}
+          </>)}
+        />))}
         <div className="flex flex-wrap gap-2 items-center justify-end pt-2 border-t">
           {part("excel_button", (
           <Button size="sm" variant="outline" disabled={isExporting} onClick={() => runExport((list) => exportToExcel("vouchers", [{ name: "السندات", rows: toExportRows(list) }]))}>
@@ -711,5 +651,40 @@ export function VouchersTable({ branchId, type, adminAllBranches, tenantId, init
         onEdit={(v, focus) => { setViewTarget(null); setEditFocusDate(!!focus); setEditTarget(v); }}
       />
     </div>
+  );
+}
+
+
+/** «التصنيف» of vouchers: several categories at once (kept from the old bar, now inside the unified filter) */
+function CategoryMulti({ cats, value, onChange }: { cats: { id: string; name: string }[]; value: string[]; onChange: (ids: string[]) => void }) {
+  const name = (id: string) => cats.find((c) => c.id === id)?.name ?? "تصنيف";
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-10 w-full justify-between font-normal bg-background">
+          <span className="truncate">{value.length === 0 ? "الكل" : value.length === 1 ? name(value[0]) : `${value.length} تصنيفات مختارة`}</span>
+          <ChevronDown className="w-4 h-4 opacity-60 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" side="bottom" sideOffset={6} avoidCollisions={false} className="w-64 p-2">
+        <div className="flex items-center justify-between px-2 py-1 mb-1 border-b">
+          <button type="button" className="text-xs text-primary hover:underline" onClick={() => onChange([])}>مسح الاختيار</button>
+          <button type="button" className="text-xs text-primary hover:underline" onClick={() => onChange(cats.map((c) => c.id))}>تحديد الكل</button>
+        </div>
+        <div className="max-h-64 overflow-y-auto space-y-0.5">
+          {cats.map((c) => {
+            const checked = value.includes(c.id);
+            return (
+              <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted cursor-pointer text-sm">
+                <Checkbox checked={checked} onCheckedChange={(v) => onChange(v ? [...value, c.id] : value.filter((id) => id !== c.id))} />
+                <span className="flex-1">{c.name}</span>
+                {checked && <Check className="w-3 h-3 text-primary" />}
+              </label>
+            );
+          })}
+          {cats.length === 0 && <div className="text-xs text-muted-foreground p-2">لا يوجد تصنيفات</div>}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -18,6 +18,9 @@ import { formatEGP, formatDate } from "@/lib/format";
 import { Plus, Eye, XCircle, FileDown } from "lucide-react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useAuth } from "@/contexts/AuthContext";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { useDocUsers, docUserOptions } from "@/lib/docUsers";
+import { movementMatches } from "@/lib/docMeta";
 import { createApprovalRequest } from "@/lib/approvalRequests";
 import { toast } from "sonner";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
@@ -32,11 +35,10 @@ export default function Shipments() {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelTarget, setCancelTarget] = useState<any>(null);
-  const [fSupplier, setFSupplier] = useState<string>("all");
-  const [fStatus, setFStatus] = useState<string>("all");
-  const [fFrom, setFFrom] = useState<string>("");
-  const [fTo, setFTo] = useState<string>("");
-  const [search, setSearch] = useState<string>("");
+  // unified filter (2026-11-18): applied on «بحث» / Enter (partyId = المورد, payState = حالة الدفع)
+  const [af, setAf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const fFrom = af.from, fTo = af.to;
+  const recipientOptions = docUserOptions(useDocUsers(branchId));
 
   const load = useCallback(async () => {
     if (!branchId) return;
@@ -46,7 +48,7 @@ export default function Shipments() {
     try {
       ships = await fetchAllRows<any>(() => supabase
         .from("shipments")
-        .select("*, contacts(name)")
+        .select("*, contacts(name, phone)")
         .eq("branch_id", branchId)
         .order("created_at", { ascending: false })
         .order("id"));
@@ -79,17 +81,15 @@ export default function Shipments() {
   }, [branchId]);
 
   const filtered = useMemo(() => rows.filter((r: any) => {
-    if (fSupplier !== "all" && r.contact_id !== fSupplier) return false;
-    if (fStatus !== "all" && r._payment_status !== fStatus) return false;
-    if (fFrom && r.arrival_date && r.arrival_date < fFrom) return false;
-    if (fTo && r.arrival_date && r.arrival_date > fTo) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      const hay = `${r.contacts?.name ?? ""} ${r.received_by ?? ""} ${r.notes ?? ""}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  }), [rows, fSupplier, fStatus, fFrom, fTo, search]);
+    if (af.partyId && r.contact_id !== af.partyId) return false;
+    if (af.payState && r._payment_status !== af.payState) return false;
+    const day = String(r.invoice_date ?? r.arrival_date ?? "").slice(0, 10);
+    if (fFrom && day && day < fFrom) return false;
+    if (fTo && day && day > fTo) return false;
+    return movementMatches({ reference: r.shipment_number, party: r.contacts?.name, phone: r.contacts?.phone, notes: r.notes, amount: Number(r.total_cost) || 0 },
+      { items: "", method: "", recipient: r.received_by ?? "", total: Number(r.total_cost) || 0, notes: r.notes ?? "", party: r.contacts?.name ?? "", phone: r.contacts?.phone ?? "" },
+      af, false);
+  }), [rows, af, fFrom, fTo]);
 
   const [view, setView] = useState<any[] | null>(null); // what the column filters leave (Excel filters), for the exports
   const handleExportPdf = async () => {
@@ -127,43 +127,25 @@ export default function Shipments() {
         const suppliers = Array.from(new Map(rows.filter(r => r.contact_id).map(r => [r.contact_id, r.contacts?.name ?? "—"])).entries());
         return (
           <>
-            <Card className="p-3 mb-3 grid grid-cols-1 md:grid-cols-5 gap-3">
-              <div>
-                <Label className="text-xs">بحث (مورد / مستلم)</Label>
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث..." className="h-9" />
-              </div>
-              <div>
-                <Label className="text-xs">المورد</Label>
-                <Select value={fSupplier} onValueChange={setFSupplier}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">الكل</SelectItem>
-                    {suppliers.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">حالة الدفع</Label>
-                <Select value={fStatus} onValueChange={setFStatus}>
-                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">الكل</SelectItem>
-                    <SelectItem value="paid">مدفوعة بالكامل</SelectItem>
-                    <SelectItem value="partial">مدفوعة جزئياً</SelectItem>
-                    <SelectItem value="unpaid">غير مدفوعة</SelectItem>
-                    <SelectItem value="cancelled">ملغاة</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">من تاريخ</Label>
-                <Input type="date" value={fFrom} onChange={(e) => setFFrom(e.target.value)} className="h-9" />
-              </div>
-              <div>
-                <Label className="text-xs">إلى تاريخ</Label>
-                <Input type="date" value={fTo} onChange={(e) => setFTo(e.target.value)} className="h-9" />
-              </div>
-            </Card>
+            <UnifiedDocumentFilters
+              title="فواتير الشراء"
+              noun="فاتورة"
+              shown={{ from: filtered.length ? 1 : 0, to: filtered.length, total: filtered.length }}
+              value={af}
+              onChange={setAf}
+              onReset={() => setAf(EMPTY_DOCUMENT_FILTERS)}
+              hasAnyFilter={Object.values(af).some(Boolean)}
+              showAmount
+              showNotes
+              payStateOptions={[{ value: "paid", label: "مدفوعة بالكامل" }, { value: "partial", label: "مدفوعة جزئياً" }, { value: "unpaid", label: "غير مدفوعة" }, { value: "cancelled", label: "ملغاة" }]}
+              recipientOptions={recipientOptions}
+              recipientLabel="المستلم"
+              extraFields={(d, set) => (
+                <UnifiedDocumentFilters.Field label="المورد">
+                  <UnifiedDocumentFilters.Select value={d.partyId} options={suppliers.map(([id, name]) => ({ value: id as string, label: name as string }))} onChange={(v) => set({ partyId: v })} />
+                </UnifiedDocumentFilters.Field>
+              )}
+            />
 
             <DataTable
               loading={loading}

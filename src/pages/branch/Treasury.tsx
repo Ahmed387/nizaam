@@ -1,4 +1,6 @@
 import { cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { useDocUsers, docUserOptions } from "@/lib/docUsers";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PermPart, usePartVisible } from "@/contexts/PermCustomize";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -7,14 +9,6 @@ import { NumberedPagination } from "@/components/NumberedPagination";
 const PAGE_SIZE = 50;
 /** Strip PostgREST or()/ilike metacharacters from free text. */
 const safeLike = (s: string) => s.replace(/[,()%*\\]/g, " ").trim();
-/** Cairo-day shortcut pills; SQL date bounds are applied directly to transaction_date. */
-const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
-  { label: "النهاردة", range: () => { const d = cairoTodayDay(); return [d, d]; } },
-  { label: "امبارح", range: () => { const d = addDaysDay(cairoTodayDay(), -1); return [d, d]; } },
-  { label: "آخر 7 أيام", range: () => { const d = cairoTodayDay(); return [addDaysDay(d, -6), d]; } },
-  { label: "الشهر ده", range: () => { const d = cairoTodayDay(); return [monthStartDay(d), d]; } },
-  { label: "الشهر اللي فات", range: () => { const d = cairoTodayDay(); return [monthStartDay(d, -1), addDaysDay(monthStartDay(d), -1)]; } },
-];
 import { useEffect, useState, useMemo, type ReactNode } from "react";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useLocation, useParams, useSearchParams } from "react-router-dom";
@@ -159,6 +153,9 @@ export default function Treasury() {
   const [maxAmount, setMaxAmount] = useState("");
   const [search, setSearch] = useState("");
   const [notesSearch, setNotesSearch] = useState("");
+  // unified filter (2026-11-18): «اللي سجّل الحركة» = treasury.created_by
+  const [createdBy, setCreatedBy] = useState("");
+  const recordedByOptions = docUserOptions(useDocUsers(branchId), "id");
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [periodRows, setPeriodRows] = useState<PeriodTransaction[]>([]);
@@ -166,10 +163,22 @@ export default function Treasury() {
   useEffect(() => { const t = setTimeout(() => setSearch(searchText.trim()), 300); return () => clearTimeout(t); }, [searchText]);
   useEffect(() => { const t = setTimeout(() => setNotesSearch(notesText.trim()), 300); return () => clearTimeout(t); }, [notesText]);
   const colStateSig = JSON.stringify(colState);
-  useEffect(() => { setPage(1); setSelected(new Map()); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, reversalView, colStateSig]);
+  useEffect(() => { setPage(1); setSelected(new Map()); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, reversalView, colStateSig, createdBy]);
   const resetFilters = () => {
-    setColState(EMPTY_STATE); setSearchText(""); setNotesText("");
-    setMinAmount(""); setMaxAmount(""); setTab("all");
+    setColState(EMPTY_STATE); setSearchText(""); setNotesText(""); setSearch(""); setNotesSearch("");
+    setMinAmount(""); setMaxAmount(""); setTab("all"); setCreatedBy("");
+  };
+  /** the unified filter's applied values ↔ this page's state (period and wallet live in the column filters) */
+  const barValue: DocumentFilters = {
+    ...EMPTY_DOCUMENT_FILTERS, q: search, from: fromDate, to: toDate, status: tab === "all" ? "" : tab,
+    payment: methodFilter === "all" ? "" : methodFilter, amountMin: minAmount, amountMax: maxAmount, notes: notesSearch, recipient: createdBy,
+  };
+  const applyBar = (n: DocumentFilters) => {
+    setSearchText(n.q); setSearch(n.q.trim()); setNotesText(n.notes); setNotesSearch(n.notes.trim());
+    setMinAmount(n.amountMin); setMaxAmount(n.amountMax); setTab((n.status || "all") as any); setCreatedBy(n.recipient);
+    let st = withPeriod(colState, "transaction_date", n.from, n.to);
+    st = withSingleValue(st, "payment_method", n.payment ? payMethodLabel(n.payment as PaymentMethod) : "");
+    setColState(st);
   };
 
   /** Applies the page's filters to any treasury query (shared by table page + period totals; the whole list leaves the wallet out). */
@@ -187,6 +196,7 @@ export default function Treasury() {
     if (n) tq = tq.ilike("description", `%${n}%`);
     if (minAmount !== "" && !isNaN(Number(minAmount))) tq = tq.gte("amount", Number(minAmount));
     if (maxAmount !== "" && !isNaN(Number(maxAmount))) tq = tq.lte("amount", Number(maxAmount));
+    if (createdBy) tq = tq.eq("created_by", createdBy);
     return tq;
   };
 
@@ -199,7 +209,7 @@ export default function Treasury() {
       setPeriodRows(data);
     } finally { setPeriodLoading(false); }
   };
-  useEffect(() => { if (branchId) loadPeriod(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter]);
+  useEffect(() => { if (branchId) loadPeriod(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, createdBy]);
 
   /** what the table shows beyond the till row: its voucher / invoice, the till after it (0097) and its account / source (0099) */
   const enrichMovements = async (movements: any[], signal?: AbortSignal): Promise<any[]> => {
@@ -289,7 +299,7 @@ export default function Treasury() {
   // like the page — and pages it here; otherwise the database pages it as before. The wallet stays out of that read
   // (applied in memory like any column filter) so its arrow still lists every wallet with its count, as in Excel; it
   // is in the signature only because the running balance is per wallet.
-  const wholeSig = `${branchId}|${reversalView}|${fromDate}|${toDate}|${search}|${notesSearch}|${minAmount}|${maxAmount}|${tab}|${methodFilter}`;
+  const wholeSig = `${branchId}|${reversalView}|${fromDate}|${toDate}|${search}|${notesSearch}|${minAmount}|${maxAmount}|${tab}|${methodFilter}|${createdBy}`;
   const whole = useWholeList<any>(wholeSig, async (signal) => {
     const all = await readAll<any>(() => applyFilters(supabase.from("treasury").select("*"), true, false)
       .order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }), signal);
@@ -299,7 +309,7 @@ export default function Treasury() {
     rows: whole.rows, columns: MOVE_COLS, state: colState, onChange: setColState, ensureRows: whole.ensure,
   });
   const wholeMode = needsWholeTill(colEff);
-  useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, wholeMode ? 0 : page, reversalView]);
+  useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, createdBy, wholeMode ? 0 : page, reversalView]);
   useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], () => { load(); loadPeriod(); whole.refresh(); });
 
   const filtered = wholeMode ? (listRes ? listRes.rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : []) : rows;
@@ -573,60 +583,27 @@ export default function Treasury() {
               هي داخلة في رصيد الخزنة وفي الكروت فوق عادي — اتشالت من جدول «حركات الخزنة» عشان يفضل نضيف.
             </div>
           )}
-          <PermPart page="treasury" part="filters"><div className="card-elevated p-4 mb-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-bold text-sm">
-                فلاتر حركات الخزينة{" "}
-                <span className="text-muted-foreground font-normal">
-                  (يعرض {shownCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} - {Math.min(page * PAGE_SIZE, shownCount)} من أصل {shownCount} حركة)
-                </span>
-              </h3>
-              <Button size="sm" variant="ghost" onClick={resetFilters}>مسح الفلاتر</Button>
-            </div>
-            <div className="flex flex-wrap gap-2 items-center text-xs">
-              <span className="text-muted-foreground">اختصارات:</span>
-              {DATE_SHORTCUTS.map((s) => (
-                <Button key={s.label} size="sm" variant="outline" className="h-7 rounded-full" onClick={() => { const [f, t] = s.range(); setPeriod(f, t); }}>
-                  {s.label}
-                </Button>
-              ))}
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <div><Label className="text-xs">بحث (رقم العملية / البيان / التصنيف...)</Label>
-                <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} className="mt-1 h-9" /></div>
-              <div><Label className="text-xs">من تاريخ</Label>
-                <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="mt-1 h-9" /></div>
-              <div><Label className="text-xs">إلى تاريخ</Label>
-                <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 h-9" /></div>
-
-              <div><Label className="text-xs">النوع</Label>
-                <Select value={tab} onValueChange={(v) => setTab(v as any)}>
-                  <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">الكل</SelectItem>
-                    <SelectItem value="income">دخول</SelectItem>
-                    <SelectItem value="expense">خروج</SelectItem>
-                  </SelectContent>
-                </Select></div>
-              <div><Label className="text-xs">بحث الملاحظات</Label>
-                <Input value={notesText} onChange={(e) => setNotesText(e.target.value)} className="mt-1 h-9" /></div>
-              <div><Label className="text-xs">المبلغ من</Label>
-                <Input type="number" min={0} placeholder="0" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} className="mt-1 h-9" /></div>
-
-              <div><Label className="text-xs">الوعاء / طريقة الدفع</Label>
-                <Select value={methodFilter} onValueChange={(v) => setMethodFilter(v as any)}>
-                  <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">كل الأوعية</SelectItem>
-                    {(["cash","vodafone","instapay","bank"] as PaymentMethod[]).map((m) => (
-                      <SelectItem key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select></div>
-              <div><Label className="text-xs">المبلغ إلى</Label>
-                <Input type="number" min={0} value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} className="mt-1 h-9" /></div>
-            </div>
-          </div></PermPart>
+          <PermPart page="treasury" part="filters"><UnifiedDocumentFilters
+            title="حركات الخزنة"
+            noun="حركة"
+            shown={{ from: shownCount ? (page - 1) * PAGE_SIZE + 1 : 0, to: Math.min(page * PAGE_SIZE, shownCount), total: shownCount }}
+            value={barValue}
+            onChange={applyBar}
+            onReset={resetFilters}
+            hasAnyFilter={Object.values(barValue).some(Boolean) || colStateSig !== JSON.stringify(EMPTY_STATE)}
+            showAmount
+            showNotes
+            searchLabel="بحث شامل (رقم العملية، البيان، التصنيف)"
+            searchPlaceholder="رقم العملية، البيان، التصنيف..."
+            customField={(d, set) => (
+              <UnifiedDocumentFilters.Field label="النوع">
+                <UnifiedDocumentFilters.Select value={d.status} options={[{ value: "income", label: "دخول" }, { value: "expense", label: "خروج" }]} onChange={(v) => set({ status: v })} />
+              </UnifiedDocumentFilters.Field>
+            )}
+            paymentOptions={(["cash", "vodafone", "instapay", "bank"] as PaymentMethod[]).map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }))}
+            recipientOptions={recordedByOptions}
+            recipientLabel="اللي سجّل الحركة"
+          /></PermPart>
 
           <TooltipProvider delayDuration={200}>
           <PermPart page="treasury" part="selection_bar"><TreasurySelectionBar rows={Array.from(selected.values())} branchId={branchId!} onSelectPage={() => setSelected(new Map(filtered.map((r: any) => [r.id, r])))}

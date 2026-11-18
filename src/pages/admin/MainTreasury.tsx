@@ -1,4 +1,6 @@
 import { applyCairoRange, cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { useDocUsersMany, docUserOptions } from "@/lib/docUsers";
 import { PermCard } from "@/contexts/PermCustomize";
 import { NumberedPagination } from "@/components/NumberedPagination";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -49,14 +51,6 @@ type ViewBal = { branch_id: string; current_balance: number };
 
 const PAGE_SIZE = 50;
 const safeLike = (s: string) => s.replace(/[,()%*_\\]/g, " ").trim();
-/** Cairo-day shortcut pills; bounds applied by applyCairoRange. */
-const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
-  { label: "النهاردة", range: () => { const d = cairoTodayDay(); return [d, d]; } },
-  { label: "امبارح", range: () => { const d = addDaysDay(cairoTodayDay(), -1); return [d, d]; } },
-  { label: "آخر 7 أيام", range: () => { const d = cairoTodayDay(); return [addDaysDay(d, -6), d]; } },
-  { label: "الشهر ده", range: () => { const d = cairoTodayDay(); return [monthStartDay(d), d]; } },
-  { label: "الشهر اللي فات", range: () => { const d = cairoTodayDay(); return [monthStartDay(d, -1), addDaysDay(monthStartDay(d), -1)]; } },
-];
 const defaultFrom = () => addDaysDay(cairoTodayDay(), -29);
 const TYPE_LABEL: Record<"income" | "expense", string> = { income: "وارد ↓", expense: "صادر ↑" };
 const methodLabel = (m: string) => PAYMENT_METHOD_LABELS[m as PaymentMethod] ?? m;
@@ -111,6 +105,8 @@ export default function MainTreasury() {
   const [minAmt, setMinAmt] = useState("");
   const [maxAmt, setMaxAmt] = useState("");
   const [dq, setDq] = useState({ search: "", notes: "", minAmt: "", maxAmt: "" });
+  // unified filter (2026-11-18): «اللي سجّل الحركة» = treasury.created_by
+  const [recordedBy, setRecordedBy] = useState("");
   const [page, setPage] = useState(1);
   const [pageRows, setPageRows] = useState<TxRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -120,17 +116,29 @@ export default function MainTreasury() {
   const [position, setPosition] = useState<{ debit: number; credit: number; debitCount: number; creditCount: number } | null>(null);
   const [opening, setOpening] = useState<OpeningSummary | null>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => setDq({ search: search.trim(), notes: notes.trim(), minAmt, maxAmt }), 300);
-    return () => clearTimeout(t);
-  }, [search, notes, minAmt, maxAmt]);
+  // the unified filter applies on «بحث» / Enter, so the values go straight through
+  useEffect(() => { setDq({ search: search.trim(), notes: notes.trim(), minAmt, maxAmt }); }, [search, notes, minAmt, maxAmt]);
 
   // Any filter change resets to page 1
-  useEffect(() => { setPage(1); }, [from, to, branchFilter, typeF, revF, methodF, dq]);
+  useEffect(() => { setPage(1); }, [from, to, branchFilter, typeF, revF, methodF, dq, recordedBy]);
 
   /** back to how the page opens: the last 30 days, nothing else */
   const clearFilters = () => {
-    setColState(startState()); setSearch(""); setNotes(""); setMinAmt(""); setMaxAmt("");
+    setColState(startState()); setSearch(""); setNotes(""); setMinAmt(""); setMaxAmt(""); setRecordedBy("");
+  };
+  const recordedByOptions = docUserOptions(useDocUsersMany(branches.map((b) => b.id)), "id");
+  /** the unified filter's applied values ↔ this page (period / branch / type / wallet live in the column filters) */
+  const barValue: DocumentFilters = {
+    ...EMPTY_DOCUMENT_FILTERS, q: search, from, to, status: typeF === "all" ? "" : typeF, payment: methodF === "all" ? "" : methodF,
+    fromBranch: branchFilter === "all" ? "" : branchFilter, amountMin: minAmt, amountMax: maxAmt, notes, recipient: recordedBy,
+  };
+  const applyBar = (n: DocumentFilters) => {
+    setSearch(n.q); setNotes(n.notes); setMinAmt(n.amountMin); setMaxAmt(n.amountMax); setRecordedBy(n.recipient);
+    let st = withPeriod(colState, "created_at", n.from, n.to);
+    st = withSingleValue(st, "type", n.status ? TYPE_LABEL[n.status as "income" | "expense"] : "");
+    st = withSingleValue(st, "payment_method", n.payment ? methodLabel(n.payment) : "");
+    st = withSingleValue(st, "branch", n.fromBranch ? branches.find((b) => b.id === n.fromBranch)?.name ?? "" : "");
+    setColState(st);
   };
 
   const load = useCallback(async () => {
@@ -224,6 +232,7 @@ export default function MainTreasury() {
     if (n) q = q.ilike("description", `%${n}%`);
     if (dq.minAmt !== "" && !isNaN(Number(dq.minAmt))) q = q.gte("amount", Number(dq.minAmt));
     if (dq.maxAmt !== "" && !isNaN(Number(dq.maxAmt))) q = q.lte("amount", Number(dq.maxAmt));
+    if (recordedBy) q = q.eq("created_by", recordedBy);
     return q.order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).order("id");
   };
 
@@ -236,7 +245,7 @@ export default function MainTreasury() {
     setPageRows(await enrichMoves((data ?? []) as unknown as TxRow[]));
     setTotalCount(count ?? 0);
     setTableLoading(false);
-  }, [tenantId, branches, branchFilter, from, to, typeF, revF, methodF, dq, page]);
+  }, [tenantId, branches, branchFilter, from, to, typeF, revF, methodF, dq, recordedBy, page]);
 
   // ===== Excel filters on every movement the bar's filters leave (owner 2026-10-26) =====
   // The period and ONE branch / type / wallet run in the database for the page; any other column filter or a sort reads
@@ -437,76 +446,41 @@ export default function MainTreasury() {
           </Tabs>
         </div>
 
-        <div className="rounded-lg border bg-muted/30 p-3 mb-4 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="font-bold text-sm">
-              فلاتر حركات الخزينة <span className="text-muted-foreground font-normal">(يعرض {rangeStart} - {rangeEnd} من أصل {shownCount} حركة)</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {DATE_SHORTCUTS.map((sc) => (
-                <Button key={sc.label} variant="outline" size="sm" onClick={() => { const [f, t] = sc.range(); setPeriod(f, t); }}>{sc.label}</Button>
-              ))}
-              <Button variant="ghost" size="sm" onClick={clearFilters}>مسح الفلاتر</Button>
-            </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">بحث (رقم العملية / البيان / التصنيف...)</label>
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="اكتب للبحث…" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">من تاريخ</label>
-              <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">إلى تاريخ</label>
-              <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">النوع</label>
-              <Select value={typeF} onValueChange={(v) => setTypeF(v as any)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">الكل</SelectItem>
-                  <SelectItem value="income">وارد / دخول</SelectItem>
-                  <SelectItem value="expense">صادر / خروج</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">الحركات</label>
+        <UnifiedDocumentFilters
+          title="حركات الخزينة"
+          noun="حركة"
+          shown={{ from: rangeStart, to: rangeEnd, total: shownCount }}
+          value={barValue}
+          onChange={applyBar}
+          onReset={clearFilters}
+          hasAnyFilter
+          showAmount
+          showNotes
+          searchLabel="بحث شامل (رقم العملية، البيان، التصنيف)"
+          searchPlaceholder="رقم العملية، البيان، التصنيف..."
+          paymentOptions={methods.map((m) => ({ value: m, label: methodLabel(m) }))}
+          recipientOptions={recordedByOptions}
+          recipientLabel="اللي سجّل الحركة"
+          customField={(d, set) => (
+            <UnifiedDocumentFilters.Field label="النوع">
+              <UnifiedDocumentFilters.Select value={d.status} options={[{ value: "income", label: "وارد / دخول" }, { value: "expense", label: "صادر / خروج" }]} onChange={(v) => set({ status: v })} />
+            </UnifiedDocumentFilters.Field>
+          )}
+          extraFields={(d, set) => (<>
+            <UnifiedDocumentFilters.Field label="الفرع">
+              <UnifiedDocumentFilters.Select value={d.fromBranch} options={branches.map((b) => ({ value: b.id, label: b.name }))} onChange={(v) => set({ fromBranch: v })} />
+            </UnifiedDocumentFilters.Field>
+            <UnifiedDocumentFilters.Field label="الحركات">
               <Select value={revF} onValueChange={(v) => setRevF(v as any)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 bg-background"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="normal">الحركات العادية</SelectItem>
                   <SelectItem value="reversals">الحركات العكسية والإلغاءات</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">بحث الملاحظات</label>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="كلمة من البيان…" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">المبلغ من</label>
-              <Input type="number" min={0} value={minAmt} onChange={(e) => setMinAmt(e.target.value)} placeholder="0" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">طريقة الدفع / الوعاء</label>
-              <Select value={methodF} onValueChange={setMethodF}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">الكل</SelectItem>
-                  {methods.map(m => <SelectItem key={m} value={m}>{methodLabel(m)}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:col-start-3">
-              <label className="text-xs text-muted-foreground block mb-1">المبلغ إلى</label>
-              <Input type="number" min={0} value={maxAmt} onChange={(e) => setMaxAmt(e.target.value)} />
-            </div>
-          </div>
-        </div>
+            </UnifiedDocumentFilters.Field>
+          </>)}
+        />
 
         <TooltipProvider delayDuration={200}>
         <DataTable

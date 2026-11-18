@@ -1,4 +1,5 @@
 import { addDaysDay, cairoTodayDay, monthStartDay } from "@/lib/cairoDate";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { useEffect, useMemo, useState } from "react";
@@ -32,13 +33,6 @@ import { EMPTY_STATE, type ColumnFilter, type ListColumn } from "@/lib/tableFilt
  * Branch scope: that branch's documents and money; money that crossed branches shows as its own line.
  */
 const PAGE_SIZE = 50;
-const DATE_SHORTCUTS: { label: string; range: () => [string, string] }[] = [
-  { label: "النهاردة", range: () => { const d = cairoTodayDay(); return [d, d]; } },
-  { label: "امبارح", range: () => { const d = addDaysDay(cairoTodayDay(), -1); return [d, d]; } },
-  { label: "آخر 7 أيام", range: () => { const d = cairoTodayDay(); return [addDaysDay(d, -6), d]; } },
-  { label: "الشهر ده", range: () => { const d = cairoTodayDay(); return [monthStartDay(d), d]; } },
-  { label: "الشهر اللي فات", range: () => { const d = cairoTodayDay(); return [monthStartDay(d, -1), addDaysDay(monthStartDay(d), -1)]; } },
-];
 type KindFilter = "all" | "documents" | "money" | "returns" | "cross";
 const kindOf = (l: StatementLine): KindFilter =>
   l.doc_type ? "documents"
@@ -94,7 +88,12 @@ export default function ContactStatement() {
   const [maxAmount, setMaxAmount] = useState("");
   const [page, setPage] = useState(1);
 
-  useEffect(() => { const t = setTimeout(() => setSearch(searchText.trim()), 300); return () => clearTimeout(t); }, [searchText]);
+  useEffect(() => { setSearch(searchText.trim()); }, [searchText]); // the unified filter applies on «بحث» / Enter
+  /** unified filter (2026-11-18) ↔ this page; the period is the «التاريخ» column's from / to (status = النوع) */
+  const barValue: DocumentFilters = { ...EMPTY_DOCUMENT_FILTERS, q: searchText, from: fromDate, to: toDate, status: kind === "all" ? "" : kind, amountMin: minAmount, amountMax: maxAmount };
+  const applyBar = (n: DocumentFilters) => {
+    setSearchText(n.q); setKind((n.status || "all") as KindFilter); setMinAmount(n.amountMin); setMaxAmount(n.amountMax); setPeriod(n.from, n.to);
+  };
   const colSigRaw = JSON.stringify(colState);
   useEffect(() => { setPage(1); }, [fromDate, toDate, search, kind, minAmount, maxAmount, side, scope, colSigRaw]);
 
@@ -267,42 +266,25 @@ export default function ContactStatement() {
         </div></PermCard>
       </div>
 
-      <div className="card-elevated p-4 mb-4 space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {DATE_SHORTCUTS.map((s) => (
-            <Button key={s.label} type="button" variant="outline" size="sm" onClick={() => { const [f, t] = s.range(); setPeriod(f, t); }}>{s.label}</Button>
-          ))}
-        </div>
-        <div className="grid gap-3 md:grid-cols-3">
-          <div>
-            <Label className="text-xs">بحث</Label>
-            <div className="relative">
-              <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="رقم الفاتورة / السند / الفرع..." className="pr-9" />
-            </div>
-          </div>
-          <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></div>
-          <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} /></div>
-          <div>
-            <Label className="text-xs">النوع</Label>
-            <Select value={kind} onValueChange={(v) => setKind(v as KindFilter)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">الكل</SelectItem>
-                <SelectItem value="documents">فواتير</SelectItem>
-                <SelectItem value="money">فلوس (تحصيل / سداد / إيداع / رد / افتتاحي)</SelectItem>
-                <SelectItem value="returns">مرتجعات</SelectItem>
-                <SelectItem value="cross">بين الفروع</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div><Label className="text-xs">المبلغ من</Label><Input type="number" min="0" step="0.01" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} /></div>
-          <div><Label className="text-xs">المبلغ إلى</Label><Input type="number" min="0" step="0.01" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} /></div>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => { setColState(EMPTY_STATE); setSearchText(""); setKind("all"); setMinAmount(""); setMaxAmount(""); }}>
-          <X className="ml-2 h-4 w-4" />مسح الفلاتر
-        </Button>
-      </div>
+      <UnifiedDocumentFilters
+        title="كشف الحساب"
+        noun="حركة"
+        shown={{ from: display.length ? (safePage - 1) * PAGE_SIZE + 1 : 0, to: Math.min(safePage * PAGE_SIZE, display.length), total: display.length }}
+        value={barValue}
+        onChange={applyBar}
+        onReset={() => { setColState(EMPTY_STATE); setSearchText(""); setKind("all"); setMinAmount(""); setMaxAmount(""); }}
+        hasAnyFilter={Object.values(barValue).some(Boolean) || colSigRaw !== JSON.stringify(EMPTY_STATE)}
+        showAmount
+        searchLabel="بحث (رقم الفاتورة / السند / الفرع)"
+        searchPlaceholder="رقم الفاتورة / السند / الفرع..."
+        customField={(d, set) => (
+          <UnifiedDocumentFilters.Field label="النوع">
+            <UnifiedDocumentFilters.Select value={d.status} onChange={(v) => set({ status: v })} options={[
+              { value: "documents", label: "فواتير" }, { value: "money", label: "فلوس (تحصيل / سداد / إيداع / رد / افتتاحي)" },
+              { value: "returns", label: "مرتجعات" }, { value: "cross", label: "بين الفروع" }]} />
+          </UnifiedDocumentFilters.Field>
+        )}
+      />
 
       {loadError && (
         <div className="card-elevated p-3 mb-3 text-sm text-destructive flex items-center justify-between gap-2">

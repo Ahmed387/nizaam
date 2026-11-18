@@ -10,6 +10,9 @@ import { exportToExcel, printReport } from "@/lib/export";
 import { openDocs } from "@/lib/openDocs";
 import { PrintDocButton } from "@/components/documents/MoneyCells";
 import type { BulkKind } from "@/lib/bulkDocs";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { fetchDocMeta, movementMatches, MOVEMENT_PAYMENT_OPTIONS, type DocMeta } from "@/lib/docMeta";
+import { useDocUsers, docUserOptions } from "@/lib/docUsers";
 
 /**
  * «حركة الصنف من المستندات» (owner 2026-11-11, migration 0200): every row is a real document of the item — sale / purchase
@@ -69,7 +72,28 @@ export function ProductDocMovements({ product, reloadKey }: { product: any; relo
     return () => { alive = false; };
   }, [productId, reloadKey]);
 
-  const rows = useMemo(() => lines.slice().reverse(), [lines]);
+  // unified filter (2026-11-18): applied on «بحث» / Enter; amount = the DOCUMENT's total (owner «المستند»)
+  const [af, setAf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const [meta, setMeta] = useState<Record<string, DocMeta>>({});
+  useEffect(() => {
+    let off = false;
+    fetchDocMeta(lines.map((l) => ({ table: l.src_table, id: l.src_id }))).then((m) => { if (!off) setMeta(m); });
+    return () => { off = true; };
+  }, [lines]);
+  const users = useDocUsers(product?.branch_id);
+  const recipientOptions = useMemo(() => {
+    if (users.length) return docUserOptions(users);
+    return Array.from(new Set(Object.values(meta).map((m) => m.recipient).filter(Boolean))).sort().map((n) => ({ value: n, label: n }));
+  }, [users, meta]);
+  const anyFilter = Object.values(af).some(Boolean);
+  const rows = useMemo(() => lines.slice().reverse().filter((l) => {
+    if (!anyFilter) return true;
+    if (l.line_no === 0) return false;
+    if (af.from && (!l.line_date || l.line_date < af.from)) return false;
+    if (af.to && (!l.line_date || l.line_date > af.to)) return false;
+    const m = l.src_id ? meta[l.src_id] : undefined;
+    return movementMatches({ reference: l.doc_number, party: l.contact_name ?? m?.party, phone: m?.phone, notes: m?.notes, amount: m?.total ?? 0 }, m, af, false);
+  }), [lines, meta, af, anyFilter]);
   const shown = view ?? rows;
   const chosen = useMemo(() => shown.filter((l) => picked.has(l.line_no)), [shown, picked]);
   const unit = Number(product?.pack_size) > 1 ? `${product?.pack_name ?? "كرتونة"} (${product.pack_size})` : "قطعة";
@@ -95,6 +119,19 @@ export function ProductDocMovements({ product, reloadKey }: { product: any; relo
 
   return (
     <div className="space-y-3" data-testid="product-doc-movements">
+      <UnifiedDocumentFilters
+        title="حركة الصنف"
+        noun="حركة"
+        shown={{ from: rows.length ? 1 : 0, to: rows.length, total: rows.length }}
+        value={af}
+        onChange={setAf}
+        onReset={() => setAf(EMPTY_DOCUMENT_FILTERS)}
+        hasAnyFilter={anyFilter}
+        showAmount
+        showNotes
+        paymentOptions={MOVEMENT_PAYMENT_OPTIONS}
+        recipientOptions={recipientOptions}
+      />
       <div className="card-elevated p-3 flex flex-wrap items-center gap-4 text-sm">
         <span>الوارد: <b className="text-success tabular-nums">{totalIn}</b></span>
         <span>الصادر: <b className="text-destructive tabular-nums">{totalOut}</b></span>

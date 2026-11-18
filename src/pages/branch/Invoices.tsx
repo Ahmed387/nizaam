@@ -1,4 +1,5 @@
 import { ContactLookup } from "@/components/ContactLookup";
+import { useDocUsers, docUserOptions } from "@/lib/docUsers";
 import { canEditDoc } from "@/lib/docEditAccess";
 import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { PermTable } from "@/components/PermTable";
@@ -182,9 +183,11 @@ export default function Invoices() {
   const storeKey = `${pathname}:${tab}`;
   const [filters, setFilters] = useRemembered<Filters>(`xfbar:v1:${storeKey}`, readBar, barEmpty);
   const [colState, setColState] = useRememberedFilter(`xf:v1:${storeKey}`);
-  const [draftFilters, setDraftFilters] = useState<Filters>(filters);
-  // a return tab's search waits for «بحث»: it starts from what that tab remembers
-  useEffect(() => { setDraftFilters(filters); }, [storeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 2026-11-18: every tab's typed filters are a draft inside UnifiedDocumentFilters until «بحث» / Enter;
+  // only the search text being typed is kept here, for the return tabs' suggestions
+  const [suggestQ, setSuggestQ] = useState("");
+  const recipientOptions = docUserOptions(useDocUsers(branchId));
+  useEffect(() => { setSuggestQ(""); }, [storeKey]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [suggestOpen, setSuggestOpen] = useState(false);
 
@@ -1115,7 +1118,7 @@ export default function Invoices() {
   const [amountRaw, setAmountRaw] = useState({ min: "", max: "" });
   const sameNum = (raw: string, v: string | undefined) => raw.trim() !== "" && !!v && Number(raw.replace(/,/g, "")) === Number(v);
   const inputF: Filters = {
-    ...(isReturnTab ? draftFilters : filters),
+    ...filters,
     ...barLinked,
     ...(linked.has("amountMin") ? {
       amountMin: sameNum(amountRaw.min, barLinked.amountMin) ? amountRaw.min : barLinked.amountMin ?? "",
@@ -1125,21 +1128,16 @@ export default function Invoices() {
   // For return tabs the text search stays draft until بحث/Enter; every linked field applies at once (on every page).
   const setInputF = (next: Filters) => {
     const own = ownOf(next);
-    if (isReturnTab) setDraftFilters(own); else setFilters(own);
+    setFilters(own);
     if (next.amountMin !== inputF.amountMin || next.amountMax !== inputF.amountMax) setAmountRaw({ min: next.amountMin, max: next.amountMax });
     const nf = columnsFromBar(tab, colEff.filters, inputF, next, linkCtx);
     if (nf !== colEff.filters) setColState({ ...colEff, filters: nf });
   };
   const anyOwn = (f: Filters) => Object.values(ownOf(f)).some(Boolean);
-  const hasAnyFilter = anyOwn(filters) || (isReturnTab && anyOwn(draftFilters)) || isActive(colEff);
+  const hasAnyFilter = anyOwn(filters) || isActive(colEff);
 
-  const applySearch = () => {
-    setFilters(ownOf(draftFilters));
-    setSuggestOpen(false);
-  };
   const clearAll = () => {
     setFilters(EMPTY_FILTERS);
-    setDraftFilters(EMPTY_FILTERS);
     setColState(EMPTY_STATE);
     setAmountRaw({ min: "", max: "" });
     setSuggestOpen(false);
@@ -1149,14 +1147,14 @@ export default function Invoices() {
   const suggestRows = allRows ?? rows;
   const suggestions = useMemo(() => {
     if (!isReturnTab) return [];
-    const q = draftFilters.q.trim().toLowerCase();
+    const q = suggestQ.trim().toLowerCase();
     if (q.length < 2) return [];
     const text = (r: any) => {
       if (tab === "sale_return") return [r.invoices?.invoice_number, r.invoices?.contacts?.name, r.invoices?.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
       return [r.return_number, r.contacts?.name, r.contacts?.phone, r.reason].filter(Boolean).join(" ").toLowerCase();
     };
     return suggestRows.filter((r) => searchMatch(q, text(r))).slice(0, 20);
-  }, [isReturnTab, tab, draftFilters.q, suggestRows]);
+  }, [isReturnTab, tab, suggestQ, suggestRows]);
 
 
   return (
@@ -1228,11 +1226,14 @@ export default function Invoices() {
         showSearch={!!active.search}
         showDate={!!active.date}
         showAmount={!!active.amount}
+        showNotes={tab !== "quote"}
+        recipientOptions={tab !== "quote" ? recipientOptions : undefined}
+        recipientLabel={tab === "sale" ? "المستلم / البائع" : "المستلم"}
         onSearchTyped={() => { if (isReturnTab) setSuggestOpen(true); }}
+        onDraftChange={(d) => { if (isReturnTab) setSuggestQ(d.q); }}
         searchInputProps={{
           onFocus: () => isReturnTab && setSuggestOpen(true),
           onBlur: () => setTimeout(() => setSuggestOpen(false), 150),
-          onKeyDown: (e) => { if (e.key === "Enter" && isReturnTab) applySearch(); },
         }}
         searchAddon={<>
               {isReturnTab && suggestOpen && suggestions.length > 0 && (
@@ -1248,8 +1249,7 @@ export default function Invoices() {
                         className="w-full text-right px-3 py-2 hover:bg-accent border-b last:border-b-0 flex items-center justify-between gap-2"
                         onMouseDown={(e) => {
                           e.preventDefault();
-                          setDraftFilters({ ...draftFilters, q: String(num ?? "") });
-                          setFilters({ ...draftFilters, q: String(num ?? "") });
+                          setFilters({ ...filters, q: String(num ?? "") });
                           setSuggestOpen(false);
                         }}
                       >
@@ -1267,45 +1267,30 @@ export default function Invoices() {
         statusOptions={active.status ? statusOptions : undefined}
         paymentOptions={active.payment ? paymentOptions : undefined}
         classOptions={active.settle && view !== "cancelled" ? classOptions : undefined}
-        customField={active.category ? (
+        customField={active.category ? (d, set) => (
           <UnifiedDocumentFilters.Field label="نوع السند / التصنيف">
-            <UnifiedDocumentFilters.Select value={inputF.categoryId} options={categories.map((c) => ({ value: c.id, label: c.name }))} onChange={(v) => setInputF({ ...inputF, categoryId: v })} />
-          </UnifiedDocumentFilters.Field>
-        ) : tab !== "quote" ? (
-          <UnifiedDocumentFilters.Field label={tab === "sale" ? "اسم المستلم / البائع" : "اسم المستلم"}>
-            <Input value={inputF.recipient} onChange={(e) => setInputF({ ...inputF, recipient: e.target.value })} className="h-10 bg-background" placeholder="اسم المستلم" />
+            <UnifiedDocumentFilters.Select value={d.categoryId} options={categories.map((c) => ({ value: c.id, label: c.name }))} onChange={(v) => set({ categoryId: v })} />
           </UnifiedDocumentFilters.Field>
         ) : undefined}
-        extraFields={<>
+        extraFields={(d, set) => <>
           {active.party && (
-            <div className="space-y-1">
-              <Label className="text-xs">{active.party === "customer" ? "العميل" : "المورد"}</Label>
+            <UnifiedDocumentFilters.Field label={active.party === "customer" ? "العميل" : "المورد"}>
               <ContactLookup
                 branchId={branchId}
                 kind={active.party === "customer" ? "customer" : "supplier"}
-                value={inputF.partyId}
-                onChange={(id, c) => { if (id && c?.name) partyNames.current.set(id, c.name); setInputF({ ...inputF, partyId: id }); }}
+                value={d.partyId}
+                onChange={(id, c) => { if (id && c?.name) partyNames.current.set(id, c.name); set({ partyId: id }); }}
                 placeholder="الكل"
                 emptyLabel="الكل"
-                triggerClassName="h-9"
+                triggerClassName="h-10"
               />
-            </div>
-          )}
-          {active.category && (
-            <UnifiedDocumentFilters.Field label="اسم المستلم">
-              <Input value={inputF.recipient} onChange={(e) => setInputF({ ...inputF, recipient: e.target.value })} className="h-10 bg-background" placeholder="اسم المستلم" />
-            </UnifiedDocumentFilters.Field>
-          )}
-          {tab !== "quote" && (
-            <UnifiedDocumentFilters.Field label="بحث الملاحظات">
-              <Input value={inputF.notes} onChange={(e) => setInputF({ ...inputF, notes: e.target.value })} className="h-10 bg-background" placeholder="نص في الملاحظات" />
             </UnifiedDocumentFilters.Field>
           )}
           {active.transferBranch && (
             <>
               <div className="space-y-1">
                 <Label className="text-xs">من فرع</Label>
-                <Select value={inputF.fromBranch || "__all__"} onValueChange={(v) => setInputF({ ...inputF, fromBranch: v === "__all__" ? "" : v })}>
+                <Select value={d.fromBranch || "__all__"} onValueChange={(v) => set({ fromBranch: v === "__all__" ? "" : v })}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__all__">الكل</SelectItem>
@@ -1315,7 +1300,7 @@ export default function Invoices() {
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">إلى فرع</Label>
-                <Select value={inputF.toBranch || "__all__"} onValueChange={(v) => setInputF({ ...inputF, toBranch: v === "__all__" ? "" : v })}>
+                <Select value={d.toBranch || "__all__"} onValueChange={(v) => set({ toBranch: v === "__all__" ? "" : v })}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="الكل" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__all__">الكل</SelectItem>
@@ -1326,12 +1311,6 @@ export default function Invoices() {
             </>
           )}
         </>}
-        footer={isReturnTab ? (
-          <div className="flex items-center justify-end gap-2 pt-3 border-t">
-            <Button type="button" variant="outline" size="sm" onClick={clearAll} className="gap-1"><X className="w-4 h-4" /> مسح</Button>
-            <Button type="button" size="sm" onClick={applySearch} className="gap-1"><Search className="w-4 h-4" /> بحث</Button>
-          </div>
-        ) : undefined}
       /></PermPart>
 
       {tab === "transfer" && (
