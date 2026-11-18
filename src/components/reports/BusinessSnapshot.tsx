@@ -10,18 +10,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StockMovementReport } from "@/components/reports/StockMovementReport";
 import { fetchNetTotals } from "@/lib/ledger";
+import { NET_PROFIT_MASK } from "@/lib/netProfitAccess";
 
 type Row = {
   branch_id: string; branch: string; invoices: number; sales: number; returns: number; net_sales: number; cogs: number;
   collected: number; open_credit: number;
-  gross_profit: number; expenses: number; net_profit: number; stock_value: number; stock_qty: number; stock_items: number;
+  gross_profit: number; expenses: number; net_profit: number | null; stock_value: number; stock_qty: number; stock_items: number;
   sold_ahead_of_stock: number;
   // 0135: the profit lines come from the books (same as the income statement and the distribution)
-  operating_profit?: number; other_income?: number; count_diff?: number;
+  operating_profit?: number | null; other_income?: number; count_diff?: number;
   // 0144: sold to / still owed by our own branches («فرع داخلي»)
   internal_sales?: number; internal_open?: number;
 };
-type Snapshot = { from: string; to: string; branches: Row[]; total: Omit<Row, "branch_id" | "branch" | "stock_items" | "sold_ahead_of_stock"> };
+type Snapshot = { from: string; to: string; net_profit_hidden?: boolean; branches: Row[]; total: Omit<Row, "branch_id" | "branch" | "stock_items" | "sold_ahead_of_stock"> };
 
 /** «هل بنكسب ولا بنخسر؟» + «بضاعة كل فرع تساوي كام؟» — one RPC (owner_business_snapshot), per branch and in total.
  *  Since migration 0135 its profit lines are the books (profit_statement_core): the same net profit as the income
@@ -58,7 +59,10 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
   }, [data]);
 
   const t = data?.total as (Snapshot["total"] & { collected?: number; open_credit?: number }) | undefined;
+  // 0251: a user without «رؤية صافي الربح» gets net / operating profit as null → «غير مصرح»
+  const npHidden = !!data?.net_profit_hidden;
   const winning = (t?.net_profit ?? 0) >= 0;
+  const np = (v: number | null | undefined) => (npHidden ? NET_PROFIT_MASK : formatEGP(v ?? 0));
 
   return (
     <div className="space-y-4">
@@ -78,14 +82,14 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
           <div>
             <div className="text-sm text-muted-foreground">{compact ? "الشهر ده لحد النهارده" : `من ${from} إلى ${to}`}</div>
             <div className={`text-2xl font-extrabold ${winning ? "text-success" : "text-destructive"}`}>
-              {winning ? "الشركة كسبانة" : "الشركة خسرانة"} {formatEGP(Math.abs(t?.net_profit ?? 0))}
+              {npHidden ? <>صافي الربح: {NET_PROFIT_MASK}</> : <>{winning ? "الشركة كسبانة" : "الشركة خسرانة"} {formatEGP(Math.abs(t?.net_profit ?? 0))}</>}
             </div>
           </div>
         </div>
         <div className="text-xs text-muted-foreground leading-6">
           صافي المبيعات {formatEGP(t?.net_sales ?? 0)} − تكلفة البضاعة المباعة {formatEGP(t?.cogs ?? 0)} = مجمل ربح {formatEGP(t?.gross_profit ?? 0)}<br />
-          − مصروفات التشغيل {formatEGP(t?.expenses ?? 0)} = ربح التشغيل {formatEGP(t?.operating_profit ?? (t?.gross_profit ?? 0) - (t?.expenses ?? 0))}<br />
-          + إيرادات أخرى {formatEGP(t?.other_income ?? 0)} + فروقات الجرد {formatEGP(t?.count_diff ?? 0)} = <b className="text-foreground">صافي {formatEGP(t?.net_profit ?? 0)}</b>
+          − مصروفات التشغيل {formatEGP(t?.expenses ?? 0)} = ربح التشغيل {npHidden ? NET_PROFIT_MASK : formatEGP(t?.operating_profit ?? (t?.gross_profit ?? 0) - (t?.expenses ?? 0))}<br />
+          + إيرادات أخرى {formatEGP(t?.other_income ?? 0)} + فروقات الجرد {formatEGP(t?.count_diff ?? 0)} = <b className="text-foreground">صافي {np(t?.net_profit)}</b>
         </div>
       </div></PermCard>
 
@@ -103,7 +107,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Kpi icon={<Scale />} label="ربح التشغيل" value={t?.operating_profit} hint="مجمل الربح − المصروفات" />
+        <Kpi icon={<Scale />} label="ربح التشغيل" value={t?.operating_profit ?? undefined} masked={npHidden} hint="مجمل الربح − المصروفات" />
         <Kpi icon={<HandCoins />} label="إيرادات أخرى" value={t?.other_income} hint="سندات قبض إيرادات وعمولة التحويل اللي دفعها العميل" />
         <Kpi icon={<Boxes />} label="فروقات الجرد" value={t?.count_diff} hint="زيادة الجرد − العجز (سطر لوحده تحت الربح)" />
       </div>
@@ -129,7 +133,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
                 <td className="px-3 py-2">{formatEGP(b.expenses)}</td>
                 <td className="px-3 py-2">{formatEGP(b.other_income ?? 0)}</td>
                 <td className="px-3 py-2">{formatEGP(b.count_diff ?? 0)}</td>
-                <td className={`px-3 py-2 font-extrabold ${b.net_profit >= 0 ? "text-success" : "text-destructive"}`}>{formatEGP(b.net_profit)}</td>
+                <td className={`px-3 py-2 font-extrabold ${npHidden ? "text-muted-foreground" : (b.net_profit ?? 0) >= 0 ? "text-success" : "text-destructive"}`}>{np(b.net_profit)}</td>
                 <td className="px-3 py-2 font-bold">{formatEGP(b.stock_value)}
                   {b.sold_ahead_of_stock > 0 && <div className="text-[10px] text-warning">بعد خصم {formatEGP(b.sold_ahead_of_stock)} مباع بالسالب</div>}
                 </td>
@@ -150,12 +154,12 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
   );
 }
 
-function Kpi({ icon, label, value, hint }: { icon: React.ReactNode; label: string; value?: number; hint?: string }) {
+function Kpi({ icon, label, value, hint, masked }: { icon: React.ReactNode; label: string; value?: number; hint?: string; masked?: boolean }) {
   const neg = (value ?? 0) < 0;
   return (
     <PermCard label={label}><div className="card-elevated p-4">
       <div className="flex items-center gap-2 text-muted-foreground text-xs [&_svg]:w-4 [&_svg]:h-4">{icon}{label}</div>
-      <div className={`text-xl font-extrabold mt-1 tabular-nums ${neg ? "text-destructive" : ""}`}>{formatEGP(value ?? 0)}</div>
+      <div className={`text-xl font-extrabold mt-1 tabular-nums ${masked ? "text-muted-foreground" : neg ? "text-destructive" : ""}`}>{masked ? NET_PROFIT_MASK : formatEGP(value ?? 0)}</div>
       {hint && <div className="text-[11px] text-muted-foreground mt-0.5">{hint}</div>}
     </div></PermCard>
   );

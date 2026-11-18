@@ -61,6 +61,7 @@ export const PAGE_PARTS: Record<string, PagePart[]> = {
     { id: "gross_profit_today", label: "مجمل ربح اليوم", kind: "كارت", sensitive: true },
     { id: "till_balance", label: "رصيد الخزنة", kind: "كارت", sensitive: true },
     { id: "month_target", label: "هدف مبيعات الشهر", kind: "بوكس" },
+    { id: "month_profit_target", label: "هدف صافي ربح الشهر", kind: "بوكس", sensitive: true },
     { id: "sales_chart", label: "المبيعات آخر 30 يوم", kind: "رسم بياني" },
     { id: "collections", label: "تحصيلات اليوم حسب الطريقة", kind: "بوكس" },
     { id: "top_products", label: "أكثر المنتجات مبيعاً", kind: "بوكس" },

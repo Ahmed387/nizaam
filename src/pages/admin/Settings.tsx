@@ -58,6 +58,7 @@ export default function Settings() {
   const [inventory, setInventory] = useState<InventorySettings>({ default_low_stock_alert: 5 });
   const [branchThresholds, setBranchThresholds] = useState<Record<string, number>>({});
   const [branchTargets, setBranchTargets] = useState<Record<string, number>>({});
+  const [profitTargets, setProfitTargets] = useState<Record<string, number>>({});
   const [savingThresholds, setSavingThresholds] = useState(false);
   const [savingTargets, setSavingTargets] = useState(false);
 
@@ -77,7 +78,7 @@ export default function Settings() {
     (async () => {
       const [{ data }, { data: brs }] = await Promise.all([
         supabase.from("settings").select("*"),
-        supabase.from("branches").select("id, low_balance_threshold, monthly_sales_target, code").eq("is_system", false),
+        supabase.from("branches").select("id, low_balance_threshold, monthly_sales_target, monthly_net_profit_target, code").eq("is_system", false),
       ]);
       for (const row of data ?? []) {
         if (row.key === "company") setCompany(row.value as any);
@@ -105,12 +106,15 @@ export default function Settings() {
       }
       const tmap: Record<string, number> = {};
       const gmap: Record<string, number> = {};
+      const pmap: Record<string, number> = {};
       for (const b of brs ?? []) {
+        pmap[(b as any).id] = Number((b as any).monthly_net_profit_target ?? 0);
         tmap[(b as any).id] = Number((b as any).low_balance_threshold ?? 0);
         gmap[(b as any).id] = Number((b as any).monthly_sales_target ?? 0);
       }
       setBranchThresholds(tmap);
       setBranchTargets(gmap);
+      setProfitTargets(pmap);
       setLoading(false);
     })();
   }, []);
@@ -169,14 +173,18 @@ export default function Settings() {
   const saveTargets = async () => {
     setSavingTargets(true);
     try {
-      const updates = Object.entries(branchTargets).map(([id, v]) =>
-        supabase.from("branches").update({ monthly_sales_target: Number(v) || 0 } as any).eq("id", id)
+      const ids = Array.from(new Set([...Object.keys(branchTargets), ...Object.keys(profitTargets)]));
+      const updates = ids.map((id) =>
+        supabase.from("branches").update({
+          monthly_sales_target: Number(branchTargets[id]) || 0,
+          monthly_net_profit_target: Number(profitTargets[id]) || 0,
+        } as any).eq("id", id)
       );
       const results = await Promise.all(updates);
       const err = results.find((r) => r.error);
       if (err?.error) throw err.error;
-      await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "branches_targets", details: branchTargets });
-      toast.success("تم حفظ أهداف المبيعات");
+      await logAudit({ userId: user!.id, userName: profile?.name ?? "", action: "UPDATE", entity: "branches_targets", details: { sales: branchTargets, net_profit: profitTargets } });
+      toast.success("تم حفظ أهداف المبيعات وصافي الربح");
     } catch (e: any) {
       toast.error(e.message ?? "خطأ في الحفظ");
     } finally {
@@ -584,24 +592,37 @@ export default function Settings() {
             <div className="flex items-start gap-3">
               <Target className="w-5 h-5 text-primary shrink-0 mt-0.5" />
               <div>
-                <h3 className="font-bold">هدف صافي الربح الشهري (لكل فرع)</h3>
+                <h3 className="font-bold">الأهداف الشهرية (لكل فرع)</h3>
                 <p className="text-sm text-muted-foreground">
-                  حدّد هدف صافي الربح الشهري للفرع (مش المبيعات). المرتجعات بتتخصم تلقائياً من المحقق.
-                  هيظهر مؤشر التقدم في لوحة الفرع. اكتب صفر لتعطيل الهدف.
+                  لكل فرع هدفين: هدف المبيعات (بيتقارن بصافي مبيعات الشهر بعد المرتجعات) وهدف صافي الربح
+                  (بيتقارن بصافي ربح الشهر من الدفاتر — نفس رقم قائمة الدخل). كل هدف ليه مؤشر في لوحة الفرع. اكتب صفر لتعطيل الهدف.
                 </p>
               </div>
             </div>
             <div className="space-y-2">
               {branches.length === 0 && <p className="text-sm text-muted-foreground">لا توجد فروع بعد.</p>}
+              {branches.length > 0 && (
+                <div className="flex items-center gap-3 px-2 text-xs text-muted-foreground">
+                  <div className="flex-1" />
+                  <div className="w-36 text-center">هدف المبيعات</div>
+                  <div className="w-36 text-center">هدف صافي الربح</div>
+                  <span className="w-8" />
+                </div>
+              )}
               {branches.map((b) => (
                 <div key={b.id} className="flex items-center gap-3 p-2 rounded border">
                   <div className="flex-1 font-medium">{b.name}</div>
                   <Input
-                    type="number" min={0} className="w-40 text-right"
+                    type="number" min={0} className="w-36 text-right" aria-label={`هدف مبيعات ${b.name}`}
                     value={branchTargets[b.id] ?? 0}
                     onChange={(e) => setBranchTargets((s) => ({ ...s, [b.id]: Number(e.target.value) }))}
                   />
-                  <span className="text-xs text-muted-foreground w-12">جنيه</span>
+                  <Input
+                    type="number" min={0} className="w-36 text-right" aria-label={`هدف صافي ربح ${b.name}`}
+                    value={profitTargets[b.id] ?? 0}
+                    onChange={(e) => setProfitTargets((s) => ({ ...s, [b.id]: Number(e.target.value) }))}
+                  />
+                  <span className="text-xs text-muted-foreground w-8">جنيه</span>
                 </div>
               ))}
             </div>

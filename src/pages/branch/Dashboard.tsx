@@ -24,6 +24,7 @@ import {
 import { ShareBreakdown } from "@/components/charts/RankBars";
 import { ActiveReservationsPanel } from "@/components/ActiveReservationsPanel";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
+import { targetView } from "@/lib/monthTarget";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { MetricHint } from "@/components/ui/MetricHint";
 import { InvoiceQuickDialog } from "@/components/InvoiceQuickDialog";
@@ -53,6 +54,8 @@ export default function BranchDashboard() {
   const [profitMonth, setProfitMonth] = useState(0);
   const [paymentBreakdown, setPaymentBreakdown] = useState<any[]>([]);
   const [monthlyTarget, setMonthlyTarget] = useState(0);
+  const [profitTarget, setProfitTarget] = useState(0);
+  const [netProfitMonth, setNetProfitMonth] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -87,7 +90,7 @@ export default function BranchDashboard() {
       allRows(() => applyCairoRange(
         supabase.from("invoice_payments").select("id, amount, payment_method, voided_at, reverses_payment_id").eq("branch_id", id),
         "created_at", td, td).order("id")),
-      supabase.from("branches").select("monthly_sales_target").eq("id", id!).maybeSingle(),
+      supabase.from("branches").select("monthly_sales_target, monthly_net_profit_target").eq("id", id!).maybeSingle(),
       // the returns of the same days, on their own day (0133 — the card's rule: a return counts in ITS month)
       fetchReturnLines(fromDay, td, id).catch((e) => { console.warn("sale_return_lines", e); return [] as ReturnLine[]; }),
     ]);
@@ -106,6 +109,13 @@ export default function BranchDashboard() {
       return invoiceProfit(inv).revenue;
     };
     setMonthlyTarget(Number((branchRow.data as any)?.monthly_sales_target ?? 0));
+    // 0251: net-profit target = this month's net profit from the books (same as the income statement); null = not allowed
+    const pTarget = Number((branchRow.data as any)?.monthly_net_profit_target ?? 0);
+    setProfitTarget(pTarget);
+    if (pTarget > 0) {
+      supabase.rpc("branch_month_net_profit" as any, { p_branch: id, p_from: mStart, p_to: td } as any)
+        .then(({ data, error }) => setNetProfitMonth(error || data === null || data === undefined ? null : Number(data)));
+    }
 
     // net sales of a period = what was sold on its days − what came back on its days
     const retOf = (f: string, t: string) => returnEffect(retLines, (l) => l.return_day >= f && l.return_day <= t);
@@ -297,32 +307,62 @@ export default function BranchDashboard() {
 
 
       <PermPart page="dashboard" part="month_target">
-      {monthlyTarget > 0 && (() => {
-        // the branch target is a SALES target (branches.monthly_sales_target) — compared with this month's net sales
-        const achieved = Math.max(0, salesMonth);
-        const pct = Math.min(100, (achieved / monthlyTarget) * 100);
-        const remaining = Math.max(0, monthlyTarget - achieved);
-        const onTrack = pct >= 80;
+      {(() => {
+        const v = targetView(salesMonth, monthlyTarget);
+        if (!v) return null;
         return (
           <div className="card-elevated p-5 mb-6">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Target className={`w-5 h-5 ${onTrack ? "text-success" : "text-warning"}`} />
+                <Target className={`w-5 h-5 ${v.onTrack ? "text-success" : "text-warning"}`} />
                 <h3 className="font-bold">هدف مبيعات الشهر</h3>
               </div>
               <div className="text-sm text-muted-foreground">
                 {formatEGP(salesMonth)} <span className="mx-1">/</span> <b>{formatEGP(monthlyTarget)}</b>
               </div>
             </div>
-            <Progress value={pct} className="h-3" />
+            <Progress value={v.pct} className="h-3" />
             <div className="flex items-center justify-between mt-3 text-sm">
-              <span className={onTrack ? "text-success font-bold" : "text-warning font-bold"}>
-                {pct.toFixed(1)}% من الهدف
-              </span>
+              <span className={v.onTrack ? "text-success font-bold" : "text-warning font-bold"}>{v.pct.toFixed(1)}% من الهدف</span>
               <span className="font-bold text-foreground">
-                {remaining > 0 ? `متبقي ${formatEGP(remaining)} مبيعات لتحقيق الهدف` : "🎉 تم تحقيق الهدف!"}
+                {v.reached ? "🎉 تم تحقيق الهدف!" : `متبقي ${formatEGP(v.remaining)} مبيعات لتحقيق الهدف`}
               </span>
             </div>
+          </div>
+        );
+      })()}
+      </PermPart>
+
+      <PermPart page="dashboard" part="month_profit_target">
+      {profitTarget > 0 && (() => {
+        if (netProfitMonth === null) {
+          return (
+            <div className="card-elevated p-5 mb-6 flex items-center justify-between">
+              <div className="flex items-center gap-2"><Target className="w-5 h-5 text-muted-foreground" /><h3 className="font-bold">هدف صافي ربح الشهر</h3></div>
+              <span className="text-sm text-muted-foreground">{NET_PROFIT_MASK}</span>
+            </div>
+          );
+        }
+        const v = targetView(netProfitMonth, profitTarget)!;
+        return (
+          <div className="card-elevated p-5 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Target className={`w-5 h-5 ${v.onTrack ? "text-success" : "text-warning"}`} />
+                <h3 className="font-bold">هدف صافي ربح الشهر</h3>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                <span className={netProfitMonth < 0 ? "text-destructive" : ""}>{formatEGP(netProfitMonth)}</span> <span className="mx-1">/</span> <b>{formatEGP(profitTarget)}</b>
+              </div>
+            </div>
+            <Progress value={v.pct} className="h-3" />
+            <div className="flex items-center justify-between mt-3 text-sm">
+              <span className={v.onTrack ? "text-success font-bold" : "text-warning font-bold"}>{v.pct.toFixed(1)}% من الهدف</span>
+              <span className="font-bold text-foreground">
+                {v.reached ? "🎉 تم تحقيق الهدف!" : `متبقي ${formatEGP(v.remaining)} صافي ربح لتحقيق الهدف`}
+              </span>
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1">صافي الربح من الدفاتر — نفس رقم قائمة الدخل (بعد التكلفة والمصروفات).</div>
           </div>
         );
       })()}
