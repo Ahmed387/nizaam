@@ -19,7 +19,7 @@ import { formatDate } from "@/lib/format";
  */
 export default function ArchivePage() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canInBranch } = useAuth();
   const Layout = branchId ? BranchLayout : AdminLayout;
   const [contacts, setContacts] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -75,7 +75,7 @@ export default function ArchivePage() {
               { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
               { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
               { key: "why", header: "السبب", render: (r: any) => (r.merged_into ? "اتدمج في حساب تاني" : "أرشفة") },
-              { key: "act", header: "الإجراءات", filter: false, render: (r: any) => (isAdmin && !r.merged_into ? (
+              { key: "act", header: "الإجراءات", filter: false, render: (r: any) => (canInBranch("customers.delete", r.branch_id ?? null) && !r.merged_into ? (
                 <Button size="sm" variant="outline" className="h-8 gap-1 text-success border-success/40" onClick={() => restoreContact(r)}><ArchiveRestore className="w-4 h-4" /> استرجاع</Button>
               ) : null) },
             ]} />

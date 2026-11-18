@@ -77,7 +77,7 @@ const CONTACT_COLS: ListColumn<any>[] = [
 
 export default function Contacts() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { tenantId, user, profile, isAdmin, hasRole } = useAuth();
+  const { tenantId, user, profile, isAdmin, hasRole, canInBranch } = useAuth();
   const nav = useNavigate();
   const [sp, setSp] = useSearchParams();
   const filter = (sp.get("tab") ?? "all") as "all" | ContactType;
@@ -114,6 +114,11 @@ export default function Contacts() {
     supplier_advance: "موردين لينا عندهم مقدم", settled: "حساباتهم مسددة",
   };
   const isManager = hasRole("branch_manager");
+  // 0262 (owner 2026-11-18): the buttons follow «العملاء والموردين» — يضيف / يعدل / يلغي — in this branch; the server checks
+  // the same switch (save_contact / delete_contact), so whoever has it acts directly
+  const canAddC = canInBranch("customers.create", branchId);
+  const canEditC = canInBranch("customers.update", branchId);
+  const canArchiveC = canInBranch("customers.delete", branchId);
 
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
@@ -300,22 +305,10 @@ export default function Contacts() {
         address: form.address || null,
         notes: form.notes || null,
       };
-      if (isAdmin) {
-        const { error } = await saveContact(editing.id, payload);
-        if (error) return toast.error(error.message);
-        toast.success("تم التحديث");
-      } else if (isManager) {
-        if (!reqReason.trim()) return toast.error("اكتب سبب التعديل");
-        const ok = await createApprovalRequest({
-          tenantId: tenantId!, branchId: branchId ?? null,
-          entityType: "contact", entityId: editing.id, entityLabel: editing.name,
-          action: "update", payload, reason: reqReason,
-          requestedBy: user!.id, requestedByName: profile?.name ?? "—",
-        });
-        if (!ok) return;
-      } else {
-        return toast.error("غير مصرح");
-      }
+      if (!canEditC) return toast.error("مش مسموحلك تعدّل بيانات الحسابات");
+      const { error } = await saveContact(editing.id, payload);
+      if (error) return toast.error(error.message);
+      toast.success("تم التحديث");
       setOpen(false);
       setEditing(null);
       load();
@@ -343,22 +336,10 @@ export default function Contacts() {
 
   const onDelete = async () => {
     if (!deleteTarget) return;
-    if (isAdmin) {
-      const { error } = await deleteContact(deleteTarget.id);
-      if (error) return toast.error(error.message);
-      toast.success("تمت الأرشفة — المستندات والحركات محفوظة");
-    } else if (isManager) {
-      if (!reqReason.trim()) return toast.error("اكتب سبب الأرشفة");
-      const ok = await createApprovalRequest({
-        tenantId: tenantId!, branchId: branchId ?? null,
-        entityType: "contact", entityId: deleteTarget.id, entityLabel: deleteTarget.name,
-        action: "delete", reason: reqReason,
-        requestedBy: user!.id, requestedByName: profile?.name ?? "—",
-      });
-      if (!ok) return;
-    } else {
-      return toast.error("غير مصرح");
-    }
+    if (!canArchiveC) return toast.error("مش مسموحلك تأرشف حسابات");
+    const { error } = await deleteContact(deleteTarget.id);
+    if (error) return toast.error(error.message);
+    toast.success("تمت الأرشفة — المستندات والحركات محفوظة");
     setDeleteTarget(null);
     setReqReason("");
     load();
@@ -391,9 +372,9 @@ export default function Contacts() {
               <Printer className="w-4 h-4" /> PDF
             </Button>
             </div></PermPart>
-            <PermPart page="customers" part="add_button"><Button className="btn-gradient" onClick={openNew}>
+            <PermPart page="customers" part="add_button">{canAddC && <Button className="btn-gradient" onClick={openNew}>
               <Plus className="w-4 h-4 ml-1" /> إضافة جهة
-            </Button></PermPart>
+            </Button>}</PermPart>
           </div>
         }
       />
@@ -594,9 +575,11 @@ export default function Contacts() {
             render: (r: any) => (
               <div className="flex items-start gap-1 max-w-[16rem]" onClick={(e) => e.stopPropagation()}>
                 <span className="text-xs whitespace-pre-wrap break-words line-clamp-3" title={r.notes ?? ""}>{r.notes || "—"}</span>
-                <button type="button" aria-label={`تعديل ملاحظات ${r.name}`} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground" onClick={() => openEdit(r)}>
-                  <Pencil className="w-3 h-3" />
-                </button>
+                {canEditC && (
+                  <button type="button" aria-label={`تعديل ملاحظات ${r.name}`} className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground" onClick={() => openEdit(r)}>
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
               </div>
             ),
           },
@@ -650,13 +633,13 @@ export default function Contacts() {
                       <UserPlus className="w-3.5 h-3.5" />
                     </Button>
                   )}
-                  {(isAdmin || isManager) && (
-                    <Button size="sm" variant="outline" title={isAdmin ? "تعديل" : "طلب تعديل"} onClick={() => openEdit(r)}>
+                  {canEditC && (
+                    <Button size="sm" variant="outline" title="تعديل" onClick={() => openEdit(r)}>
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
                   )}
-                  {(isAdmin || isManager) && (
-                    <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title={isAdmin ? "أرشفة" : "طلب أرشفة"} onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
+                  {canArchiveC && (
+                    <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title="أرشفة" onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   )}
@@ -697,7 +680,7 @@ export default function Contacts() {
 
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{editing ? (isAdmin ? "تعديل جهة" : "طلب تعديل جهة") : "إضافة جهة جديدة"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "تعديل جهة" : "إضافة جهة جديدة"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             {!editing && (
               <div>
@@ -737,16 +720,10 @@ export default function Contacts() {
               <Label>ملاحظات</Label>
               <Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="mt-1.5" />
             </div>
-            {editing && isManager && !isAdmin && (
-              <div className="rounded-md border border-warning/30 bg-warning/5 p-3">
-                <Label>سبب التعديل (للموافقة) *</Label>
-                <Textarea value={reqReason} onChange={(e) => setReqReason(e.target.value)} className="mt-1.5" placeholder="سيُرسل لمدير الشركة للموافقة" />
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
-            <Button className="btn-gradient" onClick={submit}>{editing ? (isAdmin ? "حفظ" : "إرسال طلب التعديل") : "إضافة"}</Button>
+            <Button className="btn-gradient" onClick={submit}>{editing ? "حفظ" : "إضافة"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -754,25 +731,15 @@ export default function Contacts() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setReqReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{isManager && !isAdmin ? "طلب أرشفة للموافقة" : "أرشفة الجهة"}</AlertDialogTitle>
+            <AlertDialogTitle>أرشفة الجهة</AlertDialogTitle>
             <AlertDialogDescription>
-              {isManager && !isAdmin ? (
-                <>سيتم إرسال طلب أرشفة <b>{deleteTarget?.name}</b> لمدير الشركة للموافقة.</>
-              ) : (
-                <>هتتأرشف <b>{deleteTarget?.name}</b> وتختفي من القوائم — مفيش حذف نهائي، ومستنداتها وحركاتها محفوظة. مش مسموح لو عليها أو ليها رصيد مفتوح.</>
-              )}
+              <>هتتأرشف <b>{deleteTarget?.name}</b> وتختفي من القوائم — مفيش حذف نهائي، ومستنداتها وحركاتها محفوظة. مش مسموح لو عليها أو ليها رصيد مفتوح.</>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {isManager && !isAdmin && (
-            <div className="px-1">
-              <Label>سبب الأرشفة *</Label>
-              <Textarea className="mt-1.5" value={reqReason} onChange={(e) => setReqReason(e.target.value)} placeholder="اكتب سبب طلب الأرشفة..." />
-            </div>
-          )}
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={onDelete}>
-              {isManager && !isAdmin ? "إرسال طلب الأرشفة" : "أرشفة"}
+              أرشفة
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

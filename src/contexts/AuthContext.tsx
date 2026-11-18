@@ -1,3 +1,4 @@
+import { mergeRolePerms } from "@/lib/roles";
 import { withAuthRetry } from "@/lib/authRetry";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { planAllows, planReadOnly, type PlanState } from "@/lib/planFeatures";
@@ -80,16 +81,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadPerms = async (tid: string | null) => {
     if (!tid) { setPermsByRole({}); return; }
     const { data } = await supabase.from("role_permissions" as any).select("role, permission_key, allowed").eq("tenant_id", tid);
-    const map: Record<string, Record<string, boolean>> = {};
-    (data ?? []).forEach((r: any) => {
-      map[r.role] = map[r.role] ?? {};
-      map[r.role][r.permission_key] = !!r.allowed;
-    });
-    // Merge defaults for any role not yet customised
-    Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([role, defaults]) => {
-      if (!map[role]) map[role] = { ...defaults };
-    });
-    setPermsByRole(map);
+    // saved rows win; a switch with no row takes the role's default (per switch, like perm_resolve)
+    setPermsByRole(mergeRolePerms((data ?? []) as any[]));
   };
 
   const [connError, setConnError] = useState(false);

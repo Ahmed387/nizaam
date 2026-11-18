@@ -78,7 +78,7 @@ const genSku = () =>
 export default function NewShipment() {
   const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId?: string }>();
   const isEdit = !!shipmentId;
-  const { user, profile, isAdmin, isOwner, hasRole, tenantId } = useAuth();
+  const { user, profile, isAdmin, isOwner, hasRole, tenantId, canInBranch } = useAuth();
   const isManager = hasRole("branch_manager");
   const canEditPayments = isAdmin || isOwner || isManager;
   const nav = useNavigate();
@@ -724,9 +724,11 @@ export default function NewShipment() {
                 <div className="flex-1">
                   <PartyCombobox type="supplier" branchId={branchId} value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="— اختر مورد —" />
                 </div>
-                <Button type="button" size="icon" variant="outline" onClick={() => setSupplierDlg(true)} title="مورد جديد" className="shrink-0 border-sky-500/40 text-sky-600 hover:bg-sky-500/10 hover:text-sky-700">
-                  <UserPlus className="w-4 h-4" />
-                </Button>
+                {canInBranch("customers.create", branchId) && (
+                  <Button type="button" size="icon" variant="outline" onClick={() => setSupplierDlg(true)} title="مورد جديد" className="shrink-0 border-sky-500/40 text-sky-600 hover:bg-sky-500/10 hover:text-sky-700">
+                    <UserPlus className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
               {!isEdit && supplierAdvance > 0.005 && (
                 <div className="mt-2 p-2.5 rounded-lg border border-primary/40 bg-primary/10 text-sm">
@@ -751,7 +753,7 @@ export default function NewShipment() {
               <InvoiceDateInput value={invoiceDate} onChange={setInvoiceDate} label="تاريخ فاتورة الشراء" />
             </div>
           </div>
-          {suppliers.length === 0 && (
+          {suppliers.length === 0 && canInBranch("customers.create", branchId) && (
             <button type="button" onClick={() => setSupplierDlg(true)}
               className="w-full p-3 border-2 border-dashed border-sky-500/40 rounded-xl text-sm text-sky-700 dark:text-sky-300 hover:bg-sky-500/10 flex items-center justify-center gap-2 font-bold bg-gradient-to-l from-sky-500/5 to-transparent">
               <UserPlus className="w-4 h-4" /> لا يوجد موردين — اضغط لإضافة مورد جديد

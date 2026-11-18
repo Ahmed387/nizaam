@@ -190,7 +190,7 @@ export default function InvoiceView() {
             {canEdit && <Button variant="outline" onClick={() => nav(`/branch/${id}/sales/${invoiceId}/edit`)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> التعديل على الفاتورة</Button>}
             <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة</Button>
             {inv.status === "active" && (
-              <WhatsAppSendButton phone={inv.contacts?.phone} contactId={inv.contact_id} canSavePhone={isAdmin} buildText={whatsappText} />
+              <WhatsAppSendButton phone={inv.contacts?.phone} contactId={inv.contact_id} canSavePhone={canInBranch("customers.update", inv.branch_id)} buildText={whatsappText} />
             )}
             {canCancel && (
               <Button

@@ -62,7 +62,11 @@ interface ShipmentSummary {
 
 
 export default function AllSuppliers() {
-  const { tenantId, user, profile, isAdmin, hasRole } = useAuth();
+  const { tenantId, user, profile, isAdmin, hasRole, canInBranch } = useAuth();
+  // 0262: buttons follow «العملاء والموردين ← يضيف / يعدل / يلغي» (the server checks the same; whoever has it acts directly)
+  const canAddC = canInBranch("customers.create");
+  const canEditRow = (r: any) => canInBranch("customers.update", r?.branch_id ?? null);
+  const canArchiveRow = (r: any) => canInBranch("customers.delete", r?.branch_id ?? null);
   const nav = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [branches, setBranches] = useState<{ id: string; name: string }[]>([]);
@@ -200,23 +204,7 @@ export default function AllSuppliers() {
       notes: form.notes || null,
     };
     if (editing) {
-      // Branch manager (non-admin) → send approval request instead of direct update
-      if (!isAdmin && hasRole("branch_manager")) {
-        const ok = await createApprovalRequest({
-          tenantId: tenantId!,
-          branchId: (editing as any).branch_id ?? null,
-          entityType: "contact",
-          entityId: editing.id,
-          entityLabel: editing.name,
-          action: "update",
-          payload,
-          reason: "تعديل بيانات جهة تواصل",
-          requestedBy: user!.id,
-          requestedByName: profile?.name ?? "—",
-        });
-        if (ok) setOpen(false);
-        return;
-      }
+      if (!canEditRow(editing)) return toast.error("مش مسموحلك تعدّل بيانات الحسابات");
       const { error } = await saveContact(editing.id, payload);
       if (error) return toast.error(error.message);
       toast.success("تم تحديث المورد");
@@ -232,22 +220,7 @@ export default function AllSuppliers() {
 
   const remove = async () => {
     if (!deleteConfirm) return;
-    // Branch manager → send approval request
-    if (!isAdmin && hasRole("branch_manager")) {
-      const ok = await createApprovalRequest({
-        tenantId: tenantId!,
-        branchId: (deleteConfirm as any).branch_id ?? null,
-        entityType: "contact",
-        entityId: deleteConfirm.id,
-        entityLabel: deleteConfirm.name,
-        action: "delete",
-        reason: deleteReason || "أرشفة جهة تواصل",
-        requestedBy: user!.id,
-        requestedByName: profile?.name ?? "—",
-      });
-      if (ok) { setDeleteConfirm(null); setDeleteReason(""); }
-      return;
-    }
+    if (!canArchiveRow(deleteConfirm)) return toast.error("مش مسموحلك تأرشف حسابات");
     const { error } = await deleteContact(deleteConfirm.id);
     if (error) return toast.error(error.message);
     toast.success("تمت أرشفة الجهة — بياناتها ومستنداتها محفوظة");
@@ -421,7 +394,7 @@ export default function AllSuppliers() {
             <Button variant="outline" onClick={() => nav("/admin/archive")}>الأرشيف</Button>
             <Button variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
             <Button variant="outline" onClick={() => openNewShipment()}><Truck className="w-4 h-4 ml-1" /> فاتورة شراء جديدة</Button>
-            <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> جهة جديدة</Button>
+            {canAddC && <Button className="btn-gradient" onClick={openNew}><Plus className="w-4 h-4 ml-1" /> جهة جديدة</Button>}
           </div>
         }
       />
@@ -532,8 +505,8 @@ export default function AllSuppliers() {
               )}
               <Button size="sm" variant="outline" title="فواتير الشراء" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="إضافة فاتورة شراء جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
-              <Button size="sm" variant="outline" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>
-              <Button size="sm" variant="outline" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setDeleteConfirm(r)}><Trash2 className="w-3.5 h-3.5" /></Button>
+              {canEditRow(r) && <Button size="sm" variant="outline" title="تعديل" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>}
+              {canArchiveRow(r) && <Button size="sm" variant="outline" title="أرشفة" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setDeleteConfirm(r)}><Trash2 className="w-3.5 h-3.5" /></Button>}
             </div>
           )},
         ]} />
@@ -781,25 +754,15 @@ export default function AllSuppliers() {
       <AlertDialog open={!!deleteConfirm} onOpenChange={(o) => { if (!o) { setDeleteConfirm(null); setDeleteReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{!isAdmin && hasRole("branch_manager") ? "طلب أرشفة للموافقة" : "أرشفة جهة التعامل"}</AlertDialogTitle>
+            <AlertDialogTitle>أرشفة جهة التعامل</AlertDialogTitle>
             <AlertDialogDescription>
-              {!isAdmin && hasRole("branch_manager") ? (
-                <>سيتم إرسال طلب أرشفة <b>{deleteConfirm?.name}</b> لمدير الشركة للموافقة. سيصلك إشعار بالقرار.</>
-              ) : (
-                <>هتتأرشف <b>{deleteConfirm?.name}</b> وتختفي من القوائم — مفيش حذف نهائي، وكل مستنداتها وحركاتها محفوظة. الأرشفة مش مسموحة لو عليها أو ليها رصيد مفتوح.</>
-              )}
+              <>هتتأرشف <b>{deleteConfirm?.name}</b> وتختفي من القوائم — مفيش حذف نهائي، وكل مستنداتها وحركاتها محفوظة. الأرشفة مش مسموحة لو عليها أو ليها رصيد مفتوح.</>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {!isAdmin && hasRole("branch_manager") && (
-            <div className="px-1">
-              <Label>سبب الأرشفة</Label>
-              <Textarea className="mt-1.5" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)} placeholder="اكتب سبب الأرشفة..." />
-            </div>
-          )}
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={remove}>
-              {!isAdmin && hasRole("branch_manager") ? "إرسال طلب الأرشفة" : "أرشفة"}
+              أرشفة
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

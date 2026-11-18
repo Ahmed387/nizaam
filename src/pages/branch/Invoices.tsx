@@ -142,6 +142,7 @@ export default function Invoices() {
   const [cancelPurchase, setCancelPurchase] = useState<any>(null);
   const canCancelDoc = isAdmin || isManager;
   const [editVoucher, setEditVoucher] = useState<{ v: any; focus: boolean } | null>(null);
+  const [newVoucherType, setNewVoucherType] = useState<"receipt" | "payment" | null>(null);
   const [selectedReturnForCancel, setSelectedReturnForCancel] = useState<CancelReturnTarget | null>(null);
 
   const [returnEdit, setReturnEdit] = useState<{ kind: "sale_return" | "purchase_return"; rec: any } | null>(null);
@@ -1178,9 +1179,17 @@ export default function Invoices() {
             {tab === "sale_return" && branchId && <PriorYearReturnButton branchId={branchId} onDone={() => load()} />}
             {cfg.newLink && (
               <PermGate perm={(cfg as any).newPerm ?? ""}>
-                <Button asChild className="gap-2">
-                  <Link to={cfg.newLink}><Plus className="w-4 h-4" /> {cfg.newLabel}</Link>
-                </Button>
+                {(tab === "income" || tab === "expense") && branchId ? (
+                  // the voucher form opens HERE (owner 2026-11-18 «مش قادرين ينفذوا اي سند»): the link went to the till page,
+                  // which a cashier without «الخزنة» cannot open, so he was sent back home with the voucher never made
+                  <Button className="gap-2" onClick={() => setNewVoucherType(tab === "income" ? "receipt" : "payment")}>
+                    <Plus className="w-4 h-4" /> {cfg.newLabel}
+                  </Button>
+                ) : (
+                  <Button asChild className="gap-2">
+                    <Link to={cfg.newLink}><Plus className="w-4 h-4" /> {cfg.newLabel}</Link>
+                  </Button>
+                )}
               </PermGate>
             )}
           
@@ -1467,6 +1476,11 @@ export default function Invoices() {
       {editVoucher && (
         <VoucherDialog open onOpenChange={(o) => !o && setEditVoucher(null)} branchId={editVoucher.v.branch_id}
           type={editVoucher.v.type} editingVoucher={editVoucher.v} focusDate={editVoucher.focus} onSuccess={() => load()} />
+      )}
+
+      {newVoucherType && branchId && (
+        <VoucherDialog open onOpenChange={(o) => !o && setNewVoucherType(null)} branchId={branchId} type={newVoucherType}
+          onSuccess={() => { setNewVoucherType(null); load(); }} />
       )}
 
       {/* Cancel voucher */}

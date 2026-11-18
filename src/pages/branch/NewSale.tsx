@@ -89,7 +89,7 @@ interface PaymentSplit {
 export default function NewSale() {
   const canViewNetProfit = useCanViewNetProfit();
   const { id: branchId } = useParams<{ id: string }>();
-  const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
+  const { user, profile, isAdmin, hasRole, tenantId, canInBranch } = useAuth();
   const nav = useNavigate();
   const location = useLocation();
   const prefillAppliedRef = useRef(false);
@@ -1306,9 +1306,11 @@ export default function NewSale() {
                   <Label className="mb-1 block">العميل <span className="text-[10px] text-muted-foreground" dir="ltr">(F4)</span></Label>
                   <div className="flex gap-2">
                     <CustomerSelect className="flex-1" branchId={branchId} value={customerId} onChange={(id, c) => { setCustomerId(id); if (c) setCustomers((prev) => [...prev.filter((x) => x.id !== c.id), c]); }} />
-                    <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
-                      <UserPlus className="w-4 h-4" />
-                    </Button>
+                    {canInBranch("customers.create", branchId) && (
+                      <Button type="button" variant="outline" size="icon" onClick={() => setNewCustOpen(true)} title="إضافة عميل جديد">
+                        <UserPlus className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <div>

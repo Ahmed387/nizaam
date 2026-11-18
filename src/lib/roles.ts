@@ -43,8 +43,8 @@ export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   { key: "shipments", label: "فواتير الشراء", actions: ["view", "create", "update", "delete"] },
   { key: "inventory", label: "المخزون", actions: ["view", "create", "update", "delete"] },
   { key: "transfers", label: "نقل المخزون بين الفروع", actions: ["view", "create"] },
-  { key: "customers", label: "العملاء", actions: ["view", "create", "update", "delete"] },
-  { key: "suppliers", label: "الموردين", actions: ["view", "create", "update", "delete"] },
+  // 0262 (owner 2026-11-18 «خليهم اوبشن واحد»): ONE switch for customers AND suppliers — `suppliers.*` reads `customers.*`
+  { key: "customers", label: "العملاء والموردين", actions: ["view", "create", "update", "delete"] },
   { key: "treasury", label: "الخزنة", actions: ["view"] },
   // 0139: «تحويل بين الأوعية» inside one branch (cash ↔ wallet ↔ bank …), optional fee = expense
   { key: "vessel_transfers", label: "التحويل بين أوعية الفرع (كاش / محافظ / بنك)", actions: ["create"] },
@@ -306,7 +306,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
     "dashboard.view": true, "inventory.view": true, "inventory.create": true, "inventory.update": true,
     "transfers.view": true, "transfers.create": true,
     "shipments.view": true, "shipments.create": true, "shipments.update": true,
-    "suppliers.view": true, "suppliers.create": true, "suppliers.update": true,
+    "customers.view": true, "customers.create": true, "customers.update": true,
     "employees.view": true, "employees.create": true, "employees.update": true,
     "advances.view": true, "advances.create": true,
     "attendance.view": true, "attendance.create": true,
@@ -352,6 +352,22 @@ export const isWriteKey = (key: string) => !["view", "read"].includes(key.split(
  *   override for every branch → manager (admin) → true unless taken away above
  *   the branch's template (when chosen) or his roles → a part follows its page → an admin sub-section follows its parent
  */
+/**
+ * Role switches for the screen, read like perm_resolve (parity check 2026-11-18): a saved row of the company wins, and a
+ * switch with NO row falls back to that role's default — per switch, not per role. Before, a role with any saved row lost
+ * every default, so switches added later («تعديل المرتجعات», «التحويل بين الأوعية») were closed on screen and open on the
+ * server.
+ */
+export function mergeRolePerms(rows: { role: string; permission_key: string; allowed: boolean }[]): Record<string, Record<string, boolean>> {
+  const map: Record<string, Record<string, boolean>> = {};
+  Object.entries(DEFAULT_ROLE_PERMISSIONS).forEach(([role, defaults]) => { map[role] = { ...defaults }; });
+  rows.forEach((r) => { map[r.role] = map[r.role] ?? {}; map[r.role][r.permission_key] = !!r.allowed; });
+  return map;
+}
+
+/** 0262: «العملاء والموردين» is one switch — a `suppliers.<action>` key is read as `customers.<action>` (same in perm_resolve). */
+export const canonicalPermKey = (key: string) => (key.startsWith("suppliers.") ? `customers.${key.slice(10)}` : key);
+
 export function checkPermission(
   roles: AppRole[],
   permsByRole: Record<string, Record<string, boolean>>,
@@ -360,6 +376,7 @@ export function checkPermission(
   branchId?: string | null,
   rule?: BranchRule | null,
 ): boolean {
+  key = canonicalPermKey(key);
   if (roles.includes("super_admin") || roles.includes("owner")) return true;
   if (branchId && rule?.read && isWriteKey(key)) return false;
   // 0257: same order as perm_resolve — only the employee's own rule (that branch, then every branch)

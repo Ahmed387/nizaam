@@ -43,7 +43,7 @@ export default function ContactFile() {
   const routeBranchId = params.id;
   const contactId = params.supplierId || params.contactId;
   const nav = useNavigate();
-  const { user, profile, tenantId, branches, isAdmin, hasRole } = useAuth();
+  const { user, profile, tenantId, branches, isAdmin, hasRole, canInBranch } = useAuth();
   const isAdminView = !routeBranchId;
   const Layout = isAdminView ? AdminLayout : BranchLayout;
   const backTo = isAdminView ? "/admin/contacts" : `/branch/${routeBranchId}/contacts`;
@@ -174,9 +174,10 @@ export default function ContactFile() {
             {c && contactId && !c.is_archived && (
               <HideContactButton contactId={contactId} contactName={c.name} internalBranch={!!(c as any).internal_branch_id} />
             )}
-            {isAdmin && <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
-            {isAdmin && <Button variant="outline" className="text-destructive" onClick={() => setArchiveOpen(true)}><Archive className="w-4 h-4 ml-1" /> أرشفة</Button>}
-            {isAdmin && c && c.type !== "both" && (
+            {/* 0262: «العملاء والموردين ← يعدل / يلغي / يضيف» in the account's branch (the server checks the same) */}
+            {c && canInBranch("customers.update", (c as any).branch_id ?? routeBranchId) && <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
+            {c && canInBranch("customers.delete", (c as any).branch_id ?? routeBranchId) && <Button variant="outline" className="text-destructive" onClick={() => setArchiveOpen(true)}><Archive className="w-4 h-4 ml-1" /> أرشفة</Button>}
+            {c && c.type !== "both" && canInBranch("customers.create", (c as any).branch_id ?? routeBranchId) && (
               <Button variant="outline" onClick={async () => {
                 const { error } = await saveContact(contactId!, { type: "both" });
                 if (error) return toast.error(error.message);
