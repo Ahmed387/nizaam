@@ -13,6 +13,12 @@ describe("whatsapp share", () => {
     expect(waPhone("")).toBeNull();
     expect(waPhone(null)).toBeNull();
   });
+  it("a field with two numbers takes the first mobile (owner 2026-11-18 «زرار الواتساب مش شغال»)", () => {
+    expect(waPhone("01001234567 / 01112223334")).toBe("201001234567");
+    expect(waPhone("0862345678 - 01112223334")).toBe("201112223334");
+    expect(waPhone("01001234567،01112223334")).toBe("201001234567");
+    expect(waPhone("0862345678 / 0862345679")).toBeNull();
+  });
   it("message", () => {
     const t = saleMessage({ customer: "محمد علاء", number: "IN05120", branch: "معرض عبد المنعم", date: "16/11/2026",
       items: [{ name: "غسالة فريش 10 ك", quantity: 1, total: 14500 }, { name: "مكواة توشيبا", quantity: 2, total: 1800 }],

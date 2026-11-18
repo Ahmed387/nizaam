@@ -6,15 +6,27 @@
 
 const AR_DIGITS: Record<string, string> = { "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9" };
 
-/** An Egyptian mobile in international form without «+» (2010…), or null when it isn't a usable number. */
-export function waPhone(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  let d = String(raw).replace(/[٠-٩]/g, (c) => AR_DIGITS[c]).replace(/\D/g, "");
+/** One number in international form without «+» (2010…), or null. */
+function onePhone(raw: string): string | null {
+  let d = raw.replace(/[٠-٩]/g, (c) => AR_DIGITS[c]).replace(/\D/g, "");
   if (d.startsWith("00")) d = d.slice(2);
   if (/^01[0125]\d{8}$/.test(d)) return "2" + d;          // 010xxxxxxxx → 2010xxxxxxxx
   if (/^1[0125]\d{8}$/.test(d)) return "20" + d;           // 10xxxxxxxx
   if (/^201[0125]\d{8}$/.test(d)) return d;                // 2010xxxxxxxx
   if (/^\d{10,15}$/.test(d) && !d.startsWith("0")) return d; // another country, already international
+  return null;
+}
+
+/** An Egyptian mobile in international form without «+» (2010…), or null when there is no usable number. A field with
+ *  two numbers («0100… / 0111…», a landline and a mobile) gives the first mobile. */
+export function waPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const whole = onePhone(String(raw));
+  if (whole) return whole;
+  for (const part of String(raw).split(/[\/\-,،;|\n]+|\s{2,}/)) {
+    const p = onePhone(part);
+    if (p) return p;
+  }
   return null;
 }
 

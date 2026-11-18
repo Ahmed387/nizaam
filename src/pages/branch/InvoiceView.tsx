@@ -25,7 +25,8 @@ import { ColorChip } from "@/components/ColorPicker";
 import { computePayState, PaymentStatusBadge } from "@/components/PaymentStatusBadge";
 import { VariantLine } from "@/components/VariantChips";
 import { DocumentMoneyMovements } from "@/components/payments/DocumentMoneyMovements";
-import { saleMessage, waLink, waPhone } from "@/lib/whatsappShare";
+import { saleMessage } from "@/lib/whatsappShare";
+import { WhatsAppSendButton } from "@/components/WhatsAppSendButton";
 import { MessageCircle } from "lucide-react";
 
 export default function InvoiceView() {
@@ -166,24 +167,20 @@ export default function InvoiceView() {
   const canEdit = canEditDoc(canInBranch, "invoice", inv.branch_id) && inv.status === "active";
 
   // «ابعت للعميل واتساب»: the text is built here, WhatsApp opens on this device on the customer's chat
-  const sendWhatsApp = () => {
-    const phone = waPhone(inv.contacts?.phone);
-    if (!phone) return;
+  const whatsappText = () => {
     const ownPaid = payments.reduce((s, p) => s + Number(p.amount ?? 0), 0);
     const useLedger = !!ledger && ledger.state !== "before_ledger" && ledger.state !== "cancelled";
     const total = Number(inv.total ?? 0);
     const paid = useLedger ? ledger!.paid : Math.max(ownPaid, plan ? Number(plan.paid_amount ?? 0) : 0);
     const remaining = useLedger ? Math.max(ledger!.remaining, 0) : Math.max(total - paid, 0);
     const d = new Date(inv.invoice_date ?? inv.created_at);
-    const text = saleMessage({
+    return saleMessage({
       customer: inv.contacts?.name ?? null, number: inv.invoice_number, branch: branch?.name ?? null,
       date: d.toLocaleDateString("en-GB", { timeZone: "Africa/Cairo" }),
       items: items.map((it: any) => ({ name: String(it.product_name ?? ""), quantity: Number(it.quantity ?? 0), total: Number(it.total ?? 0) })),
       total, paid, remaining,
     });
-    window.open(waLink(phone, text), "_blank", "noopener");
   };
-  const waOk = !!waPhone(inv.contacts?.phone);
 
   return (
     <BranchLayout>
@@ -193,11 +190,7 @@ export default function InvoiceView() {
             {canEdit && <Button variant="outline" onClick={() => nav(`/branch/${id}/sales/${invoiceId}/edit`)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> التعديل على الفاتورة</Button>}
             <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة</Button>
             {inv.status === "active" && (
-              <Button variant="outline" onClick={sendWhatsApp} disabled={!waOk}
-                title={waOk ? "يفتح واتساب على محادثة العميل والرسالة مكتوبة — دوس «إرسال»" : "مفيش رقم موبايل للعميل ده — ضيفه من ملف العميل"}
-                className="border-success text-success hover:bg-success/10">
-                <MessageCircle className="w-4 h-4 ml-1" /> ابعت للعميل واتساب
-              </Button>
+              <WhatsAppSendButton phone={inv.contacts?.phone} contactId={inv.contact_id} canSavePhone={isAdmin} buildText={whatsappText} />
             )}
             {canCancel && (
               <Button
