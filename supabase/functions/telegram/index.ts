@@ -7,13 +7,16 @@
 //  * mode 'test'   — the company owner (JWT): one test message to his chat.
 //  * mode 'send'   — cron «telegram-send» (x-cron-secret = system_cron_tokens 'telegram'): the waiting e-invoices
 //                    (Valid, `tg_eta_pending`) → summary + the ETA PDF, then `tg_eta_mark`.
+//  * mode 'docs'   — cron «telegram-send» (0268): new / cancelled documents of the company (`tg_docs_pending`) → one PDF
+//                    per document in the GROUP (its own vouchers inside it), «اتلغى» as a message, then `tg_doc_mark`.
 //  * mode 'daily'  — cron «telegram-daily-report»: `daily_activity_report(tenant, day)` → A4 PDF → the owner's chat
 //                    (`tg_daily_mark`; no activity → nothing is sent). Nothing is stored.
 // The bot token never leaves the server (Vault → `tg_bot_token`, service role).
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { etaMessage, linkCodeOf, reportCaption } from "./format.ts";
-import type { EtaPending } from "./format.ts";
+import { cancelMessage, docCaption, docFileName, etaMessage, linkCodeOf, reportCaption } from "./format.ts";
+import type { DocPayload, EtaPending } from "./format.ts";
 import { buildReportPdf } from "./report.ts";
+import { buildDocPdf } from "./doc.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -249,6 +252,38 @@ Deno.serve(async (req) => {
       }
     }
     return json({ ok: true, sent, failed });
+  }
+
+  // ------------------------------------------------------------ documents to the company group (cron, 0268)
+  if (mode === "docs") {
+    const { data: items, error } = await admin.rpc("tg_docs_pending", { p_limit: 12 });
+    if (error) return json({ ok: false, error: error.message });
+    const appUrl = (Deno.env.get("APP_URL") ?? "https://nizaam.lovable.app").replace(/\/$/, "");
+    let pdfKit: { lib: any; fontkit: any } | null = null;
+    let sent = 0, failed = 0, skipped = 0;
+    for (const it of (items ?? []) as DocPayload[]) {
+      try {
+        if (it.skip || !it.chat) {
+          await admin.rpc("tg_doc_mark", { p_id: it.id, p_state: "skipped", p_error: it.why ?? (it.chat ? null : "الجروب مش مربوط") });
+          skipped++;
+          continue;
+        }
+        if (it.event === "cancel") {
+          await tg("sendMessage", { chat_id: it.chat, parse_mode: "HTML", text: cancelMessage(it, appUrl), disable_web_page_preview: true });
+        } else {
+          if (!pdfKit) pdfKit = await pdfLibs();
+          const pdf = await buildDocPdf(pdfKit.lib, pdfKit.fontkit, await fonts(), it);
+          await tgFile(it.chat, docFileName(it), pdf, docCaption(it, appUrl));
+        }
+        await admin.rpc("tg_doc_mark", { p_id: it.id, p_state: "sent", p_error: null });
+        sent++;
+        await sleep(1100);   // a group takes about 20 messages a minute
+      } catch (e) {
+        await admin.rpc("tg_doc_mark", { p_id: it.id, p_state: "failed", p_error: errText(e) });
+        failed++;
+      }
+    }
+    return json({ ok: true, sent, failed, skipped });
   }
 
   // ------------------------------------------------------------ daily report (cron)

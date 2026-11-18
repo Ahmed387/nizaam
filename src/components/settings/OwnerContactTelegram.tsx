@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Loader2, Send, Link2, Unlink, Save, CheckCircle2, AlertTriangle, Copy, MessageCircle, ExternalLink } from "lucide-react";
 import { tgCodeShown, tgInviteCode, tgTimeLeft, tgWhatsappHref } from "@/lib/telegramInvite";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,19 @@ export default function OwnerContactTelegram() {
   const [busy, setBusy] = useState<"" | "save" | "link" | "unlink" | "test">("");
   const poll = useRef<number | null>(null);
   const [invite, setInvite] = useState<Invite | null>(null);
+  // 0268: every document to the group (one PDF each, its own vouchers inside, «اتلغى» on cancel)
+  const [docs, setDocs] = useState<{ enabled: boolean; today: number; failed: number } | null>(null);
+  const loadDocs = useCallback(async () => {
+    const { data: s } = await (supabase.rpc as any)("tg_link_status");
+    if (s) setDocs({ enabled: !!s.docs_enabled, today: Number(s.docs_sent_today ?? 0), failed: Number(s.docs_failed ?? 0) });
+  }, []);
+  useEffect(() => { loadDocs(); }, [loadDocs]);
+  const setDocsOn = async (on: boolean) => {
+    const { error } = await (supabase.rpc as any)("tg_docs_set", { p_enabled: on });
+    if (error) return toast.error(rpcErrorText(error));
+    toast.success(on ? "هيتبعت على الجروب كل مستند جديد" : "وقفت إرسال المستندات على الجروب");
+    loadDocs();
+  };
   const [now, setNow] = useState(Date.now());
   useEffect(() => { if (!invite) return; const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, [invite]);
   const copy = async (text: string, what: string) => {
@@ -154,7 +168,22 @@ export default function OwnerContactTelegram() {
               {data.group_linked ? <Badge className="bg-success/15 text-success border-success/30">مربوط</Badge> : <Badge variant="outline">مش مربوط</Badge>}
             </div>
             {data.group_linked ? (
-              <div className="flex items-center gap-2" data-testid="tg-group-done"><CheckCircle2 className="w-4 h-4 text-success" /> «{data.group_title ?? "الجروب"}» من {when(data.group_linked_at)}</div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2" data-testid="tg-group-done"><CheckCircle2 className="w-4 h-4 text-success" /> «{data.group_title ?? "الجروب"}» من {when(data.group_linked_at)}</div>
+                {docs && (
+                  <div className="rounded-md bg-muted/40 p-2 space-y-1" data-testid="tg-docs">
+                    <label className="flex items-center gap-2 font-medium">
+                      <Switch checked={docs.enabled} disabled={!owner} onCheckedChange={setDocsOn} aria-label="ابعت كل المستندات على الجروب" />
+                      ابعت كل المستندات على الجروب
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      كل فاتورة بيع وشراء ومرتجع وسند قبض وصرف بتنزل في الجروب كملف PDF (اسمه رقم المستند والفرع والموظف) في خلال دقيقة أو اتنين.
+                      السند اللي اتعمل مع الفاتورة بيكون جوه ملفها، ولما مستند يتلغي بتنزل رسالة «اتلغى».
+                    </p>
+                    {docs.enabled && <p className="text-xs">اتبعت النهارده: <b className="tabular-nums">{docs.today}</b>{docs.failed > 0 ? <span className="text-destructive"> — {docs.failed} ما اتبعتوش بعد 5 محاولات</span> : null}</p>}
+                  </div>
+                )}
+              </div>
             ) : (
               <ol className="list-decimal pr-5 space-y-1 text-muted-foreground" data-testid="tg-group-steps">
                 <li>اعمل جروب على تليجرام (مثلاً «الشركة») وضيف فيه الموظفين اللي عاوزهم يشوفوا التنبيهات. لازم تكون إنت أدمن الجروب.</li>

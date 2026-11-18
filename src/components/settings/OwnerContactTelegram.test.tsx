@@ -69,4 +69,16 @@ describe("ربط تليجرام — easy for every company (owner 2026-11-18 «�
     expect(screen.queryByTestId("tg-invite-owner")).toBeNull();
     vi.useRealTimers();
   });
+
+  it("group linked: a switch sends every document to the group (0268) and shows today's count", async () => {
+    contact = { ...base, group_linked: true, group_title: "فواتير A&N" };
+    status = { owner_linked: false, group_linked: true, docs_enabled: true, docs_sent_today: 7, docs_failed: 0 };
+    render(<OwnerContactTelegram />);
+    const box = await screen.findByTestId("tg-docs");
+    expect(box.textContent).toContain("ابعت كل المستندات على الجروب");
+    expect(box.textContent).toContain("اتبعت النهارده: 7");
+    fireEvent.click(screen.getByRole("switch", { name: /ابعت كل المستندات/ }));
+    await act(async () => { await Promise.resolve(); });
+    expect(rpc).toHaveBeenCalledWith("tg_docs_set", { p_enabled: false });
+  });
 });

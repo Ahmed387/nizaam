@@ -175,3 +175,66 @@ export function linkCodeOf(text: string, isGroup: boolean): { code: string } | "
   if (/^\/(?:start|link)(?:@\w+)?$/i.test(t)) return "bare";
   return null;
 }
+
+// ---------------------------------------------------------------- documents to the company group (0268)
+export interface DocPayload {
+  id: number; kind: string; doc_type: string; event: string; title: string; number: string | null;
+  company: string | null; branch: string | null; date: string | null; created_at: string | null;
+  party: string | null; employee: string | null; recipient: string | null; notes: string | null;
+  total: number | null; extra: Record<string, any> | null;
+  lines: { name: string | null; qty: number | null; price: number | null; total: number | null }[];
+  payments: { number: string; type: string; method: string; amount: number; status: string }[];
+  cancel: { reason: string; by: string; at: string } | null;
+  chat: number | null; link: string | null; skip?: boolean; why?: string;
+}
+
+const DOC_ICON: Record<string, string> = { sale: "🧾", purchase: "📦", sale_return: "↩️", purchase_return: "↪️", receipt: "💵", payment: "💸" };
+
+/** «IN47906 - معرض سكة تلة - احمد ناصر.pdf» (owner: number + branch + employee) */
+export function docFileName(p: Pick<DocPayload, "number" | "branch" | "employee">): string {
+  const clean = (s: string | null | undefined) => String(s ?? "").replace(/[\\/:*?"<>|\n\r\t]+/g, "-").replace(/\s+/g, " ").trim();
+  const parts = [clean(p.number) || "مستند", clean(p.branch), clean(p.employee)].filter((x) => x && x !== "—");
+  return `${parts.join(" - ").slice(0, 120)}.pdf`;
+}
+
+/** money paid with the document, by method: «23,800 (كاش 20,000 + إنستاباي 3,800)» */
+export function paidWith(payments: DocPayload["payments"]): { sum: number; text: string } {
+  const live = (payments ?? []).filter((x) => x.status !== "cancelled");
+  const sum = Math.round(live.reduce((s, x) => s + Number(x.amount || 0), 0) * 100) / 100;
+  const by = new Map<string, number>();
+  for (const x of live) by.set(x.method, (by.get(x.method) ?? 0) + Number(x.amount || 0));
+  const text = [...by].map(([m, a]) => (by.size > 1 ? `${m} ${money(a)}` : m)).join(" + ");
+  return { sum, text };
+}
+
+/** the caption under the PDF in the group */
+export function docCaption(p: DocPayload, appUrl?: string): string {
+  const out: string[] = [];
+  out.push(`${DOC_ICON[p.doc_type] ?? "📄"} <b>${esc(p.title)} ${esc(p.number ?? "")}</b> — ${esc(p.branch ?? "")}`);
+  out.push(`الحساب: ${esc(p.party ?? "—")}${p.doc_type === "receipt" || p.doc_type === "payment" ? (p.extra?.category ? ` — ${esc(p.extra.category)}` : "") : ""}`);
+  if (p.doc_type === "receipt" || p.doc_type === "payment") {
+    out.push(`المبلغ: <b>${money(p.total)}</b> — ${esc(p.extra?.method ?? "")}`);
+  } else {
+    const { sum, text } = paidWith(p.payments);
+    let line = `الإجمالي: <b>${money(p.total)}</b>`;
+    if (sum > 0) line += ` — ${p.doc_type === "sale_return" || p.doc_type === "purchase" ? "اتدفع" : "اتقبض"} معاه ${money(sum)} (${esc(text)})`;
+    if (p.doc_type === "sale" && Number(p.total ?? 0) - sum > 0.009) line += ` — آجل ${money(Number(p.total ?? 0) - sum)}`;
+    out.push(line);
+    if (p.extra?.on_invoice) out.push(`على فاتورة: ${esc(p.extra.on_invoice)}`);
+  }
+  out.push(`بواسطة: ${esc(p.employee ?? "—")} — ${dayText(p.date)} ${timeText(p.created_at)}`);
+  if (appUrl && p.link) out.push(`<a href="${esc(appUrl)}${esc(p.link)}">افتحه في السيستم</a>`);
+  return out.join("\n");
+}
+
+/** «اتلغى» message */
+export function cancelMessage(p: DocPayload, appUrl?: string): string {
+  const out = [
+    `❌ <b>اتلغى: ${esc(p.title)} ${esc(p.number ?? "")}</b> — ${esc(p.branch ?? "")}`,
+    `الحساب: ${esc(p.party ?? "—")} — المبلغ: ${money(p.total)}`,
+    `السبب: ${esc(p.cancel?.reason || "—")}`,
+    `ألغاه: ${esc(p.cancel?.by ?? "—")} — ${dayText(p.cancel?.at)} ${timeText(p.cancel?.at)}`,
+  ];
+  if (appUrl && p.link) out.push(`<a href="${esc(appUrl)}${esc(p.link)}">افتحه في السيستم</a>`);
+  return out.join("\n");
+}
