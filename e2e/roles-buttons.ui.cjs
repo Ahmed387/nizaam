@@ -111,6 +111,10 @@ function makeDb() {
         inventory_session_items: [{ product_name: "ثلاجة توشيبا 16 قدم", product_code: "1001", unit_cost: 15000 }] },
       { id: uuid("e2000001", 2), branch_id: B1, tenant_id: T, status: "counting", notes: null, created_at: "2026-11-06T10:00:00+00:00", created_by: CASHIER, branches: { name: "معرض سكة تلة" },
         inventory_session_items: [{ product_name: "سخان اوليمبيك 50 لتر", product_code: "1002", unit_cost: 4000 }] },
+      { id: uuid("e2000001", 3), branch_id: B1, tenant_id: T, status: "reviewing", notes: null, created_at: "2026-11-07T10:00:00+00:00", created_by: CASHIER, branches: { name: "معرض سكة تلة" },
+        inventory_session_items: [{ product_name: "غسالة فريش 8 ك", product_code: "1003", unit_cost: 9000 }] },
+      { id: uuid("e2000001", 4), branch_id: B1, tenant_id: T, status: "pending_approval", notes: null, created_at: "2026-11-08T10:00:00+00:00", created_by: CASHIER, branches: { name: "معرض سكة تلة" },
+        inventory_session_items: [{ product_name: "غسالة فريش 8 ك", product_code: "1003", unit_cost: 9000 }] },
     ],
     vessel_transfers: Array.from({ length: 4 }, (_, i) => ({ id: uuid("e3000001", i + 1), tenant_id: T, branch_id: B1, doc_number: `VT0000${i + 1}`,
       from_method: "cash", to_method: i % 2 ? "instapay" : "bank", amount: (i + 1) * 1000, fee_amount: 0, transfer_date: `2026-11-0${i + 1}`,
@@ -232,24 +236,34 @@ const settle = async (page) => { await page.waitForLoadState("networkidle").catc
 const ME = "a9000000-0000-4000-8000-000000000001";
 // role, branch level, and what each button must do — the defaults of src/lib/roles.ts (no saved rows)
 const PEOPLE = [
-  { label: "كاشير",      role: "cashier",        level: "manage", add: true,  edit: false, archive: false, receipt: true,  payment: false,
+  { label: "كاشير",      role: "cashier", sc: { newCount: false, count: false, review: false, approve: false, cancelOpen: false },        level: "manage", add: true,  edit: false, archive: false, receipt: true,  payment: false,
     newProduct: false, editProduct: false, archiveProduct: false, cancelSale: false, newPreorder: true,  newTransfer: false, addEmployee: false },
-  { label: "أمين مخزن",  role: "warehouse",      level: "manage", add: true,  edit: true,  archive: false, receipt: false, payment: false,
+  { label: "أمين مخزن",  role: "warehouse", sc: { newCount: true, count: true, review: false, approve: false, cancelOpen: false },      level: "manage", add: true,  edit: true,  archive: false, receipt: false, payment: false,
     newProduct: true,  editProduct: true,  archiveProduct: false, cancelSale: false, newPreorder: false, newTransfer: true,  addEmployee: true },
-  { label: "مدير فرع",   role: "branch_manager", level: "manage", add: true,  edit: true,  archive: true,  receipt: true,  payment: true,
+  { label: "مدير فرع",   role: "branch_manager", sc: { newCount: true, count: true, review: true, approve: false, cancelOpen: true }, level: "manage", add: true,  edit: true,  archive: true,  receipt: true,  payment: true,
     newProduct: true,  editProduct: true,  archiveProduct: true,  cancelSale: true,  newPreorder: true,  newTransfer: true,  addEmployee: true },
-  { label: "مراقب",      role: "viewer",         level: null,     add: false, edit: false, archive: false, receipt: false, payment: false,
+  { label: "مراقب",      role: "viewer", sc: { newCount: false, count: false, review: false, approve: false, cancelOpen: false },         level: null,     add: false, edit: false, archive: false, receipt: false, payment: false,
     newProduct: false, editProduct: false, archiveProduct: false, cancelSale: false, newPreorder: false, newTransfer: false, addEmployee: false },
-  { label: "مدير فرع «عرض فقط»", role: "branch_manager", level: "read", add: false, edit: false, archive: false, receipt: false, payment: false,
+  { label: "مدير فرع «عرض فقط»", role: "branch_manager", sc: { newCount: false, count: false, review: false, approve: false, cancelOpen: false }, level: "read", add: false, edit: false, archive: false, receipt: false, payment: false,
     newProduct: false, editProduct: false, archiveProduct: false, cancelSale: false, newPreorder: false, newTransfer: false, addEmployee: false },
-  { label: "كاشير اتفتحله «يعدل» بس", role: "cashier", level: "manage", rules: [{ permission_key: "customers.update", allowed: true }],
+  { label: "كاشير اتفتحله «يعدل» بس", role: "cashier", sc: { newCount: false, count: false, review: false, approve: false, cancelOpen: false }, level: "manage", rules: [{ permission_key: "customers.update", allowed: true }],
     add: true, edit: true, archive: false, receipt: true, payment: false,
     newProduct: false, editProduct: false, archiveProduct: false, cancelSale: false, newPreorder: true, newTransfer: false, addEmployee: false },
-  { label: "مدير فرع اتقفل عليه «إلغاء البيع» و«المخزون ← يلغي»", role: "branch_manager", level: "manage",
+  { label: "مدير فرع اتقفل عليه «إلغاء البيع» و«المخزون ← يلغي»", role: "branch_manager", sc: { newCount: true, count: true, review: true, approve: false, cancelOpen: true }, level: "manage",
     rules: [{ permission_key: "sales.delete", allowed: false }, { permission_key: "inventory.delete", allowed: false }],
     add: true, edit: true, archive: true, receipt: true, payment: true,
     newProduct: true, editProduct: true, archiveProduct: false, cancelSale: false, newPreorder: true, newTransfer: true, addEmployee: true },
 ];
+
+async function countChecks(page, label, sc) {
+  await page.goto(`${BASE}/branch/${B1}/inventory-count`); await settle(page);
+  const look = async (name, want, loc) => { const v = await vis(loc); check(`${label}: الجرد — ${name} ${want ? "ظاهر" : "مخفي"}`, v === want, `ظاهر=${v}`); };
+  await look("«بدء جرد جديد»", sc.newCount, page.getByRole("button", { name: /بدء جرد جديد/ }));
+  await look("«إدخال العد»", sc.count, page.getByRole("button", { name: "إدخال العد", exact: true }));
+  await look("«مراجعة»", sc.review, page.getByRole("button", { name: "مراجعة", exact: true }));
+  await look("«اعتماد»", sc.approve, page.getByRole("button", { name: "اعتماد", exact: true }));
+  await look("«إلغاء» جرد مفتوح", sc.cancelOpen, page.getByRole("button", { name: "إلغاء", exact: true }));
+}
 
 (async () => {
   const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
@@ -304,8 +318,22 @@ const PEOPLE = [
     await page.goto(`${BASE}/branch/${B1}/employees`); await settle(page);
     await look("«إضافة موظف»", p.addEmployee, page.getByRole("button", { name: "إضافة موظف", exact: true }));
 
+    // stock count (0267): open / count / review / approve / cancel follow «جرد المخزن» of the branch; approving = owner
+    await countChecks(page, p.label, p.sc);
+
     const errs = db.calls.filter((c) => c.pageerror);
     check(`${p.label}: مفيش أخطاء في الصفحات`, errs.length === 0, errs.map((e) => e.pageerror).join(" | ").slice(0, 200));
+    await ctx.close();
+  }
+  { // the company owner: approves, cancels an approved count
+    const db = makeDb();
+    db.pre_orders = []; db.stock_transfers = []; db.employees = [];
+    const { page, ctx } = await open(browser, db, OWNER);
+    await countChecks(page, "صاحب الشركة", { newCount: true, count: true, review: true, approve: true, cancelOpen: true });
+    const v = await vis(page.getByRole("button", { name: /إلغاء الجرد المعتمد/ }));
+    check("صاحب الشركة: الجرد — «إلغاء الجرد المعتمد» ظاهر", v, `ظاهر=${v}`);
+    const errs = db.calls.filter((c) => c.pageerror);
+    check("صاحب الشركة: مفيش أخطاء في صفحة الجرد", errs.length === 0, errs.map((e) => e.pageerror).join(" | ").slice(0, 200));
     await ctx.close();
   }
   console.log(results.join("\n"));

@@ -9,17 +9,19 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, Check, X } from "lucide-react";
 import { VariantLine } from "@/components/VariantChips";
+import { rpcErrorText } from "@/lib/rpcError";
 
 export default function Approval() {
   const { id: branchId, sessionId } = useParams<{ id: string; sessionId: string }>();
-  const { hasRole, isAdmin } = useAuth();
+  const { isOwner } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<any[]>([]);
   const [sess, setSess] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const allowed = isAdmin || hasRole("branch_manager");
+  // 0267: approving is the company owner's (the server refuses anybody else)
+  const allowed = isOwner;
 
   const load = async () => {
     if (!sessionId) return;
@@ -35,41 +37,40 @@ export default function Approval() {
   useEffect(() => { load(); }, [sessionId]);
 
   const stats = useMemo(() => {
-    let match = 0, shortage = 0, surplus = 0, shortQty = 0, surQty = 0;
+    let match = 0, shortage = 0, surplus = 0, shortQty = 0, surQty = 0, shortVal = 0, surVal = 0;
     items.forEach((i) => {
       const d = Number(i.difference);
+      const cost = Number(i.unit_cost ?? 0);
       if (d === 0) match++;
-      else if (d < 0) { shortage++; shortQty += Math.abs(d); }
-      else { surplus++; surQty += d; }
+      else if (d < 0) { shortage++; shortQty += Math.abs(d); shortVal += Math.abs(d) * cost; }
+      else { surplus++; surQty += d; surVal += d * cost; }
     });
-    return { total: items.length, match, shortage, surplus, shortQty, surQty };
+    return { total: items.length, match, shortage, surplus, shortQty, surQty, shortVal, surVal };
   }, [items]);
 
   const approve = async () => {
     setSaving(true);
     const { error } = await supabase.rpc("approve_inventory_session" as any, { p_session_id: sessionId });
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(rpcErrorText(error));
     toast.success("تم اعتماد الجرد وتطبيق الفروقات على المخزون");
     navigate(`/branch/${branchId}/inventory-count/${sessionId}/report`);
   };
 
   const reject = async () => {
     setSaving(true);
-    const { error } = await supabase
-      .from("inventory_sessions" as any)
-      .update({ status: "reviewing" })
-      .eq("id", sessionId);
+    const why = window.prompt("ليه بترجّعه للمراجعة؟ (هيظهر في ملاحظات الجرد)") ?? "";
+    const { error } = await (supabase.rpc as any)("return_inventory_session", { p_session: sessionId, p_reason: why });
     setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم إرجاع الجلسة للمحاسب");
+    if (error) return toast.error(rpcErrorText(error));
+    toast.success("الجرد رجع للمدير للمراجعة");
     navigate(`/branch/${branchId}/inventory-count`);
   };
 
   if (!allowed) {
     return (
       <ConditionalLayout title="اعتماد الجرد">
-        <div className="card-elevated p-8 text-center text-muted-foreground">هذه الصفحة للمدير فقط.</div>
+        <div className="card-elevated p-8 text-center text-muted-foreground">اعتماد الجرد لصاحب الشركة بس.</div>
       </ConditionalLayout>
     );
   }
@@ -84,6 +85,8 @@ export default function Approval() {
         <PermCard label="مطابق"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">مطابق</div><div className="text-2xl font-bold">{stats.match}</div></div></PermCard>
         <PermCard label="عجز"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">عجز</div><div className="text-2xl font-bold text-red-500">{stats.shortage} <span className="text-sm font-normal">({stats.shortQty})</span></div></div></PermCard>
         <PermCard label="زيادة"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">زيادة</div><div className="text-2xl font-bold text-emerald-500">{stats.surplus} <span className="text-sm font-normal">({stats.surQty})</span></div></div></PermCard>
+        <PermCard label="قيمة العجز"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">قيمة العجز (بمتوسط التكلفة)</div><div className="text-2xl font-bold text-red-500 tabular-nums">{Math.round(stats.shortVal).toLocaleString("en-EG")}</div></div></PermCard>
+        <PermCard label="قيمة الزيادة"><div className="card-elevated p-4"><div className="text-xs text-muted-foreground">قيمة الزيادة (بمتوسط التكلفة)</div><div className="text-2xl font-bold text-emerald-500 tabular-nums">{Math.round(stats.surVal).toLocaleString("en-EG")}</div></div></PermCard>
       </div>
 
       {loading ? (

@@ -11,12 +11,13 @@ import { searchMatch } from "@/lib/search";
 import { toast } from "sonner";
 import { Loader2, Send, Search, ScanLine, Save, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { VariantLine } from "@/components/VariantChips";
+import { rpcErrorText } from "@/lib/rpcError";
 
 const PAGE_SIZE = 50;
 
 export default function CountingSheet() {
   const { id: branchId, sessionId } = useParams<{ id: string; sessionId: string }>();
-  const { hasRole, isAdmin } = useAuth();
+  const { isOwner, canInBranch } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<any[]>([]);
   const [vals, setVals] = useState<Record<string, string>>({});
@@ -30,7 +31,8 @@ export default function CountingSheet() {
   const [flashRow, setFlashRow] = useState<string | null>(null);
   const rowRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const allowed = isAdmin || hasRole("warehouse");
+  // 0267: whoever has «جرد المخزن ← يفتح ويعدّ» in this branch (warehouse / manager by default) or the owner
+  const allowed = isOwner || canInBranch("stock_count.create", branchId);
 
   const load = async () => {
     if (!sessionId) return;
@@ -137,10 +139,7 @@ export default function CountingSheet() {
           setSaving(false);
           return toast.error("يجب إدخال جميع الأصناف قبل الإرسال للمراجعة");
         }
-        const { error } = await supabase
-          .from("inventory_sessions" as any)
-          .update({ status: "reviewing", counted_at: new Date().toISOString() })
-          .eq("id", sessionId);
+        const { error } = await (supabase.rpc as any)("submit_inventory_count", { p_session: sessionId });
         if (error) throw error;
         toast.success("تم إرسال الجرد للمراجعة");
         navigate(`/branch/${branchId}/inventory-count`);
@@ -148,7 +147,7 @@ export default function CountingSheet() {
         toast.success(`تم حفظ ${payload.length} تعديل`);
       }
     } catch (e: any) {
-      toast.error(e.message ?? "فشل الحفظ");
+      toast.error(rpcErrorText(e) || "فشل الحفظ");
     } finally {
       setSaving(false);
     }
@@ -157,7 +156,14 @@ export default function CountingSheet() {
   if (!allowed) {
     return (
       <ConditionalLayout title="جرد الفرع">
-        <div className="card-elevated p-8 text-center text-muted-foreground">هذه الصفحة لأمين المخزن فقط.</div>
+        <div className="card-elevated p-8 text-center text-muted-foreground">إدخال العد محتاج صلاحية «جرد المخزن ← يضيف» في الفرع ده (من الإعدادات ← الموظفين).</div>
+      </ConditionalLayout>
+    );
+  }
+  if (sess && sess.status !== "counting") {
+    return (
+      <ConditionalLayout title="جرد الفرع">
+        <div className="card-elevated p-8 text-center text-muted-foreground">الجرد ده اتسلّم خلاص — مينفعش تغيّر العد. لو محتاج تعدّل، المدير يرجّعهولك من «مراجعة».</div>
       </ConditionalLayout>
     );
   }

@@ -39,6 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import StockTransfers from "./StockTransfers";
 import Sessions from "./inventory-count/Sessions";
+import { countWaitingFor } from "@/lib/stockCount";
 import { HistoricalStockPanel } from "@/components/HistoricalStockPanel";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { PriceEditDialog } from "@/components/PriceEditDialog";
@@ -435,7 +436,7 @@ export default function Inventory() {
         title = "جلسات الجرد";
         const { data, error } = await supabase
           .from("inventory_session_items" as any)
-          .select("*, session:inventory_sessions(session_number, status, created_at)")
+          .select("*, session:inventory_sessions(status, created_at, approved_at)")
           .eq("product_id", productId)
           .order("created_at", { ascending: false });
         if (error) throw error;
@@ -1548,11 +1549,10 @@ export default function Inventory() {
                   }
                   if (type === "count_sessions") {
                     return [
-                      { key: "session.session_number", header: "رقم الجلسة", render: (r: any) => <span className="font-mono text-primary">{r.session?.session_number}</span> },
                       { key: "system_quantity", header: "كمية النظام", render: (r: any) => Number(r.system_quantity).toLocaleString() },
-                      { key: "counted_quantity", header: "الكمية المعدودة", render: (r: any) => Number(r.counted_quantity).toLocaleString() },
+                      { key: "actual_quantity", header: "الكمية المعدودة", render: (r: any) => r.actual_quantity == null ? "—" : Number(r.actual_quantity).toLocaleString() },
                       { key: "difference", header: "الفرق", render: (r: any) => <span className={r.difference > 0 ? "text-success" : r.difference < 0 ? "text-destructive" : ""}>{r.difference > 0 ? "+" : ""}{Number(r.difference).toLocaleString()}</span> },
-                      { key: "session.status", header: "الحالة", render: (r: any) => r.session?.status === "approved" ? "معتمدة" : r.session?.status === "pending" ? "معلقة" : r.session?.status },
+                      { key: "session.status", header: "الحالة", render: (r: any) => countWaitingFor(r.session?.status) },
                       { key: "session.created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.session?.created_at) },
                     ];
                   }

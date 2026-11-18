@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Loader2, Send } from "lucide-react";
 import { VariantLine } from "@/components/VariantChips";
+import { rpcErrorText } from "@/lib/rpcError";
+import { Undo2 } from "lucide-react";
 
 export default function Review() {
   const { id: branchId, sessionId } = useParams<{ id: string; sessionId: string }>();
-  const { hasRole, isAdmin } = useAuth();
+  const { isOwner, canInBranch } = useAuth();
   const navigate = useNavigate();
   const [items, setItems] = useState<any[]>([]);
   const [reasons, setReasons] = useState<Record<string, string>>({});
@@ -21,7 +23,8 @@ export default function Review() {
   const [saving, setSaving] = useState(false);
   const [sess, setSess] = useState<any>(null);
 
-  const allowed = isAdmin || hasRole("accountant");
+  // 0267: «جرد المخزن ← يعدل» (the branch manager by default) or the owner
+  const allowed = isOwner || canInBranch("stock_count.update", branchId);
 
   const load = async () => {
     if (!sessionId) return;
@@ -52,26 +55,28 @@ export default function Review() {
 
   const send = async () => {
     setSaving(true);
-    for (const it of items) {
-      const r = reasons[it.id] ?? "";
-      if ((r ?? "") !== (it.reason ?? "")) {
-        await supabase.from("inventory_session_items" as any).update({ reason: r }).eq("id", it.id);
-      }
-    }
-    const { error } = await supabase
-      .from("inventory_sessions" as any)
-      .update({ status: "pending_approval", reviewed_at: new Date().toISOString() })
-      .eq("id", sessionId);
+    const changed = items.filter((it) => (reasons[it.id] ?? "") !== (it.reason ?? "")).map((it) => ({ id: it.id, reason: reasons[it.id] ?? "" }));
+    const { error } = await (supabase.rpc as any)("review_inventory_session", { p_session: sessionId, p_reasons: changed, p_note: null });
     setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم إرسال الجرد للاعتماد");
+    if (error) return toast.error(rpcErrorText(error));
+    toast.success("تم إرسال الجرد لصاحب الشركة للاعتماد");
+    navigate(`/branch/${branchId}/inventory-count`);
+  };
+
+  const backToCount = async () => {
+    const why = window.prompt("ليه بترجّعه للعد؟ (هيظهر في ملاحظات الجرد)") ?? "";
+    setSaving(true);
+    const { error } = await (supabase.rpc as any)("return_inventory_session", { p_session: sessionId, p_reason: why });
+    setSaving(false);
+    if (error) return toast.error(rpcErrorText(error));
+    toast.success("الجرد رجع للعد");
     navigate(`/branch/${branchId}/inventory-count`);
   };
 
   if (!allowed) {
     return (
       <ConditionalLayout title="جرد الفرع">
-        <div className="card-elevated p-8 text-center text-muted-foreground">هذه الصفحة للمحاسب فقط.</div>
+        <div className="card-elevated p-8 text-center text-muted-foreground">المراجعة محتاجة صلاحية «جرد المخزن ← يعدل» في الفرع ده (من الإعدادات ← الموظفين).</div>
       </ConditionalLayout>
     );
   }
@@ -83,10 +88,15 @@ export default function Review() {
       title="مراجعة الفروقات"
       subtitle="أضف سبب الفرق ثم أرسل للاعتماد"
       actions={
-        <Button onClick={send} disabled={saving || loading || sess?.status !== "reviewing"} className="gap-2">
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          إرسال للاعتماد
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" onClick={backToCount} disabled={saving || loading || sess?.status !== "reviewing"} className="gap-2">
+            <Undo2 className="w-4 h-4" /> رجّعه للعد
+          </Button>
+          <Button onClick={send} disabled={saving || loading || sess?.status !== "reviewing"} className="gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            إرسال للاعتماد
+          </Button>
+        </div>
       }
     >
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">

@@ -204,7 +204,7 @@ export const PAGE_ROUTES: Record<string, string> = {
 /** Which sidebar section each page key belongs to (sub-sections follow their parent). */
 const SECTION_OF: Record<string, SectionId> = {
   dashboard: "general", admin_home: "general", admin_ask_me: "general", admin_insights: "general",
-  sales: "ops", invoices: "ops", preorders: "ops", shipments: "ops", inventory: "ops", transfers: "ops",
+  sales: "ops", invoices: "ops", preorders: "ops", shipments: "ops", inventory: "ops", stock_count: "ops", transfers: "ops",
   customers: "ops", suppliers: "ops", employees: "ops", advances: "ops", attendance: "ops", attachments: "ops",
   doc_class: "ops", returns: "ops", admin_catalog: "ops", admin_product_attributes: "ops", admin_contacts: "ops",
   admin_employees: "ops", admin_presence: "ops", admin_shifts: "ops",

@@ -17,17 +17,18 @@ import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { useMemo } from "react";
+import { countActions, countWaitingFor } from "@/lib/stockCount";
+import { rpcErrorText } from "@/lib/rpcError";
 
 export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
-  const { hasRole, isAdmin, isOwner } = useAuth();
+  const { isAdmin, isOwner, canInBranch } = useAuth();
   const navigate = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const isManager = isAdmin || hasRole("branch_manager");
-  const isWarehouse = hasRole("warehouse");
-  const isAccountant = hasRole("accountant");
+  // 0267: buttons follow the switches «جرد المخزن» of THIS branch; approving is the owner's
+  const rights = { canCount: canInBranch("stock_count.create", branchId), canReview: canInBranch("stock_count.update", branchId), isOwner };
 
   const load = async () => {
     if (!branchId) return;
@@ -53,15 +54,16 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   }), [rows, af]);
   const attCounts = useAttachmentCounts("inventory_adjustment", useMemo(() => rows.map((r: any) => r.id), [rows]));
 
-  const canCancel = (status: string) => ["counting", "reviewing", "pending_approval"].includes(status);
-  const canCancelApproved = (r: any) => isOwner && r.status === "closed";
-
   const cancelSession = async (sessionId: string) => {
-    const { error } = await supabase
-      .from("inventory_sessions" as any)
-      .update({ status: "cancelled" })
-      .eq("id", sessionId);
-    if (error) return toast.error(error.message);
+    const ok = await confirmAlert({
+      title: "تلغي الجرد ده؟",
+      description: "الجرد لسه ما اتعتمدش، فمفيش أي كمية هتتغير. هيفضل في القائمة «ملغي».",
+      confirmLabel: "أيوه ألغيه",
+      tone: "danger",
+    });
+    if (!ok) return;
+    const { error } = await (supabase.rpc as any)("cancel_open_inventory_session", { p_session: sessionId, p_reason: null });
+    if (error) return toast.error(rpcErrorText(error));
     toast.success("تم إلغاء الجلسة");
     load();
   };
@@ -86,15 +88,10 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
 
 
   const actionFor = (r: any) => {
-    if (isManager && (r.status === "pending_approval")) {
-      return <Button size="sm" onClick={() => navigate(`/branch/${branchId}/inventory-count/${r.id}/approve`)}>اعتماد</Button>;
-    }
-    if (isAccountant && (r.status === "reviewing")) {
-      return <Button size="sm" onClick={() => navigate(`/branch/${branchId}/inventory-count/${r.id}/review`)}>مراجعة</Button>;
-    }
-    if (isWarehouse && r.status === "counting") {
-      return <Button size="sm" onClick={() => navigate(`/branch/${branchId}/inventory-count/${r.id}/count`)}>إدخال العد</Button>;
-    }
+    const acts = countActions(r.status, rights);
+    if (acts.includes("approve")) return <Button size="sm" onClick={() => navigate(`/branch/${branchId}/inventory-count/${r.id}/approve`)}>اعتماد</Button>;
+    if (acts.includes("review")) return <Button size="sm" onClick={() => navigate(`/branch/${branchId}/inventory-count/${r.id}/review`)}>مراجعة</Button>;
+    if (acts.includes("count")) return <Button size="sm" onClick={() => navigate(`/branch/${branchId}/inventory-count/${r.id}/count`)}>إدخال العد</Button>;
     return null;
   };
 
@@ -104,7 +101,7 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
       title="جرد الفرع"
       subtitle="إدارة جلسات الجرد ومراجعة الفروقات"
       actions={
-        isManager ? (
+        rights.canCount || isOwner ? (
           <Button onClick={() => navigate(`/branch/${branchId}/inventory-count/new`)} className="gap-2">
             <Plus className="w-4 h-4" /> بدء جرد جديد
           </Button>
@@ -124,7 +121,9 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
         columns={[
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
           { key: "warehouse", header: "المخزن", render: (r: any) => r.branches?.name ?? "—" },
-          { key: "status", header: "الحالة", render: (r: any) => <InventoryStatusBadge status={r.status} /> },
+          { key: "status", header: "الحالة", render: (r: any) => (
+            <div className="space-y-0.5"><InventoryStatusBadge status={r.status} /><div className="text-[11px] text-muted-foreground">{countWaitingFor(r.status)}</div></div>
+          ) },
           { key: "notes", header: "ملاحظات", render: (r: any) => r.notes ?? "—" },
           {
             key: "actions",
@@ -132,13 +131,13 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
             render: (r: any) => (
               <div className="flex gap-2 justify-end flex-wrap items-center">
                 {actionFor(r)}
-                <AttachmentsDialogButton recordType="inventory_adjustment" recordId={r.id} count={attCounts[r.id] ?? 0} canEdit={isManager || isWarehouse || isAccountant} />
-                {isManager && canCancel(r.status) && (
+                <AttachmentsDialogButton recordType="inventory_adjustment" recordId={r.id} count={attCounts[r.id] ?? 0} canEdit={rights.canCount || rights.canReview || isOwner} />
+                {countActions(r.status, rights).includes("cancel_open") && (
                   <Button size="sm" variant="outline" onClick={() => cancelSession(r.id)} className="gap-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700">
                     <Ban className="w-4 h-4" /> إلغاء
                   </Button>
                 )}
-                {canCancelApproved(r) && (
+                {countActions(r.status, rights).includes("cancel_approved") && (
                   <Button size="sm" variant="outline" onClick={() => cancelApproved(r.id)} className="gap-1 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700">
                     <Ban className="w-4 h-4" /> إلغاء الجرد المعتمد
                   </Button>
@@ -162,9 +161,9 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-6 text-sm text-muted-foreground">
-        <div className="card-elevated p-4 flex gap-3 items-start"><ClipboardList className="w-5 h-5 text-blue-500" /><div><div className="font-semibold text-foreground">المدير</div>ينشئ الجلسة ويعتمدها في النهاية.</div></div>
-        <div className="card-elevated p-4 flex gap-3 items-start"><ClipboardCheck className="w-5 h-5 text-amber-500" /><div><div className="font-semibold text-foreground">أمين المخزن</div>يدخل الكميات الفعلية بدون رؤية كميات النظام.</div></div>
-        <div className="card-elevated p-4 flex gap-3 items-start"><ShieldCheck className="w-5 h-5 text-emerald-500" /><div><div className="font-semibold text-foreground">المحاسب</div>يراجع الفروقات ويضيف الأسباب ثم يرسلها للاعتماد.</div></div>
+        <div className="card-elevated p-4 flex gap-3 items-start"><ClipboardList className="w-5 h-5 text-blue-500" /><div><div className="font-semibold text-foreground">١ — أمين المخزن أو المدير</div>يفتح الجرد ويدخّل الكميات اللي على الرف (من غير ما يشوف كميات السيستم) ويسلّمه.</div></div>
+        <div className="card-elevated p-4 flex gap-3 items-start"><ClipboardCheck className="w-5 h-5 text-amber-500" /><div><div className="font-semibold text-foreground">٢ — المدير</div>يراجع الفروق ويكتب سبب كل فرق ويبعته للاعتماد (أو يرجّعه للعد).</div></div>
+        <div className="card-elevated p-4 flex gap-3 items-start"><ShieldCheck className="w-5 h-5 text-emerald-500" /><div><div className="font-semibold text-foreground">٣ — صاحب الشركة</div>يعتمد، فالكميات تتظبط وفرق الجرد يتسجل في الحسابات بمتوسط التكلفة.</div></div>
       </div>
     </ConditionalLayout>
   );

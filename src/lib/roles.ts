@@ -43,6 +43,9 @@ export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   { key: "preorders", label: "طلبات الحجز", actions: ["view", "create", "update", "delete"] },
   { key: "shipments", label: "فواتير الشراء", actions: ["view", "create", "delete"] },
   { key: "inventory", label: "المخزون", actions: ["view", "create", "update", "delete"] },
+  // 0267 (owner 2026-11-18): «يضيف» = يفتح جرد ويعدّ ويسلّمه، «يعدل» = يراجع الفروق ويكتب أسبابها / يرجّعه / يلغيه قبل الاعتماد.
+  // الاعتماد وإلغاء الجرد المعتمد لصاحب الشركة بس.
+  { key: "stock_count", label: "جرد المخزن", actions: ["create", "update"] },
   { key: "transfers", label: "نقل المخزون بين الفروع", actions: ["view", "create"] },
   // 0262 (owner 2026-11-18 «خليهم اوبشن واحد»): ONE switch for customers AND suppliers — `suppliers.*` reads `customers.*`
   { key: "customers", label: "العملاء والموردين", actions: ["view", "create", "update", "delete"] },
@@ -167,6 +170,7 @@ export const PERM_HELP: Record<string, string> = {
   preorders: "طلبات الحجز (اللي العميل بيدفع فيها عربون على صنف مش موجود دلوقتي).",
   shipments: "فواتير الشراء من الموردين ودخول البضاعة للمخزن وتكاليف فاتورة الشراء.",
   inventory: "أصناف المخزن وكمياتها وأسعارها. «تعديل» بيسمح بتغيير بيانات الصنف وسعره.",
+  stock_count: "جرد الفرع: «يضيف» = يفتح جرد ويدخّل الكميات اللي على الرف ويسلّمه. «يعدل» = يراجع الفروق ويكتب أسبابها ويبعته لصاحب الشركة، أو يرجّعه للعد، أو يلغيه قبل الاعتماد. الاعتماد لصاحب الشركة بس.",
   transfers: "تحويل بضاعة من فرع لفرع تاني (الفرع المستلم لازم يأكد الاستلام).",
   customers: "ملف العملاء وأرصدتهم وكشوف حسابهم.",
   suppliers: "ملف الموردين والمستحق عليهم أو ليهم.",
@@ -305,6 +309,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
   },
   warehouse: {
     "dashboard.view": true, "inventory.view": true, "inventory.create": true, "inventory.update": true,
+    "stock_count.create": true,
     "transfers.view": true, "transfers.create": true,
     "shipments.view": true, "shipments.create": true, "shipments.update": true,
     "customers.view": true, "customers.create": true, "customers.update": true,

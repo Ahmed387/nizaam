@@ -9,15 +9,17 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Navigate } from "react-router-dom";
+import { rpcErrorText } from "@/lib/rpcError";
 
 export default function NewSession() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { isAdmin, hasRole, branches } = useAuth();
+  const { isOwner, canInBranch, branches } = useAuth();
   const navigate = useNavigate();
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
-  if (!isAdmin && !hasRole("branch_manager")) {
+  // 0267: «جرد المخزن ← يضيف» in this branch (warehouse / manager by default) or the owner
+  if (!isOwner && !canInBranch("stock_count.create", branchId)) {
     return <Navigate to={`/branch/${branchId}/inventory-count`} replace />;
   }
 
@@ -31,17 +33,17 @@ export default function NewSession() {
       p_notes: notes || null,
     });
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(rpcErrorText(error));
     toast.success("تم فتح جلسة جرد جديدة — تم التقاط الكميات الحالية");
 
     // Notify accountant + warehouse keepers of this branch
     try {
       const { getBranchUsersByRoles, notifyMany } = await import("@/lib/notifications");
-      const recipients = await getBranchUsersByRoles(branchId, ["accountant", "warehouse"]);
+      const recipients = await getBranchUsersByRoles(branchId, ["branch_manager", "warehouse"]);
       if (recipients.length) {
         await notifyMany(recipients, {
           title: "تم فتح جلسة جرد جديدة",
-          body: `قام المدير بفتح جلسة جرد في فرع ${branch?.name ?? ""}`,
+          body: `اتفتح جرد في فرع ${branch?.name ?? ""} — أمين المخزن أو المدير يدخّل العد`,
           type: "general",
           link: `/branch/${branchId}/inventory?tab=count`,
           relatedEntity: "inventory_session",
@@ -52,7 +54,7 @@ export default function NewSession() {
       console.error("notify failed", e);
     }
 
-    navigate(`/branch/${branchId}/inventory-count/${data}/report`);
+    navigate(`/branch/${branchId}/inventory-count/${data}/count`);
   };
 
   return (
