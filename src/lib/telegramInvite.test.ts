@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tgInviteCode, tgTimeLeft, tgWhatsappHref } from "./telegramInvite";
+import { tgCodeShown, tgInviteCode, tgTimeLeft, tgWhatsappHref } from "./telegramInvite";
 
 const URL_ = "https://t.me/Nizam_Taxes_bot?start=0123456789abcdef01234567";
 describe("Telegram link for the daily report", () => {
@@ -7,11 +7,18 @@ describe("Telegram link for the daily report", () => {
     expect(tgInviteCode(URL_)).toBe("0123456789abcdef01234567");
     expect(tgInviteCode("https://t.me/x?startgroup=0123456789abcdef01234567")).toBe("0123456789abcdef01234567");
     expect(tgInviteCode("https://t.me/x")).toBeNull();
+    // 0266: six digits
+    expect(tgInviteCode("https://t.me/Nizam_Taxes_bot?start=004512")).toBe("004512");
+    expect(tgInviteCode("https://t.me/Nizam_Taxes_bot?startgroup=778899")).toBe("778899");
   });
   it("WhatsApp goes to the owner's saved mobile, or lets you pick", () => {
     expect(tgWhatsappHref(URL_, "01001234567")).toMatch(/^https:\/\/wa\.me\/201001234567\?text=/);
     expect(tgWhatsappHref(URL_, null)).toMatch(/^https:\/\/wa\.me\/\?text=/);
     expect(decodeURIComponent(tgWhatsappHref(URL_, null))).toContain(URL_);
+  });
+  it("the code is shown in two groups of three, easy to type", () => {
+    expect(tgCodeShown("004512")).toBe("004 512");
+    expect(tgCodeShown("0123456789abcdef01234567")).toBe("0123456789abcdef01234567");
   });
   it("15-minute countdown", () => {
     expect(tgTimeLeft(1_000_000 + 900_000, 1_000_000)).toBe("15:00");

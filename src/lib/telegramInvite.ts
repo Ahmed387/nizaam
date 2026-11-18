@@ -8,7 +8,7 @@ import { waPhone } from "@/lib/whatsappShare";
 
 /** the one-time code inside https://t.me/<bot>?start=<code> */
 export function tgInviteCode(url: string): string | null {
-  const m = /[?&]start(?:group)?=([a-f0-9]{24})\b/.exec(url);
+  const m = /[?&]start(?:group)?=([0-9]{6}|[a-f0-9]{24})\b/.exec(url);
   return m ? m[1] : null;
 }
 
@@ -24,4 +24,9 @@ export function tgTimeLeft(expiresAt: number, now: number): string | null {
   const s = Math.floor((expiresAt - now) / 1000);
   if (s <= 0) return null;
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/** «004 512» — the 6 digits in two groups (0266); an old long code as it is */
+export function tgCodeShown(code: string): string {
+  return /^[0-9]{6}$/.test(code) ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
 }

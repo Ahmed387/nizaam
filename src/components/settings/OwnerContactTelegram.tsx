@@ -1,16 +1,21 @@
 /**
  * Settings → «صاحب الشركة وتليجرام» (migrations 0237 / 0240, owner 2026-11-16): the owner's name / mobile / e-mail,
- * the company's Telegram GROUP (received e-invoices — the owner adds his employees to it in Telegram) and the owner's
- * own Telegram (the daily activity report, which is about the employees, so never the group).
+ * the company's Telegram GROUP (the owner adds his employees to it in Telegram) and the owner's own Telegram (the daily
+ * activity report, which is about the employees, so never the group).
+ * Linking (0266, owner 2026-11-18 «حوار الربط مدوخني … نفذه بالكامل مع وضع الخطوات»): one box per link with a QR (scan
+ * it with the phone camera when the page is on a computer), the 6-digit code in big letters (typed to the bot when the
+ * link opens with no Start), open / WhatsApp / copy, a countdown, and the page notices the link by itself
+ * (`tg_link_status` every 3 s).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import QRCode from "qrcode";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Send, Link2, Unlink, Save, CheckCircle2, AlertTriangle, Copy, MessageCircle, ExternalLink } from "lucide-react";
-import { tgInviteCode, tgTimeLeft, tgWhatsappHref } from "@/lib/telegramInvite";
+import { tgCodeShown, tgInviteCode, tgTimeLeft, tgWhatsappHref } from "@/lib/telegramInvite";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { rpcErrorText } from "@/lib/rpcError";
@@ -23,6 +28,9 @@ export interface OwnerContact {
   bot_ready: boolean; bot_username: string | null; is_owner: boolean;
 }
 
+type Purpose = "owner" | "group";
+interface Invite { purpose: Purpose; url: string; code: string; expiresAt: number }
+
 const when = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("ar-EG", { timeZone: "Africa/Cairo", day: "2-digit", month: "2-digit", hour: "numeric", minute: "2-digit" }) : "—";
 
@@ -30,10 +38,8 @@ export default function OwnerContactTelegram() {
   const [data, setData] = useState<OwnerContact | null>(null);
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
   const [busy, setBusy] = useState<"" | "save" | "link" | "unlink" | "test">("");
-  const [waiting, setWaiting] = useState<"" | "owner" | "group">("");
   const poll = useRef<number | null>(null);
-  // the personal link once made: shown as buttons the owner taps himself (a phone blocks a window opened after a wait)
-  const [invite, setInvite] = useState<{ purpose: "owner" | "group"; url: string; expiresAt: number } | null>(null);
+  const [invite, setInvite] = useState<Invite | null>(null);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { if (!invite) return; const t = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(t); }, [invite]);
   const copy = async (text: string, what: string) => {
@@ -47,9 +53,10 @@ export default function OwnerContactTelegram() {
     return d as OwnerContact;
   }, []);
 
+  const stopPoll = () => { if (poll.current) window.clearInterval(poll.current); poll.current = null; };
   useEffect(() => {
     load().then((d) => d && setForm({ name: d.owner_name ?? "", phone: d.owner_phone ?? "", email: d.owner_email ?? "" }));
-    return () => { if (poll.current) window.clearInterval(poll.current); };
+    return stopPoll;
   }, [load]);
 
   const save = async () => {
@@ -61,33 +68,31 @@ export default function OwnerContactTelegram() {
     toast.success("اتحفظت بيانات صاحب الشركة");
   };
 
-  const link = async (purpose: "owner" | "group") => {
+  const link = async (purpose: Purpose) => {
     setBusy("link");
     const { data: d, error } = await (supabase.rpc as any)("tg_link_start", { p_purpose: purpose });
     setBusy("");
     if (error) return toast.error(rpcErrorText(error));
     const url = (d as any).url as string;
-    setInvite({ purpose, url, expiresAt: Date.now() + Number((d as any).expires_in ?? 900) * 1000 });
-    if (purpose === "group") window.open(url, "_blank", "noopener");
-    setWaiting(purpose);
-    // wait for the bot to confirm (≤ 15 min, the code's life)
-    let n = 0;
-    if (poll.current) window.clearInterval(poll.current);
+    const code = String((d as any).code ?? tgInviteCode(url) ?? "");
+    const expiresAt = Date.now() + Number((d as any).expires_in ?? 900) * 1000;
+    setInvite({ purpose, url, code, expiresAt });
+    // wait for the bot (small read every 3 s, until linked or the code's 15 minutes are over)
+    stopPoll();
     poll.current = window.setInterval(async () => {
-      n++;
-      const cur = await load();
-      const done = purpose === "group" ? cur?.group_linked : cur?.tg_linked;
-      if (done || n > 180) {
-        if (poll.current) window.clearInterval(poll.current);
-        poll.current = null;
-        setWaiting("");
-        if (done) { setInvite(null); toast.success(purpose === "group" ? "تم ربط جروب الفواتير" : "تم ربط تليجرامك"); }
-      }
-    }, 5000);
+      if (Date.now() > expiresAt) { stopPoll(); return; }
+      const { data: s } = await (supabase.rpc as any)("tg_link_status");
+      const done = purpose === "group" ? s?.group_linked : s?.owner_linked;
+      if (!done) return;
+      stopPoll();
+      setInvite(null);
+      await load();
+      toast.success(purpose === "group" ? "✓ الجروب اتربط" : "✓ تليجرامك اتربط");
+    }, 3000);
   };
 
-  const unlink = async (which: "owner" | "group") => {
-    if (!window.confirm(which === "group" ? "تفك ربط جروب الفواتير؟ الفواتير هتوصل لتليجرامك الشخصي لو مربوط." : "تفك ربط تليجرامك؟ التقرير اليومي مش هيوصلك.")) return;
+  const unlink = async (which: Purpose) => {
+    if (!window.confirm(which === "group" ? "تفك ربط الجروب؟" : "تفك ربط تليجرامك؟ التقرير اليومي مش هيوصلك.")) return;
     setBusy("unlink");
     const { data: d, error } = await (supabase.rpc as any)("tg_unlink", { p_which: which });
     setBusy("");
@@ -106,6 +111,7 @@ export default function OwnerContactTelegram() {
 
   if (!data) return <div className="flex justify-center p-8"><Loader2 className="w-5 h-5 animate-spin" /></div>;
   const owner = data.is_owner;
+  const bot = data.bot_username ? `@${data.bot_username}` : "البوت";
 
   return (
     <div className="space-y-4">
@@ -130,8 +136,8 @@ export default function OwnerContactTelegram() {
         <CardHeader>
           <CardTitle>تنبيهات تليجرام (مجانًا)</CardTitle>
           <CardDescription>
-            جروب الفواتير: أي فاتورة إلكترونية أو إشعار دائن / مدين يتقبل (Valid) على المنظومة بينزل فيه بملخصه وملف الـ PDF، وإنت اللي
-            بتضيف موظفينك للجروب من تليجرام. تليجرامك الشخصي: تقرير نشاط الموظفين الساعة 11:15 بالليل (ليك لوحدك، مش في الجروب).
+            الجروب: تنبيهات الشركة لكل اللي فيه (إنت بتضيف موظفينك للجروب من تليجرام). تليجرامك الشخصي: تقرير نشاط الموظفين
+            الساعة 11:15 بالليل (ليك لوحدك).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
@@ -141,26 +147,34 @@ export default function OwnerContactTelegram() {
             </div>
           )}
 
+          {/* ---------------- the group */}
           <div className="rounded-lg border p-3 space-y-2">
             <div className="flex items-center gap-2 font-bold">
-              جروب الفواتير الإلكترونية
+              جروب الشركة
               {data.group_linked ? <Badge className="bg-success/15 text-success border-success/30">مربوط</Badge> : <Badge variant="outline">مش مربوط</Badge>}
             </div>
             {data.group_linked ? (
-              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-success" /> «{data.group_title ?? "الجروب"}» من {when(data.group_linked_at)}</div>
+              <div className="flex items-center gap-2" data-testid="tg-group-done"><CheckCircle2 className="w-4 h-4 text-success" /> «{data.group_title ?? "الجروب"}» من {when(data.group_linked_at)}</div>
             ) : (
-              <ol className="list-decimal pr-5 space-y-1 text-muted-foreground">
-                <li>اعمل جروب على تليجرام (مثلاً «فواتير الشركة») وضيف فيه الموظفين اللي عاوزهم يشوفوا الفواتير.</li>
-                <li>دوس «اربط جروب الفواتير» — تليجرام هيسألك تضيف البوت{data.bot_username ? ` (@${data.bot_username})` : ""} لأنهي جروب: اختار الجروب.</li>
-                <li>ارجع هنا — هيظهر «مربوط» لوحده، والبوت هيكتب في الجروب إنه اتربط.</li>
+              <ol className="list-decimal pr-5 space-y-1 text-muted-foreground" data-testid="tg-group-steps">
+                <li>اعمل جروب على تليجرام (مثلاً «الشركة») وضيف فيه الموظفين اللي عاوزهم يشوفوا التنبيهات. لازم تكون إنت أدمن الجروب.</li>
+                <li>دوس «اربط الجروب» تحت.</li>
+                <li><b>لو الصفحة دي على كمبيوتر:</b> صوّر الكود (QR) اللي هيظهر بكاميرا موبايلك. <b>لو على الموبايل:</b> دوس «افتح تليجرام».</li>
+                <li>تليجرام هيسألك: تضيف {bot} لأنهي جروب؟ ← اختار الجروب ← «إضافة».</li>
+                <li>الصفحة هتكتب «مربوط» لوحدها، والبوت هيكتب في الجروب إنه اتربط.</li>
+                <li>لو البوت اتضاف ومكتبش حاجة: اكتب جوه الجروب <b>‎/link‎</b> ومعاها الكود (6 أرقام) اللي هيظهر هنا.</li>
               </ol>
+            )}
+            {owner && !data.group_linked && invite?.purpose === "group" && (
+              <InviteBox invite={invite} now={now} onCopy={copy} fallback={`/link ${invite.code}`}
+                fallbackText="لو البوت اتضاف ومكتبش «اتربط»، اكتب جوه الجروب:" />
             )}
             {owner && (
               <div className="flex flex-wrap gap-2">
                 {!data.group_linked ? (
-                  <Button onClick={() => link("group")} disabled={!data.bot_ready || busy !== "" || waiting !== ""}>
-                    {waiting === "group" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                    {waiting === "group" ? "مستني تختار الجروب في تليجرام…" : "اربط جروب الفواتير"}
+                  <Button onClick={() => link("group")} disabled={!data.bot_ready || busy !== ""}>
+                    {busy === "link" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                    {invite?.purpose === "group" ? "اعمل كود جديد" : "اربط الجروب"}
                   </Button>
                 ) : (
                   <Button variant="ghost" onClick={() => unlink("group")} disabled={busy !== ""}><Unlink className="w-4 h-4" /> فك ربط الجروب</Button>
@@ -169,59 +183,34 @@ export default function OwnerContactTelegram() {
             )}
           </div>
 
+          {/* ---------------- the owner's own Telegram */}
           <div className="rounded-lg border p-3 space-y-2">
             <div className="flex items-center gap-2 font-bold">
               تليجرامك الشخصي (التقرير اليومي)
               {data.tg_linked ? <Badge className="bg-success/15 text-success border-success/30">مربوط</Badge> : <Badge variant="outline">مش مربوط</Badge>}
             </div>
             {data.tg_linked ? (
-              <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-success" /> مربوط{data.tg_username ? ` بحساب @${data.tg_username}` : ""} من {when(data.tg_linked_at)}</div>
+              <div className="flex items-center gap-2" data-testid="tg-owner-done"><CheckCircle2 className="w-4 h-4 text-success" /> مربوط{data.tg_username ? ` بحساب @${data.tg_username}` : ""} من {when(data.tg_linked_at)}</div>
             ) : (
-              <div className="space-y-2 text-muted-foreground" data-testid="tg-owner-steps">
-                <p>التقرير بيوصل لأي حد يدوس <b>Start</b> باللينك — على الموبايل ده، أو على موبايل صاحب الشركة لو بعتهوله.</p>
-                <ol className="list-decimal pr-5 space-y-1">
-                  <li>دوس «جهّز لينك الربط» تحت.</li>
-                  <li><b>لو التقرير ليك وتليجرام على الموبايل ده:</b> دوس «افتح تليجرام» ← هتفتح محادثة البوت{data.bot_username ? ` (@${data.bot_username})` : ""} ← دوس <b>Start</b> (أو «ابدأ») تحت الشاشة.</li>
-                  <li><b>لو التقرير لصاحب الشركة على موبايل تاني:</b> دوس «ابعت اللينك واتساب» (أو «انسخ اللينك» وابعته بأي طريقة) ← يفتحه على موبايله ويدوس <b>Start</b>.</li>
-                  <li>اللينك شغال <b>15 دقيقة</b> ولمرة واحدة. لو خلص، دوس «جهّز لينك الربط» تاني.</li>
-                  <li>الصفحة هتكتب «مربوط» لوحدها. بعدها دوس «ابعت رسالة تجربة» وتأكد إنها وصلت.</li>
-                </ol>
-                <p className="text-xs">لو تليجرام اتفتح ومفيش زرار Start: ابعت للبوت الرسالة اللي هتظهر تحت (‎/start‎ والكود) زي ما هي.</p>
-              </div>
+              <ol className="list-decimal pr-5 space-y-1 text-muted-foreground" data-testid="tg-owner-steps">
+                <li>دوس «اربط تليجرامك» تحت — هيظهر كود QR ورقم من 6 أرقام.</li>
+                <li><b>لو الصفحة دي على كمبيوتر:</b> صوّر الكود (QR) بكاميرا موبايلك ← تليجرام هيفتح ← دوس <b>Start</b> (أو «ابدأ»).</li>
+                <li><b>لو على الموبايل:</b> دوس «افتح تليجرام» ← <b>Start</b>.</li>
+                <li><b>لو التقرير لصاحب الشركة على موبايل تاني:</b> دوس «ابعت اللينك واتساب» ← يفتحه ويدوس Start.</li>
+                <li><b>لو تليجرام اتفتح ومفيش Start:</b> اكتب للبوت الـ 6 أرقام اللي ظاهرين وابعتهم.</li>
+                <li>الكود شغال 15 دقيقة ولمرة واحدة. الصفحة هتكتب «مربوط» لوحدها، وبعدها دوس «ابعت رسالة تجربة».</li>
+              </ol>
             )}
-            {owner && !data.tg_linked && invite?.purpose === "owner" && (() => {
-              const left = tgTimeLeft(invite.expiresAt, now);
-              const code = tgInviteCode(invite.url);
-              if (!left) return (
-                <div className="rounded-md bg-warning/10 p-2 text-warning">اللينك خلص (عدّى 15 دقيقة) — دوس «جهّز لينك الربط» تاني.</div>
-              );
-              return (
-                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" data-testid="tg-owner-invite">
-                  <div className="text-xs text-muted-foreground">اللينك جاهز — باقي <b className="tabular-nums">{left}</b> دقيقة</div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm"><a href={invite.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4" /> افتح تليجرام</a></Button>
-                    <Button asChild size="sm" variant="outline" className="border-success text-success hover:bg-success/10">
-                      <a href={tgWhatsappHref(invite.url, data.owner_phone)} target="_blank" rel="noopener noreferrer"><MessageCircle className="w-4 h-4" /> ابعت اللينك واتساب</a>
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => copy(invite.url, "اللينك")}><Copy className="w-4 h-4" /> انسخ اللينك</Button>
-                  </div>
-                  <div className="text-xs break-all" dir="ltr">{invite.url}</div>
-                  {code && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <span>لو مفيش Start، ابعت للبوت:</span>
-                      <code dir="ltr" className="rounded bg-muted px-1.5 py-0.5">/start {code}</code>
-                      <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => copy(`/start ${code}`, "الرسالة")}><Copy className="w-3.5 h-3.5" /></Button>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+            {owner && !data.tg_linked && invite?.purpose === "owner" && (
+              <InviteBox invite={invite} now={now} onCopy={copy} whatsapp={tgWhatsappHref(invite.url, data.owner_phone)}
+                fallback={invite.code} fallbackText={`لو مفيش Start، ابعت الرقم ده لـ ${bot}:`} />
+            )}
             {owner && (
               <div className="flex flex-wrap gap-2">
                 {!data.tg_linked ? (
                   <Button variant="outline" onClick={() => link("owner")} disabled={!data.bot_ready || busy !== ""}>
-                    {waiting === "owner" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
-                    {waiting === "owner" ? "مستني حد يدوس Start… (جهّز لينك جديد)" : "جهّز لينك الربط"}
+                    {busy === "link" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                    {invite?.purpose === "owner" ? "اعمل كود جديد" : "اربط تليجرامك"}
                   </Button>
                 ) : (
                   <Button variant="ghost" onClick={() => unlink("owner")} disabled={busy !== ""}><Unlink className="w-4 h-4" /> فك الربط</Button>
@@ -244,6 +233,48 @@ export default function OwnerContactTelegram() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/** QR + the code in big digits + open / WhatsApp / copy + countdown, while the page waits for the bot */
+function InviteBox({ invite, now, onCopy, whatsapp, fallback, fallbackText }: {
+  invite: Invite; now: number; onCopy: (t: string, what: string) => void; whatsapp?: string; fallback: string; fallbackText: string;
+}) {
+  const [qr, setQr] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    QRCode.toDataURL(invite.url, { width: 200, margin: 1 }).then((u: string) => live && setQr(u)).catch(() => live && setQr(null));
+    return () => { live = false; };
+  }, [invite.url]);
+  const left = tgTimeLeft(invite.expiresAt, now);
+  if (!left) return (
+    <div className="rounded-md bg-warning/10 p-2 text-warning">الكود خلص (عدّى 15 دقيقة) — دوس «اعمل كود جديد».</div>
+  );
+  return (
+    <div className="rounded-md border border-primary/30 bg-primary/5 p-3" data-testid={`tg-invite-${invite.purpose}`}>
+      <div className="flex flex-wrap items-start gap-4">
+        {qr && <img src={qr} alt="كود QR للربط — صوّره بكاميرا الموبايل" width={160} height={160} className="rounded bg-white p-1" data-testid="tg-qr" />}
+        <div className="space-y-2 min-w-[14rem] flex-1">
+          <div className="text-xs text-muted-foreground">الكود — باقي <b className="tabular-nums">{left}</b> دقيقة</div>
+          <div dir="ltr" className="text-3xl font-bold tracking-widest tabular-nums text-primary" data-testid="tg-code">{tgCodeShown(invite.code)}</div>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm"><a href={invite.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4" /> افتح تليجرام</a></Button>
+            {whatsapp && (
+              <Button asChild size="sm" variant="outline" className="border-success text-success hover:bg-success/10">
+                <a href={whatsapp} target="_blank" rel="noopener noreferrer"><MessageCircle className="w-4 h-4" /> ابعت اللينك واتساب</a>
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => onCopy(invite.url, "اللينك")}><Copy className="w-4 h-4" /> انسخ اللينك</Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span>{fallbackText}</span>
+            <code dir="ltr" className="rounded bg-muted px-1.5 py-0.5">{fallback}</code>
+            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onCopy(fallback, "الكود")}><Copy className="w-3.5 h-3.5" /></Button>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="w-3.5 h-3.5 animate-spin" /> مستني الربط… الصفحة هتتحدث لوحدها</div>
+        </div>
+      </div>
     </div>
   );
 }

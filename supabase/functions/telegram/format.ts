@@ -161,3 +161,17 @@ export function reportCaption(r: { company: string; day: string; totals: any }):
     `${t.users ?? 0} مستخدم — ${t.documents ?? 0} مستند جديد — ${t.sales_n ?? 0} فاتورة بيع (${money(t.sales_total)}) — ${t.cancels ?? 0} إلغاء`,
   ].join("\n");
 }
+
+/**
+ * What a chat sent the bot (owner 2026-11-18 «حوار الربط مدوخني»): a link code — «/start 123456» (the link), «/link 123456»
+ * (typed in a group), or the 6 digits alone in a private chat, Arabic digits too; «/start» with no code → 'bare';
+ * anything else → null. Old 24-letter codes still work.
+ */
+export function linkCodeOf(text: string, isGroup: boolean): { code: string } | "bare" | null {
+  const t = String(text ?? "").trim().replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)).replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
+  const m = /^\/(?:start|link)(?:@\w+)?\s+([0-9]{6}|[a-f0-9]{24})$/i.exec(t);
+  if (m) return { code: m[1].toLowerCase() };
+  if (!isGroup && /^[0-9]{6}$/.test(t.replace(/\s+/g, ""))) return { code: t.replace(/\s+/g, "") };
+  if (/^\/(?:start|link)(?:@\w+)?$/i.test(t)) return "bare";
+  return null;
+}

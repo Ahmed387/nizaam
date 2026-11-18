@@ -11,7 +11,7 @@
 //                    (`tg_daily_mark`; no activity → nothing is sent). Nothing is stored.
 // The bot token never leaves the server (Vault → `tg_bot_token`, service role).
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { etaMessage, reportCaption } from "./format.ts";
+import { etaMessage, linkCodeOf, reportCaption } from "./format.ts";
 import type { EtaPending } from "./format.ts";
 import { buildReportPdf } from "./report.ts";
 
@@ -104,10 +104,10 @@ Deno.serve(async (req) => {
       // a group that became a supergroup has a new id; the bot taken out of the group
       if (msg?.migrate_to_chat_id) { await admin.rpc("tg_group_migrated", { p_old: chat, p_new: msg.migrate_to_chat_id }); return json({ ok: true }); }
       if (isGroup && msg?.left_chat_member?.id === botId) { await admin.rpc("tg_group_left", { p_chat: chat }); return json({ ok: true }); }
-      const m = text.match(/^\/start(?:@\w+)?\s+([a-f0-9]{24})$/);
-      if (m) {
+      const m = linkCodeOf(text, isGroup);
+      if (m && m !== "bare") {
         const { data: res } = await admin.rpc("tg_link_finish", {
-          p_code: m[1], p_chat: chat, p_username: msg?.from?.username ?? null, p_chat_type: type, p_title: msg?.chat?.title ?? null,
+          p_code: m.code, p_chat: chat, p_username: msg?.from?.username ?? null, p_chat_type: type, p_title: msg?.chat?.title ?? null,
         });
         const company = String(res?.company ?? "").replace(/[<>&]/g, "");
         await tg("sendMessage", {
@@ -116,12 +116,20 @@ Deno.serve(async (req) => {
             ? (res.group
                 ? `✅ الجروب ده اتربط بشركة <b>${company}</b>.\nأي فاتورة إلكترونية أو إشعار دائن / مدين يتقبل على المنظومة هينزل هنا، وكل اللي في الجروب يشوفه.`
                 : `✅ تم ربط تليجرامك بشركة <b>${company}</b>.\nهيوصلك هنا تقرير النشاط اليومي (ولو مفيش جروب، الفواتير الإلكترونية كمان).`)
-            : res?.reason === "need_group" ? "الكود ده لربط جروب. افتح الرابط من زرار «اربط جروب الفواتير» واختار الجروب."
-            : res?.reason === "need_private" ? "الكود ده لتليجرامك الشخصي، مش للجروب. افتحه من زرار «اربط تليجرامك الشخصي»."
-            : "الكود ده انتهى أو مستخدم قبل كده. ارجع للسيستم ودوس زرار الربط تاني.",
+            : res?.reason === "need_group" ? `الكود ده لربط جروب، مش لمحادثة خاصة. اكتبه جوه الجروب كده: /link ${m.code}`
+            : res?.reason === "need_private" ? "الكود ده لتليجرامك الشخصي، مش للجروب. ابعته للبوت في محادثة خاصة (مش في الجروب)."
+            : res?.reason === "too_many" ? "اتبعت أكواد غلط كتير. استنى ساعة، وبعدين اعمل كود جديد من صفحة الربط وابعته."
+            : "الكود ده غلط أو خلص (الكود شغال 15 دقيقة ولمرة واحدة). اعمل كود جديد من صفحة الربط في السيستم وابعته هنا.",
+        });
+      } else if (m === "bare") {
+        await tg("sendMessage", {
+          chat_id: chat, parse_mode: "HTML",
+          text: isGroup
+            ? "👋 عشان تربط الجروب ده: افتح السيستم ← الإعدادات ← «صاحب الشركة وتليجرام» ← «اربط الجروب»، وبعدين اكتب هنا:\n<code>/link الكود</code>\n(الكود 6 أرقام ظاهر في الصفحة)"
+            : "👋 أهلاً! ابعتلي هنا <b>الكود</b> اللي ظاهر في صفحة الربط في السيستم (6 أرقام) وخلاص.\nمكانه: الإعدادات ← «صاحب الشركة وتليجرام» ← «اربط تليجرامك».",
         });
       } else if (!isGroup) {
-        await tg("sendMessage", { chat_id: chat, text: "البوت ده للتنبيهات بس. للربط: من السيستم ← الإعدادات ← «صاحب الشركة وتليجرام»." });
+        await tg("sendMessage", { chat_id: chat, text: "البوت ده للتنبيهات بس. لو عاوز تربط: ابعتلي الكود (6 أرقام) اللي ظاهر في السيستم ← الإعدادات ← «صاحب الشركة وتليجرام»." });
       }
     } catch (e) { console.error("webhook", errText(e)); }
     return json({ ok: true });
