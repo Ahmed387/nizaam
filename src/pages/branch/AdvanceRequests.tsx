@@ -32,7 +32,7 @@ const STATUS_INFO: Record<Status, { label: string; color: string; icon: any }> =
 
 export default function AdvanceRequests({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
-  const { user, profile, isAdmin, hasRole, tenantId } = useAuth();
+  const { user, profile, isAdmin, hasRole, tenantId, canInBranch } = useAuth();
   const isBranchManager = hasRole("branch_manager");
 
   const [rows, setRows] = useState<any[]>([]);
@@ -252,7 +252,8 @@ export default function AdvanceRequests({ embedded = false }: { embedded?: boole
         ...(showActions ? [{
           key: "actions", header: "إجراء", render: (r: any) => {
             const canActOnStage = r.status === "pending_admin" && isAdmin;
-            const canDisburse = r.status === "approved_pending_funds" && (isAdmin || isBranchManager);
+            // 0264: «السلف ← يضيف» in the request's branch (the server checks the same)
+            const canDisburse = r.status === "approved_pending_funds" && canInBranch("advances.create", r.branch_id ?? null);
             if (canDisburse) {
               const enough = balance >= Number(r.amount);
               return (

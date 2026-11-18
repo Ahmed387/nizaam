@@ -140,7 +140,9 @@ export default function Invoices() {
   // No hard delete (owner rule): sale and purchase invoices are cancelled, never deleted.
   const [cancelSale, setCancelSale] = useState<any>(null);
   const [cancelPurchase, setCancelPurchase] = useState<any>(null);
-  const canCancelDoc = isAdmin || isManager;
+  // 0264: cancel buttons follow «المبيعات / فواتير الشراء ← يلغي» in this branch (the server checks the same)
+  const canCancelSale = canInBranch("sales.delete", branchId);
+  const canCancelPurchase = canInBranch("shipments.delete", branchId);
   const [editVoucher, setEditVoucher] = useState<{ v: any; focus: boolean } | null>(null);
   const [newVoucherType, setNewVoucherType] = useState<"receipt" | "payment" | null>(null);
   const [selectedReturnForCancel, setSelectedReturnForCancel] = useState<CancelReturnTarget | null>(null);
@@ -654,7 +656,7 @@ export default function Invoices() {
                 )}
                 <DocAnnotationsButton kind="invoice" id={r.id} recipient={r.recipient_name} notes={r.notes} onSaved={() => load()} />
                 <AttachmentsDialogButton recordType="invoice" recordId={r.id} count={attCounts[r.id] ?? 0} />
-                {canCancelDoc && r.status === "active" && (
+                {canCancelSale && r.status === "active" && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title="إلغاء الفاتورة (مع رد المدفوع)" onClick={() => setCancelSale(r)}>
                     <XCircle className="w-4 h-4" />
                   </Button>
@@ -710,7 +712,7 @@ export default function Invoices() {
                 )}
                 <DocAnnotationsButton kind="shipment" id={r.id} recipient={r.received_by} notes={r.notes} onSaved={() => load()} />
                 <AttachmentsDialogButton recordType="shipment" recordId={r.id} count={attCounts[r.id] ?? 0} />
-                {canCancelDoc && (r.status ?? "active") === "active" && (
+                {canCancelPurchase && (r.status ?? "active") === "active" && (
                   <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" title={isAdmin ? "إلغاء فاتورة الشراء" : "طلب إلغاء"} onClick={() => setCancelPurchase(r)}>
                     <XCircle className="w-4 h-4" />
                   </Button>
@@ -855,7 +857,8 @@ export default function Invoices() {
           { key: "description", header: "البيان", align: "center", className: "min-w-[200px]", render: (r: any) => textCell(r.description) },
           {
             key: "actions", header: "إجراءات", align: "center", width: "12rem", render: (r: any) => {
-              const canCancel = r.status === "active" && (isAdmin || (isManager && r.source === "manual"));
+              // 0264: a manual voucher is cancelled by whoever has «سندات القبض / الصرف ← يلغي»; automatic ones stay admin only
+              const canCancel = r.status === "active" && (isAdmin || (r.source === "manual" && canInBranch(`${r.type === "receipt" ? "receipt_vouchers" : "payment_vouchers"}.delete`, r.branch_id ?? branchId)));
               return (
                 <div className="flex items-center justify-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="icon" className="h-8 w-8" title="عرض السند" onClick={() => setViewVoucher(r)}>
@@ -951,7 +954,7 @@ export default function Invoices() {
         onClick: (r: any) => nav(`${base}/quotes/${r.id}`),
       };
     }
-  }, [tab, branchId, nav, branches, attCounts, canCancelDoc, isAdmin, isManager, expandedInvoiceId, transferValues]);
+  }, [tab, branchId, nav, branches, attCounts, canCancelSale, canCancelPurchase, isAdmin, isManager, expandedInvoiceId, transferValues]);
 
   const currentTabLabel = TABS.find((t) => t.key === tab)?.label ?? "";
 

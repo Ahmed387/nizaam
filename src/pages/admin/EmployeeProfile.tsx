@@ -37,7 +37,7 @@ export default function EmployeeProfile() {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const nav = useNavigate();
-  const { user, profile, isAdmin, roleLabel, roleSettings } = useAuth();
+  const { user, profile, isAdmin, roleLabel, roleSettings, canInBranch } = useAuth();
 
   const [emp, setEmp] = useState<any>(null);
   const [branch, setBranch] = useState<any>(null);
@@ -532,7 +532,7 @@ export default function EmployeeProfile() {
 
         <TabsContent value="advances" className="mt-4">
           <div className="flex justify-end mb-3">
-            <Button onClick={() => setAdvOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> سلفة جديدة</Button>
+            {canInBranch("advances.create", emp?.branch_id ?? null) && <Button onClick={() => setAdvOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> سلفة جديدة</Button>}
           </div>
           <DataTable
             rows={advances}

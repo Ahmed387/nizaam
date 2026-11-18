@@ -26,8 +26,12 @@ export default function PreOrders() {
   const [params] = useSearchParams();
   const focusId = params.get("focus");
   const nav = useNavigate();
-  const { isAdmin, hasRole } = useAuth();
-  const canManage = isAdmin || hasRole("branch_manager");
+  const { canInBranch } = useAuth();
+  // 0264: «طلبات الحجز ← يضيف / يعدل (إتمام البيع) / يلغي» in this branch (the server checks the same)
+  const canNew = canInBranch("preorders.create", branchId);
+  const canComplete = canInBranch("preorders.update", branchId);
+  const canCancelPo = canInBranch("preorders.delete", branchId);
+  const canManage = canComplete || canCancelPo;
 
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,11 +93,11 @@ export default function PreOrders() {
       <PageHeader
         title="طلبات الحجز"
         subtitle="إدارة حجوزات العملاء"
-        actions={
+        actions={canNew ? (
           <Button className="btn-gradient" onClick={() => setPickerOpen(true)}>
             <BookmarkPlus className="w-4 h-4 ml-1" /> حجز جديد
           </Button>
-        }
+        ) : null}
       />
 
       <div className="card-elevated p-4 mb-4 flex flex-wrap items-center gap-2">
@@ -144,12 +148,12 @@ export default function PreOrders() {
             <div className="flex gap-1">
               {(r.status === "pending" || r.status === "received") && canManage && (
                 <>
-                  <Button size="sm" variant="outline" onClick={() => setCompleteFor(r)}>
+                  {canComplete && <Button size="sm" variant="outline" onClick={() => setCompleteFor(r)}>
                     <CheckCircle2 className="w-3 h-3 ml-1" /> إتمام البيع
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setCancelFor(r)}>
+                  </Button>}
+                  {canCancelPo && <Button size="sm" variant="outline" onClick={() => setCancelFor(r)}>
                     <XCircle className="w-3 h-3 ml-1 text-destructive" /> إلغاء
-                  </Button>
+                  </Button>}
                 </>
               )}
               {r.status === "completed" && r.invoice_id && (

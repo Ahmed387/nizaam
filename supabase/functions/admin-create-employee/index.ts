@@ -5,7 +5,9 @@ const ALLOWED_EMPLOYEE_ROLES = [
   'admin', 'owner', 'branch_manager', 'accountant', 'cashier',
   'warehouse', 'supervisor', 'worker', 'driver', 'viewer', 'partner',
 ];
-
+/** 0264 (owner 2026-11-18 «كل زرار يشتغل»): roles an employee who is NOT the owner / admin may give, when «الموظفين ← يضيف /
+ *  يعدل» is open for him in every branch involved — never a role with company-wide power. */
+const LIMITED_ROLES = ['cashier', 'warehouse', 'supervisor', 'worker', 'driver'];
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -38,9 +40,8 @@ Deno.serve(async (req) => {
 
     const { data: roles } = await admin.from('user_roles').select('role').eq('user_id', callerId);
     const rolesList = (roles ?? []).map((r: any) => r.role);
-    if (!rolesList.some((r: string) => ['admin', 'owner', 'super_admin'].includes(r))) {
-      return json({ error: 'Forbidden — owner/admin only' }, 403);
-    }
+    const isAdminCaller = rolesList.some((r: string) => ['admin', 'owner', 'super_admin'].includes(r));
+    // anyone else goes on only if his switch allows it (checked below, once the branches and the role are known)
 
     const { data: callerProfile } = await admin
       .from('profiles').select('tenant_id').eq('id', callerId).maybeSingle();
@@ -84,6 +85,30 @@ Deno.serve(async (req) => {
     const okIds = new Set((okBranches ?? []).map((b: any) => b.id));
     if (!okIds.has(branch_id)) return json({ error: 'الفرع غير صالح' }, 400);
     const finalBranchIds = branchIds.filter((b) => okIds.has(b));
+
+    // 0264: not the owner / admin → «الموظفين ← يضيف / يعدل» in every branch involved, and only for regular roles
+    if (!isAdminCaller) {
+      const key = employee_id ? 'employees.update' : 'employees.create';
+      const label = employee_id ? 'يعدل' : 'يضيف';
+      if (!LIMITED_ROLES.includes(String(role))) {
+        return json({ error: 'الدور ده (مدير / محاسب / مراقب / شريك) بيديه المالك أو المدير العام بس' }, 403);
+      }
+      const check = new Set<string>(finalBranchIds);
+      if (employee_id) {
+        const { data: target } = await admin.from('employees').select('role, branch_id, tenant_id').eq('id', employee_id).maybeSingle();
+        if (!target || target.tenant_id !== tenantId) return json({ error: 'الموظف غير موجود' }, 404);
+        if (target.role && !LIMITED_ROLES.includes(String(target.role))) {
+          return json({ error: 'بيانات المديرين والمحاسبين بيعدلها المالك أو المدير العام بس' }, 403);
+        }
+        if (target.branch_id) check.add(target.branch_id as string);
+      }
+      for (const b of check) {
+        const { data: allowed, error: permErr } = await admin.rpc('perm_resolve', { _uid: callerId, _key: key, _branch: b });
+        if (permErr || allowed !== true) {
+          return json({ error: `مش مسموحلك — الصلاحية «الموظفين ← ${label}» مقفولة عليك في فرع من الفروع دي (بتتفتح من الإعدادات ← الموظفين)` }, 403);
+        }
+      }
+    }
 
     const payload: Record<string, unknown> = {
       name: String(name).trim(),

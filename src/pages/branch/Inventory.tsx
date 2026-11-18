@@ -65,7 +65,7 @@ export default function Inventory() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const initialTab = ["products", "transfers", "adjustments", "count"].includes(tabParam ?? "") ? tabParam! : "products";
-  const { user, profile, tenantId, isAdmin, hasRole } = useAuth();
+  const { user, profile, tenantId, isAdmin, hasRole, canInBranch } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   // «التحديد» (owner 2026-11-11): rows picked for «تصدير المحدد»
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -109,8 +109,12 @@ export default function Inventory() {
   // Reference detail drill-down
   const [refDetail, setRefDetail] = useState<{ type: string; title: string; rows: any[]; loading: boolean } | null>(null);
 
-  const canManageInventory = isAdmin || hasRole("branch_manager") || hasRole("warehouse");
+  // 0264 (owner 2026-11-18): the buttons follow «المخزون ← يضيف / يعدل / يلغي» in this branch (the server checks the same)
+  const canNewProduct = canInBranch("inventory.create", branchId);
+  const canEditProduct = canInBranch("inventory.update", branchId);
   const canHardDelete = isAdmin;
+  const canArchiveProduct = canInBranch("inventory.delete", branchId) || canHardDelete;
+  const canManageInventory = canNewProduct || canEditProduct || canArchiveProduct;
 
   const uploadImage = async (file: File) => {
     setUploading(true);
@@ -613,7 +617,7 @@ export default function Inventory() {
       <PageHeader title="المخزون" subtitle={`${activeRows.length} منتج${archivedCount ? ` · ${archivedCount} مؤرشف` : ""}`}
         actions={
           <div className="flex gap-2 flex-wrap">
-            <PermPart page="inventory" part="import_button"><Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button></PermPart>
+            {canNewProduct && <PermPart page="inventory" part="import_button"><Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button></PermPart>}
             {canManageInventory && (
               <PermPart page="inventory" part="barcode_buttons"><div className="flex gap-2">
                 <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory/barcodes`)}>
@@ -624,7 +628,7 @@ export default function Inventory() {
                 </Button>
               </div></PermPart>
             )}
-            <PermPart page="inventory" part="new_product_button"><Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button></PermPart>
+            {canNewProduct && <PermPart page="inventory" part="new_product_button"><Button className="btn-gradient" onClick={() => setOpen(true)}><Plus className="w-4 h-4 ml-1" /> منتج جديد</Button></PermPart>}
           </div>
         }
       />
@@ -842,24 +846,24 @@ export default function Inventory() {
                           {canManageInventory && (
                             <div className="flex items-center justify-center gap-1.5" onDoubleClick={(e) => e.stopPropagation()}>
                               {r.archived_at ? (
-                                <Button size="sm" variant="outline" className="h-8 gap-1 text-success border-success/40 hover:bg-success/10" onClick={() => doRestore(r)} title="استرجاع المنتج">
+                                canArchiveProduct && <Button size="sm" variant="outline" className="h-8 gap-1 text-success border-success/40 hover:bg-success/10" onClick={() => doRestore(r)} title="استرجاع المنتج">
                                   <ArchiveRestore className="w-4 h-4" /> استرجاع
                                 </Button>
                               ) : (
                                 <>
-                                  <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج" onClick={() => openEditAll(r)}>
+                                  {canEditProduct && <Button size="icon" variant="outline" className="h-8 w-8" title="تعديل بيانات المنتج" onClick={() => openEditAll(r)}>
                                     <Pencil className="w-4 h-4" />
-                                  </Button>
-                                  {(isAdmin || hasRole("branch_manager")) && <PackSizeButton product={r} onDone={load} />}
+                                  </Button>}
+                                  {canEditProduct && <PackSizeButton product={r} onDone={load} />}
                                   <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setHistoryFor(r)} title="تاريخ الأسعار">
                                     <History className="w-4 h-4" />
                                   </Button>
                                   <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)} title="حركة المنتج">
                                     <Activity className="w-4 h-4" />
                                   </Button>
-                                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => openDelete(r)} title="حذف / أرشفة المنتج">
+                                  {canArchiveProduct && <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => openDelete(r)} title="حذف / أرشفة المنتج">
                                     <Trash2 className="w-4 h-4" />
-                                  </Button>
+                                  </Button>}
                                 </>
                               )}
                             </div>
@@ -922,23 +926,23 @@ export default function Inventory() {
                         {canManageInventory && (
                           <div className="mt-2 flex gap-1 flex-wrap" onDoubleClick={(e) => e.stopPropagation()}>
                             {r.archived_at ? (
-                              <Button size="sm" variant="outline" className="h-8 text-success border-success/40" onClick={() => doRestore(r)}>
+                              canArchiveProduct && <Button size="sm" variant="outline" className="h-8 text-success border-success/40" onClick={() => doRestore(r)}>
                                 <ArchiveRestore className="w-3.5 h-3.5 ml-1" /> استرجاع
                               </Button>
                             ) : (
                               <>
-                                <Button size="sm" variant="outline" className="h-8" onClick={() => openEditAll(r)}>
+                                {canEditProduct && <Button size="sm" variant="outline" className="h-8" onClick={() => openEditAll(r)}>
                                   <Pencil className="w-3.5 h-3.5 ml-1" /> تعديل
-                                </Button>
+                                </Button>}
                                 <Button size="sm" variant="outline" className="h-8" onClick={() => setHistoryFor(r)}>
                                   <History className="w-3.5 h-3.5 ml-1" /> تاريخ
                                 </Button>
                                 <Button size="sm" variant="outline" className="h-8" onClick={() => nav(`/branch/${branchId}/inventory/${r.id}/movements`)}>
                                   <Activity className="w-3.5 h-3.5 ml-1" /> حركة
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-8 text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => openDelete(r)}>
+                                {canArchiveProduct && <Button size="sm" variant="outline" className="h-8 text-destructive border-destructive/40 hover:bg-destructive/10" onClick={() => openDelete(r)}>
                                   <Trash2 className="w-3.5 h-3.5 ml-1" /> حذف
-                                </Button>
+                                </Button>}
                               </>
                             )}
                           </div>
@@ -1299,9 +1303,9 @@ export default function Inventory() {
           })()}
 
           <DialogFooter className="px-5 py-3 border-t shrink-0 bg-background/95 backdrop-blur rounded-b-lg gap-2 sm:justify-between">
-            <Button variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive gap-1.5" onClick={() => editAll && openDelete(editAll)} disabled={savingEdit}>
+            {canArchiveProduct ? <Button variant="outline" className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive gap-1.5" onClick={() => editAll && openDelete(editAll)} disabled={savingEdit}>
               <Trash2 className="w-4 h-4" /> حذف / أرشفة
-            </Button>
+            </Button> : <span />}
             <div className="flex gap-2">
               <Button variant="outline" onClick={cancelEditAll} disabled={savingEdit}>إلغاء</Button>
               <Button className="btn-gradient min-w-[140px]" onClick={saveEditAll} disabled={savingEdit}>

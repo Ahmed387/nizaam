@@ -89,7 +89,7 @@ export default function ArchivePage() {
               { key: "quantity", header: "الكمية", total: false, render: (r: any) => r.quantity },
               { key: "branch", header: "الفرع", render: (r: any) => r.branches?.name ?? "—" },
               { key: "archived_at", header: "تاريخ الأرشفة", render: (r: any) => (r.archived_at ? formatDate(r.archived_at) : "—") },
-              { key: "act", header: "الإجراءات", filter: false, render: (r: any) => (
+              { key: "act", header: "الإجراءات", filter: false, render: (r: any) => (canInBranch("inventory.delete", r.branch_id ?? null) &&
                 <Button size="sm" variant="outline" className="h-8 gap-1 text-success border-success/40" onClick={() => restoreProduct(r)}><ArchiveRestore className="w-4 h-4" /> استرجاع</Button>
               ) },
             ]} />

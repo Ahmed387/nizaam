@@ -34,14 +34,16 @@ const STATUS = {
 
 export default function Attendance({ embedded = false }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
-  const { tenant, user, roles, isAdmin } = useAuth();
+  const { tenant, user, roles, isAdmin, canInBranch } = useAuth();
 
-  // Determine which target employee roles the current user can manage
+  // Who may mark whom — the same rule as the server (`can_manage_attendance_for`), AND «الحضور ← يضيف / يعدل» in this
+  // branch (0264: the switch decides; the server checks both)
+  const attSwitch = canInBranch("attendance.create", branchId) || canInBranch("attendance.update", branchId);
   const canManageRole = (targetRole: string | null) => {
-    if (isAdmin || roles.includes("super_admin") || roles.includes("supervisor")) return true;
-    if (!targetRole) return false;
-    if (["worker", "driver"].includes(targetRole)) {
-      return roles.includes("accountant") || roles.includes("warehouse");
+    if (!attSwitch) return false;
+    if (isAdmin || roles.includes("super_admin") || roles.includes("owner") || roles.includes("supervisor")) return true;
+    if (!targetRole || ["worker", "driver"].includes(targetRole)) {
+      return roles.includes("accountant") || roles.includes("warehouse") || roles.includes("branch_manager");
     }
     if (targetRole === "cashier") return roles.includes("branch_manager");
     return false;

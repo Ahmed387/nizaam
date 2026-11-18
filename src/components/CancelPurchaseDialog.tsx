@@ -29,7 +29,8 @@ interface Props {
 export function CancelPurchaseDialog({ open, onOpenChange, shipment, onDone }: Props) {
   const { isAdmin, hasRole, tenantId, user, profile } = useAuth();
   const isManager = hasRole("branch_manager");
-  const asRequest = !isAdmin && isManager;
+  // 0264: whoever has «فواتير الشراء ← يلغي» sees the button; anyone but the owner / admin sends it for approval (as before)
+  const asRequest = !isAdmin;
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<CancelPreview | null>(null);
@@ -68,7 +69,7 @@ export function CancelPurchaseDialog({ open, onOpenChange, shipment, onDone }: P
       if (action === "refund" && method !== "cash")
         await attachPaymentProofs([{ files: proofs, method, amount: direct, branchId: shipment.branch_id ?? null, anyAmount: true }], proofSince);
       toast.success(`تم إلغاء ${label}`);
-    } else if (isManager) {
+    } else {
       const ok = await createApprovalRequest({
         tenantId: tenantId!, branchId: shipment.branch_id ?? null,
         entityType: "shipment", entityId: shipment.id, entityLabel: label,
@@ -78,9 +79,6 @@ export function CancelPurchaseDialog({ open, onOpenChange, shipment, onDone }: P
       });
       setBusy(false);
       if (!ok) return;
-    } else {
-      setBusy(false);
-      return toast.error("غير مصرح");
     }
     onOpenChange(false);
     onDone?.();

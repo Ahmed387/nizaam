@@ -37,7 +37,7 @@ interface Props {
 /** The selection bar of a document table: open as tabs, print, export, edit and cancel the selected documents. */
 export function BulkActionsBar({ kind, branchId, rows, onSelectPage, onSelectAll, totalCount, onClear, onDone, extra }: Props) {
   const nav = useNavigate();
-  const { isAdmin, isOwner, isSuperAdmin, hasRole } = useAuth();
+  const { isAdmin, isOwner, isSuperAdmin, hasRole, canInBranch } = useAuth();
   const isManager = hasRole("branch_manager");
   const label = BULK_LABEL[kind];
   const [busyAll, setBusyAll] = useState(false);
@@ -50,7 +50,9 @@ export function BulkActionsBar({ kind, branchId, rows, onSelectPage, onSelectAll
   const total = useMemo(() => rows.reduce((s, r) => s + docAmount(kind, r), 0), [rows, kind]);
   const canCancelKind = kind === "sale_return" || kind === "purchase_return" ? (isOwner || isSuperAdmin) : isVoucherKind(kind);
   const canCancelRow = (r: any) => (r.status ?? "active") === "active"
-    && (isVoucherKind(kind) ? (isAdmin || (isManager && r.source === "manual")) : (isOwner || isSuperAdmin));
+    && (isVoucherKind(kind)
+      ? (isAdmin || (r.source === "manual" && canInBranch(`${r.type === "receipt" ? "receipt_vouchers" : "payment_vouchers"}.delete`, r.branch_id ?? branchId)))
+      : (isOwner || isSuperAdmin));
 
   const openAll = () => {
     const list = rows.slice(0, OPEN_DOCS_MAX).map((r) => ({ path: docPath(kind, branchId, r), label: docNumber(kind, r) }));

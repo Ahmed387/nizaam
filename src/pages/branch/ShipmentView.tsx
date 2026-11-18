@@ -29,7 +29,7 @@ export default function ShipmentView() {
   const nav = useNavigate();
   const { isAdmin, hasRole, canInBranch } = useAuth();
   const isManager = hasRole("branch_manager");
-  const canCancelDoc = isAdmin || isManager;
+  const canCancelDoc = canInBranch("shipments.delete", branchId);
   const canEdit = isAdmin || isManager;
   const [ship, setShip] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);

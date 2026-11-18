@@ -232,13 +232,23 @@ const settle = async (page) => { await page.waitForLoadState("networkidle").catc
 const ME = "a9000000-0000-4000-8000-000000000001";
 // role, branch level, and what each button must do — the defaults of src/lib/roles.ts (no saved rows)
 const PEOPLE = [
-  { label: "كاشير",      role: "cashier",        level: "manage", add: true,  edit: false, archive: false, receipt: true,  payment: false },
-  { label: "أمين مخزن",  role: "warehouse",      level: "manage", add: true,  edit: true,  archive: false, receipt: false, payment: false },
-  { label: "مدير فرع",   role: "branch_manager", level: "manage", add: true,  edit: true,  archive: true,  receipt: true,  payment: true  },
-  { label: "مراقب",      role: "viewer",         level: null,     add: false, edit: false, archive: false, receipt: false, payment: false },
-  { label: "مدير فرع «عرض فقط»", role: "branch_manager", level: "read", add: false, edit: false, archive: false, receipt: false, payment: false },
+  { label: "كاشير",      role: "cashier",        level: "manage", add: true,  edit: false, archive: false, receipt: true,  payment: false,
+    newProduct: false, editProduct: false, archiveProduct: false, cancelSale: false, newPreorder: true,  newTransfer: false, addEmployee: false },
+  { label: "أمين مخزن",  role: "warehouse",      level: "manage", add: true,  edit: true,  archive: false, receipt: false, payment: false,
+    newProduct: true,  editProduct: true,  archiveProduct: false, cancelSale: false, newPreorder: false, newTransfer: true,  addEmployee: true },
+  { label: "مدير فرع",   role: "branch_manager", level: "manage", add: true,  edit: true,  archive: true,  receipt: true,  payment: true,
+    newProduct: true,  editProduct: true,  archiveProduct: true,  cancelSale: true,  newPreorder: true,  newTransfer: true,  addEmployee: true },
+  { label: "مراقب",      role: "viewer",         level: null,     add: false, edit: false, archive: false, receipt: false, payment: false,
+    newProduct: false, editProduct: false, archiveProduct: false, cancelSale: false, newPreorder: false, newTransfer: false, addEmployee: false },
+  { label: "مدير فرع «عرض فقط»", role: "branch_manager", level: "read", add: false, edit: false, archive: false, receipt: false, payment: false,
+    newProduct: false, editProduct: false, archiveProduct: false, cancelSale: false, newPreorder: false, newTransfer: false, addEmployee: false },
   { label: "كاشير اتفتحله «يعدل» بس", role: "cashier", level: "manage", rules: [{ permission_key: "customers.update", allowed: true }],
-    add: true, edit: true, archive: false, receipt: true, payment: false },
+    add: true, edit: true, archive: false, receipt: true, payment: false,
+    newProduct: false, editProduct: false, archiveProduct: false, cancelSale: false, newPreorder: true, newTransfer: false, addEmployee: false },
+  { label: "مدير فرع اتقفل عليه «إلغاء البيع» و«المخزون ← يلغي»", role: "branch_manager", level: "manage",
+    rules: [{ permission_key: "sales.delete", allowed: false }, { permission_key: "inventory.delete", allowed: false }],
+    add: true, edit: true, archive: true, receipt: true, payment: true,
+    newProduct: true, editProduct: true, archiveProduct: false, cancelSale: false, newPreorder: true, newTransfer: true, addEmployee: true },
 ];
 
 (async () => {
@@ -249,6 +259,7 @@ const PEOPLE = [
     db.user_roles = [{ user_id: OWNER, role: "owner", tenant_id: T }, { user_id: ME, role: p.role, tenant_id: T }];
     db.branch_users = p.level ? [{ user_id: ME, branch_id: B1, access_level: p.level, full_access: false, branch_role: null, branch_template: null, branches: db.branches[0] }] : [];
     db.user_permissions = (p.rules ?? []).map((r) => ({ ...r, user_id: ME, tenant_id: T, branch_id: null }));
+    db.pre_orders = []; db.stock_transfers = []; db.employees = [];
     const { page, ctx } = await open(browser, db, ME);
 
     // accounts page
@@ -276,6 +287,22 @@ const PEOPLE = [
     await page.goto(`${BASE}/branch/${B1}/invoices?tab=expense`); await settle(page);
     const pvShown = await vis(page.getByRole("button", { name: "سند صرف جديد", exact: true }));
     check(`${p.label}: «سند صرف جديد» ${p.payment ? "ظاهر" : "مخفي"}`, pvShown === p.payment, `ظاهر=${pvShown}`);
+
+    // inventory
+    await page.goto(`${BASE}/branch/${B1}/inventory`); await settle(page);
+    const look = async (name, want, loc) => { const v = await vis(loc); check(`${p.label}: ${name} ${want ? "ظاهر" : "مخفي"}`, v === want, `ظاهر=${v}`); };
+    await look("«منتج جديد»", p.newProduct, page.getByRole("button", { name: "منتج جديد", exact: true }));
+    await look("تعديل الصنف", p.editProduct, page.getByTitle("تعديل بيانات المنتج"));
+    await look("أرشفة الصنف", p.archiveProduct, page.getByTitle("حذف / أرشفة المنتج"));
+    // sales list: cancel
+    await page.goto(`${BASE}/branch/${B1}/invoices?tab=sale`); await settle(page);
+    await look("إلغاء فاتورة البيع", p.cancelSale, page.getByTitle("إلغاء الفاتورة (مع رد المدفوع)"));
+    await page.goto(`${BASE}/branch/${B1}/pre-orders`); await settle(page);
+    await look("«حجز جديد»", p.newPreorder, page.getByRole("button", { name: "حجز جديد", exact: true }));
+    await page.goto(`${BASE}/branch/${B1}/transfers`); await settle(page);
+    await look("«طلب نقل جديد»", p.newTransfer, page.getByRole("button", { name: "طلب نقل جديد", exact: true }));
+    await page.goto(`${BASE}/branch/${B1}/employees`); await settle(page);
+    await look("«إضافة موظف»", p.addEmployee, page.getByRole("button", { name: "إضافة موظف", exact: true }));
 
     const errs = db.calls.filter((c) => c.pageerror);
     check(`${p.label}: مفيش أخطاء في الصفحات`, errs.length === 0, errs.map((e) => e.pageerror).join(" | ").slice(0, 200));

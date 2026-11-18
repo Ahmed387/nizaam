@@ -37,10 +37,11 @@ type PermGroup = { key: string; label: string; actions: ("view" | "create" | "up
 /** Branch/operations permission catalog. */
 export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   { key: "dashboard", label: "الرئيسية", actions: ["view"] },
-  { key: "sales", label: "المبيعات", actions: ["view", "create", "update", "delete"] },
+  // «يعدل» was removed (owner 2026-11-18 «شيله»): editing a sale / purchase is only «تعديل فواتير البيع / الشراء» (owner-granted, 0257)
+  { key: "sales", label: "المبيعات", actions: ["view", "create", "delete"] },
   { key: "invoices", label: "الفواتير والمستندات", actions: ["view", "update", "delete"] },
   { key: "preorders", label: "طلبات الحجز", actions: ["view", "create", "update", "delete"] },
-  { key: "shipments", label: "فواتير الشراء", actions: ["view", "create", "update", "delete"] },
+  { key: "shipments", label: "فواتير الشراء", actions: ["view", "create", "delete"] },
   { key: "inventory", label: "المخزون", actions: ["view", "create", "update", "delete"] },
   { key: "transfers", label: "نقل المخزون بين الفروع", actions: ["view", "create"] },
   // 0262 (owner 2026-11-18 «خليهم اوبشن واحد»): ONE switch for customers AND suppliers — `suppliers.*` reads `customers.*`

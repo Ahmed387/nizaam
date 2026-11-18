@@ -162,7 +162,7 @@ export default function InvoiceView() {
   if (error) return <BranchLayout><div className="p-8 text-center text-destructive">⚠️ {error}</div></BranchLayout>;
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;
 
-  const canCancel = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
+  const canCancel = canInBranch("sales.delete", inv.branch_id) && inv.status === "active";
   // 0257: «تعديل فواتير البيع» — owner-granted; every edit waits for the owner's approval
   const canEdit = canEditDoc(canInBranch, "invoice", inv.branch_id) && inv.status === "active";
 

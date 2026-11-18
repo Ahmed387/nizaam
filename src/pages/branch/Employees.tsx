@@ -39,7 +39,10 @@ const POSITIONS = [
 export default function Employees() {
   const { id: branchId } = useParams<{ id: string }>();
   const nav = useNavigate();
-  const { tenant } = useAuth();
+  const { tenant, isAdmin, canInBranch } = useAuth();
+  // 0264: «الموظفين ← يضيف» in this branch; anyone but the owner / admin adds only regular roles (the server checks the same)
+  const canAddEmp = canInBranch("employees.create", branchId);
+  const limitedRoles = !isAdmin;
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -142,9 +145,9 @@ export default function Employees() {
 
         <TabsContent value="list" className="mt-4">
           {autoButtons(<div className="flex gap-2 flex-wrap justify-end mb-3">
-            <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>
-            <Button variant="outline" onClick={() => setBulkOpen(true)}><KeyRound className="w-4 h-4 ml-1" /> إنشاء حسابات دخول جماعية</Button>
-            <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> إضافة موظف</Button>
+            {canAddEmp && <Button variant="outline" onClick={() => setImportOpen(true)}><FileSpreadsheet className="w-4 h-4 ml-1" /> استيراد Excel</Button>}
+            {isAdmin && <Button variant="outline" onClick={() => setBulkOpen(true)}><KeyRound className="w-4 h-4 ml-1" /> إنشاء حسابات دخول جماعية</Button>}
+            {canAddEmp && <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> إضافة موظف</Button>}
           </div>)}
           <DataTable
             loading={loading}
@@ -253,9 +256,9 @@ export default function Employees() {
                     <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cashier">كاشير</SelectItem>
-                      <SelectItem value="branch_manager">مدير فرع</SelectItem>
+                      {!limitedRoles && <SelectItem value="branch_manager">مدير فرع</SelectItem>}
                       <SelectItem value="warehouse">أمين مخزن</SelectItem>
-                      <SelectItem value="accountant">محاسب</SelectItem>
+                      {!limitedRoles && <SelectItem value="accountant">محاسب</SelectItem>}
                       <SelectItem value="supervisor">ملاحظ</SelectItem>
                     </SelectContent>
                   </Select>

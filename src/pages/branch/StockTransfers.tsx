@@ -43,7 +43,7 @@ type TransferValue = { unit: number; sent: number; received: number; rejected: n
 
 export default function StockTransfers({ embedded }: { embedded?: boolean } = {}) {
   const { id: branchId } = useParams<{ id: string }>();
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, canInBranch } = useAuth();
   const [transferDate, setTransferDate] = useState(cairoToday());
   const [branches, setBranches] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -430,7 +430,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       embedded={embedded}
       title="نقل المخزون بين الفروع"
       subtitle="إرسال واستقبال البضاعة بين الفروع"
-      actions={<Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> طلب نقل جديد</Button>}
+      actions={canInBranch("transfers.create", branchId) ? <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> طلب نقل جديد</Button> : null}
     >
       <Tabs defaultValue="incoming">
         <TabsList>
