@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { canEditDoc } from "@/lib/docEditAccess";
 import { RestoreCancelledButton } from "@/components/docEdit/RestoreCancelledButton";
 import { PermTable } from "@/components/PermTable";
 import { useNavigate, useParams } from "react-router-dom";
@@ -26,7 +27,7 @@ const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ 
 export default function ShipmentView() {
   const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId: string }>();
   const nav = useNavigate();
-  const { isAdmin, hasRole } = useAuth();
+  const { isAdmin, hasRole, canInBranch } = useAuth();
   const isManager = hasRole("branch_manager");
   const canCancelDoc = isAdmin || isManager;
   const canEdit = isAdmin || isManager;
@@ -165,7 +166,7 @@ export default function ShipmentView() {
             <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
               <Printer className="w-4 h-4" /> طباعة الفاتورة
             </Button>
-            {canEdit && !isCancelled && (
+            {canEdit && canEditDoc(canInBranch, "shipment", ship.branch_id ?? branchId) && !isCancelled && (
               <Button variant="outline" size="sm" className="gap-2" onClick={() => nav(`/branch/${branchId}/shipments/${ship.id}/edit`)}>
                 <Pencil className="w-4 h-4" /> {isAdmin ? "التعديل على الفاتورة" : "طلب تعديل على الفاتورة"}
               </Button>

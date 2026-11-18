@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AppRole, DEFAULT_ROLE_PERMISSIONS, MANAGED_ROLES, PERMISSION_GROUPS, ROLE_LABELS, checkPermission } from "@/lib/roles";
+import { AppRole, DEFAULT_ROLE_PERMISSIONS, MANAGED_ROLES, PERMISSION_GROUPS, ROLE_LABELS, checkPermission, isOwnerOnlyKey } from "@/lib/roles";
+
+// 0257: owner-granted keys are given to one employee at a time from «الموظفين», never through a role or template
+const ownerOnlyLock = (k: string) => (isOwnerOnlyKey(k) ? "بتتفتح لموظف بعينه بس من «الموظفين» (صاحب الشركة)" : null);
 import { CatalogPage } from "@/lib/permissionCatalog";
 import { Overrides, RolePerms, allowAllPage, effective, pageKeys, resetPage, setOverride } from "@/lib/permissionModel";
 import { rpcErrorText } from "@/lib/rpcError";
@@ -98,6 +101,7 @@ export function TemplatesPermissions() {
     };
     return {
       resetWord: "الافتراضي",
+      locked: ownerOnlyLock,
       customizeHref: roleHref(role),
       get,
       changed: (k: string) => get(k) !== def(k),
@@ -119,6 +123,7 @@ export function TemplatesPermissions() {
     const put = (perms: Overrides) => setTplDraft((d) => ({ ...d, [id]: { ...d[id], perms } }));
     return {
       resetWord: "الدور",
+      locked: ownerOnlyLock,
       customizeHref: roleHref(tplRole(id)),
       get: (k: string) => effective([t.base_role], rolePerms, t.perms, k),
       changed: (k: string) => k in t.perms,

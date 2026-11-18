@@ -229,12 +229,25 @@ export const PERM_HELP: Record<string, string> = {
 
   // بيانات حسّاسة
   net_profit: "رؤية أرقام صافي الربح في الكروت والتقارير. لو مقفولة الموظف هيشوف «غير مصرح» مكان الرقم.",
+
+  // تعديل المستندات (0257): صاحب الشركة بس اللي يفتحها، وكل تعديل بيروح له طلب موافقة
+  doc_edit_sales: "يطلب تعديل فاتورة بيع (أصنافها أو تاريخها) أو استرجاعها من الملغاة. التعديل بيستنى موافقة صاحب الشركة.",
+  doc_edit_purchases: "يطلب تعديل فاتورة شراء (أصنافها أو تاريخها) أو استرجاعها. التعديل بيستنى موافقة صاحب الشركة.",
+  doc_edit_returns: "يطلب تعديل مرتجع بيع أو شراء أو استرجاعه. التعديل بيستنى موافقة صاحب الشركة.",
+  doc_edit_vouchers: "يطلب تعديل سند قبض أو صرف أو استرجاعه. التعديل بيستنى موافقة صاحب الشركة.",
 };
 
 /** صلاحيات بيانات حسّاسة — بتتمنح لموظف بعينه فقط (مش أدوار). */
 export const SENSITIVE_PERMISSION_GROUPS: PermGroup[] = [
   { key: "net_profit", label: "رؤية صافي الربح", actions: ["view"] },
+  { key: "doc_edit_sales", label: "تعديل فواتير البيع (بموافقة المالك)", actions: ["update"] },
+  { key: "doc_edit_purchases", label: "تعديل فواتير الشراء (بموافقة المالك)", actions: ["update"] },
+  { key: "doc_edit_returns", label: "تعديل المرتجعات (بموافقة المالك)", actions: ["update"] },
+  { key: "doc_edit_vouchers", label: "تعديل السندات (بموافقة المالك)", actions: ["update"] },
 ];
+
+/** 0257: keys only the company owner grants, one employee at a time — no role, template, manager or default gives them. */
+export const isOwnerOnlyKey = (key: string) => /^doc_edit_[a-z]+\.update$/.test(key);
 
 
 /** Full permission catalog used by the admin Role Permissions panel. */
@@ -349,6 +362,11 @@ export function checkPermission(
 ): boolean {
   if (roles.includes("super_admin") || roles.includes("owner")) return true;
   if (branchId && rule?.read && isWriteKey(key)) return false;
+  // 0257: same order as perm_resolve — only the employee's own rule (that branch, then every branch)
+  if (isOwnerOnlyKey(key)) {
+    if (branchId && userOverrides[branchKey(key, branchId)] !== undefined) return userOverrides[branchKey(key, branchId)];
+    return userOverrides[key] === true;
+  }
   if (branchId && userOverrides[branchKey(key, branchId)] !== undefined) return userOverrides[branchKey(key, branchId)];
   if (branchId && rule?.full && !/^(part\.)?admin_/.test(key)) return true;
   if (userOverrides[key] !== undefined) return userOverrides[key];

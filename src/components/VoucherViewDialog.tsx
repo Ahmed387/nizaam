@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { canEditDoc } from "@/lib/docEditAccess";
 import { RestoreCancelledButton } from "@/components/docEdit/RestoreCancelledButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +26,11 @@ export function VoucherViewDialog({
   categoryName?: string;
   onEdit?: (voucher: Voucher, focusDate?: boolean) => void;
 }) {
-  const { isAdmin, hasRole } = useAuth();
+  const { isAdmin, hasRole, canInBranch } = useAuth();
   const canEdit = isAdmin || hasRole("branch_manager") || hasRole("accountant") || hasRole("cashier");
   if (!voucher) return null;
+  // 0257: «تعديل السندات» — owner-granted; the edit waits for the owner's approval (attachments keep canEdit)
+  const canEditVoucher = canEditDoc(canInBranch, "voucher", (voucher as any).branch_id);
 
   const isReceipt = voucher.type === "receipt";
   const accent = isReceipt ? "success" : "destructive";
@@ -78,7 +81,7 @@ export function VoucherViewDialog({
         {/* Body */}
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {canEdit && voucher.status === "active" && onEdit ? (
+            {canEditVoucher && voucher.status === "active" && onEdit ? (
               <button type="button" onClick={() => onEdit(voucher, true)} title="اضغط لتعديل التاريخ"
                 className="text-right cursor-pointer rounded-lg transition hover:ring-2 hover:ring-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 <Field icon={<Calendar className="w-4 h-4" />} label="التاريخ" value={<span className="inline-flex items-center gap-1">{formatDate(voucher.voucher_date)}<Pencil className="w-3 h-3 text-primary" /></span>} />
@@ -115,7 +118,7 @@ export function VoucherViewDialog({
             <RestoreCancelledButton kind="voucher" onDone={() => onOpenChange(false)}
               doc={{ id: (voucher as any).id, number: (voucher as any).voucher_number, source_type: (voucher as any).source_type, type: (voucher as any).type }} />
           )}
-          {canEdit && voucher.status === "active" && onEdit && (
+          {canEditVoucher && voucher.status === "active" && onEdit && (
             <Button
               variant="default"
               onClick={() => onEdit(voucher)}

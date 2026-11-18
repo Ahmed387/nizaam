@@ -1,4 +1,5 @@
 import { ContactLookup } from "@/components/ContactLookup";
+import { canEditDoc } from "@/lib/docEditAccess";
 import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { PermTable } from "@/components/PermTable";
 import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
@@ -132,7 +133,7 @@ function transferSummary(all: any[], vals: Record<string, TransferValue>) {
 
 export default function Invoices() {
   const { id: branchId } = useParams<{ id: string }>();
-  const { branches, isAdmin, hasRole, tenantId, user, profile, can } = useAuth();
+  const { branches, isAdmin, isOwner, hasRole, tenantId, user, profile, can, canInBranch } = useAuth();
   const canProfit = useCanViewNetProfit();
   const isManager = hasRole("branch_manager");
   // No hard delete (owner rule): sale and purchase invoices are cancelled, never deleted.
@@ -642,7 +643,7 @@ export default function Invoices() {
                   <Eye className="w-4 h-4" />
                 </Button>
                 <PrintDocButton kind="sale" id={r.id} title="طباعة الفاتورة" />
-                {can("sales.create") && r.status === "active" && (
+                {canEditDoc(canInBranch, "invoice", r.branch_id) && r.status === "active" && (
                   <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل الفاتورة" onClick={() => nav(`${base}/sales/${r.id}/edit`)}>
                     <Pencil className="w-4 h-4" />
                   </Button>
@@ -698,7 +699,7 @@ export default function Invoices() {
                   <Eye className="w-4 h-4" />
                 </Button>
                 <PrintDocButton kind="purchase" id={r.id} title="طباعة الفاتورة" />
-                {can("shipments.create") && (r.status ?? "active") === "active" && (
+                {canEditDoc(canInBranch, "shipment", r.branch_id) && (r.status ?? "active") === "active" && (
                   <Button variant="ghost" size="icon" className="h-8 w-8" title="تعديل الفاتورة" onClick={() => nav(`${base}/shipments/${r.id}/edit`)}>
                     <Pencil className="w-4 h-4" />
                   </Button>
@@ -1523,7 +1524,7 @@ export default function Invoices() {
         kind={returnEdit?.kind ?? "sale_return"}
         record={returnEdit?.rec ?? null}
         originalInvoiceDate={returnEdit?.kind === "sale_return" ? returnEdit?.rec?.invoices?.invoice_date : null}
-        canEditDate={isAdmin}
+        canEditDate={isOwner}
         onOpenChange={(o) => !o && setReturnEdit(null)}
         onSaved={() => load()}
       />

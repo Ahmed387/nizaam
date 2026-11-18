@@ -5,15 +5,16 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { canEditReturn } from "@/lib/returnEdit";
+import { canEditDoc } from "@/lib/docEditAccess";
 
 /**
- * «تعديل المرتجع» — لكل اللي معاه صلاحية «returns.update» (مفتوحة للكل، المالك يقفلها من الصلاحيات — 0132). بيفتح شاشة المرتجع بالبيانات القديمة؛ عند الحفظ السيرفر بيلغي القديم
+ * «تعديل المرتجع» — لمين صاحب الشركة فتحله «تعديل المرتجعات» (0257؛ والتعديل بيستنى موافقته). بيفتح شاشة المرتجع بالبيانات القديمة؛ عند الحفظ السيرفر بيلغي القديم
  * ويسجّل الجديد بنفس تاريخه (المرتجع القديم بيفضل في القايمة ملغي ومربوط بالجديد).
  */
 export function EditReturnButton({ kind, branchId, ret }: { kind: "sale" | "purchase"; branchId: string; ret: any }) {
   const { canInBranch } = useAuth();
   const nav = useNavigate();
-  if (!canEditReturn(ret, canInBranch("returns.update", ret?.branch_id ?? branchId))) return null;
+  if (!canEditReturn(ret, canEditDoc(canInBranch, kind === "sale" ? "sale_return" : "purchase_return", ret?.branch_id ?? branchId))) return null;
   const path = kind === "sale" ? "sale-returns" : "purchase-returns";
   return (
     <Button

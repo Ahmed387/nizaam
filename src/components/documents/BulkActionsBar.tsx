@@ -118,7 +118,7 @@ export function BulkActionsBar({ kind, branchId, rows, onSelectPage, onSelectAll
           try { await printDocuments(kind, rows.map((r) => r.id), f); } catch (e: any) { toast.error(e?.message ?? "تعذر الطباعة"); }
         }} />
       {editOpen && (
-        <BulkEditDialog kind={kind} rows={active} canDate={isAdmin} onClose={() => setEditOpen(false)}
+        <BulkEditDialog kind={kind} rows={active} canDate={isOwner || isSuperAdmin} onClose={() => setEditOpen(false)}
           onFinished={(list) => { setEditOpen(false); finish("نتيجة التعديل", list); }} />
       )}
       {cancelOpen && (

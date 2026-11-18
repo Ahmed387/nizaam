@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DOC_EDIT_KEY, type DocEditEntity } from "@/lib/docEditAccess";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -45,11 +46,8 @@ export function RestoreCancelledButton({ kind, doc, onDone }: {
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const perm = kind === "invoice" ? "sales.update"
-    : kind === "shipment" ? "shipments.update"
-    : kind === "voucher" ? (doc.type === "receipt" ? "receipt_vouchers.create" : "payment_vouchers.create")
-    : "returns.update";
-  const allowed = isOwner || can(perm);
+  // 0257: «تعديل …» keys — owner-granted; the restore waits for the owner's approval
+  const allowed = isOwner || can(DOC_EDIT_KEY[kind as DocEditEntity]);
   // an automatic voucher (of an invoice / return / purchase) comes back with its document, not alone
   if (!allowed || (kind === "voucher" && doc.source_type)) return null;
 

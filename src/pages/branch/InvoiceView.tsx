@@ -1,4 +1,5 @@
 import { packOf, packText } from "@/components/PackUnits";
+import { canEditDoc } from "@/lib/docEditAccess";
 import { fetchContactBalance } from "@/lib/contactBalances";
 import { PermTable } from "@/components/PermTable";
 import { useEffect, useRef, useState } from "react";
@@ -30,7 +31,7 @@ import { MessageCircle } from "lucide-react";
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
   const nav = useNavigate();
-  const { hasRole, isAdmin, tenant } = useAuth();
+  const { hasRole, isAdmin, tenant, canInBranch } = useAuth();
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -161,7 +162,8 @@ export default function InvoiceView() {
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;
 
   const canCancel = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
-  const canEdit = (isAdmin || hasRole("branch_manager")) && inv.status === "active";
+  // 0257: «تعديل فواتير البيع» — owner-granted; every edit waits for the owner's approval
+  const canEdit = canEditDoc(canInBranch, "invoice", inv.branch_id) && inv.status === "active";
 
   // «ابعت للعميل واتساب»: the text is built here, WhatsApp opens on this device on the customer's chat
   const sendWhatsApp = () => {

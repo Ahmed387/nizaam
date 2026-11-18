@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AppRole, DEFAULT_ROLE_PERMISSIONS, MANAGED_ROLES, ROLE_LABELS, BranchRule, isWriteKey } from "@/lib/roles";
+import { AppRole, DEFAULT_ROLE_PERMISSIONS, MANAGED_ROLES, ROLE_LABELS, BranchRule, isWriteKey, isOwnerOnlyKey } from "@/lib/roles";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { edgeErrorMessage } from "@/lib/edgeError";
 import { CatalogPage } from "@/lib/permissionCatalog";
@@ -192,6 +192,8 @@ export function EmployeesPermissions() {
   const diff = useMemo(() => diffOverrides(effRoles, rolePermsX, overrides, rules), [effRoles.join(), rolePermsX, overrides, rules]); // eslint-disable-line react-hooks/exhaustive-deps
   // partners and monitoring accounts are view only; a «عرض فقط» branch too (the server refuses any write there)
   const locked = (k: string): string | null => {
+    // 0257: «تعديل المستندات» — صاحب الشركة بس اللي يفتحها
+    if (isOwnerOnlyKey(k) && !isOwner) return "صاحب الشركة بس اللي يفتح الصلاحية دي";
     if (!isWriteKey(k)) return null;
     if (kind === "partner") return "الشريك عرض بس";
     if (kind === "staff" && role === "viewer") return "حساب المراقبة عرض بس";

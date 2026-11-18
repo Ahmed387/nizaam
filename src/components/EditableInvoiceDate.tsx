@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DOC_EDIT_KEY } from "@/lib/docEditAccess";
 import { Calendar as CalendarIcon, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +38,10 @@ const toLocalInput = (iso: string) => {
  * Shows the invoice date + time. Only admin / super_admin can edit it (UI + DB-enforced).
  */
 export function EditableInvoiceDate({ table, recordId, value, fallback, compact, readOnly, onSaved }: Props) {
-  const { isAdmin } = useAuth();
-  const canEdit = isAdmin && !readOnly;
+  const { isAdmin, isOwner, can } = useAuth();
+  // 0257: sale / purchase invoice dates follow «تعديل فواتير البيع / الشراء» (owner-granted, approval by the owner)
+  const canEdit = !readOnly && (table === "invoices" ? isOwner || can(DOC_EDIT_KEY.invoice)
+    : table === "shipments" ? isOwner || can(DOC_EDIT_KEY.shipment) : isAdmin);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const initial = toLocalInput(value ?? fallback ?? "");
