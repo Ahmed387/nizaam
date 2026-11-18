@@ -158,13 +158,13 @@ export function UnifiedDocumentFilters(p: Props) {
         )}
 
         {p.statusOptions && p.statusOptions.length > 0 && (
-          <Field label="الحالة"><OptSelect value={draft.status} options={p.statusOptions} onChange={(s) => set({ status: s })} /></Field>
+          <Field label="الحالة"><OptSelect value={draft.status} options={p.statusOptions} onChange={(s) => set({ status: s })} ariaLabel="الحالة" /></Field>
         )}
         {p.classOptions && p.classOptions.length > 0 && (
-          <Field label="التصنيف"><OptSelect value={draft.settleClass} options={p.classOptions} onChange={(s) => set({ settleClass: s })} /></Field>
+          <Field label="التصنيف"><OptSelect value={draft.settleClass} options={p.classOptions} onChange={(s) => set({ settleClass: s })} ariaLabel="التصنيف" /></Field>
         )}
         {p.payStateOptions && p.payStateOptions.length > 0 && (
-          <Field label="حالة السداد"><OptSelect value={draft.payState} options={p.payStateOptions} onChange={(s) => set({ payState: s })} /></Field>
+          <Field label="حالة السداد"><OptSelect value={draft.payState} options={p.payStateOptions} onChange={(s) => set({ payState: s })} ariaLabel="حالة السداد" /></Field>
         )}
         {typeof p.customField === "function" ? p.customField(draft, set) : p.customField}
         {p.paymentOptions && p.paymentOptions.length > 0 && (

@@ -6,7 +6,10 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
 import { DataTable } from "@/components/DataTable";
 import { Button } from "@/components/ui/button";
-import { InventoryStatusBadge } from "@/components/InventoryStatusBadge";
+import { InventoryStatusBadge, INV_STATUS_LABELS } from "@/components/InventoryStatusBadge";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { anyAmountIn, dayIn, hasAny, searchHas } from "@/lib/listFilter";
+import { useUserOptions } from "@/lib/docUsers";
 import { formatDateTime } from "@/lib/format";
 import { Plus, FileText, ClipboardList, ClipboardCheck, ShieldCheck, Camera, Ban } from "lucide-react";
 import { toast } from "sonner";
@@ -31,7 +34,7 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
     setLoading(true);
     const { data } = await supabase
       .from("inventory_sessions" as any)
-      .select("*, branches(name)")
+      .select("*, branches(name), inventory_session_items(product_name, product_code, unit_cost)")
       .eq("branch_id", branchId)
       .order("created_at", { ascending: false });
     setRows((data as any) ?? []);
@@ -39,6 +42,15 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
   };
   useEffect(() => { load(); }, [branchId]);
   useRealtimeRefresh(["inventory_sessions"], load);
+  // unified filter (owner 2026-11-18): صنف جوه الجلسة، الفترة، الحالة، اللي عملها، الملاحظات، والمبلغ = تكلفة الصنف وقت الجرد (0259)
+  const [af, setAf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const userOpts = useUserOptions(rows.map((r: any) => r.created_by));
+  const shown = useMemo(() => rows.filter((r: any) => {
+    const items = r.inventory_session_items ?? [];
+    return searchHas(items.flatMap((i: any) => [i.product_name, i.product_code]), af.q) && dayIn(r.created_at, af.from, af.to)
+      && (!af.status || r.status === af.status) && (!af.recipient || r.created_by === af.recipient) && searchHas([r.notes], af.notes)
+      && anyAmountIn(items.map((i: any) => i.unit_cost), af.amountMin, af.amountMax);
+  }), [rows, af]);
   const attCounts = useAttachmentCounts("inventory_adjustment", useMemo(() => rows.map((r: any) => r.id), [rows]));
 
   const canCancel = (status: string) => ["counting", "reviewing", "pending_approval"].includes(status);
@@ -99,10 +111,16 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
         ) : null
       }
     >
+      <UnifiedDocumentFilters
+        title="جلسات الجرد" noun="جلسة" shown={{ from: shown.length ? 1 : 0, to: shown.length, total: shown.length }}
+        value={af} onChange={setAf} onReset={() => setAf(EMPTY_DOCUMENT_FILTERS)} hasAnyFilter={hasAny(af)}
+        searchLabel="بحث (اسم أو كود صنف جوه الجلسة)" searchPlaceholder="اسم الصنف أو كوده..."
+        showAmount showNotes recipientOptions={userOpts} recipientLabel="اللي عمل الجلسة"
+        statusOptions={Object.entries(INV_STATUS_LABELS).map(([value, label]) => ({ value, label }))} />
       <DataTable
-        rows={rows}
+        rows={shown}
         loading={loading}
-        empty="لا توجد جلسات جرد"
+        empty={hasAny(af) ? "مفيش جلسات بالفلتر ده" : "لا توجد جلسات جرد"}
         columns={[
           { key: "created_at", header: "التاريخ", render: (r: any) => formatDateTime(r.created_at) },
           { key: "warehouse", header: "المخزن", render: (r: any) => r.branches?.name ?? "—" },

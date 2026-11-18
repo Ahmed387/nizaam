@@ -1,6 +1,6 @@
 import { fetchLastPurchaseCosts } from "@/lib/lastPurchaseCost";
 import { readAll } from "@/hooks/useWholeList";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PermTable } from "@/components/PermTable";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { PermPart } from "@/contexts/PermCustomize";
@@ -51,6 +51,9 @@ import { PRODUCT_BUCKET } from "@/lib/productImage";
 import { confirmAlert } from "@/components/ConfirmDialog";
 import { format as formatDateFns } from "date-fns";
 import { cn } from "@/lib/utils";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { amountIn, anyAmountIn, dayIn, hasAny, productPrice, searchHas } from "@/lib/listFilter";
+import { useUserOptions } from "@/lib/docUsers";
 
 const cairoToday = () => new Intl.DateTimeFormat("en-CA", {
   timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit",
@@ -70,12 +73,12 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<string>("all");
+  // unified filter (owner 2026-11-18): بحث، الفترة (تاريخ الكمية الأولية)، الحالة، التصنيف، المبلغ على سعر البيع / الشراء
+  // (`payState` of the draft carries «على سعر»: "" / "sell" = سعر البيع، "buy" = سعر الشراء — waits for «بحث» like the rest)
+  const [af, setAf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const search = af.q, filter = af.status || "all";
   // «استبعاد الكميات الصفر» (owner 2026-11-15): on by default, remembered; «نفد» chosen himself shows the zeros
   const [hideZero, setHideZero] = useHideZero("inventory");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
   const [defaultLowStock, setDefaultLowStock] = useState<number>(5);
   const [form, setForm] = useState({
     name: "", category_id: "", cost_price: "", selling_price: "", market_price: "",
@@ -499,9 +502,9 @@ export default function Inventory() {
     if (filter === "low" && !(p.quantity > 0 && p.quantity <= p.low_stock_alert)) return false;
     if (filter === "out" && p.quantity > 0) return false;
     if (filter === "ok" && p.quantity <= p.low_stock_alert) return false;
-    const productDate = String(p.initial_stock_date ?? p.created_at ?? "").slice(0, 10);
-    if (dateFrom && productDate < formatDateFns(dateFrom, "yyyy-MM-dd")) return false;
-    if (dateTo && productDate > formatDateFns(dateTo, "yyyy-MM-dd")) return false;
+    if (!dayIn(p.initial_stock_date ?? p.created_at, af.from, af.to)) return false;
+    if (af.categoryId && p.category_id !== af.categoryId) return false;
+    if (!amountIn(productPrice(p, af.payState), af.amountMin, af.amountMax)) return false;
     return true;
   });
 
@@ -709,44 +712,24 @@ export default function Inventory() {
         </TabsList>
 
         <TabsContent value="products" className="mt-4">
+          <UnifiedDocumentFilters
+            title="الأصناف" noun="صنف" shown={{ from: filtered.length ? 1 : 0, to: filtered.length, total: filtered.length }}
+            value={af} onChange={setAf} onReset={() => setAf(EMPTY_DOCUMENT_FILTERS)} hasAnyFilter={hasAny(af)}
+            searchLabel="بحث (الاسم، الكود، الماركة، الموديل، اللون)" searchPlaceholder="ابحث بالاسم أو الكود أو الماركة أو الموديل أو اللون"
+            showAmount
+            statusOptions={[
+              { value: "ok", label: `🟢 متوفر (${statusCounts.ok})` }, { value: "low", label: `🟡 منخفض (${statusCounts.low})` }, { value: "out", label: `🔴 نفد (${statusCounts.out})` },
+            ]}
+            customField={(d, set) => (<>
+              <UnifiedDocumentFilters.Field label="التصنيف">
+                <UnifiedDocumentFilters.Select value={d.categoryId} options={cats.map((c: any) => ({ value: c.id, label: c.name }))} onChange={(v) => set({ categoryId: v })} ariaLabel="التصنيف" />
+              </UnifiedDocumentFilters.Field>
+              <UnifiedDocumentFilters.Field label="المبلغ على سعر">
+                <UnifiedDocumentFilters.Select value={d.payState} options={[{ value: "sell", label: "البيع" }, { value: "buy", label: "الشراء (التكلفة)" }]}
+                  onChange={(v) => set({ payState: v })} ariaLabel="المبلغ على سعر" />
+              </UnifiedDocumentFilters.Field>
+            </>)} />
           <div className="flex gap-3 mb-4 flex-wrap items-center">
-            <Input placeholder="ابحث بالاسم أو الكود أو الماركة أو الموديل أو اللون" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
-            <Select value={filter} onValueChange={setFilter}>
-              <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">كل الحالات ({statusCounts.all})</SelectItem>
-                <SelectItem value="ok">🟢 متوفر ({statusCounts.ok})</SelectItem>
-                <SelectItem value="low">🟡 منخفض ({statusCounts.low})</SelectItem>
-                <SelectItem value="out">🔴 نفد ({statusCounts.out})</SelectItem>
-              </SelectContent>
-            </Select>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full sm:w-40 justify-start font-normal", !dateFrom && "text-muted-foreground")}>
-                  <CalendarIcon className="w-4 h-4 ml-2" />
-                  {dateFrom ? formatDateFns(dateFrom, "yyyy/MM/dd") : "من تاريخ"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} disabled={(date) => date > new Date()} initialFocus />
-              </PopoverContent>
-            </Popover>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full sm:w-40 justify-start font-normal", !dateTo && "text-muted-foreground")}>
-                  <CalendarIcon className="w-4 h-4 ml-2" />
-                  {dateTo ? formatDateFns(dateTo, "yyyy/MM/dd") : "إلى تاريخ"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={dateTo} onSelect={setDateTo} disabled={(date) => date > new Date() || (!!dateFrom && date < dateFrom)} initialFocus />
-              </PopoverContent>
-            </Popover>
-            {(dateFrom || dateTo) && (
-              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(undefined); setDateTo(undefined); }}>
-                <X className="w-4 h-4 ml-1" /> مسح الفترة
-              </Button>
-            )}
             <HideZeroToggle checked={hideZero} onChange={setHideZero} label="استبعاد الكميات الصفر" />
             <Button
               variant={showArchived ? "default" : "outline"}
@@ -1611,13 +1594,20 @@ function AdjustmentsList({ branchId }: { branchId: string }) {
   const [loading, setLoading] = useState(true);
   const load = async () => {
     setLoading(true);
-    // every adjustment of the branch, newest first (it used to show the last 500 only)
-    const data = await readAll<any>(() => supabase.from("stock_adjustments" as any).select("*").eq("branch_id", branchId).order("created_at", { ascending: false }).order("id")).catch(() => [] as any[]);
+    // every adjustment of the branch, newest first, with its item names (the search box looks inside)
+    const data = await readAll<any>(() => supabase.from("stock_adjustments" as any).select("*, stock_adjustment_items(product_name)").eq("branch_id", branchId)
+      .order("created_at", { ascending: false }).order("id")).catch(() => [] as any[]);
     setRows(data);
     setLoading(false);
   };
   useEffect(() => { load(); }, [branchId]);
   useRealtimeRefresh(["stock_adjustments"], load);
+  // unified filter (owner 2026-11-18): رقم / سبب / اسم صنف جوه التسوية، الفترة، اللي عمل التسوية، الملاحظات — من غير مبلغ
+  const [af, setAf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const userOpts = useUserOptions(rows.map((r) => r.created_by));
+  const shown = useMemo(() => rows.filter((r) =>
+    searchHas([r.adjustment_number, r.reason, ...(r.stock_adjustment_items ?? []).map((i: any) => i.product_name)], af.q)
+    && dayIn(r.created_at, af.from, af.to) && searchHas([r.notes], af.notes) && (!af.recipient || r.created_by === af.recipient)), [rows, af]);
   return (
     <div>
       <div className="flex justify-end mb-3">
@@ -1625,10 +1615,15 @@ function AdjustmentsList({ branchId }: { branchId: string }) {
           <Plus className="w-4 h-4" /> تسوية جديدة في الفرع
         </Button>
       </div>
+      <UnifiedDocumentFilters
+        title="التسويات" noun="تسوية" shown={{ from: shown.length ? 1 : 0, to: shown.length, total: shown.length }}
+        value={af} onChange={setAf} onReset={() => setAf(EMPTY_DOCUMENT_FILTERS)} hasAnyFilter={hasAny(af)}
+        searchLabel="بحث (رقم التسوية، السبب، اسم صنف جوه التسوية)" searchPlaceholder="رقم التسوية أو السبب أو اسم الصنف..."
+        showNotes recipientOptions={userOpts} recipientLabel="اللي عمل التسوية" />
       <DataTable
         loading={loading}
-        rows={rows}
-        empty="لا توجد تسويات"
+        rows={shown}
+        empty={hasAny(af) ? "مفيش تسويات بالفلتر ده" : "لا توجد تسويات"}
         columns={[
           { key: "adjustment_number", header: "رقم", render: (r: any) => <span className="font-mono text-primary">{r.adjustment_number}</span> },
           { key: "reason", header: "السبب" },

@@ -33,6 +33,8 @@ import { ProductPriceHistory } from "@/components/ProductPriceHistory";
 import { ProductCell } from "@/components/VariantChips";
 import { useBranchScope } from "@/lib/branchScope";
 import { cairoTodayDay } from "@/lib/cairoDate";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { dayIn, hasAny } from "@/lib/listFilter";
 
 interface Row {
   id: string;
@@ -64,10 +66,9 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
   const { filterBranches } = useBranchScope();
   const [cats, setCats] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [branchFilter, setBranchFilter] = useState("all");
-  const [catFilter, setCatFilter] = useState("all");
-  const [stockFilter, setStockFilter] = useState("all");
+  // unified filter (owner 2026-11-18): بحث، الفترة (تاريخ الكمية الأولية)، الفرع، التصنيف، الحالة
+  const [af, setAf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const search = af.q, branchFilter = af.fromBranch || "all", catFilter = af.categoryId || "all", stockFilter = af.status || "all";
   const [editing, setEditing] = useState<Row | null>(null);
   const [editPriceReason, setEditPriceReason] = useState("");
   // حذف مؤجل لصور المنتج — لا يُنفَّذ إلا بعد نجاح الحفظ
@@ -119,8 +120,9 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
     if (stockFilter === "low" && p.quantity > p.low_stock_alert) return false;
     if (stockFilter === "out" && Number(p.quantity) > 0) return false;
     if (stockFilter === "ok" && p.quantity <= p.low_stock_alert) return false;
+    if (!dayIn((p as any).initial_stock_date ?? (p as any).created_at, af.from, af.to)) return false;
     return true;
-  }), [rows, search, branchFilter, catFilter, stockFilter, hideZero]);
+  }), [rows, search, branchFilter, catFilter, stockFilter, hideZero, af.from, af.to]);
 
   // archived products and system branches are not stock; "out" = nothing left (zero or negative);
   // value = quantity on hand × the branch moving average cost (products.avg_cost, migration 0071)
@@ -328,32 +330,21 @@ export default function AllInventory({ embedded }: { embedded?: boolean } = {}) 
         }
       />
 
+      <UnifiedDocumentFilters
+        title="مخزون كل الفروع" noun="صنف" shown={{ from: filtered.length ? 1 : 0, to: filtered.length, total: filtered.length }}
+        value={af} onChange={setAf} onReset={() => setAf(EMPTY_DOCUMENT_FILTERS)} hasAnyFilter={hasAny(af)}
+        searchLabel="بحث (الاسم، الكود، الماركة، الموديل، اللون)" searchPlaceholder="ابحث بالاسم أو الكود"
+        statusOptions={[{ value: "ok", label: "متوفر" }, { value: "low", label: "منخفض" }, { value: "out", label: "نفد" }]}
+        customField={(d, set) => (<>
+          <UnifiedDocumentFilters.Field label="الفرع">
+            <UnifiedDocumentFilters.Select value={d.fromBranch} options={branches.map((b: any) => ({ value: b.id, label: b.name }))} onChange={(v) => set({ fromBranch: v })} ariaLabel="الفرع" />
+          </UnifiedDocumentFilters.Field>
+          <UnifiedDocumentFilters.Field label="التصنيف">
+            <UnifiedDocumentFilters.Select value={d.categoryId} options={cats.map((c: any) => ({ value: c.id, label: c.name }))} onChange={(v) => set({ categoryId: v })} ariaLabel="التصنيف" />
+          </UnifiedDocumentFilters.Field>
+        </>)} />
       <div className="flex gap-3 mb-4 flex-wrap">
-        <Input placeholder="ابحث بالاسم أو الكود" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
-        <Select value={branchFilter} onValueChange={setBranchFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="الفرع" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الفروع</SelectItem>
-            {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={catFilter} onValueChange={setCatFilter}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="التصنيف" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل التصنيفات</SelectItem>
-            {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
         <HideZeroToggle checked={hideZero} onChange={setHideZero} label="استبعاد الكميات الصفر" />
-        <Select value={stockFilter} onValueChange={setStockFilter}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">كل الحالات</SelectItem>
-            <SelectItem value="ok">متوفر</SelectItem>
-            <SelectItem value="low">منخفض</SelectItem>
-            <SelectItem value="out">نفد</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* شريط العمليات الجماعية */}

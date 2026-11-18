@@ -83,7 +83,7 @@ function productLines() {
 function makeDb() {
   return {
     calls: [],
-    profiles: [{ id: OWNER, name: "احمد ناصر", username: "an.ayoub98", tenant_id: T, is_active: true }],
+    profiles: [{ id: OWNER, name: "احمد ناصر", username: "an.ayoub98", tenant_id: T, is_active: true }, { id: CASHIER, name: "ا/محمود علاء ضيف", username: "cashier1", tenant_id: T, is_active: true }],
     user_roles: [{ user_id: OWNER, role: "owner", tenant_id: T }, { user_id: OWNER, role: "admin", tenant_id: T }],
     branch_users: [],
     branches: [{ id: B1, name: "معرض سكة تلة", code: "B1", tenant_id: T, is_active: true, is_system: false, platform_paused: false }],
@@ -96,7 +96,29 @@ function makeDb() {
     vouchers: makeVouchers(),
     treasury: makeTreasury(),
     contacts: [{ id: CONTACT, name: "اسامة الراعى الصالح", phone: "01000000001", type: "customer", branch_id: B1, tenant_id: T, opening_balance: 0 }],
-    products: [{ id: PRODUCT, name: "ثلاجة توشيبا 16 قدم", sku: "1001", branch_id: B1, tenant_id: T, quantity: 3, avg_cost: 15000, cost_price: 15000, selling_price: 18000 }],
+    products: [
+      { id: PRODUCT, name: "ثلاجة توشيبا 16 قدم", sku: "1001", branch_id: B1, tenant_id: T, quantity: 3, avg_cost: 15000, cost_price: 15000, selling_price: 18000, low_stock_alert: 1, initial_stock_date: "2026-01-01" },
+      { id: uuid("e0000001", 2), name: "سخان اوليمبيك 50 لتر", sku: "1002", branch_id: B1, tenant_id: T, quantity: 5, avg_cost: 4000, cost_price: 4000, selling_price: 5200, low_stock_alert: 1, initial_stock_date: "2026-01-01" },
+      { id: uuid("e0000001", 3), name: "غسالة فريش 8 ك", sku: "1003", branch_id: B1, tenant_id: T, quantity: 2, avg_cost: 9000, cost_price: 9000, selling_price: 11500, low_stock_alert: 1, initial_stock_date: "2026-01-01" },
+    ],
+    profiles_extra: [],
+    stock_adjustments: [
+      { id: uuid("e1000001", 1), branch_id: B1, tenant_id: T, adjustment_number: "ADJ-0001", reason: "كسر", notes: "اتكسرت في النقل", created_at: "2026-11-02T10:00:00+00:00", created_by: OWNER, stock_adjustment_items: [{ product_name: "ثلاجة توشيبا 16 قدم" }] },
+      { id: uuid("e1000001", 2), branch_id: B1, tenant_id: T, adjustment_number: "ADJ-0002", reason: "عجز جرد", notes: null, created_at: "2026-11-05T10:00:00+00:00", created_by: CASHIER, stock_adjustment_items: [{ product_name: "سخان اوليمبيك 50 لتر" }] },
+    ],
+    inventory_sessions: [
+      { id: uuid("e2000001", 1), branch_id: B1, tenant_id: T, status: "closed", notes: null, created_at: "2026-11-03T10:00:00+00:00", created_by: OWNER, branches: { name: "معرض سكة تلة" },
+        inventory_session_items: [{ product_name: "ثلاجة توشيبا 16 قدم", product_code: "1001", unit_cost: 15000 }] },
+      { id: uuid("e2000001", 2), branch_id: B1, tenant_id: T, status: "counting", notes: null, created_at: "2026-11-06T10:00:00+00:00", created_by: CASHIER, branches: { name: "معرض سكة تلة" },
+        inventory_session_items: [{ product_name: "سخان اوليمبيك 50 لتر", product_code: "1002", unit_cost: 4000 }] },
+    ],
+    vessel_transfers: Array.from({ length: 4 }, (_, i) => ({ id: uuid("e3000001", i + 1), tenant_id: T, branch_id: B1, doc_number: `VT0000${i + 1}`,
+      from_method: "cash", to_method: i % 2 ? "instapay" : "bank", amount: (i + 1) * 1000, fee_amount: 0, transfer_date: `2026-11-0${i + 1}`,
+      notes: i === 3 ? "تحويل للبنك الأهلي" : null, status: "active", created_by: i % 2 ? CASHIER : OWNER, created_at: `2026-11-0${i + 1}T10:00:00+00:00` })),
+    treasury_transfers: Array.from({ length: 4 }, (_, i) => ({ id: uuid("e4000001", i + 1), tenant_id: T, from_branch_id: i % 2 ? "b2000000-0000-0000-0000-000000000002" : B1,
+      to_branch_id: i % 2 ? B1 : "b2000000-0000-0000-0000-000000000002", amount: (i + 1) * 2000, payment_method: "cash", fee_amount: 0, reference_number: `TT-${i + 1}`,
+      reason: "تمويل", created_at: `2026-11-0${i + 1}T10:00:00+00:00`, transferred_by: i < 2 ? OWNER : CASHIER, acknowledged_at: i === 0 ? "2026-11-01T12:00:00+00:00" : null,
+      rejected_at: null, returned_amount: 0, from_branch: { name: i % 2 ? "معرض شلبى" : "معرض سكة تلة" }, to_branch: { name: i % 2 ? "معرض سكة تلة" : "معرض شلبى" } })),
   };
 }
 
@@ -296,6 +318,84 @@ async function common(page, name) {
     await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page);
     check("صفحة الصنف: المبلغ على إجمالي المستند (≥ 3,000)", await vis(p.getByText(/من أصل \d+ حركة/)), await p.locator("header").innerText().catch(() => ""));
   } else check("صفحة الصنف: الفلتر الموحد ظاهر", false, "مش ظاهر");
+
+  // ===== 5) inventory: products tab — amount on the selling / purchase price
+  await page.goto(`${BASE}/branch/${B1}/inventory`); await settle(page);
+  p = panel(page);
+  if (await vis(p)) {
+    check("المخزون (الأصناف): الفلتر الموحد ظاهر", true);
+    await shot(page, "uf-5-inventory");
+    const count = async () => (await p.locator("header").innerText()).match(/من أصل (\d+)/)?.[1];
+    const before5 = await count();
+    await p.getByLabel("المبلغ من").fill("10000"); await p.getByLabel("المبلغ إلى").fill("12000");
+    check("المخزون: الكتابة ما بتفلترش قبل «بحث»", (await count()) === before5, `${before5}`);
+    await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page);
+    check("المخزون: على سعر البيع 10,000–12,000 = الغسالة بس (1)", (await count()) === "1", await count());
+    await p.getByRole("combobox", { name: "المبلغ على سعر" }).click(); await page.getByRole("option", { name: "الشراء (التكلفة)", exact: true }).click();
+    await p.getByLabel("المبلغ من").fill("8000"); await p.getByLabel("المبلغ إلى").fill("16000");
+    await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page);
+    check("المخزون: على سعر الشراء 8,000–16,000 = الثلاجة والغسالة (2)", (await count()) === "2", await count());
+    await p.getByRole("button", { name: "مسح الفلتر" }).click(); await settle(page);
+    check("المخزون: «مسح الفلتر» رجّع الكل", (await count()) === before5, `${await count()}`);
+  } else check("المخزون (الأصناف): الفلتر الموحد ظاهر", false);
+
+  // ===== 6) inventory: adjustments tab — item name inside the adjustment
+  await page.goto(`${BASE}/branch/${B1}/inventory?tab=adjustments`); await settle(page);
+  p = panel(page);
+  if (await vis(p)) {
+    check("تسوية المخزن: الفلتر الموحد ظاهر بدون خانة مبلغ", !(await vis(p.getByLabel("المبلغ من"))));
+    await p.getByPlaceholder(/رقم التسوية/).fill("سخان"); await p.getByPlaceholder(/رقم التسوية/).press("Enter"); await settle(page);
+    check("تسوية المخزن: البحث باسم صنف جوه التسوية = 1", await vis(p.getByText(/من أصل 1 تسوية/)));
+    await p.getByRole("button", { name: "مسح الفلتر" }).click(); await settle(page);
+    check("تسوية المخزن: «مسح الفلتر» = 2", await vis(p.getByText(/من أصل 2 تسوية/)));
+  } else check("تسوية المخزن: الفلتر الموحد ظاهر", false);
+
+  // ===== 7) inventory: count tab — amount on the item cost at the count
+  await page.goto(`${BASE}/branch/${B1}/inventory?tab=count`); await settle(page);
+  p = page.locator("form[data-unified-filters]").filter({ hasText: "جلسات الجرد" });
+  if (await vis(p)) {
+    check("الجرد: الفلتر الموحد ظاهر", true);
+    await p.getByLabel("المبلغ من").fill("10000"); await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page);
+    check("الجرد: تكلفة صنف ≥ 10,000 = جلسة الثلاجة (1)", await vis(p.getByText(/من أصل 1 جلسة/)));
+    await p.getByRole("button", { name: "مسح الفلتر" }).click(); await settle(page);
+    await p.getByPlaceholder(/اسم الصنف أو كوده/).fill("1002"); await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page);
+    check("الجرد: البحث بكود صنف جوه الجلسة = 1", await vis(p.getByText(/من أصل 1 جلسة/)));
+  } else check("الجرد: الفلتر الموحد ظاهر", false);
+
+  // ===== 8) treasury: vessel transfers — search by VT number
+  await page.goto(`${BASE}/branch/${B1}/treasury?tab=vessel_transfers`); await settle(page);
+  p = page.locator("form[data-unified-filters]").filter({ hasText: "التحويلات بين الأوعية" });
+  if (await vis(p)) {
+    check("تحويلات الأوعية: الفلتر ظاهر وعمود الرقم VT", await vis(page.getByText("VT00003")));
+    await p.getByPlaceholder("VT00012").fill("VT00003"); await p.getByPlaceholder("VT00012").press("Enter"); await settle(page);
+    check("تحويلات الأوعية: البحث برقم المستند = 1", await vis(p.getByText(/من أصل 1 تحويل/)));
+    await p.getByRole("button", { name: "مسح الفلتر" }).click(); await settle(page);
+    await p.getByRole("combobox", { name: "إلى وعاء" }).click();
+    const vopts = await page.getByRole("option").allInnerTexts();
+    const bankLabel = vopts.find((o) => /بنك/.test(o));
+    if (bankLabel) { await page.getByRole("option", { name: bankLabel.trim(), exact: true }).click(); await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page); }
+    check("تحويلات الأوعية: «إلى وعاء» بنك = 2", !!bankLabel && await vis(p.getByText(/من أصل 2 تحويل/)), vopts.join("،"));
+    await shot(page, "uf-8-vessels");
+  } else check("تحويلات الأوعية: الفلتر ظاهر", false);
+
+  // ===== 9) treasury: transfers between branches — direction + recorded by
+  await page.goto(`${BASE}/branch/${B1}/treasury?tab=transfers`); await settle(page);
+  p = page.locator("form[data-unified-filters]").filter({ hasText: "التحويلات بين الفروع" });
+  if (await vis(p)) {
+    check("تحويلات الفروع: الفلتر ظاهر", true);
+    await p.getByRole("combobox", { name: "الاتجاه" }).click(); await page.getByRole("option", { name: "↗ صادر", exact: true }).click();
+    await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page);
+    check("تحويلات الفروع: صادر = 2", await vis(p.getByText(/من أصل 2 تحويل/)));
+    await p.getByRole("button", { name: "مسح الفلتر" }).click(); await settle(page);
+    await p.getByRole("combobox", { name: "الحالة" }).click(); await page.getByRole("option", { name: "بانتظار التأكيد", exact: true }).click();
+    await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page);
+    check("تحويلات الفروع: بانتظار التأكيد = 3", await vis(p.getByText(/من أصل 3 تحويل/)));
+  } else check("تحويلات الفروع: الفلتر ظاهر", false);
+
+  // ===== 10) all branches inventory (admin)
+  await page.goto(`${BASE}/admin/catalog?tab=inventory`); await settle(page);
+  p = page.locator("form[data-unified-filters]").filter({ hasText: "مخزون كل الفروع" });
+  check("مخزون كل الفروع: الفلتر الموحد ظاهر", await vis(p));
 
   const errs = db.calls.filter((c) => c.pageerror);
   check("مفيش أخطاء في الصفحات", errs.length === 0, errs.map((e) => e.pageerror).join(" | ").slice(0, 300));

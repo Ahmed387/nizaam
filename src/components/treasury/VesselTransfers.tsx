@@ -16,6 +16,10 @@ import { rpcErrorText } from "@/lib/rpcError";
 import { loadAllPaymentMethods, vesselTransferFee, type PaymentMethodOption } from "@/lib/paymentMethods";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Repeat } from "lucide-react";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { amountIn, dayIn, hasAny, searchHas } from "@/lib/listFilter";
+import { useUserOptions } from "@/lib/docUsers";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { toast } from "sonner";
 
 type FeeMode = "none" | "fixed" | "percent";
@@ -131,13 +135,23 @@ export function VesselTransfersTable({ branchId, canCancel }: { branchId: string
   const [labels, setLabels] = useState<Record<string, string>>({});
   const [cancelRow, setCancelRow] = useState<any | null>(null);
   const [reason, setReason] = useState("");
+  // every transfer of the branch (it read the last 500 only) — the filter below runs on the whole list
   const load = () =>
-    (supabase.from("vessel_transfers" as any) as any).select("*").eq("branch_id", branchId).order("transfer_date", { ascending: false }).limit(500)
-      .then(({ data }: any) => setRows(data ?? []));
+    fetchAllRows<any>(() => (supabase.from("vessel_transfers" as any) as any).select("*").eq("branch_id", branchId)
+      .order("transfer_date", { ascending: false }).order("created_at", { ascending: false }).order("id"))
+      .then((data) => setRows(data ?? [])).catch(() => setRows([]));
+  // unified filter (owner 2026-11-18): الرقم، الفترة، المبلغ، الملاحظات، من / إلى وعاء، الحالة، اللي سجّل التحويل
+  const [af, setAf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const userOpts = useUserOptions(rows.map((r) => r.created_by));
+  const shown = useMemo(() => rows.filter((r) =>
+    searchHas([r.doc_number], af.q) && dayIn(r.transfer_date, af.from, af.to) && amountIn(r.amount, af.amountMin, af.amountMax)
+    && searchHas([r.notes], af.notes) && (!af.fromBranch || r.from_method === af.fromBranch) && (!af.toBranch || r.to_method === af.toBranch)
+    && (!af.status || r.status === af.status) && (!af.recipient || r.created_by === af.recipient)), [rows, af]);
   useEffect(() => { load(); loadAllPaymentMethods().then((m) => setLabels(Object.fromEntries(m.map((x) => [x.value, x.label])))); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [branchId]);
   useRealtimeRefresh(["vessel_transfers"], load);
   const lb = (k: string) => labels[k] ?? k;
-  const total = useMemo(() => rows.filter((r) => r.status === "active").reduce((s, r) => s + Number(r.fee_amount || 0), 0), [rows]);
+  const total = useMemo(() => shown.filter((r) => r.status === "active").reduce((s, r) => s + Number(r.fee_amount || 0), 0), [shown]);
+  const vesselOpts = useMemo(() => Object.entries(labels).map(([value, label]) => ({ value, label })), [labels]);
 
   const doCancel = async () => {
     if (!reason.trim()) return toast.error("اكتب سبب الإلغاء");
@@ -150,8 +164,19 @@ export function VesselTransfersTable({ branchId, canCancel }: { branchId: string
   return (
     <div className="space-y-2">
       {total > 0 && <div className="text-xs text-muted-foreground">إجمالي عمولات التحويل بين الأوعية: <b className="text-warning">{formatEGP(total)}</b></div>}
-      <DataTable rows={rows} empty="مفيش تحويلات بين الأوعية"
+      <UnifiedDocumentFilters
+        title="التحويلات بين الأوعية" noun="تحويل" shown={{ from: shown.length ? 1 : 0, to: shown.length, total: shown.length }}
+        value={af} onChange={setAf} onReset={() => setAf(EMPTY_DOCUMENT_FILTERS)} hasAnyFilter={hasAny(af)}
+        searchLabel="بحث برقم المستند" searchPlaceholder="VT00012" showAmount showNotes
+        statusOptions={[{ value: "active", label: "تم" }, { value: "cancelled", label: "ملغي" }]}
+        recipientOptions={userOpts} recipientLabel="اللي سجّل التحويل"
+        customField={(d, set) => (<>
+          <UnifiedDocumentFilters.Field label="من وعاء"><UnifiedDocumentFilters.Select value={d.fromBranch} options={vesselOpts} onChange={(v) => set({ fromBranch: v })} ariaLabel="من وعاء" /></UnifiedDocumentFilters.Field>
+          <UnifiedDocumentFilters.Field label="إلى وعاء"><UnifiedDocumentFilters.Select value={d.toBranch} options={vesselOpts} onChange={(v) => set({ toBranch: v })} ariaLabel="إلى وعاء" /></UnifiedDocumentFilters.Field>
+        </>)} />
+      <DataTable rows={shown} empty={hasAny(af) ? "مفيش تحويلات بالفلتر ده" : "مفيش تحويلات بين الأوعية"}
         columns={[
+          { key: "doc_number", header: "الرقم", render: (r: any) => <span className="font-mono text-primary">{r.doc_number ?? "—"}</span> },
           { key: "transfer_date", header: "التاريخ", render: (r: any) => formatDate(r.transfer_date) },
           { key: "from_method", header: "من", render: (r: any) => lb(r.from_method) },
           { key: "to_method", header: "إلى", render: (r: any) => lb(r.to_method) },

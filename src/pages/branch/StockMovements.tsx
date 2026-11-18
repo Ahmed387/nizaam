@@ -13,6 +13,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatDateTime } from "@/lib/format";
 import { ArrowRight } from "lucide-react";
 import { normalizeForSearch } from "@/lib/search";
+import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
+import { dayIn, hasAny, searchHas } from "@/lib/listFilter";
 
 type Movement = {
   date: string;
@@ -290,16 +292,13 @@ export default function StockMovements() {
     () => setTick((t) => t + 1)
   );
 
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [fromD, setFromD] = useState("");
-  const [toD, setToD] = useState("");
+  // unified filter (owner 2026-11-18): رقم المستند / الطرف / السبب، الفترة، النوع (في خانة الحالة)
+  const [mf, setMf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
   const shown = moves.filter((m) => {
-    if (typeFilter !== "all" && m.type !== typeFilter) return false;
+    if (mf.status && m.type !== mf.status) return false;
     // Cairo calendar day of the movement (a timestamp in UTC can belong to the next Cairo day)
     const d = m.date ? (m.date.length <= 10 ? m.date : new Date(m.date).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" })) : "";
-    if (fromD && d < fromD) return false;
-    if (toD && d > toD) return false;
-    return true;
+    return dayIn(d, mf.from, mf.to) && searchHas([m.reference, m.party, m.reason], mf.q);
   });
   const types = Array.from(new Set(moves.map((m) => m.type)));
   const totalIn = shown.filter((m) => m.qty > 0).reduce((s, m) => s + m.qty, 0);
@@ -366,22 +365,11 @@ export default function StockMovements() {
         </div>
       )}
 
-      <div className="card-elevated p-4 mb-4 flex flex-wrap items-end gap-3">
-        <label className="text-sm">النوع
-          <select className="block mt-1 h-9 rounded-md border border-input bg-background px-2" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-            <option value="all">كل الأنواع</option>
-            {types.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </label>
-        <label className="text-sm">من
-          <input type="date" className="block mt-1 h-9 rounded-md border border-input bg-background px-2" value={fromD} onChange={(e) => setFromD(e.target.value)} />
-        </label>
-        <label className="text-sm">إلى
-          <input type="date" className="block mt-1 h-9 rounded-md border border-input bg-background px-2" value={toD} onChange={(e) => setToD(e.target.value)} />
-        </label>
-        <Button variant="outline" size="sm" onClick={() => { setTypeFilter("all"); setFromD(""); setToD(""); }}>كل الوقت</Button>
-        <span className="text-xs text-muted-foreground">{shown.length} حركة من {moves.length}</span>
-      </div>
+      <UnifiedDocumentFilters
+        title="حركة الصنف" noun="حركة" shown={{ from: shown.length ? 1 : 0, to: shown.length, total: moves.length }}
+        value={mf} onChange={setMf} onReset={() => setMf(EMPTY_DOCUMENT_FILTERS)} hasAnyFilter={hasAny(mf)}
+        searchLabel="بحث (رقم المستند، العميل / المورد، السبب)" searchPlaceholder="IN05012 أو اسم العميل..."
+        statusOptions={types.map((t) => ({ value: t, label: t }))} />
 
       <DataTable
         loading={loading}

@@ -1,6 +1,8 @@
 import { cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
-import { useDocUsers, docUserOptions } from "@/lib/docUsers";
+import { useDocUsers, docUserOptions, useUserOptions } from "@/lib/docUsers";
+import { amountIn, dayIn, hasAny, searchHas } from "@/lib/listFilter";
+import { MOVEMENT_PAYMENT_OPTIONS, methodMatches } from "@/lib/docMeta";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PermPart, usePartVisible } from "@/contexts/PermCustomize";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -409,6 +411,16 @@ export default function Treasury() {
 
   const otherBranches = branches.filter((b) => b.id !== branchId);
   const canAck = isAdmin || hasRole("branch_manager");
+  // «تحويلات بين الفروع» — unified filter (owner 2026-11-18): رقم العملية / السبب، الفترة، المبلغ، طريقة الدفع، الحالة،
+  // الاتجاه (صادر / وارد)، اللي سجّل التحويل (transferred_by)
+  const [tf, setTf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
+  const transferUsers = useUserOptions(transfers.map((r: any) => r.transferred_by));
+  const transferState = (r: any) => r.rejected_at ? "rejected" : r.acknowledged_at ? "confirmed" : "pending";
+  const transfersShown = useMemo(() => transfers.filter((r: any) =>
+    searchHas([r.reference_number, r.reason, r.from_branch?.name, r.to_branch?.name], tf.q) && dayIn(r.created_at, tf.from, tf.to)
+    && amountIn(r.amount, tf.amountMin, tf.amountMax) && methodMatches(r.payment_method ?? "cash", tf.payment)
+    && (!tf.status || transferState(r) === tf.status) && (!tf.recipient || r.transferred_by === tf.recipient)
+    && (!tf.fromBranch || (tf.fromBranch === "out" ? r.from_branch_id === branchId : r.to_branch_id === branchId))), [transfers, tf, branchId]);
   const transferAttCounts = useAttachmentCounts("treasury_transfer", useMemo(() => transfers.map((t: any) => t.id), [transfers]));
   // «إيصال التحويل» of each till movement lives on its voucher
   const movementAttCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r: any) => r.voucher_id).filter(Boolean), [rows]));
@@ -690,7 +702,19 @@ export default function Treasury() {
         </TabsContent>
 
         <TabsContent value="transfers" className="mt-4">
-          <DataTable permPage="treasury" permTable="transfers" loading={loading} rows={transfers} indexColumn
+          <UnifiedDocumentFilters
+            title="التحويلات بين الفروع" noun="تحويل" shown={{ from: transfersShown.length ? 1 : 0, to: transfersShown.length, total: transfersShown.length }}
+            value={tf} onChange={setTf} onReset={() => setTf(EMPTY_DOCUMENT_FILTERS)} hasAnyFilter={hasAny(tf)}
+            searchLabel="بحث (رقم العملية، السبب، الفرع)" searchPlaceholder="رقم العملية أو السبب..."
+            showAmount paymentOptions={MOVEMENT_PAYMENT_OPTIONS.filter((o) => o.value !== "credit")}
+            statusOptions={[{ value: "confirmed", label: "مؤكد" }, { value: "pending", label: "بانتظار التأكيد" }, { value: "rejected", label: "مرفوض" }]}
+            recipientOptions={transferUsers} recipientLabel="اللي سجّل التحويل"
+            customField={(d, set) => (
+              <UnifiedDocumentFilters.Field label="الاتجاه">
+                <UnifiedDocumentFilters.Select value={d.fromBranch} options={[{ value: "out", label: "↗ صادر" }, { value: "in", label: "↘ وارد" }]} onChange={(v) => set({ fromBranch: v })} ariaLabel="الاتجاه" />
+              </UnifiedDocumentFilters.Field>
+            )} />
+          <DataTable permPage="treasury" permTable="transfers" loading={loading} rows={transfersShown} indexColumn
             onRowClick={(r: any) => setViewTransfer(r)}
             columns={[
               { key: "details", header: "تفاصيل", align: "center", width: "5rem", render: (r: any) => (

@@ -48,3 +48,25 @@ export function useDocUsersMany(branchIds: string[]): DocUser[] {
   }, [key]);
   return users;
 }
+
+const nameCache = new Map<string, string>();
+/** Names of the users who appear in a list (created_by / transferred_by …) — «اللي سجّل» dropdowns, value = the user id. */
+export function useUserOptions(ids: (string | null | undefined)[]): { value: string; label: string }[] {
+  const key = Array.from(new Set(ids.filter(Boolean) as string[])).sort().join(",");
+  const [, bump] = useState(0);
+  useEffect(() => {
+    const missing = key ? key.split(",").filter((id) => !nameCache.has(id)) : [];
+    if (!missing.length) return;
+    let off = false;
+    (supabase.from("profiles") as any).select("id, name, username").in("id", missing).then(({ data }: any) => {
+      (data ?? []).forEach((p: any) => nameCache.set(p.id, (p.name || p.username || "").trim() || "—"));
+      missing.forEach((id) => { if (!nameCache.has(id)) nameCache.set(id, "—"); });
+      if (!off) bump((n) => n + 1);
+    });
+    return () => { off = true; };
+  }, [key]);
+  return (key ? key.split(",") : [])
+    .map((id) => ({ value: id, label: nameCache.get(id) ?? "…" }))
+    .filter((o) => o.label !== "—")
+    .sort((a, b) => a.label.localeCompare(b.label, "ar"));
+}
