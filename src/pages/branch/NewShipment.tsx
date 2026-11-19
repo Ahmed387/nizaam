@@ -23,7 +23,7 @@ import { Loader2, Plus, Trash2, Upload, ImageIcon, UserPlus, ChevronDown, Chevro
 import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { uploadProductImage } from "@/lib/uploadImage";
 import { PaymentPlanSelector, defaultPlan, PaymentPlanState } from "@/components/PaymentPlanSelector";
-import { createPaymentPlanWithInitial } from "@/lib/paymentPlans";
+import { createPaymentPlanWithInitial, planPayments } from "@/lib/paymentPlans";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { PartyCombobox } from "@/components/PartyCombobox";
 import { getContactsByIds, searchContacts } from "@/lib/contactLookup";
@@ -609,6 +609,8 @@ export default function NewShipment() {
           paid_now: plannedPaidNow,
           apply_credit: false,
           credit_amount: null,
+          // 0274: the money paid with the invoice is saved with it — a failure saves nothing
+          payments: planPayments(plan),
         },
       });
       if (rpcErr) throw rpcErr;
@@ -622,7 +624,7 @@ export default function NewShipment() {
 
 
 
-      // Treasury / payment plan handling (non-fatal — shipment is already saved)
+      // Plan schedule (if any) + receipt photos — the payments themselves were saved with the invoice (0274)
       const supplier = suppliers.find((s) => s.id === supplierId) ?? (await getContactsByIds(branchId, [supplierId]))[0];
       try {
         // Plan header + credit already saved atomically; only schedule & explicit payments remain.
@@ -639,13 +641,14 @@ export default function NewShipment() {
           createdBy: user!.id,
           existingPlanId: atomicPlanId,
           paymentDate: invoiceDate || null,
+          skipPayments: true,
         });
         await attachPaymentProofs((plan.splits ?? []).map((sp) => ({ files: sp.proof_files, method: sp.method, amount: Number(sp.amount), branchId })), proofSince);
       } catch (planErr: any) {
         console.error("payment plan failed:", planErr);
         docWarning({
-          title: "فاتورة الشراء اتسجلت ✅ بس الدفع لسه",
-          description: `ماقدرناش نسجّل خطة الدفع دلوقتي (${planErr?.message ?? "خطأ غير معروف"}). افتح "تعديل فاتورة الشراء" → قسم "طريقة الدفع للمورد" وسجّل المدفوع من هناك.`,
+          title: "فاتورة الشراء ودفعها اتسجلوا ✅",
+          description: `بس مواعيد السداد أو صور الإيصال ما اتسجلتش (${planErr?.message ?? "خطأ غير معروف"}). المدفوع نفسه محفوظ مع الفاتورة.`,
         });
       }
 

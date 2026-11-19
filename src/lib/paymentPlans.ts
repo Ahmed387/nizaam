@@ -17,6 +17,8 @@ interface CreatePlanArgs {
   existingPlanId?: string;
   /** Accounting date (YYYY-MM-DD) inherited by the initial payment of a backdated document. */
   paymentDate?: string | null;
+  /** the payments were already recorded with the document (record_shipment_with_credit, 0274) */
+  skipPayments?: boolean;
 }
 
 /**
@@ -25,6 +27,22 @@ interface CreatePlanArgs {
  * branchId / entity* / createdBy stay in the signature for callers; the server derives them.
  * Returns the created plan id.
  */
+/** The money paid with the document, one row per method (0274: a purchase sends these to record_shipment_with_credit). */
+export function planPayments(state: CreatePlanArgs["state"]): Array<{
+  method: string; amount: number; reference_number?: string | null; transfer_to_account?: string | null;
+  transfer_from_account?: string | null; received_by_name?: string | null; fee_amount?: number; fee_type?: string | null;
+}> {
+  const paidNow = state.mode === "credit" ? 0 : Number(state.paidNow || 0);
+  if (paidNow <= 0) return [];
+  if (state.splits && state.splits.length > 0) return state.splits.filter((s: any) => Number(s.amount) > 0) as any;
+  if (!state.method) return [];
+  return [{
+    method: state.method.method, amount: paidNow, reference_number: state.method.reference_number,
+    transfer_to_account: state.method.transfer_to_account, transfer_from_account: state.method.transfer_from_account,
+    received_by_name: state.method.received_by_name, fee_amount: state.method.fee_amount ?? 0, fee_type: state.method.fee_type,
+  }];
+}
+
 export async function createPaymentPlanWithInitial(args: CreatePlanArgs): Promise<string> {
   const { totalAmount, referenceType, referenceId, state, direction, existingPlanId, paymentDate } = args;
   const paidNow = state.mode === "credit" ? 0 : Number(state.paidNow || 0);
@@ -44,23 +62,10 @@ export async function createPaymentPlanWithInitial(args: CreatePlanArgs): Promis
   if (pe) throw pe;
   const plan = { id: String(planId) };
 
-  // Record initial payment(s) — supports multi-method splits
-  if (paidNow > 0) {
-    const splits = (state.splits && state.splits.length > 0)
-      ? state.splits.filter((s) => Number(s.amount) > 0)
-      : (state.method
-          ? [{
-              method: state.method.method,
-              amount: paidNow,
-              reference_number: state.method.reference_number,
-              transfer_to_account: state.method.transfer_to_account,
-              transfer_from_account: state.method.transfer_from_account,
-              received_by_name: state.method.received_by_name,
-              fee_amount: state.method.fee_amount ?? 0,
-              fee_type: state.method.fee_type,
-            }]
-          : []);
-
+  // Record initial payment(s) — supports multi-method splits (a purchase now sends them inside
+  // record_shipment_with_credit, 0274, and passes skipPayments)
+  if (paidNow > 0 && !args.skipPayments) {
+    const splits = planPayments(state);
     for (const sp of splits) {
       const { error: te } = await supabase.rpc("record_payment_transaction" as any, {
         p_payment_plan_id: plan.id,

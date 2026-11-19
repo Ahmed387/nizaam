@@ -1,6 +1,8 @@
 import { VesselAccountSelect, useHasVesselAccounts } from "@/components/payments/VesselAccountSelect";
 import { vesselAccountError } from "@/lib/vesselAccounts";
 import { fetchContactBalance } from "@/lib/contactBalances";
+import { onAccountWarning } from "@/lib/purchaseReturnWarning";
+import { fetchSideBalances } from "@/lib/ledger";
 import { LockedRecipientInput, useCurrentUserName } from "@/components/LockedRecipient";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PickerItemsToggle } from "@/components/PickerItemsPreview";
@@ -67,7 +69,7 @@ export default function NewPurchaseReturn() {
   const { user, canInBranch } = useAuth();
   // «تعديل المرتجع» (0131): ?edit=<return id> — saving cancels the old return and records the new one on its day
   const editId = params.get("edit");
-  const [editOld, setEditOld] = useState<{ id: string; number: string; total: number; day: string; qty: Record<string, number> } | null>(null);
+  const [editOld, setEditOld] = useState<{ id: string; number: string; total: number; day: string; qty: Record<string, number>; balance?: number } | null>(null);
   const [editReason, setEditReason] = useState("");
   const nav = useNavigate();
 
@@ -189,7 +191,7 @@ export default function NewPurchaseReturn() {
     if (!editId) return;
     (async () => {
       const { data: r } = await (supabase.from("purchase_returns" as any) as any)
-        .select("id, shipment_id, return_number, status, invoice_date, created_at, migration_batch_id, reason, notes, refund_method, refund_reference, refund_account, total_amount")
+        .select("id, shipment_id, return_number, status, invoice_date, created_at, migration_batch_id, reason, notes, refund_method, refund_reference, refund_account, total_amount, refund_balance_amount")
         .eq("id", editId).maybeSingle();
       if (!r) { toast.error("المرتجع مش موجود"); return; }
       if (!r.shipment_id || !canEditReturn(r, canInBranch("returns.update", branchId!))) {
@@ -199,7 +201,7 @@ export default function NewPurchaseReturn() {
       }
       const { data: its } = await (supabase.from("purchase_return_items" as any) as any).select("product_id, quantity").eq("purchase_return_id", editId);
       const qty = oldQtyByProduct(its ?? []);
-      setEditOld({ id: r.id, number: r.return_number, total: Number(r.total_amount ?? 0), day: String(r.invoice_date ?? r.created_at ?? ""), qty });
+      setEditOld({ id: r.id, number: r.return_number, total: Number(r.total_amount ?? 0), day: String(r.invoice_date ?? r.created_at ?? ""), qty, balance: Number(r.refund_balance_amount ?? 0) });
       if (r.reason && COMMON_REASONS.includes(r.reason)) setReasonPick(r.reason);
       else if (r.reason) { setReasonPick("أخرى"); setReasonOther(r.reason); }
       setNotes(r.notes ?? "");
@@ -311,6 +313,12 @@ export default function NewPurchaseReturn() {
         return toast.error("اختار حسابنا اللي الفلوس اتحولت عليه" );
     }
 
+    // 0274: the split is saved as chosen; on account beyond what we owe him makes him owe us — ask first
+    if (!asDraft && balancePart > 0 && supplier?.id) {
+      const sb = (await fetchSideBalances([supplier.id], branchId).catch(() => new Map())).get(supplier.id) as any;
+      const warn = onAccountWarning(balancePart, Number(sb?.supplier_balance ?? 0) + (editId && editOld ? Number(editOld.balance ?? 0) : 0));
+      if (warn && !window.confirm(warn)) return;
+    }
     setBusy(true);
     try {
       const refundMethodFinal = refundMode === "transfer" ? transferMethod : refundMode;
