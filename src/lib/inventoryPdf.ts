@@ -22,8 +22,6 @@ export async function elementToPdf(el: HTMLElement, skip?: (node: Element) => bo
     backgroundColor: "#ffffff",
     useCORS: true,
     ignoreElements: skip,
-    // parts written only for the PDF (e.g. the purchase invoice's number line) are hidden on screen
-    onclone: (doc) => doc.querySelectorAll<HTMLElement>("[data-pdf-only]").forEach((n) => { n.classList.remove("hidden"); n.style.display = "block"; }),
   });
 
   const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });

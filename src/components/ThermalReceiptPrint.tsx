@@ -175,7 +175,7 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
   ];
 
   return (
-    <div id="invoice-print-area" className="thermal-print" dir="rtl">
+    <div id="invoice-print-area" className="thermal-print" dir="rtl" data-no-resize>
       <div className="tr-header">
         {company.logo_url && invoiceSettings.show_logo !== false ? (
           <img
@@ -360,37 +360,8 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
  * - The iframe auto-prints and removes itself; the print dialog opens straight
  *   on the receipt with no extra options page.
  */
-export function printThermalInvoice() {
-  const source = document.getElementById("invoice-print-area");
-  if (!source) { window.print(); return; }
-
-  // Collect all stylesheets / inline <style> tags so the iframe matches the app styling.
-  const headStyles = Array.from(
-    document.querySelectorAll('link[rel="stylesheet"], style')
-  ).map((n) => n.outerHTML).join("\n");
-
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentDocument!;
-  doc.open();
-  doc.write(`<!doctype html>
-<html dir="rtl" lang="ar">
-<head>
-<meta charset="utf-8" />
-<title></title>
-<base href="${location.origin}/" />
-${headStyles}
-<style>
-  @page { size: 80mm 297mm; margin: 0; }
-  html, body {
-    width: 80mm; min-height: 297mm; margin: 0 !important; padding: 0 !important;
-    background: #fff !important; color: #000 !important;
-    -webkit-print-color-adjust: exact; print-color-adjust: exact;
-  }
-  body { display: block !important; overflow: hidden !important; }
+/** The 80mm receipt's print rules — the same for the printer (iframe below) and the WhatsApp PDF (src/lib/docPdfLink.ts). */
+export const THERMAL_RECEIPT_CSS = `
   #invoice-print-area {
     display: block !important; position: static !important;
     width: 72.1mm !important; max-width: 72.1mm !important; min-width: 72.1mm !important;
@@ -425,6 +396,40 @@ ${headStyles}
   #invoice-print-area .tr-phone { font-size: 9pt !important; }
   /* Make sure nothing inherits visibility:hidden from the host @media print rules */
   #invoice-print-area, #invoice-print-area * { visibility: visible !important; }
+`;
+
+export function printThermalInvoice() {
+  const source = document.getElementById("invoice-print-area");
+  if (!source) { window.print(); return; }
+
+  // Collect all stylesheets / inline <style> tags so the iframe matches the app styling.
+  const headStyles = Array.from(
+    document.querySelectorAll('link[rel="stylesheet"], style')
+  ).map((n) => n.outerHTML).join("\n");
+
+  const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentDocument!;
+  doc.open();
+  doc.write(`<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8" />
+<title></title>
+<base href="${location.origin}/" />
+${headStyles}
+<style>
+  @page { size: 80mm 297mm; margin: 0; }
+  html, body {
+    width: 80mm; min-height: 297mm; margin: 0 !important; padding: 0 !important;
+    background: #fff !important; color: #000 !important;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  body { display: block !important; overflow: hidden !important; }
+${THERMAL_RECEIPT_CSS}
 </style>
 </head>
 <body>${source.outerHTML}</body>

@@ -204,7 +204,7 @@ export default function InvoiceView() {
             <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة</Button>
             {inv.status === "active" && (
               <WhatsAppSendButton phone={inv.contacts?.phone} contactId={inv.contact_id} canSavePhone={canInBranch("customers.update", inv.branch_id)} buildText={whatsappText}
-                highlight={waHi} pdf={{ tenantId, kind: "sale", docId: inv.id, element: () => document.querySelector<HTMLElement>(".print-area") }}
+                highlight={waHi} pdf={{ tenantId, kind: "sale", docId: inv.id, element: () => document.getElementById("invoice-print-area") }}
                 fixPath={inv.contact_id && canInBranch("customers.update", inv.branch_id) ? contactFixPath({ branchId: id, contactId: inv.contact_id, back: loc.pathname }) : null} />
             )}
             {canCancel && (
