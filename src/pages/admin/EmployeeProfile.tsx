@@ -23,6 +23,8 @@ import { ROLE_LABELS, AppRole } from "@/lib/roles";
 import { formatEGP, formatDate, monthKey } from "@/lib/format";
 import { toast } from "sonner";
 import { Plus, Wallet, Receipt, Pencil, Trash2, Phone, Calendar, Briefcase, MapPin, Power, KeyRound, UserPlus, Unlink, IdCard, Upload, Eye, EyeOff, Calculator, User, Mail, Lock, Banknote, Clock, FileText } from "lucide-react";
+import { PayTypeFields, DailyPendingList, DailyWagesHistory } from "@/components/payroll/DailyWages";
+import { payTypeOf, payTypeText, payTypeProblem, payTypePatch, type PayType } from "@/lib/payType";
 import { PaySalaryDialog, CancelSalaryDialog, CancelAdvanceDialog, AdjustmentDialog, cancelAdjustment, fetchSalaryPreview, type SalaryPreview } from "@/components/payroll/SalaryDialogs";
 import { EmployeeAttendanceTab } from "@/components/attendance/EmployeeAttendanceTab";
 import { fetchAllRows } from "@/lib/fetchAll";
@@ -40,6 +42,9 @@ export default function EmployeeProfile() {
   const { user, profile, isAdmin, roleLabel, roleSettings, canInBranch } = useAuth();
 
   const [emp, setEmp] = useState<any>(null);
+  const [payEdit, setPayEdit] = useState<{ payType: PayType; dailyWage: string }>({ payType: "monthly", dailyWage: "" });
+  const [dailyKey, setDailyKey] = useState(0);
+  const canPaySalary = isAdmin || canInBranch("salaries.create", emp?.branch_id ?? null);
   const [branch, setBranch] = useState<any>(null);
   const [advances, setAdvances] = useState<any[]>([]);
   const [salaries, setSalaries] = useState<any[]>([]);
@@ -158,6 +163,7 @@ export default function EmployeeProfile() {
       notes: emp.notes ?? "",
       national_id: emp.national_id ?? "",
     });
+    setPayEdit({ payType: payTypeOf(emp), dailyWage: emp.daily_wage != null ? String(emp.daily_wage) : "" });
     setEditShift({
       work_start: emp.work_start ?? null,
       work_end: emp.work_end ?? null,
@@ -169,6 +175,8 @@ export default function EmployeeProfile() {
 
   const submitEdit = async () => {
     if (!editForm.name || !editForm.job_title) return toast.error("املأ الاسم والوظيفة");
+    const payErr = payTypeProblem(payEdit.payType, payEdit.dailyWage);
+    if (payErr) return toast.error(payErr);
     if (editForm.login_password && (editForm.login_password.length < 8 || !/[A-Za-z]/.test(editForm.login_password) || !/[0-9]/.test(editForm.login_password))) {
       return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم");
     }
@@ -182,6 +190,7 @@ export default function EmployeeProfile() {
       work_end: editShift.work_end,
       work_days: editShift.work_days,
       late_grace_minutes: editShift.late_grace_minutes,
+      ...payTypePatch(payEdit.payType, payEdit.dailyWage),
     };
     const { error } = await supabase.from("employees").update(updatePayload).eq("id", emp.id);
     if (error) return toast.error(error.message);
@@ -412,6 +421,7 @@ export default function EmployeeProfile() {
           <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-muted-foreground" /> <span dir="ltr">{emp.phone ?? "—"}</span></div>
           <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-muted-foreground" /> تعيين: {formatDate(emp.hire_date)}</div>
           <div className="flex items-center gap-2"><Wallet className="w-4 h-4 text-muted-foreground" /> راتب: <b>{formatEGP(emp.base_salary)}</b></div>
+          <div className="flex items-center gap-2" data-testid="emp-pay-type"><Banknote className="w-4 h-4 text-muted-foreground" /> القبض: <b className={payTypeOf(emp) === "daily" ? "text-info" : ""}>{payTypeText(emp, formatEGP)}</b></div>
         </div>
         {emp.notes && <div className="mt-4 p-3 bg-muted/30 rounded text-sm"><b>ملاحظات: </b>{emp.notes}</div>}
       </div>
@@ -452,7 +462,19 @@ export default function EmployeeProfile() {
         </TabsList>
 
         <TabsContent value="salaries" className="mt-4">
-          {preview && (
+          {payTypeOf(emp) === "daily" && (
+            <div className="card-elevated p-4 mb-3 space-y-4">
+              <div>
+                <div className="font-extrabold mb-2">الأيام المستنية — {payTypeText(emp, formatEGP)}</div>
+                <DailyPendingList employeeId={emp.id} canPay={canPaySalary} onPaid={() => setDailyKey((k) => k + 1)} />
+              </div>
+              <div>
+                <div className="font-extrabold mb-2">اليوميات اللي اتصرفت</div>
+                <DailyWagesHistory employeeId={emp.id} canCancel={isAdmin} refreshKey={dailyKey} />
+              </div>
+            </div>
+          )}
+          {preview && payTypeOf(emp) !== "daily" && (
             <div className="card-elevated p-4 mb-3">
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div className="font-extrabold">مرتب الشهر ده ({preview.month}) — من الحضور والسلف</div>
@@ -461,7 +483,7 @@ export default function EmployeeProfile() {
                   : <div className="flex flex-wrap gap-2">
                       <Button variant="outline" onClick={() => setAdjOpen("bonus")} className="gap-1 text-success">+ بونص</Button>
                       <Button variant="outline" onClick={() => setAdjOpen("penalty")} className="gap-1 text-destructive">− جزاء</Button>
-                      <Button onClick={() => setSalOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> صرف المرتب</Button>
+                      {canPaySalary && <Button onClick={() => setSalOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> صرف المرتب</Button>}
                     </div>}
               </div>
               <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-sm">
@@ -476,7 +498,7 @@ export default function EmployeeProfile() {
           )}
           {!preview && (
             <div className="flex justify-end mb-3">
-              <Button onClick={() => setSalOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> صرف راتب</Button>
+              {canPaySalary && <Button onClick={() => setSalOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> صرف راتب</Button>}
             </div>
           )}
           <DataTable
@@ -710,6 +732,9 @@ export default function EmployeeProfile() {
                     <Banknote className="w-3.5 h-3.5 text-muted-foreground" /> الراتب الأساسي
                   </Label>
                   <Input type="number" value={editForm.base_salary} onChange={(e) => setEditForm({ ...editForm, base_salary: e.target.value })} className="mt-2" />
+                </div>
+                <div className="sm:col-span-2">
+                  <PayTypeFields payType={payEdit.payType} dailyWage={payEdit.dailyWage} onChange={setPayEdit} />
                 </div>
                 <div>
                   <Label className="text-sm font-semibold flex items-center gap-1.5">

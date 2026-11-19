@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { HistoricalUploadDialog } from "@/components/HistoricalUploadDialog";
-import { HISTORICAL_BRANCHES } from "@/lib/historicalExcelImporter";
 import { formatEGP, formatNumber } from "@/lib/format";
 import { exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
@@ -208,6 +207,14 @@ export default function HistoricalAnalytics({ embedded = false }: { embedded?: b
   };
   useEffect(() => { load(); }, []);
 
+  // 0272: الفروع حرة — بتطلع من الملفات اللي اترفعت (الأكتر مستندات الأول)
+  const archiveBranches = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const r of invoices) n.set(r.branch_name, (n.get(r.branch_name) ?? 0) + 1);
+    for (const r of vouchers) n.set(r.branch_name, (n.get(r.branch_name) ?? 0) + 1);
+    return [...n.entries()].sort((a, b) => b[1] - a[1]).map(([b]) => b);
+  }, [invoices, vouchers]);
+
   const years = useMemo(() => {
     const s = new Set<number>();
     invoices.forEach((i) => s.add(i.year));
@@ -306,7 +313,7 @@ export default function HistoricalAnalytics({ embedded = false }: { embedded?: b
   }, [fInv, fVch, year]);
 
   const branchPerf = useMemo(
-    () => HISTORICAL_BRANCHES.map((b) => {
+    () => archiveBranches.map((b) => {
       const rows = fInv.filter((i) => i.branch_name === b);
       const s = rows.filter((r) => r.doc_type === "sales");
       const sr = rows.filter((r) => r.doc_type === "sales_returns");
@@ -316,7 +323,7 @@ export default function HistoricalAnalytics({ embedded = false }: { embedded?: b
         أرباح: sum(s, "profit") - Math.abs(sum(sr, "profit")),
       };
     }),
-    [fInv],
+    [fInv, archiveBranches],
   );
 
   const expenseCats = useMemo(() => {
@@ -484,7 +491,7 @@ export default function HistoricalAnalytics({ embedded = false }: { embedded?: b
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">الفرع:</span>
             <button className={chip(branch === "all")} onClick={() => setBranch("all")}>جميع الفروع</button>
-            {HISTORICAL_BRANCHES.map((b) => (
+            {archiveBranches.map((b) => (
               <button key={b} className={chip(branch === b)} onClick={() => setBranch(b)}>{b}</button>
             ))}
           </div>

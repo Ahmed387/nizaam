@@ -17,8 +17,10 @@ import { attachPaymentProofs, proofClock } from "@/lib/paymentProofs";
 export interface SalaryPreview {
   employee_id: string; name: string; month: string;
   base: number; work_days: number; paid_days: number; daily_rate: number;
-  counts: { present: number; absent: number; leave: number; half_day: number; hourly: number; not_recorded: number };
+  counts: { present: number; absent: number; leave: number; half_day: number; hourly: number; not_recorded: number; day_off_worked?: number };
   attendance_deduction: number; attendance_amount: number;
+  /** 0269: أيام إجازة اشتغلها واتحسبتله (أجر يوم لكل يوم) + اليوم اللي المصروف بيتسجل فيه في الحسابات. */
+  extra_days?: number; extra_amount?: number; expense_date?: string;
   advance_due: number; advance_remaining: number;
   paid: any | null;
   /** بونص / جزاء متسجل خلال الشهر (0081) — بيتضاف للمرتب لما يتصرف. */
@@ -148,6 +150,8 @@ export function PaySalaryDialog({ employee, month: initialMonth, monthEditable =
                 <div className="text-[11px] text-muted-foreground pb-1">
                   حضر {c!.present} • إجازة {c!.leave} (مدفوعة) • من غير تسجيل {c!.not_recorded} (بتتحسب أيام عادية)
                 </div>
+                {n(pv.extra_amount) > 0 && <Row label={<>أيام إجازة اشتغلها <span className="text-[11px] text-muted-foreground">({n(pv.extra_days)} يوم × {formatEGP(pv.daily_rate)})</span></>}
+                  value={n(pv.extra_amount)} tone="text-success" sign="+ " />}
                 <div className="border-t border-border mt-1 pt-1"><Row label="المستحق بالحضور" value={pv.attendance_amount} /></div>
               </div>
 
@@ -185,6 +189,7 @@ export function PaySalaryDialog({ employee, month: initialMonth, monthEditable =
               <div className="rounded-lg bg-primary/10 p-3">
                 <Row label="الأساسي" value={pv.base} />
                 {pv.attendance_deduction > 0 && <Row label="خصم الغياب" value={pv.attendance_deduction} tone="text-destructive" sign="− " />}
+                {n(pv.extra_amount) > 0 && <Row label="أيام إجازة اشتغلها" value={n(pv.extra_amount)} tone="text-success" sign="+ " />}
                 {recBonus > 0 && <Row label="بونص متسجل" value={recBonus} tone="text-success" sign="+ " />}
                 {recPenalty > 0 && <Row label="جزاءات متسجلة" value={recPenalty} tone="text-destructive" sign="− " />}
                 {n(bonus) > 0 && <Row label="بونص إضافي" value={n(bonus)} tone="text-success" sign="+ " />}
@@ -192,6 +197,9 @@ export function PaySalaryDialog({ employee, month: initialMonth, monthEditable =
                 {adv > 0 && <Row label="قسط السلف" value={adv} tone="text-warning" sign="− " />}
                 <div className="flex justify-between border-t border-border mt-1 pt-2 text-base"><span className="font-bold">الصافي اللي هيخرج من الخزنة</span><b className="tabular-nums text-primary">{formatEGP(net)}</b></div>
               </div>
+              {pv.expense_date && pv.expense_date < cairoTodayDay() && <div className="text-[11px] text-muted-foreground" data-testid="salary-expense-date">
+                مصروف المرتب هيتسجل في الحسابات يوم {pv.expense_date} (آخر يوم في شهره) — والفلوس هتطلع من الخزنة النهارده.
+              </div>}
               {net > 0 && <PaymentMethodPicker amount={net} value={pm} onChange={setPm} direction="out" />}
             </>
           )}

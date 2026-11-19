@@ -7,6 +7,8 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PaySalaryDialog, AdjustmentDialog } from "@/components/payroll/SalaryDialogs";
+import { DailyPendingList } from "@/components/payroll/DailyWages";
+import { payTypeOf } from "@/lib/payType";
 import { EmployeeLink } from "@/components/employees/EmployeeLink";
 import { Checkbox } from "@/components/ui/checkbox";
 import { isWorkDay } from "@/components/ShiftEditor";
@@ -46,6 +48,8 @@ export interface PayrollLine {
   dailyRate: number;
   attendanceDeduction: number;
   attendanceAmount: number;
+  /** أيام إجازة اشتغلها واتحسبتله يوم زيادة (0269). */
+  extraDays?: number;
 }
 
 /** Monthly salary from attendance (display only — the server's `employee_salary_preview` decides when paying).
@@ -56,31 +60,38 @@ export function computePayroll(emp: any, ym: string, att: any[], today: string):
   const counts: PayrollLine["counts"] = { present: 0, absent: 0, leave: 0, half_day: 0, hourly: 0, unrecorded: 0 };
   const byDate = new Map(att.filter((a) => a.employee_id === emp.id).map((a) => [a.date, a]));
   const hrs = shiftHours(emp);
-  let workDays = 0, paid = 0;
+  let workDays = 0, paid = 0, extra = 0;
   for (let d = 1; d <= dim; d++) {
     const date = `${ym}-${pad(d)}`;
     const a = byDate.get(date);
     const k = kindOf(a?.status);
     const working = isWorkDay(date, emp.work_days);
-    if (!working && !k) continue;
-    if (working) workDays++;
+    const unit = k === "present" || k === "leave" ? 1 : k === "half_day" ? 0.5
+      : k === "hourly" ? Math.min(1, Number(a?.hours || 0) / hrs) : 0;
+    if (!working) {
+      // 0269: a day off counts only when worked AND marked «يتحسب يوم شغل» — one extra paid day
+      if (a?.paid_extra && (k === "present" || k === "half_day" || k === "hourly")) extra += unit;
+      continue;
+    }
+    workDays++;
     if (!k) {                                    // no record = a normal paid day (same rule as employee_salary_preview)
       if (date <= today) counts.unrecorded++;
       paid += 1; continue;
     }
     counts[k]++;
-    if (k === "present" || k === "leave") paid += 1;
-    else if (k === "half_day") paid += 0.5;
-    else if (k === "hourly") paid += Math.min(1, Number(a?.hours || 0) / hrs);
+    paid += unit;
   }
   const base = Number(emp.base_salary) || 0;
   const dailyRate = workDays > 0 ? base / workDays : 0;
-  const attendanceAmount = Math.max(0, Math.min(base, Math.round(dailyRate * Math.min(paid, workDays))));
-  return { employee: emp, workDays, paidUnits: Math.round(paid * 100) / 100, counts, dailyRate, attendanceDeduction: base - attendanceAmount, attendanceAmount };
+  const regular = Math.max(0, Math.min(base, Math.round(dailyRate * Math.min(paid, workDays))));
+  const extraAmount = Math.round(dailyRate * extra);
+  return { employee: emp, workDays, paidUnits: Math.round(paid * 100) / 100, counts, dailyRate,
+    attendanceDeduction: base - regular, attendanceAmount: regular + extraAmount, extraDays: Math.round(extra * 100) / 100 };
 }
 
 export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEdit: (emp: any) => boolean }) {
-  const { tenant, user, isAdmin } = useAuth();
+  const { tenant, user, isAdmin, canInBranch } = useAuth();
+  const canPay = isAdmin || canInBranch("salaries.create", branchId);
   const today = cairoTodayDay();
   const [ym, setYm] = useState(today.slice(0, 7));
   const [day, setDay] = useState(today);
@@ -101,8 +112,8 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
   const load = useCallback(async () => {
     const start = `${ym}-01`, end = `${ym}-${pad(daysIn(ym))}`;
     const [{ data: emps }, { data: a }] = await Promise.all([
-      supabase.from("employees").select("id,name,job_title,role,base_salary,work_start,work_end,work_days,branch_id,user_id").eq("branch_id", branchId).eq("is_active", true).order("name"),
-      supabase.from("attendance").select("id,employee_id,date,status,hours,check_in,check_out").eq("branch_id", branchId).gte("date", start).lte("date", end),
+      supabase.from("employees").select("id,name,job_title,role,base_salary,pay_type,daily_wage,work_start,work_end,work_days,branch_id,user_id").eq("branch_id", branchId).eq("is_active", true).order("name"),
+      supabase.from("attendance").select("id,employee_id,date,status,hours,check_in,check_out,paid_extra").eq("branch_id", branchId).gte("date", start).lte("date", end),
     ]);
     const list = emps ?? [];
     setEmployees(list);
@@ -144,6 +155,17 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
       : await supabase.from("attendance").insert({ branch_id: branchId, tenant_id: tenant?.id ?? null, employee_id: emp.id, employee_name: emp.name, date: day, created_by: user?.id ?? null, ...patch });
     setBusy(null);
     if (error) return toast.error(error.message);
+    load();
+  };
+
+  /** 0269: a day off worked — the owner decides if it is an extra paid day (else a bonus). */
+  const setPaidExtra = async (emp: any, row: any, on: boolean) => {
+    if (!canEdit(emp)) return toast.error("مش مسموح لك تعدّل حضور الموظف ده");
+    setBusy(emp.id);
+    const { error } = await supabase.from("attendance").update({ paid_extra: on } as any).eq("id", row.id);
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success(on ? "اتحسب يوم شغل زيادة" : "مش هيتحسب يوم زيادة");
     load();
   };
 
@@ -211,7 +233,9 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
     setDay(next === today.slice(0, 7) ? today : `${next}-01`);
   };
 
-  const payroll = useMemo(() => employees.map((e) => computePayroll(e, ym, att, today)), [employees, ym, att, today]);
+  // 0270: اليومي بيقبض كل يوم من «اليوميات المستنية» تحت — مش في جدول المرتبات الشهرية
+  const payroll = useMemo(() => employees.filter((e) => payTypeOf(e) !== "daily").map((e) => computePayroll(e, ym, att, today)), [employees, ym, att, today]);
+  const hasDaily = useMemo(() => employees.some((e) => payTypeOf(e) === "daily"), [employees]);
   const [payFor, setPayFor] = useState<PayrollLine | null>(null);
 
   return (
@@ -313,6 +337,14 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
                       <span className="text-xs text-muted-foreground">ساعة من {shiftHours(e)}</span>
                     </div>
                   )}
+                  {!multi && off && a && (k === "present" || k === "half_day" || k === "hourly") && (
+                    <label className="flex items-center gap-1.5 text-xs cursor-pointer" data-testid={`paid-extra-${e.id}`}
+                      title="يوم إجازته واشتغل فيه: علّم لو هيتحسبله أجر يوم زيادة، أو سيبها وسجّله بونص">
+                      <Checkbox checked={!!a.paid_extra} disabled={!editable || busy === e.id}
+                        onCheckedChange={(v) => setPaidExtra(e, a, !!v)} />
+                      يتحسب يوم شغل زيادة
+                    </label>
+                  )}
                 </div>
               );
             })}
@@ -324,7 +356,7 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
       <div className="card-elevated overflow-hidden">
         <div className="px-4 py-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
           <div className="font-extrabold">مرتبات شهر {ym}</div>
-          <div className="text-xs text-muted-foreground">المرتب محسوب من الحضور تلقائياً: الإجازة مدفوعة، الغياب المسجّل بس هو اللي بيتخصم، ونص اليوم والساعات بنسبتها. اليوم اللي مفيهوش تسجيل بيتحسب يوم عادي. البونص والجزاء المتسجلين على الشهر بيتضافوا / بيتخصموا وقت الصرف، وقسط السلف المستحق إجباري.</div>
+          <div className="text-xs text-muted-foreground">المرتب محسوب من الحضور تلقائياً: أيام الشغل بس هي اللي بتتحسب (يوم الإجازة الأسبوعية مش بيتحسب إلا لو اشتغل وعلّمت «يتحسب يوم شغل زيادة»)، الإجازة مدفوعة، الغياب المسجّل بس هو اللي بيتخصم، ونص اليوم والساعات بنسبتها. اليوم اللي مفيهوش تسجيل بيتحسب يوم عادي. البونص والجزاء المتسجلين على الشهر بيتضافوا / بيتخصموا وقت الصرف، وقسط السلف المستحق إجباري.</div>
         </div>
         <div className="overflow-x-auto">
           <PermTable noFilter className="w-full text-sm">
@@ -359,7 +391,7 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
                     <td className="px-2 py-2 tabular-nums font-extrabold text-primary">{formatEGP(gross - advance)}</td>
                     <td className="px-2 py-2">
                       {s ? <span className="inline-flex items-center gap-1 text-success text-xs font-bold"><CheckCircle2 className="w-4 h-4" /> اتصرف {formatEGP(s.net_salary)}</span>
-                        : <Button size="sm" className="gap-1" disabled={!isAdmin && !canEdit(p.employee)} onClick={() => setPayFor(p)}><Wallet className="w-4 h-4" /> صرف</Button>}
+                        : <Button size="sm" className="gap-1" disabled={!canPay} title={canPay ? undefined : "صلاحية «صرف المرتبات» مقفولة عليك"} onClick={() => setPayFor(p)}><Wallet className="w-4 h-4" /> صرف</Button>}
                     </td>
                   </tr>
                 );
@@ -369,6 +401,14 @@ export function AttendanceBoard({ branchId, canEdit }: { branchId: string; canEd
           </PermTable>
         </div>
       </div>
+
+      {hasDaily && (
+        <div className="card-elevated p-4" data-testid="daily-pending-card">
+          <div className="font-extrabold mb-1">اليوميات المستنية</div>
+          <div className="text-xs text-muted-foreground mb-3">الموظفين اليوميين بيقبضوا آخر كل يوم على الأيام اللي حضروها (الإجازة ويوم الإجازة الأسبوعية مش بيتحسبوا إلا لو علّمت «يتحسب يوم شغل زيادة»). اليوم اللي حضوره مش متسجل بيفضل مستني ومبيتصرفش.</div>
+          <DailyPendingList branchId={branchId} canPay={canPay} onPaid={load} />
+        </div>
+      )}
 
       {adjFor && (
         <AdjustmentDialog employee={adjFor} onClose={() => setAdjFor(null)} onDone={() => { setAdjFor(null); load(); }} />

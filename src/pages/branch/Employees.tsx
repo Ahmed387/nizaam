@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { autoButtons } from "@/contexts/PermCustomize";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { useNavigate, useParams } from "react-router-dom";
@@ -24,6 +24,8 @@ import Attendance from "./Attendance";
 import AdvanceRequests from "./AdvanceRequests";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { EmployeeLink } from "@/components/employees/EmployeeLink";
+import { PayTypeFields } from "@/components/payroll/DailyWages";
+import { PAY_TYPE_LABEL, filterByPayType, payTypeOf, payTypePatch, payTypeProblem, type PayType } from "@/lib/payType";
 
 
 const POSITIONS = [
@@ -62,6 +64,9 @@ export default function Employees() {
     hire_date: cairoTodayDay(),
   });
   const [shift, setShift] = useState<ShiftValue>(emptyShift());
+  const [payEdit, setPayEdit] = useState<{ payType: PayType; dailyWage: string }>({ payType: "monthly", dailyWage: "" });
+  const [payFilter, setPayFilter] = useState<"all" | PayType>("all");
+  const shownRows = useMemo(() => filterByPayType(rows, payFilter === "all" ? null : payFilter), [rows, payFilter]);
 
   // Workers & Drivers don't need system access — minimal form
   const isSimpleRole = form.role === "worker" || form.role === "driver";
@@ -83,6 +88,8 @@ export default function Employees() {
     if (!form.name || !form.job_title || !form.phone) {
       return toast.error("الاسم والتليفون والوظيفة مطلوبة");
     }
+    const payErr = payTypeProblem(payEdit.payType, payEdit.dailyWage);
+    if (payErr) return toast.error(payErr);
     if (!isSimpleRole) {
       if (!form.email) return toast.error("الإيميل مطلوب");
       if (!form.login_password || form.login_password.length < 8 || !/[A-Za-z]/.test(form.login_password) || !/[0-9]/.test(form.login_password)) {
@@ -114,6 +121,12 @@ export default function Employees() {
     if (error || (data as any)?.error) {
       return toast.error((await edgeErrorMessage(error, data)) ?? "فشل إضافة الموظف");
     }
+    const newId = (data as any)?.employee_id;
+    if (newId) {
+      const { error: ptErr } = await supabase.from("employees").update(payTypePatch(payEdit.payType, payEdit.dailyWage) as any).eq("id", newId);
+      if (ptErr) toast.error(`الموظف اتضاف، بس نوع القبض ماتحفظش: ${ptErr.message}`);
+    }
+    setPayEdit({ payType: "monthly", dailyWage: "" });
     toast.success(isSimpleRole ? "تمت الإضافة" : "تمت إضافة الموظف — يستطيع الآن تسجيل الدخول");
 
 
@@ -149,9 +162,19 @@ export default function Employees() {
             {isAdmin && <Button variant="outline" onClick={() => setBulkOpen(true)}><KeyRound className="w-4 h-4 ml-1" /> إنشاء حسابات دخول جماعية</Button>}
             {canAddEmp && <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="w-4 h-4" /> إضافة موظف</Button>}
           </div>)}
+          <div className="flex justify-end mb-2">
+            <Select value={payFilter} onValueChange={(v: any) => setPayFilter(v)}>
+              <SelectTrigger className="w-40" data-testid="pay-filter"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">يومي وشهري</SelectItem>
+                <SelectItem value="daily">بيقبض يومي</SelectItem>
+                <SelectItem value="monthly">بيقبض شهري</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <DataTable
             loading={loading}
-            rows={rows}
+            rows={shownRows}
             onRowClick={(r: any) => nav(`/admin/employees/${r.id}`)}
             empty="لا يوجد موظفين"
             columns={[
@@ -159,7 +182,9 @@ export default function Employees() {
               { key: "job_title", header: "الوظيفة", align: "center" },
               { key: "email", header: "الإيميل", align: "center", render: (r: any) => <span dir="ltr" className="text-xs">{r.email ?? "—"}</span> },
               { key: "phone", header: "التليفون", align: "center", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
-              { key: "base_salary", header: "الراتب", align: "center", numeric: true, render: (r: any) => formatEGP(r.base_salary) },
+              { key: "base_salary", header: "الراتب", align: "center", numeric: true, render: (r: any) => payTypeOf(r) === "daily" ? `${formatEGP(Number(r.daily_wage) || 0)} / يوم` : formatEGP(r.base_salary) },
+              { key: "pay_type", header: "نوع القبض", align: "center", render: (r: any) => (
+                <span className={`rounded px-2 py-0.5 text-xs font-bold ${payTypeOf(r) === "daily" ? "bg-info/15 text-info" : "bg-muted text-muted-foreground"}`}>{PAY_TYPE_LABEL[payTypeOf(r)]}</span>) },
               { key: "hire_date", header: "تاريخ التعيين", align: "center", render: (r: any) => formatDate(r.hire_date) },
               {
                 key: "is_active", header: "الحالة", align: "center",
@@ -247,6 +272,7 @@ export default function Employees() {
                 <Input type="date" value={form.hire_date} onChange={(e) => setForm({ ...form, hire_date: e.target.value })} className="mt-1.5" />
               </div>
             </div>
+            <PayTypeFields payType={payEdit.payType} dailyWage={payEdit.dailyWage} onChange={setPayEdit} />
             <ShiftEditor value={shift} onChange={setShift} />
             {!isSimpleRole && (
               <>

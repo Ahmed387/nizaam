@@ -31,6 +31,8 @@ import MonthlyAttendanceReport from "./MonthlyAttendanceReport";
 import { useBranchScope } from "@/lib/branchScope";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { EmployeeLink } from "@/components/employees/EmployeeLink";
+import { PayTypeFields } from "@/components/payroll/DailyWages";
+import { PAY_TYPE_LABEL, payTypeOf, payTypePatch, payTypeProblem, type PayType } from "@/lib/payType";
 
 const POSITIONS = [
   { value: "كاشير", role: "cashier" },
@@ -67,6 +69,8 @@ export default function AllEmployees() {
   const [branchFilter, setBranchFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
   const [accessFilter, setAccessFilter] = useState<"all" | "with" | "without">("all");
+  const [payFilter, setPayFilter] = useState<"all" | PayType>("all");
+  const [payEdit, setPayEdit] = useState<{ payType: PayType; dailyWage: string }>({ payType: "monthly", dailyWage: "" });
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
@@ -140,8 +144,9 @@ export default function AllEmployees() {
     if (statusFilter === "inactive" && e.is_active) return false;
     if (accessFilter === "with" && e.has_system_access === false) return false;
     if (accessFilter === "without" && e.has_system_access !== false) return false;
+    if (payFilter !== "all" && payTypeOf(e) !== payFilter) return false;
     return true;
-  }), [enriched, search, branchFilter, statusFilter, accessFilter]);
+  }), [enriched, search, branchFilter, statusFilter, accessFilter, payFilter]);
 
   const stats = useMemo(() => ({
     total: enriched.length,
@@ -155,6 +160,7 @@ export default function AllEmployees() {
 
   const openNew = () => {
     setForm({ name: "", job_title: "", phone: "", email: "", login_password: "", national_id: "", base_salary: "", hire_date: cairoTodayDay(), branch_id: "", role: "", is_active: true });
+    setPayEdit({ payType: "monthly", dailyWage: "" });
     setShift(emptyShift());
     setAllowedBranchIds([]);
     setEditing(null);
@@ -162,6 +168,7 @@ export default function AllEmployees() {
   };
   const openEdit = (e: any) => {
     setEditing(e);
+    setPayEdit({ payType: payTypeOf(e), dailyWage: e.daily_wage != null ? String(e.daily_wage) : "" });
     setForm({
       name: e.name ?? "", job_title: e.job_title ?? "", phone: e.phone ?? "", email: e.email ?? "", login_password: "",
       national_id: e.national_id ?? "",
@@ -187,6 +194,8 @@ export default function AllEmployees() {
   const submit = async () => {
     if (!form.name || !form.job_title || !form.branch_id || !form.role) return toast.error("املأ الاسم والوظيفة والفرع والصلاحية");
     if (!form.phone) return toast.error("التليفون مطلوب");
+    const payErr = payTypeProblem(payEdit.payType, payEdit.dailyWage);
+    if (payErr) return toast.error(payErr);
     if (!isSimpleRole) {
       if (!form.email) return toast.error("الإيميل مطلوب لدخول الموظف");
       if (!editing && (!form.login_password || form.login_password.length < 8 || !/[A-Za-z]/.test(form.login_password) || !/[0-9]/.test(form.login_password))) return toast.error("كلمة المرور لازم تكون 8 أحرف على الأقل وتحتوي على حرف ورقم");
@@ -220,6 +229,13 @@ export default function AllEmployees() {
     setSaving(false);
     const errMsg = await edgeErrorMessage(error, data);
     if (errMsg) return toast.error(String(errMsg));
+
+    // 0270: نوع القبض بيتحفظ على الموظف بعد ما الحساب يتعمل
+    const empId = (data as any)?.employee_id ?? editing?.id ?? null;
+    if (empId) {
+      const { error: ptErr } = await supabase.from("employees").update(payTypePatch(payEdit.payType, payEdit.dailyWage) as any).eq("id", empId);
+      if (ptErr) toast.error(`الموظف اتحفظ، بس نوع القبض ماتحفظش: ${ptErr.message}`);
+    }
 
     // company role: link him after the account exists; a ready role takes him off his company role
     const uid = (data as any)?.user_id ?? editing?.user_id ?? null;
@@ -347,6 +363,14 @@ export default function AllEmployees() {
             <SelectItem value="without">بدون دخول (عامل/سواق)</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={payFilter} onValueChange={(v: any) => setPayFilter(v)}>
+          <SelectTrigger className="w-40" data-testid="pay-filter"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">يومي وشهري</SelectItem>
+            <SelectItem value="daily">بيقبض يومي</SelectItem>
+            <SelectItem value="monthly">بيقبض شهري</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <DataTable
@@ -397,7 +421,12 @@ export default function AllEmployees() {
             <span dir="ltr" className="block text-right tabular-nums">{r.phone ?? "—"}</span>
           )},
           { key: "base_salary", header: "الراتب", align: "right", numeric: true, width: "10%", render: (r: any) => (
-            <span className="block text-right font-bold tabular-nums">{formatEGP(r.base_salary)}</span>
+            payTypeOf(r) === "daily"
+              ? <span className="block text-right font-bold tabular-nums">{formatEGP(Number(r.daily_wage) || 0)} <span className="text-[11px] text-muted-foreground">/ يوم</span></span>
+              : <span className="block text-right font-bold tabular-nums">{formatEGP(r.base_salary)}</span>
+          )},
+          { key: "pay_type", header: "نوع القبض", align: "center", width: "7%", render: (r: any) => (
+            <span className={`rounded px-2 py-0.5 text-xs font-bold ${payTypeOf(r) === "daily" ? "bg-info/15 text-info" : "bg-muted text-muted-foreground"}`}>{PAY_TYPE_LABEL[payTypeOf(r)]}</span>
           )},
           { key: "advance_remaining", header: "سلف متبقية", align: "right", numeric: true, width: "10%", render: (r: any) => (
             r.advance_remaining > 0
@@ -500,6 +529,9 @@ export default function AllEmployees() {
                 <div>
                   <Label>الراتب الأساسي</Label>
                   <Input type="number" value={form.base_salary} onChange={(e) => setForm({ ...form, base_salary: e.target.value })} className="mt-1.5" placeholder="0" />
+                </div>
+                <div className="sm:col-span-2">
+                  <PayTypeFields payType={payEdit.payType} dailyWage={payEdit.dailyWage} onChange={setPayEdit} />
                 </div>
                 <div>
                   <Label>تاريخ التعيين</Label>

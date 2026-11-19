@@ -56,6 +56,8 @@ export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   { key: "payment_vouchers", label: "سندات الصرف", actions: ["view", "create", "delete"] },
   { key: "employees", label: "الموظفين", actions: ["view", "create", "update", "delete"] },
   { key: "advances", label: "السلف", actions: ["view", "create", "update"] },
+  // 0269 (owner 2026-11-19): صرف المرتب له صلاحية لوحده — كان ماشي بالدور بس
+  { key: "salaries", label: "صرف المرتبات", actions: ["create"] },
   { key: "attendance", label: "الحضور والانصراف", actions: ["view", "create", "update"] },
   { key: "reports", label: "التقارير", actions: ["view"] },
   { key: "attachments", label: "المرفقات (ملفات الفواتير والمستندات)", actions: ["view", "create", "update", "delete"] },
@@ -179,6 +181,7 @@ export const PERM_HELP: Record<string, string> = {
   payment_vouchers: "سندات الصرف — طلع فلوس من الخزنة (مصاريف أو دفع لمورد). دي صلاحية حساسة.",
   employees: "ملفات موظفين الفرع (بياناتهم ومرتباتهم وسلفهم).",
   advances: "سلف الموظفين: طلبها وخصمها من المرتب.",
+  salaries: "صرف مرتب الشهر أو أجر اليوم للموظف من الخزنة.",
   attendance: "تسجيل ومتابعة الحضور والانصراف.",
   reports: "تقارير الفرع (مبيعات، أرباح الفرع، حركة المخزن).",
   attachments: "رفع وحذف صور وملفات الفواتير والمستندات.",
@@ -296,7 +299,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
     "employees.view": true, "employees.create": true, "employees.update": true,
     "advances.view": true, "advances.create": true, "advances.update": true,
     "attendance.view": true, "attendance.create": true, "attendance.update": true,
-    "reports.view": true,
+    "reports.view": true, "salaries.create": true,
     "returns.update": true,
   },
   cashier: {

@@ -1,3 +1,4 @@
+import { scopeLabel } from "@/lib/partialCount";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,6 +125,8 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
           { key: "status", header: "الحالة", render: (r: any) => (
             <div className="space-y-0.5"><InventoryStatusBadge status={r.status} /><div className="text-[11px] text-muted-foreground">{countWaitingFor(r.status)}</div></div>
           ) },
+          { key: "scope", header: "نوع الجرد", render: (r: any) => (
+            <span className={`text-xs font-bold ${r.scope ? "text-info" : "text-muted-foreground"}`}>{scopeLabel(r.scope)}</span>) },
           { key: "notes", header: "ملاحظات", render: (r: any) => r.notes ?? "—" },
           {
             key: "actions",
