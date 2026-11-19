@@ -12,11 +12,6 @@ const Index = () => {
     if (loading || !ctxReady) return;
     if (!user) { nav("/welcome", { replace: true }); return; }
     if (isSuperAdmin) { nav("/super/dashboard", { replace: true }); return; }
-    // Force admins to finish tenant setup before entering the system
-    if (isAdmin && tenant && tenant.setup_completed === false) {
-      nav("/setup-wizard", { replace: true });
-      return;
-    }
     if (isAdmin) { nav("/admin/dashboard", { replace: true }); return; }
     if (hasRole("partner")) { nav("/partner/dashboard", { replace: true }); return; }
     if (hasRole("supervisor")) { nav("/admin/employees", { replace: true }); return; }

@@ -272,8 +272,8 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<Navigate to="/login" replace />} />
             <Route path="/setup" element={<Setup />} />
-            <Route path="/admin/setup-wizard" element={<SetupWizard />} />
-            <Route path="/setup-wizard" element={<SetupWizard />} />
+            <Route path="/admin/setup-wizard" element={<ProtectedRoute superAdminOnly><SetupWizard /></ProtectedRoute>} />
+            <Route path="/setup-wizard" element={<ProtectedRoute superAdminOnly><SetupWizard /></ProtectedRoute>} />
             <Route path="/suspended" element={<Suspended />} />
             <Route path="/branch-paused" element={<ProtectedRoute><BranchPaused /></ProtectedRoute>} />
             

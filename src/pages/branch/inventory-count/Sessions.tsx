@@ -148,7 +148,7 @@ export default function Sessions({ embedded }: { embedded?: boolean } = {}) {
                 {isAdmin && (
                   <Link to={`/branch/${branchId}/inventory-count/${r.id}/snapshot`}>
                     <Button size="sm" variant="outline" className="gap-1">
-                      <Camera className="w-4 h-4" /> Snapshot
+                      <Camera className="w-4 h-4" /> صورة المخزون
                     </Button>
                   </Link>
                 )}

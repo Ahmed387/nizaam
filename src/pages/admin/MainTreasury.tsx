@@ -311,7 +311,7 @@ export default function MainTreasury() {
   return (
     <AdminLayout>
       <PageHeader
-        title="ملخص الخزائن (Treasury Overview)"
+        title="ملخص الخزائن"
         subtitle="نظرة عامة على أرصدة وحركات كل الخزائن — للعرض فقط"
         actions={
           <Button asChild className="btn-gradient">

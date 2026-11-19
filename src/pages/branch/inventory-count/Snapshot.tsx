@@ -44,7 +44,7 @@ export default function Snapshot() {
 
   if (!isAdmin) {
     return (
-      <ConditionalLayout title="Snapshot الجرد">
+      <ConditionalLayout title="صورة المخزون لحظة فتح الجرد">
         <div className="card-elevated p-12 text-center text-muted-foreground flex flex-col items-center gap-3">
           <Lock className="w-8 h-8" />
           <div>هذه الصفحة متاحة لمدير الشركة فقط.</div>
@@ -61,10 +61,10 @@ export default function Snapshot() {
       const date = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, "0")}-${String(ts.getDate()).padStart(2, "0")}`;
       const warehouse = (sess.branches?.name ?? "warehouse").replace(/\s+/g, "_");
       await exportElementToPdf(ref.current, {
-        filename: `Snapshot-${warehouse}-${date}.pdf`,
+        filename: `صورة-المخزون-${warehouse}-${date}.pdf`,
         sessionId: sess.id,
       });
-      toast.success("تم تصدير الـ Snapshot");
+      toast.success("تم تصدير صورة المخزون");
     } catch (e: any) {
       toast.error(e.message ?? "فشل التصدير");
     } finally {
@@ -74,14 +74,14 @@ export default function Snapshot() {
 
   if (loading) {
     return (
-      <ConditionalLayout title="Snapshot الجرد">
+      <ConditionalLayout title="صورة المخزون لحظة فتح الجرد">
         <div className="card-elevated p-12 flex justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>
       </ConditionalLayout>
     );
   }
   if (!sess) {
     return (
-      <ConditionalLayout title="Snapshot الجرد">
+      <ConditionalLayout title="صورة المخزون لحظة فتح الجرد">
         <div className="card-elevated p-8 text-center text-muted-foreground">الجلسة غير موجودة</div>
       </ConditionalLayout>
     );
@@ -91,7 +91,7 @@ export default function Snapshot() {
 
   return (
     <ConditionalLayout
-      title="Snapshot لحظة فتح الجرد"
+      title="صورة المخزون لحظة فتح الجرد"
       subtitle="لقطة ثابتة لكميات النظام عند بدء الجلسة — للمدير فقط"
       actions={
         <Button onClick={exportPdf} disabled={exporting} className="gap-2">
@@ -106,11 +106,11 @@ export default function Snapshot() {
             {tenant?.logo_url && <img src={tenant.logo_url} alt="" className="w-16 h-16 object-contain" crossOrigin="anonymous" />}
             <div>
               <div className="text-2xl font-extrabold">{tenant?.name ?? "—"}</div>
-              <div className="text-sm text-gray-600">Snapshot جرد الفرع — كميات النظام لحظة الفتح</div>
+              <div className="text-sm text-gray-600">صورة مخزون الفرع — كميات النظام لحظة فتح الجرد</div>
             </div>
           </div>
           <div className="text-sm text-left">
-            <div>تاريخ الـ Snapshot: <b>{formatDateTime(sess.created_at)}</b></div>
+            <div>وقت أخذ الصورة: <b>{formatDateTime(sess.created_at)}</b></div>
             <div>تاريخ التحميل: <b>{formatDateTime(new Date())}</b></div>
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function Snapshot() {
               <th className="border border-gray-300 px-2 py-1 text-right">الكود</th>
               <th className="border border-gray-300 px-2 py-1 text-right">الاسم</th>
               <th className="border border-gray-300 px-2 py-1 text-right">الوحدة</th>
-              <th className="border border-gray-300 px-2 py-1 text-right">كمية النظام (Snapshot)</th>
+              <th className="border border-gray-300 px-2 py-1 text-right">كمية النظام لحظة الفتح</th>
             </tr>
           </thead>
           <tbody>

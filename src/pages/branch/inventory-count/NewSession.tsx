@@ -109,7 +109,7 @@ export default function NewSession() {
   return (
     <ConditionalLayout
       title="بدء جرد جديد"
-      subtitle="عند البدء يتم التقاط (Snapshot) لكميات المخزون الحالية"
+      subtitle="عند البدء بيتاخد صورة من كميات المخزون الحالية"
     >
       <div className="card-elevated p-6 max-w-2xl space-y-5">
         <div>
