@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { canEditDoc } from "@/lib/docEditAccess";
 import { RestoreCancelledButton } from "@/components/docEdit/RestoreCancelledButton";
 import { PermTable } from "@/components/PermTable";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { WhatsAppSendButton } from "@/components/WhatsAppSendButton";
+import { purchaseMessage } from "@/lib/whatsappShare";
+import { contactFixPath, waReady, withoutWaReady } from "@/lib/whatsappFix";
+import { toast as waToast } from "sonner";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +31,19 @@ const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ 
 export default function ShipmentView() {
   const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId: string }>();
   const nav = useNavigate();
+  const loc = useLocation();
   const { isAdmin, hasRole, canInBranch } = useAuth();
+  // came back from the supplier's page with a mobile saved (owner 2026-11-19): point at the WhatsApp button
+  const [waHi, setWaHi] = useState(false);
+  useEffect(() => {
+    if (!waReady(loc.search)) return;
+    setWaHi(true);
+    waToast.success("رقم المورد اتسجل — دوس «ابعت للمورد واتساب»");
+    const rest = withoutWaReady(loc.search);
+    nav({ pathname: loc.pathname, search: rest ? `?${rest}` : "" }, { replace: true });
+    const t = window.setTimeout(() => setWaHi(false), 8000);
+    return () => window.clearTimeout(t);
+  }, [loc.search]); // eslint-disable-line react-hooks/exhaustive-deps
   const isManager = hasRole("branch_manager");
   const canCancelDoc = canInBranch("shipments.delete", branchId);
   const canEdit = isAdmin || isManager;
@@ -166,6 +182,19 @@ export default function ShipmentView() {
             <Button size="sm" onClick={printThermalInvoice} className="gap-2 btn-gradient">
               <Printer className="w-4 h-4" /> طباعة الفاتورة
             </Button>
+            {!isCancelled && ship.contact_id && (
+              <WhatsAppSendButton who="supplier" phone={ship.contacts?.phone} contactId={ship.contact_id} highlight={waHi}
+                canSavePhone={canInBranch("customers.update", ship.branch_id ?? branchId)}
+                fixPath={canInBranch("customers.update", ship.branch_id ?? branchId) ? contactFixPath({ branchId, contactId: ship.contact_id, back: loc.pathname }) : null}
+                buildText={() => purchaseMessage({
+                  supplier: ship.contacts?.name ?? null, number: ship.shipment_number ?? ship.id.slice(0, 8), branch: null,
+                  date: new Date(ship.invoice_date ?? ship.arrival_date ?? ship.created_at).toLocaleDateString("en-GB", { timeZone: "Africa/Cairo" }),
+                  items: items.map((it: any) => ({ name: String(it.product_name ?? it.products?.name ?? ""), quantity: Number(it.quantity ?? 0), total: Number(it.total ?? 0) })),
+                  total: Number(ship.total_cost ?? 0),
+                  paid: docStatus && docStatus.state !== "before_ledger" ? docStatus.paid : 0,
+                  remaining: docStatus && docStatus.state !== "before_ledger" ? Math.max(docStatus.remaining, 0) : Number(ship.total_cost ?? 0),
+                })} />
+            )}
             {canEdit && canEditDoc(canInBranch, "shipment", ship.branch_id ?? branchId) && !isCancelled && (
               <Button variant="outline" size="sm" className="gap-2" onClick={() => nav(`/branch/${branchId}/shipments/${ship.id}/edit`)}>
                 <Pencil className="w-4 h-4" /> {isAdmin ? "التعديل على الفاتورة" : "طلب تعديل على الفاتورة"}

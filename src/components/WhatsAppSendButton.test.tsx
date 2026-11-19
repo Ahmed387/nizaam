@@ -1,54 +1,66 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
-vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
-const rpc = vi.fn();
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: (...a: unknown[]) => rpc(...a) } }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: vi.fn(() => Promise.resolve({ error: null })) } }));
+const nav = vi.fn();
+vi.mock("react-router-dom", () => ({ useNavigate: () => nav }));
 
 import { WhatsAppSendButton } from "./WhatsAppSendButton";
 
-const opened: string[] = [];
-beforeEach(() => {
-  opened.length = 0; rpc.mockReset(); rpc.mockResolvedValue({ data: {}, error: null });
-  vi.stubGlobal("open", (url: string) => { opened.push(url); return null; });
-  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
-});
+const FIX = "/branch/b1/contacts/c1?fix=phone&back=%2Fbranch%2Fb1%2Fsales%2Fi1";
+let open: ReturnType<typeof vi.fn>;
+beforeEach(() => { nav.mockReset(); open = vi.fn(); (window as any).open = open; });
 
-const show = (p: Partial<{ phone: string | null; contactId: string | null; canSavePhone: boolean }> = {}) =>
-  render(<WhatsAppSendButton phone={null} contactId="c1" canSavePhone buildText={() => "فاتورة رقم IN1"} {...p} />);
-
-describe("«ابعت للعميل واتساب» (owner 2026-11-18 «مش شغال»)", () => {
-  it("is never disabled — the accounts had no saved mobile, so it never worked", () => {
-    show();
-    expect((screen.getByRole("button", { name: /ابعت للعميل واتساب/ }) as HTMLButtonElement).disabled).toBe(false);
+describe("زرار الواتساب — رقم مش موجود ← تنبيه ← صفحة الحساب (owner 2026-11-19)", () => {
+  it("a saved mobile opens WhatsApp at once", () => {
+    render(<WhatsAppSendButton phone="01001234567" contactId="c1" canSavePhone fixPath={FIX} buildText={() => "hi"} />);
+    fireEvent.click(screen.getByRole("button", { name: /ابعت للعميل واتساب/ }));
+    expect(open.mock.calls[0][0]).toMatch(/^https:\/\/wa\.me\/201001234567\?text=hi$/);
   });
 
-  it("a saved mobile opens WhatsApp at once with the message", () => {
-    show({ phone: "0100 123 4567" });
+  it("no number: an alert says so and takes him to the customer's page with the phone open", () => {
+    render(<WhatsAppSendButton phone={null} contactId="c1" canSavePhone fixPath={FIX} buildText={() => "hi"} />);
     fireEvent.click(screen.getByRole("button", { name: /ابعت للعميل واتساب/ }));
-    expect(opened).toEqual(["https://wa.me/201001234567?text=" + encodeURIComponent("فاتورة رقم IN1")]);
+    const alert = screen.getByTestId("wa-problem");
+    expect(alert.textContent).toContain("مفيش رقم موبايل متسجل");
+    expect(open).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /سجّل رقمه في ملفه/ }));
+    expect(nav).toHaveBeenCalledWith(FIX);
   });
 
-  it("no number: the cashier types it, a wrong one is refused, a right one opens WhatsApp and is saved", async () => {
-    show();
+  it("a landline: the alert names the number and why WhatsApp can't use it", () => {
+    render(<WhatsAppSendButton phone="0862345678" contactId="c1" canSavePhone fixPath={FIX} buildText={() => "hi"} />);
     fireEvent.click(screen.getByRole("button", { name: /ابعت للعميل واتساب/ }));
-    const input = await screen.findByLabelText("الموبايل");
-    fireEvent.change(input, { target: { value: "0862345678" } });
-    expect(screen.getByText(/الرقم ده مش موبايل/)).toBeTruthy();
-    expect((screen.getByRole("button", { name: /افتح واتساب/ }) as HTMLButtonElement).disabled).toBe(true);
-    fireEvent.change(input, { target: { value: "01112223334" } });
+    expect(screen.getByTestId("wa-problem").textContent).toContain("0862345678");
+  });
+
+  it("supplier wording on a purchase invoice", () => {
+    render(<WhatsAppSendButton who="supplier" phone={null} contactId="c1" canSavePhone fixPath={FIX} buildText={() => "hi"} />);
+    fireEvent.click(screen.getByRole("button", { name: /ابعت للمورد واتساب/ }));
+    expect(screen.getByTestId("wa-problem").textContent).toContain("المورد");
+  });
+
+  it("no right to edit the account: no trip to the page, he is told who can, and may type the number once", () => {
+    render(<WhatsAppSendButton phone={null} contactId="c1" canSavePhone={false} fixPath={null} buildText={() => "hi"} />);
+    fireEvent.click(screen.getByRole("button", { name: /ابعت للعميل واتساب/ }));
+    expect(screen.queryByRole("button", { name: /سجّل رقمه في ملفه/ })).toBeNull();
+    expect(screen.getByTestId("wa-problem").textContent).toContain("اطلب من المدير");
+    fireEvent.click(screen.getByRole("button", { name: /اكتب الرقم وابعت المرة دي/ }));
+    fireEvent.change(screen.getByLabelText("الموبايل"), { target: { value: "01112223334" } });
     fireEvent.click(screen.getByRole("button", { name: /افتح واتساب/ }));
-    expect(opened[0]).toMatch(/^https:\/\/wa\.me\/201112223334\?text=/);
-    await waitFor(() => expect(rpc).toHaveBeenCalledWith("save_contact", { p_id: "c1", p_data: { phone: "01112223334" } }));
+    expect(open.mock.calls[0][0]).toMatch(/^https:\/\/wa\.me\/201112223334\?text=hi$/);
   });
 
-  it("someone who may not edit the account sends without the save box, and nothing is saved", async () => {
-    show({ canSavePhone: false });
+  it("a walk-in sale (no account): straight to typing the number", () => {
+    render(<WhatsAppSendButton phone={null} contactId={null} canSavePhone={false} fixPath={null} buildText={() => "hi"} />);
     fireEvent.click(screen.getByRole("button", { name: /ابعت للعميل واتساب/ }));
-    expect(screen.queryByText(/احفظ الرقم/)).toBeNull();
-    fireEvent.change(await screen.findByLabelText("الموبايل"), { target: { value: "01001234567" } });
-    fireEvent.click(screen.getByRole("button", { name: /افتح واتساب/ }));
-    expect(opened.length).toBe(1);
-    expect(rpc).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("wa-problem")).toBeNull();
+    expect(screen.getByLabelText("الموبايل")).toBeTruthy();
+  });
+
+  it("highlight: the button is pointed out when the page comes back ready", () => {
+    render(<WhatsAppSendButton phone="01001234567" contactId="c1" canSavePhone fixPath={FIX} highlight buildText={() => "hi"} />);
+    expect(screen.getByRole("button", { name: /ابعت للعميل واتساب/ }).getAttribute("data-ready")).toBe("1");
   });
 });

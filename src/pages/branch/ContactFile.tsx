@@ -1,10 +1,12 @@
 import { netOf, netText, netTone } from "@/lib/netBalance";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
 import { SettleWithoutMoneyButton } from "@/components/contact/SettleWithoutMoneyButton";
 import { MergeContactButton } from "@/components/contact/MergeContactButton";
 import { HideContactButton } from "@/components/contact/HideContactButton";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { afterPhoneSaved, fixParams } from "@/lib/whatsappFix";
+import { waPhone } from "@/lib/whatsappShare";
 import { BranchLayout, AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
@@ -62,6 +64,12 @@ export default function ContactFile() {
   const [editOpen, setEditOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [edit, setEdit] = useState({ name: "", type: "customer" as "customer" | "supplier" | "both", contact_person: "", phone: "", address: "", notes: "" });
+  // «ابعت واتساب» with no mobile (owner 2026-11-19): ?fix=phone&back=… opens the edit with the phone field ready and,
+  // after a mobile is saved, goes back to the document (?wa=ready) — src/lib/whatsappFix.ts
+  const loc = useLocation();
+  const fix = useMemo(() => fixParams(loc.search), [loc.search]);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const fixOpened = useRef(false);
 
   // «الأقساط» shows only for an account that has an instalment plan (an «open» plan is plain credit, not instalments)
   const [hasInstallments, setHasInstallments] = useState(false);
@@ -107,6 +115,13 @@ export default function ContactFile() {
   useEffect(() => {
     if (c) setEdit({ name: c.name ?? "", type: c.type, contact_person: c.contact_person ?? "", phone: c.phone ?? "", address: c.address ?? "", notes: c.notes ?? "" });
   }, [c?.id]);
+  useEffect(() => {
+    if (!c || !fix.fixPhone || fixOpened.current) return;
+    if (!canInBranch("customers.update", (c as any).branch_id ?? routeBranchId)) return;
+    fixOpened.current = true;
+    setEditOpen(true);
+    window.setTimeout(() => { phoneRef.current?.focus(); phoneRef.current?.select(); }, 250);
+  }, [c?.id, fix.fixPhone]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scopeName = scopeBranch ? (c?.branches?.find((b) => b.id === scopeBranch)?.name ?? branches.find((b) => b.id === scopeBranch)?.name ?? "فرع") : "كل الفروع";
   const scopeOptions = useMemo(() => {
@@ -123,11 +138,21 @@ export default function ContactFile() {
 
   const submitEdit = async () => {
     if (!edit.name) return toast.error("الاسم مطلوب");
+    if (fix.fixPhone && fix.back && !waPhone(edit.phone)) {
+      phoneRef.current?.focus();
+      return toast.error("اكتب رقم موبايل صحيح عشان الواتساب يفتح عليه — زي 01001234567");
+    }
     const { error } = await saveContact(contactId!, edit);
     if (error) return toast.error(error.message);
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", tenantId, action: "UPDATE", entity: "Contact", entityId: contactId, details: edit });
-    toast.success("تم التعديل");
     setEditOpen(false);
+    const back = afterPhoneSaved(fix, edit.phone);
+    if (back) {
+      toast.success("الرقم اتسجل — راجعين للفاتورة عشان تبعت");
+      nav(back);
+      return;
+    }
+    toast.success("تم التعديل");
     loadOverview();
   };
   const submitArchive = async () => {
@@ -300,7 +325,18 @@ export default function ContactFile() {
             </div>
             <div><Label>الاسم *</Label><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} className="mt-1.5" /></div>
             <div><Label>المسؤول</Label><Input value={edit.contact_person} onChange={(e) => setEdit({ ...edit, contact_person: e.target.value })} className="mt-1.5" /></div>
-            <div><Label>التليفون</Label><Input dir="ltr" className="text-right mt-1.5" value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>
+            {fix.fixPhone && fix.back && (
+              <div className="rounded-md border border-success/40 bg-success/10 p-2 text-sm animate-in fade-in-0 slide-in-from-top-1 duration-300" data-testid="wa-fix-note">
+                سجّل رقم الموبايل ودوس «حفظ» — هترجع للفاتورة على طول وتبعت واتساب.
+              </div>
+            )}
+            <div>
+              <Label htmlFor="contact-phone">التليفون</Label>
+              <Input id="contact-phone" ref={phoneRef} dir="ltr" inputMode="tel" placeholder="01001234567"
+                className={`text-right mt-1.5 transition-shadow ${fix.fixPhone ? "ring-2 ring-success/50" : ""}`}
+                value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} />
+              {fix.fixPhone && edit.phone && !waPhone(edit.phone) && <p className="text-xs text-destructive mt-1">ده مش رقم موبايل — اكتبه 11 رقم يبدأ بـ 010 / 011 / 012 / 015</p>}
+            </div>
             <div><Label>العنوان</Label><Input value={edit.address} onChange={(e) => setEdit({ ...edit, address: e.target.value })} className="mt-1.5" /></div>
             <div><Label>ملاحظات</Label><Textarea value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} className="mt-1.5" /></div>
           </div>

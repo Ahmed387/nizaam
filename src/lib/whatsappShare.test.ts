@@ -33,3 +33,22 @@ describe("whatsapp share", () => {
     expect(waLink("201001234567", "أ b")).toBe("https://wa.me/201001234567?text=%D8%A3%20b");
   });
 });
+
+describe("purchaseMessage — «ابعت للمورد واتساب» (owner 2026-11-19)", () => {
+  it("names the purchase invoice, the lines, total, paid and what is still owed to him", async () => {
+    const { purchaseMessage } = await import("./whatsappShare");
+    const t = purchaseMessage({ supplier: "كيرلس رسيفرات", number: "PO25011", branch: "معرض عبد المنعم", date: "19/11/2026",
+      items: [{ name: "سخان", quantity: 2, total: 4000 }], total: 4000, paid: 1000, remaining: 3000 });
+    expect(t).toContain("السلام عليكم أ/ كيرلس رسيفرات");
+    expect(t).toContain("فاتورة شراء رقم PO25011 — معرض عبد المنعم — 19/11/2026");
+    expect(t).toContain("• سخان × 2 = 4,000");
+    expect(t).toContain("الإجمالي: 4,000");
+    expect(t).toContain("المدفوع: 1,000");
+    expect(t).toContain("الباقي ليك: 3,000");
+  });
+  it("paid in full", async () => {
+    const { purchaseMessage } = await import("./whatsappShare");
+    expect(purchaseMessage({ supplier: null, number: "PO1", branch: null, date: "1/1/2026", items: [], total: 5, paid: 5, remaining: 0 }))
+      .toContain("الفاتورة اتدفعت بالكامل ✅");
+  });
+});

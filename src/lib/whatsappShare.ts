@@ -58,4 +58,24 @@ export function saleMessage(m: SaleMessageInput): string {
   return lines.join("\n");
 }
 
+export interface PurchaseMessageInput {
+  supplier: string | null; number: string; branch: string | null; date: string;
+  items: { name: string; quantity: number; total: number }[];
+  total: number; paid: number; remaining: number;
+}
+
+/** «ابعت للمورد واتساب» (owner 2026-11-19): the purchase invoice as the supplier reads it */
+export function purchaseMessage(m: PurchaseMessageInput): string {
+  const lines: string[] = [];
+  lines.push(m.supplier ? `السلام عليكم أ/ ${m.supplier}` : "السلام عليكم");
+  lines.push(`فاتورة شراء رقم ${m.number}${m.branch ? ` — ${m.branch}` : ""} — ${m.date}`);
+  const shown = m.items.slice(0, 15);
+  for (const it of shown) lines.push(`• ${it.name} × ${n(it.quantity)} = ${n(it.total)}`);
+  if (m.items.length > shown.length) lines.push(`• (+${m.items.length - shown.length} أصناف كمان)`);
+  lines.push(`الإجمالي: ${n(m.total)}`);
+  lines.push(`المدفوع: ${n(m.paid)}`);
+  lines.push(m.remaining > 0.009 ? `الباقي ليك: ${n(m.remaining)}` : "الفاتورة اتدفعت بالكامل ✅");
+  return lines.join("\n");
+}
+
 export const waLink = (phone: string, text: string) => `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;

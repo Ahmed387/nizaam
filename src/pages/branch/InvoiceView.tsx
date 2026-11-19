@@ -3,7 +3,9 @@ import { canEditDoc } from "@/lib/docEditAccess";
 import { fetchContactBalance } from "@/lib/contactBalances";
 import { PermTable } from "@/components/PermTable";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { contactFixPath, waReady } from "@/lib/whatsappFix";
+import { toast } from "sonner";
 import { BranchLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -158,6 +160,17 @@ export default function InvoiceView() {
     }, 700);
     return () => clearTimeout(t);
   }, [params, inv, items.length, setParams]);
+  // came back from the customer's page with a mobile saved (owner 2026-11-19): point at the WhatsApp button
+  const loc = useLocation();
+  const [waHi, setWaHi] = useState(false);
+  useEffect(() => {
+    if (!waReady(params.toString())) return;
+    setWaHi(true);
+    toast.success("رقم العميل اتسجل — دوس «ابعت للعميل واتساب»");
+    const next = new URLSearchParams(params); next.delete("wa"); setParams(next, { replace: true });
+    const t = window.setTimeout(() => setWaHi(false), 8000);
+    return () => window.clearTimeout(t);
+  }, [params, setParams]);
 
   if (error) return <BranchLayout><div className="p-8 text-center text-destructive">⚠️ {error}</div></BranchLayout>;
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;
@@ -190,7 +203,9 @@ export default function InvoiceView() {
             {canEdit && <Button variant="outline" onClick={() => nav(`/branch/${id}/sales/${invoiceId}/edit`)} className="border-primary text-primary hover:bg-primary/10"><Pencil className="w-4 h-4 ml-1" /> التعديل على الفاتورة</Button>}
             <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة</Button>
             {inv.status === "active" && (
-              <WhatsAppSendButton phone={inv.contacts?.phone} contactId={inv.contact_id} canSavePhone={canInBranch("customers.update", inv.branch_id)} buildText={whatsappText} />
+              <WhatsAppSendButton phone={inv.contacts?.phone} contactId={inv.contact_id} canSavePhone={canInBranch("customers.update", inv.branch_id)} buildText={whatsappText}
+                highlight={waHi}
+                fixPath={inv.contact_id && canInBranch("customers.update", inv.branch_id) ? contactFixPath({ branchId: id, contactId: inv.contact_id, back: loc.pathname }) : null} />
             )}
             {canCancel && (
               <Button
