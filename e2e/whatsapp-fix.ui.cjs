@@ -65,6 +65,18 @@ async function open(browser, db) {
     if (path.startsWith("/auth/v1/user")) return json({ id: OWNER, aud: "authenticated", app_metadata: {}, user_metadata: {} });
     if (path.startsWith("/auth/v1/")) return json({});
     if (path.startsWith("/functions/v1/")) return json({ ok: true });
+    // 0278: the invoice PDF goes to the private bucket «shared-docs», the message carries a signed link
+    if (path.startsWith("/storage/v1/object/sign/shared-docs/")) {
+      const key = path.replace("/storage/v1/object/sign/", "");
+      db.calls.push({ sign: key, body: req.postDataJSON() });
+      return json({ signedURL: `/object/sign/${key}?token=t0k` });
+    }
+    if (path.startsWith("/storage/v1/object/shared-docs/")) {
+      const buf = req.postDataBuffer() || Buffer.alloc(0);
+      if (process.env.PDF_OUT) require("fs").writeFileSync(`${process.env.PDF_OUT}/${path.split("/").pop()}`, buf);
+      db.calls.push({ upload: path, size: buf.length, pdf: buf.includes(Buffer.from("%PDF")), upsert: req.headers()["x-upsert"] });
+      return json({ Key: path.replace("/storage/v1/object/", "") });
+    }
     if (path.startsWith("/rest/v1/rpc/")) {
       const name = path.split("/").pop(); let body = {}; try { body = req.postDataJSON() || {}; } catch {}
       db.calls.push({ rpc: name, body });
@@ -139,9 +151,14 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
   await shot(page, "wa-3-back-ready");
 
   // 4) one click opens WhatsApp on that number with the invoice text
-  await page.getByRole("button", { name: /ابعت للعميل واتساب/ }).click(); await page.waitForTimeout(300);
-  const opened = await page.evaluate(() => window.__opened);
+  await page.getByRole("button", { name: /ابعت للعميل واتساب/ }).click();
+  await page.waitForFunction(() => window.__opened.some((u) => u.startsWith("https://wa.me/")), null, { timeout: 30000 }).catch(() => {});
+  const opened = (await page.evaluate(() => window.__opened)).filter((u) => u);
   check("WhatsApp opens on 201001234567 with the invoice", opened.length === 1 && opened[0].startsWith("https://wa.me/201001234567?text=") && decodeURIComponent(opened[0]).includes("IN00015"), opened[0]);
+  const up = db.calls.find((c) => c.upload);
+  check("the invoice went up as a real PDF, one file per invoice", !!up && up.pdf && up.size > 5000 && /shared-docs\/[^/]+\/sale-i1\.pdf$/.test(up.upload), JSON.stringify(up ?? {}));
+  check("the message carries the 7-day PDF link", decodeURIComponent(opened[0] ?? "").includes("sale-i1.pdf?token=t0k") && decodeURIComponent(opened[0] ?? "").includes("7 أيام")
+    && db.calls.some((c) => c.sign && c.body.expiresIn === 604800));
 
   // 5) purchase invoice: supplier wording, same alert
   await page.goto(`${BASE}/branch/${B1}/shipments/s1`); await settle(page);
@@ -157,7 +174,8 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
   await page.getByRole("button", { name: /^حفظ$/ }).click(); await settle(page);
   check("back on the purchase invoice, button ready", page.url().endsWith(`/branch/${B1}/shipments/s1`) && (await page.getByRole("button", { name: /ابعت للمورد واتساب/ }).getAttribute("data-ready")) === "1", page.url());
   await page.getByRole("button", { name: /ابعت للمورد واتساب/ }).click(); await page.waitForTimeout(300);
-  const op2 = await page.evaluate(() => window.__opened);
+  await page.waitForFunction(() => window.__opened.some((u) => u.startsWith("https://wa.me/")), null, { timeout: 30000 }).catch(() => {});
+  const op2 = (await page.evaluate(() => window.__opened)).filter((u) => u);
   check("WhatsApp opens on the supplier with the purchase invoice", op2.length === 1 && op2[0].startsWith("https://wa.me/201112223334?text=") && decodeURIComponent(op2[0]).includes("PO25011"), op2[0]);
 
   check("no page errors", !db.calls.some((c) => c.pageerror), db.calls.filter((c) => c.pageerror).map((c) => c.pageerror).join(" | "));

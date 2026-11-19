@@ -34,7 +34,7 @@ import { MessageCircle } from "lucide-react";
 export default function InvoiceView() {
   const { id, invoiceId } = useParams<{ id: string; invoiceId: string }>();
   const nav = useNavigate();
-  const { hasRole, isAdmin, tenant, canInBranch } = useAuth();
+  const { hasRole, isAdmin, tenant, tenantId, canInBranch } = useAuth();
   const [inv, setInv] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
@@ -204,7 +204,7 @@ export default function InvoiceView() {
             <Button className="btn-gradient" onClick={printThermalInvoice}><Printer className="w-4 h-4 ml-1" /> طباعة الفاتورة</Button>
             {inv.status === "active" && (
               <WhatsAppSendButton phone={inv.contacts?.phone} contactId={inv.contact_id} canSavePhone={canInBranch("customers.update", inv.branch_id)} buildText={whatsappText}
-                highlight={waHi}
+                highlight={waHi} pdf={{ tenantId, kind: "sale", docId: inv.id, element: () => document.querySelector<HTMLElement>(".print-area") }}
                 fixPath={inv.contact_id && canInBranch("customers.update", inv.branch_id) ? contactFixPath({ branchId: id, contactId: inv.contact_id, back: loc.pathname }) : null} />
             )}
             {canCancel && (

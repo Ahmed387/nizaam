@@ -9,10 +9,21 @@ export async function exportElementToPdf(
   el: HTMLElement,
   opts: { filename: string; sessionId: string }
 ) {
+  (await elementToPdf(el)).save(opts.filename);
+}
+
+/**
+ * The same A4 rendering as an object, for callers that upload it (the WhatsApp PDF link, 0278). `skip` leaves out
+ * elements such as on-screen badges / buttons (`.no-print`).
+ */
+export async function elementToPdf(el: HTMLElement, skip?: (node: Element) => boolean): Promise<jsPDF> {
   const canvas = await html2canvas(el, {
     scale: 2,
     backgroundColor: "#ffffff",
     useCORS: true,
+    ignoreElements: skip,
+    // parts written only for the PDF (e.g. the purchase invoice's number line) are hidden on screen
+    onclone: (doc) => doc.querySelectorAll<HTMLElement>("[data-pdf-only]").forEach((n) => { n.classList.remove("hidden"); n.style.display = "block"; }),
   });
 
   const pdf = new jsPDF({ unit: "pt", format: "a4", orientation: "portrait" });
@@ -53,6 +64,5 @@ export async function exportElementToPdf(
     pdf.addImage(imgData, "JPEG", margin, margin, imgW, imgH);
     // Footer removed intentionally — jsPDF cannot shape Arabic text and produced garbled output.
   }
-
-  pdf.save(opts.filename);
+  return pdf;
 }

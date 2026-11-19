@@ -32,7 +32,7 @@ export default function ShipmentView() {
   const { id: branchId, shipmentId } = useParams<{ id: string; shipmentId: string }>();
   const nav = useNavigate();
   const loc = useLocation();
-  const { isAdmin, hasRole, canInBranch } = useAuth();
+  const { isAdmin, hasRole, canInBranch, tenantId } = useAuth();
   // came back from the supplier's page with a mobile saved (owner 2026-11-19): point at the WhatsApp button
   const [waHi, setWaHi] = useState(false);
   useEffect(() => {
@@ -184,6 +184,7 @@ export default function ShipmentView() {
             </Button>
             {!isCancelled && ship.contact_id && (
               <WhatsAppSendButton who="supplier" phone={ship.contacts?.phone} contactId={ship.contact_id} highlight={waHi}
+                pdf={{ tenantId, kind: "purchase", docId: ship.id, element: () => document.getElementById("doc-pdf-area") }}
                 canSavePhone={canInBranch("customers.update", ship.branch_id ?? branchId)}
                 fixPath={canInBranch("customers.update", ship.branch_id ?? branchId) ? contactFixPath({ branchId, contactId: ship.contact_id, back: loc.pathname }) : null}
                 buildText={() => purchaseMessage({
@@ -222,6 +223,11 @@ export default function ShipmentView() {
         </div>
       )}
 
+      {/* what the WhatsApp PDF shows (0278): the supplier / invoice cards and the lines */}
+      <div id="doc-pdf-area" className="bg-background">
+        <div data-pdf-only className="hidden mb-4 text-lg font-extrabold">
+          فاتورة شراء رقم {ship.shipment_number ?? ship.id.slice(0, 8)} — {new Date(ship.invoice_date ?? ship.arrival_date ?? ship.created_at).toLocaleDateString("en-GB", { timeZone: "Africa/Cairo" })}
+        </div>
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <div className="card-elevated p-4 space-y-3">
           <div className="flex items-center gap-2 mb-2">
@@ -305,7 +311,7 @@ export default function ShipmentView() {
         );
       })()}
 
-      <ShipmentPaymentsPanel shipmentId={ship.id} canEdit={canEdit} onChanged={loadShipment} />
+      <div data-pdf-skip><ShipmentPaymentsPanel shipmentId={ship.id} canEdit={canEdit} onChanged={loadShipment} /></div>
 
 
       <div className="card-elevated overflow-hidden">
@@ -410,6 +416,8 @@ export default function ShipmentView() {
 
           </div>
         )}
+      </div>
+
       </div>
 
       <div className="card-elevated p-4 print:hidden">

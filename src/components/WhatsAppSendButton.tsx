@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, PhoneOff, UserPen } from "lucide-react";
+import { Loader2, MessageCircle, PhoneOff, UserPen } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { supabase } from "@/integrations/supabase/client";
 import { waLink, waPhone } from "@/lib/whatsappShare";
 import { phoneProblem } from "@/lib/whatsappFix";
+import { pdfLinkFor, withPdfLink } from "@/lib/docPdfLink";
 
 /**
  * «ابعت للعميل / للمورد واتساب».
@@ -20,8 +21,11 @@ import { phoneProblem } from "@/lib/whatsappFix";
  *   src/lib/whatsappFix.ts) and, once a mobile is saved, back here with the button pointed out (`highlight`). Who may not
  *   edit the account is told to ask the manager and may type the number for this one message (the old way, 2026-11-18).
  * - A walk-in sale (no account): the number is typed directly.
+ * - `pdf` (0278, owner «عاوز PDF من الفاتورة يتبعت في رسالة الواتساب»): the document on screen becomes an A4 PDF, the
+ *   message carries its link (7 days). The WhatsApp tab is opened IN the click (a later window.open is blocked) and
+ *   pointed at the chat once the link is ready; if the PDF fails the message goes without it and the cashier is told.
  */
-export function WhatsAppSendButton({ phone, contactId, canSavePhone, buildText, who = "customer", fixPath, highlight }: {
+export function WhatsAppSendButton({ phone, contactId, canSavePhone, buildText, who = "customer", fixPath, highlight, pdf }: {
   phone: string | null | undefined;
   contactId: string | null | undefined;
   /** the person may change the account's details (save_contact refuses others) */
@@ -32,6 +36,8 @@ export function WhatsAppSendButton({ phone, contactId, canSavePhone, buildText, 
   fixPath?: string | null;
   /** came back from the account's page with a mobile saved */
   highlight?: boolean;
+  /** send the document as a PDF link: what to render and where to keep it */
+  pdf?: { tenantId: string | null | undefined; kind: string; docId: string; element: () => HTMLElement | null; label?: string };
 }) {
   const nav = useNavigate();
   const [mode, setMode] = useState<null | "problem" | "type">(null);
@@ -44,7 +50,24 @@ export function WhatsAppSendButton({ phone, contactId, canSavePhone, buildText, 
   const problem = phoneProblem(phone);
   const canGoFix = !!(contactId && canSavePhone && fixPath);
 
-  const send = (to: string) => { window.open(waLink(to, buildText()), "_blank", "noopener"); };
+  const [busy, setBusy] = useState(false);
+  const send = (to: string) => {
+    const text = buildText();
+    if (!pdf) { window.open(waLink(to, text), "_blank", "noopener"); return; }
+    const w = window.open("", "_blank");
+    try { if (w) w.document.body.innerHTML = '<p dir="rtl" style="font-family:sans-serif;padding:24px">بنجهز الفاتورة PDF… ثواني وواتساب هيفتح</p>'; } catch { /* another origin */ }
+    setBusy(true);
+    const el = pdf.element();
+    const ready = el && pdf.tenantId
+      ? pdfLinkFor(el, pdf.tenantId, pdf.kind, pdf.docId).then((url) => withPdfLink(text, url, pdf.label))
+      : Promise.reject(new Error("الفاتورة مش ظاهرة على الشاشة"));
+    ready.catch((e: any) => { toast.error(`${e?.message ?? "الـ PDF ما اتعملش"} — هتتبعت الرسالة من غير الـ PDF`); return text; })
+      .then((final) => {
+        const link = waLink(to, final);
+        if (w && !w.closed) { w.opener = null; w.location.href = link; } else window.open(link, "_blank", "noopener");
+      })
+      .finally(() => setBusy(false));
+  };
 
   const click = () => {
     if (saved) return send(saved);
@@ -70,10 +93,11 @@ export function WhatsAppSendButton({ phone, contactId, canSavePhone, buildText, 
 
   return (
     <>
-      <Button variant="outline" onClick={click} data-ready={highlight ? "1" : undefined}
+      <Button variant="outline" onClick={click} disabled={busy} data-ready={highlight ? "1" : undefined}
         title={saved ? `يفتح واتساب على محادثة ${party} والرسالة مكتوبة — دوس «إرسال»` : `مفيش رقم موبايل صالح ${toParty}`}
         className={`border-success text-success hover:bg-success/10 transition-shadow ${highlight ? "ring-4 ring-success/40 animate-pulse" : ""}`}>
-        <MessageCircle className="w-4 h-4 ml-1" /> {who === "supplier" ? "ابعت للمورد واتساب" : "ابعت للعميل واتساب"}
+        {busy ? <Loader2 className="w-4 h-4 ml-1 animate-spin" /> : <MessageCircle className="w-4 h-4 ml-1" />}
+        {busy ? "بنجهز الـ PDF…" : who === "supplier" ? "ابعت للمورد واتساب" : "ابعت للعميل واتساب"}
       </Button>
 
       <Dialog open={mode === "problem"} onOpenChange={(o) => !o && setMode(null)}>
