@@ -29,8 +29,8 @@ export interface OwnerContact {
   bot_ready: boolean; bot_username: string | null; is_owner: boolean;
 }
 
-type Purpose = "owner" | "group";
-interface Invite { purpose: Purpose; url: string; code: string; expiresAt: number }
+export type Purpose = "owner" | "group";
+export interface Invite { purpose: Purpose; url: string; code: string; expiresAt: number }
 
 const when = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString("ar-EG", { timeZone: "Africa/Cairo", day: "2-digit", month: "2-digit", hour: "numeric", minute: "2-digit" }) : "—";
@@ -266,8 +266,9 @@ export default function OwnerContactTelegram() {
   );
 }
 
-/** QR + the code in big digits + open / WhatsApp / copy + countdown, while the page waits for the bot */
-function InviteBox({ invite, now, onCopy, whatsapp, fallback, fallbackText }: {
+/** QR + the code in big digits + open / WhatsApp / copy + countdown, while the page waits for the bot (also used on the
+ *  platform owner's company page, 0273) */
+export function InviteBox({ invite, now, onCopy, whatsapp, fallback, fallbackText }: {
   invite: Invite; now: number; onCopy: (t: string, what: string) => void; whatsapp?: string; fallback: string; fallbackText: string;
 }) {
   const [qr, setQr] = useState<string | null>(null);
