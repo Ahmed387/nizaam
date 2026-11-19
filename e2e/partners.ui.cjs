@@ -100,7 +100,7 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
 const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬]?"));
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   const db = makeDb();
   const { page } = await open(browser, db, OWNER);
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDownCircle, ArrowUpCircle, Calculator, Gift, PlusCircle, UserCircle } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Calculator, Gift, Landmark, PlusCircle, UserCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { fetchPartnersOverview, pct, salaryText, type PartnerCards } from "@/lib
 import { PartnerFormDialog } from "@/components/partners/PartnerFormDialog";
 import { PartnerMoneyDialog } from "@/components/partners/PartnerMoneyDialog";
 import { PeriodSharesDialog } from "@/components/partners/PeriodSharesDialog";
+import { PartnerCapitalWizard } from "@/components/partners/PartnerCapitalWizard";
 
 /**
  * «الشركاء» (0137, owner «غيرها كلها من الاول»): every partner with his five numbers, and the three things the owner does
@@ -26,6 +27,7 @@ export default function PartnersList(_props: { embedded?: boolean } = {}) {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [shares, setShares] = useState(false);
+  const [setup, setSetup] = useState(false);
   const [money, setMoney] = useState<{ kind: "contribution" | "withdrawal"; cards: PartnerCards } | null>(null);
   const [showOld, setShowOld] = useState(false);
 
@@ -52,6 +54,7 @@ export default function PartnersList(_props: { embedded?: boolean } = {}) {
         {canWrite && (
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setAdding(true)} className="gap-2"><PlusCircle className="w-4 h-4" /> شريك جديد</Button>
+            {isOwner && <Button variant="outline" onClick={() => setSetup(true)} className="gap-2"><Landmark className="w-4 h-4" /> ظبّط رأس مال الشركاء</Button>}
             <Button variant="outline" onClick={() => setShares(true)} className="gap-2"><Calculator className="w-4 h-4" /> حصص التشغيل والمرتبات</Button>
             <Button variant="outline" asChild className="gap-2"><Link to="/admin/accounting/flexible-distribution"><Gift className="w-4 h-4" /> توزيع الأرباح</Link></Button>
           </div>
@@ -115,6 +118,7 @@ export default function PartnersList(_props: { embedded?: boolean } = {}) {
       )}
 
       {adding && <PartnerFormDialog onClose={() => setAdding(false)} onDone={load} />}
+      {setup && <PartnerCapitalWizard onClose={() => setSetup(false)} onDone={load} />}
       {shares && <PeriodSharesDialog onClose={() => setShares(false)} onDone={load} />}
       {money && <PartnerMoneyDialog kind={money.kind} cards={money.cards} onClose={() => setMoney(null)} onDone={load} />}
     </div>
