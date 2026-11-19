@@ -23,6 +23,7 @@ function makeDb() {
     branch_users: [],
     branches: [{ id: B1, name: "معرض عبدالمنعم", code: "FR-004", tenant_id: T, is_active: true, is_system: false, platform_paused: false, low_balance_threshold: 0 }],
     tenants: [{ id: T, name: "A & N", slug: "an", is_suspended: false, owner_user_id: OWNER, setup_completed: true }],
+    settings: [{ key: "company", value: { name: "شركة ايه اند ان للأجهزة الكهربائية A & N", phone: "01112923350" } }],
     employees: [], role_permissions: [], user_permissions: [], permission_templates: [], notifications: [],
     invoice_items: [{ id: "ii1", invoice_id: "i1", product_id: "p1", product_name: "غسالة ال جي 20 كيلو", quantity: 1, total: 12000, unit_price: 12000 }],
     invoice_payments: [], payment_plans: [], payment_installments: [], products: [{ id: "p1", sku: "1991", pack_size: 1, pack_name: null }],

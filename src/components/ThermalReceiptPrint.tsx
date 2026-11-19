@@ -186,7 +186,15 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
           />
         ) : null}
-        {companyName && <div className="tr-company-bar">{companyName}</div>}
+        {companyName && (() => {
+          const n = splitCompanyName(companyName);
+          return (
+            <div className="tr-company-bar">
+              <div className="tr-company-ar">{n.main}</div>
+              {n.latin && <div className="tr-company-latin" dir="ltr">{n.latin}</div>}
+            </div>
+          );
+        })()}
         <div className="tr-title">{title}</div>
         {(company.tax_number || company.tax_id) && (
           <div className="tr-tax">رقم ضريبى {company.tax_number || company.tax_id}</div>
@@ -360,6 +368,18 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
  * - The iframe auto-prints and removes itself; the print dialog opens straight
  *   on the receipt with no extra options page.
  */
+/**
+ * The company name on the receipt (owner 2026-11-19 «اسم الشركة مش منسق»): an Arabic name that ends with a Latin brand
+ * («شركة ايه اند ان للأجهزة الكهربائية A & N») broke in the middle of the Latin part («A» on one line, «& N» on the
+ * next). The Arabic part is its own line(s), the Latin part its own line, written left to right.
+ */
+export function splitCompanyName(name: string): { main: string; latin: string | null } {
+  const t = name.replace(/\s+/g, " ").trim();
+  const m = /^(.*[\u0600-\u06FF].*?)\s*([A-Za-z0-9][A-Za-z0-9&.,'\- ]*)$/.exec(t);
+  if (!m || !/[A-Za-z]/.test(m[2])) return { main: t, latin: null };
+  return { main: m[1].trim(), latin: m[2].trim() };
+}
+
 /** The 80mm receipt's print rules — the same for the printer (iframe below) and the WhatsApp PDF (src/lib/docPdfLink.ts). */
 export const THERMAL_RECEIPT_CSS = `
   #invoice-print-area {
@@ -374,7 +394,9 @@ export const THERMAL_RECEIPT_CSS = `
   }
   #invoice-print-area .tr-logo { width: 24mm !important; height: 24mm !important; }
   #invoice-print-area .tr-header { margin-bottom: 2mm !important; }
-  #invoice-print-area .tr-company-bar { font-size: 14pt !important; line-height: 1.15 !important; padding: 1mm 0 !important; }
+  #invoice-print-area .tr-company-bar { font-size: 14pt !important; line-height: 1.25 !important; padding: 1.2mm 0 !important; }
+  #invoice-print-area .tr-company-ar { text-wrap: balance; }
+  #invoice-print-area .tr-company-latin { font-size: 12pt !important; letter-spacing: 0.06em; white-space: nowrap; margin-top: 0.4mm; }
   #invoice-print-area .tr-title { font-size: 12pt !important; padding-bottom: 1mm !important; }
   #invoice-print-area .tr-tax { font-size: 9pt !important; }
   #invoice-print-area .tr-meta-grid th,
