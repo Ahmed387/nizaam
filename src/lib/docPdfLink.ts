@@ -25,9 +25,47 @@ export function withPdfLink(text: string, url: string, label = "الفاتورة
  * layout (html-to-image draws the DOM through an SVG, so Arabic shaping, fonts and table borders are exactly the
  * printed ones — html2canvas laid them out itself and misplaced lines), one page as long as the receipt.
  */
+// ── speed (owner 2026-11-19 «بيطول قوي عقبال ما بيفتح») ──
+// html-to-image embeds EVERY web font of every stylesheet unless told otherwise (Cairo 5 weights + Vazirmatn 3, each in
+// several unicode-range files) and `cacheBust` re-downloaded them on each click. The receipt only uses «Vazir»: its
+// @font-face rules are read from our own stylesheet, their files fetched ONCE and kept as data URLs for the session.
+let fontCssP: Promise<string> | null = null;
+function receiptFontCss(): Promise<string> {
+  if (fontCssP) return fontCssP;
+  fontCssP = (async () => {
+    const rules: CSSFontFaceRule[] = [];
+    for (const sheet of Array.from(document.styleSheets)) {
+      let list: CSSRuleList | null = null;
+      try { list = sheet.cssRules; } catch { continue; }             // a cross-origin sheet (Google Fonts) can't be read
+      for (const r of Array.from(list ?? [])) {
+        if (r instanceof CSSFontFaceRule && /vazir/i.test(r.style.getPropertyValue("font-family"))) rules.push(r);
+      }
+    }
+    const out = await Promise.all(rules.map(async (r) => {
+      const m = /url\(["']?([^"')]+)["']?\)/.exec(r.style.getPropertyValue("src"));
+      if (!m) return "";
+      try {
+        const blob = await (await fetch(m[1])).blob();
+        const data = await new Promise<string>((ok, bad) => { const f = new FileReader(); f.onload = () => ok(String(f.result)); f.onerror = bad; f.readAsDataURL(blob); });
+        return r.cssText.replace(m[0], `url(${data})`);
+      } catch { return ""; }
+    }));
+    return out.filter(Boolean).join("\n");
+  })();
+  return fontCssP;
+}
+
+const libs = () => Promise.all([import("html-to-image"), import("jspdf"), import("@/components/ThermalReceiptPrint")]);
+
+/** Called when a page with the button opens: loads the code and the font in the background, so the click only draws. */
+export function warmReceiptPdf(): void {
+  const go = () => { libs().catch(() => {}); receiptFontCss().catch(() => {}); };
+  const idle = (window as any).requestIdleCallback as ((cb: () => void) => void) | undefined;
+  if (idle) idle(go); else setTimeout(go, 800);
+}
+
 export async function receiptPdf(receipt: HTMLElement): Promise<Blob> {
-  const [{ toCanvas }, { default: jsPDF }, { THERMAL_RECEIPT_CSS }] = await Promise.all([
-    import("html-to-image"), import("jspdf"), import("@/components/ThermalReceiptPrint")]);
+  const [[{ toCanvas }, { default: jsPDF }, { THERMAL_RECEIPT_CSS }], fontEmbedCSS] = await Promise.all([libs(), receiptFontCss()]);
   const host = document.createElement("div");
   host.className = "tr-pdf-host";
   host.setAttribute("aria-hidden", "true");
@@ -42,12 +80,12 @@ export async function receiptPdf(receipt: HTMLElement): Promise<Blob> {
     await Promise.all(Array.from(host.querySelectorAll("img")).map((img) =>
       img.complete ? null : new Promise((r) => { img.onload = img.onerror = () => r(null); })));
     // a logo that cannot be fetched becomes a blank pixel instead of failing the whole PDF
-    const canvas = await toCanvas(host, { pixelRatio: 3, backgroundColor: "#ffffff", cacheBust: true,
+    const canvas = await toCanvas(host, { pixelRatio: 2.5, backgroundColor: "#ffffff", fontEmbedCSS,
       imagePlaceholder: "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" });
     const wMm = 80;
     const hMm = Math.max(60, (canvas.height / canvas.width) * wMm);
     const pdf = new jsPDF({ unit: "mm", format: [wMm, hMm], orientation: "portrait" });
-    pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, wMm, hMm);
+    pdf.addImage(canvas.toDataURL("image/jpeg", 0.85), "JPEG", 0, 0, wMm, hMm);
     return pdf.output("blob");
   } finally {
     host.remove();

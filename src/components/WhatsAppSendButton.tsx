@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, MessageCircle, PhoneOff, UserPen } from "lucide-react";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { supabase } from "@/integrations/supabase/client";
 import { waLink, waPhone } from "@/lib/whatsappShare";
 import { phoneProblem } from "@/lib/whatsappFix";
-import { pdfLinkFor, withPdfLink } from "@/lib/docPdfLink";
+import { pdfLinkFor, warmReceiptPdf, withPdfLink } from "@/lib/docPdfLink";
 
 /**
  * «ابعت للعميل / للمورد واتساب».
@@ -51,6 +51,8 @@ export function WhatsAppSendButton({ phone, contactId, canSavePhone, buildText, 
   const canGoFix = !!(contactId && canSavePhone && fixPath);
 
   const [busy, setBusy] = useState(false);
+  const wantsPdf = !!pdf;
+  useEffect(() => { if (wantsPdf) warmReceiptPdf(); }, [wantsPdf]);
   const send = (to: string) => {
     const text = buildText();
     if (!pdf) { window.open(waLink(to, text), "_blank", "noopener"); return; }

@@ -59,7 +59,20 @@ async function open(browser, db) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: "ar-EG" });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => db.calls.push({ pageerror: String(e).slice(0, 300) }));
-  await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  if (process.env.SIMFONTS) {
+    // simulate the real Google Fonts: the CSS lists 24 files (Cairo 5 weights + Vazirmatn 3, each in 3 unicode ranges),
+    // every file is a real ~100 KB font with ~150 ms of network
+    const ttf = require("fs").readFileSync(process.env.SIMFONTS);
+    const bold = process.env.SIMFONTS_BOLD ? require("fs").readFileSync(process.env.SIMFONTS_BOLD) : ttf;   // index.css: weight 700 = …klY80ORc.ttf
+    db.fontHits = 0;
+    await ctx.route(/fonts\.googleapis\.com/, (r) => r.fulfill({ status: 200, contentType: "text/css", headers: { "access-control-allow-origin": "*" },
+      body: Array.from({ length: 24 }, (_, i) => `@font-face{font-family:'${i < 15 ? "Cairo" : "Vazirmatn"}';font-weight:${400 + (i % 5) * 100};src:url(https://fonts.gstatic.com/s/f${i}.ttf) format('truetype');unicode-range:U+${(i % 3) * 100}-${(i % 3) * 100 + 99};}`).join("\n") }));
+    await ctx.route(/fonts\.gstatic\.com/, async (r) => { db.fontHits++; await new Promise((ok) => setTimeout(ok, 150));
+      r.fulfill({ status: 200, contentType: "font/ttf", headers: { "access-control-allow-origin": "*", "cache-control": "max-age=31536000" },
+        body: /klY80ORc/.test(r.request().url()) ? bold : ttf }); });
+  } else {
+    await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  }
   await ctx.route(`${SB}/**`, async (route) => {
     const req = route.request(); const url = new URL(req.url()); const path = url.pathname;
     const json = (d, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(d) });
@@ -152,9 +165,15 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
   await shot(page, "wa-3-back-ready");
 
   // 4) one click opens WhatsApp on that number with the invoice text
+  await page.waitForTimeout(1500);                       // the page is open a moment before the click (warm-up)
+  const hitsBefore = db.fontHits ?? 0; const tClick = Date.now();
   await page.getByRole("button", { name: /ابعت للعميل واتساب/ }).click();
   await page.waitForFunction(() => window.__opened.some((u) => u.startsWith("https://wa.me/")), null, { timeout: 30000 }).catch(() => {});
   const opened = (await page.evaluate(() => window.__opened)).filter((u) => u);
+  if (process.env.SIMFONTS) {
+    const ms = Date.now() - tClick, fonts = (db.fontHits ?? 0) - hitsBefore;
+    check("speed: the click does not download the app's fonts again (≤ 3 files, was 29)", fonts <= 3, `${ms} ms, ${fonts} font files`);
+  }
   check("WhatsApp opens on 201001234567 with the invoice", opened.length === 1 && opened[0].startsWith("https://wa.me/201001234567?text=") && decodeURIComponent(opened[0]).includes("IN00015"), opened[0]);
   const up = db.calls.find((c) => c.upload);
   check("the invoice went up as a real PDF, one file per invoice", !!up && up.pdf && up.size > 5000 && /shared-docs\/[^/]+\/sale-i1\.pdf$/.test(up.upload), JSON.stringify(up ?? {}));
