@@ -114,6 +114,24 @@ export function withdrawalSentence(s: { capital: number; profit: number; advance
 export const pct = (fraction: number) => `${round2(Number(fraction || 0) * 100)}%`;
 export const toFraction = (percentText: string | number) => round4(Number(percentText || 0) / 100);
 
+/**
+ * The % of the profit each partner takes (the card shows it). Active partners only. When anybody has capital it follows
+ * the capital (5M + 5M → 50 / 50); with no capital recorded yet it is the stored share, flagged `fromCapital: false`
+ * so the screen can say «لسه مفيش رأس مال متسجل».
+ */
+export function profitShares(rows: Pick<PartnerCards, "partner" | "capital">[]): Record<string, { share: number; fromCapital: boolean }> {
+  const active = rows.filter((r) => r.partner.is_active);
+  const total = active.reduce((s, r) => s + Math.max(Number(r.capital) || 0, 0), 0);
+  const out: Record<string, { share: number; fromCapital: boolean }> = {};
+  for (const r of rows) {
+    if (!r.partner.is_active) { out[r.partner.id] = { share: 0, fromCapital: total > 0 }; continue; }
+    out[r.partner.id] = total > 0
+      ? { share: round4(Math.max(Number(r.capital) || 0, 0) / total), fromCapital: true }
+      : { share: Number(r.partner.capital_share) || 0, fromCapital: false };
+  }
+  return out;
+}
+
 /** How he is paid, in one line. */
 export function salaryText(p: Pick<PartnerInfo, "role_kind" | "salary_mode" | "salary_amount" | "salary_percent" | "salary_base" | "salary_when">, branchName?: string): string {
   if (p.role_kind !== "employee_partner" || p.salary_mode === "none") return "مالوش مرتب";

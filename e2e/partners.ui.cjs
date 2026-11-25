@@ -110,6 +110,8 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   check("2. الأرقام الخمسة على الكارت (المساهمات، مسحوب من رأس المال، رأس المال، صافي الربح، السلف)",
     await vis(page.getByText("مسحوب من رأس المال")) && await vis(page.getByText("صافي الربح").first()) && await vis(page.getByText(/800[,٬]?000|٨٠٠/)));
   check("3. زراير «شريك جديد» و«حصص التشغيل والمرتبات»", await vis(page.getByRole("button", { name: /شريك جديد/ })) && await vis(page.getByRole("button", { name: /حصص التشغيل والمرتبات/ })));
+  check("3b. نصيب الشريك من الربح ظاهر على كارته (100% — رأس المال كله بتاعه)", (await page.getByTestId("partner-share").first().innerText()).trim() === "100%");
+  check("3c. فلتر الفرع مش ظاهر في تاب الشركاء", !(await vis(page.getByText("كل الفروع (مجمّع للشركة)"))));
   await shot(page, "partners-1-list");
 
   // 2. withdrawal «من الربح» above his profit

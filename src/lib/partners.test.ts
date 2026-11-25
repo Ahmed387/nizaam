@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 import {
+  profitShares, pct,
   formFromPartner, movementsOfCard, partnerFormProblem, partnerMoneyProblem, partnerPayload, salaryText, splitWithdrawal,
   txCard, txSign, withdrawalSentence, type PartnerForm, type PartnerMovement,
 } from "./partners";
@@ -94,5 +95,33 @@ describe("partner form", () => {
     expect(salaryText({ role_kind: "employee_partner", salary_mode: "percent", salary_amount: 0, salary_percent: 0.05, salary_base: "company", salary_when: "before" }))
       .toBe("5% من صافي ربح الشركة (قبل حصص التشغيل)");
     expect(salaryText({ role_kind: "partner", salary_mode: "none", salary_amount: 0, salary_percent: 0, salary_base: "company", salary_when: "before" })).toBe("مالوش مرتب");
+  });
+});
+
+describe("profitShares — the % on each card", () => {
+  const card = (id: string, capital: number, capital_share: number, is_active = true) =>
+    ({ partner: { id, capital_share, is_active }, capital } as any);
+
+  it("follows the capital when anybody has capital: 5M + 5M → 50% / 50%", () => {
+    const s = profitShares([card("a", 5_000_000, 0), card("b", 5_000_000, 1)]);
+    expect(s.a).toEqual({ share: 0.5, fromCapital: true });
+    expect(s.b).toEqual({ share: 0.5, fromCapital: true });
+  });
+
+  it("6M of 11M → 54.55%", () => {
+    const s = profitShares([card("a", 6_000_000, 0), card("b", 5_000_000, 0)]);
+    expect(pct(s.a.share)).toBe("54.55%");
+  });
+
+  it("no capital recorded yet → the stored share, flagged (today: الحاج ناصر 100%, محمد 0%)", () => {
+    const s = profitShares([card("a", 0, 0), card("b", 0, 1)]);
+    expect(s.b).toEqual({ share: 1, fromCapital: false });
+    expect(s.a).toEqual({ share: 0, fromCapital: false });
+  });
+
+  it("a stopped partner takes no share", () => {
+    const s = profitShares([card("a", 5_000_000, 0.5), card("b", 5_000_000, 0.5, false)]);
+    expect(s.a.share).toBe(1);
+    expect(s.b.share).toBe(0);
   });
 });

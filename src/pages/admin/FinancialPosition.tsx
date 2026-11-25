@@ -101,7 +101,8 @@ export default function FinancialPosition() {
       <div dir="rtl" className="text-right space-y-6">
         <PageHeader title="الذمة المالية للشركاء" subtitle="كل حاجة عن فلوس الشركاء ورأس المال والأرباح — في مكان واحد" />
 
-        <FinancialBranchFilter value={branchFilter} onChange={setBranchFilter} branches={financial.branches} />
+        {/* partners are company-wide: the branch filter only shapes the overview tab */}
+        {tab === "overview" && <FinancialBranchFilter value={branchFilter} onChange={setBranchFilter} branches={financial.branches} />}
 
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
           <TabsList className="flex flex-wrap h-auto">

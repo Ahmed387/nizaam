@@ -9,7 +9,7 @@ import { StatCard } from "@/components/StatCard";
 import { PermCard } from "@/contexts/PermCustomize";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
-import { fetchPartnersOverview, pct, salaryText, type PartnerCards } from "@/lib/partners";
+import { fetchPartnersOverview, pct, profitShares, salaryText, type PartnerCards } from "@/lib/partners";
 import { PartnerFormDialog } from "@/components/partners/PartnerFormDialog";
 import { PartnerMoneyDialog } from "@/components/partners/PartnerMoneyDialog";
 import { PeriodSharesDialog } from "@/components/partners/PeriodSharesDialog";
@@ -43,6 +43,7 @@ export default function PartnersList(_props: { embedded?: boolean } = {}) {
   const totals = useMemo(() => active.reduce((s, r) => ({
     capital: s.capital + Number(r.capital), profit: s.profit + Number(r.profit), advances: s.advances + Number(r.advances),
   }), { capital: 0, profit: 0, advances: 0 }), [active]);
+  const shareOf = useMemo(() => profitShares(rows), [rows]);
 
   return (
     <div dir="rtl" className="text-right space-y-5">
@@ -92,7 +93,13 @@ export default function PartnersList(_props: { embedded?: boolean } = {}) {
                         {!r.partner.is_active && <Badge variant="destructive">موقوف</Badge>}
                       </div>
                     </div>
-                    <Button size="sm" variant="ghost" asChild><Link to={`/admin/financial-position/partner/${r.partner.id}`}>افتح صفحته</Link></Button>
+                    <div className="text-left">
+                      <div className="text-xs text-muted-foreground">نصيبه من الربح</div>
+                      <div className="text-2xl font-extrabold text-primary tabular-nums" data-testid="partner-share">{pct(shareOf[r.partner.id]?.share ?? 0)}</div>
+                      {r.partner.is_active && !shareOf[r.partner.id]?.fromCapital && (
+                        <div className="text-[11px] text-warning">لسه مفيش رأس مال متسجل</div>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
                     <Num label="المساهمات" v={r.contributions} />
@@ -101,12 +108,15 @@ export default function PartnersList(_props: { embedded?: boolean } = {}) {
                     <Num label="صافي الربح" v={r.profit} tone={r.profit < 0 ? "destructive" : "success"} strong />
                     <Num label="السلف" v={r.advances} tone={r.advances > 0 ? "warning" : undefined} />
                   </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="secondary" asChild><Link to={`/admin/financial-position/partner/${r.partner.id}`}>افتح صفحته</Link></Button>
                   {canWrite && r.partner.is_active && (
-                    <div className="flex flex-wrap gap-2">
+                    <>
                       <Button size="sm" variant="outline" className="gap-1" onClick={() => setMoney({ kind: "contribution", cards: r })}><ArrowUpCircle className="w-4 h-4" /> مساهمة</Button>
                       <Button size="sm" variant="outline" className="gap-1" onClick={() => setMoney({ kind: "withdrawal", cards: r })}><ArrowDownCircle className="w-4 h-4" /> سحب</Button>
-                    </div>
+                    </>
                   )}
+                  </div>
                 </CardContent>
               </Card>
             </PermCard>
