@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +44,9 @@ const monthAgo = () => {
   return d.toISOString().slice(0, 10);
 };
 
-export default function FlexibleDistribution() {
+/** `embedded`: step 2 of the partners page «توزيع الأرباح» tab (owner 2026-11-25) — no layout, no header. */
+export default function FlexibleDistribution({ embedded, onDone }: { embedded?: boolean; onDone?: () => void } = {}) {
+  const Shell = embedded ? Fragment : AdminLayout;
   const { tenantId, isOwner } = useAuth();
   const [fromDate, setFromDate] = useState(monthAgo());
   const [toDate, setToDate] = useState(today());
@@ -152,15 +154,16 @@ export default function FlexibleDistribution() {
     setNotes("");
     setCustomAmount("");
     loadBalances();
+    onDone?.();
   };
 
   return (
-    <AdminLayout>
+    <Shell>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader
+        {!embedded && <PageHeader
           title="توزيع أرباح مرن"
           subtitle="اختر أي فترة، النظام يحسب صافي الربح من دفتر الأستاذ ويوزع حسب النسب"
-        />
+        />}
 
         {/* Current Balances */}
         <Card>
@@ -343,6 +346,6 @@ export default function FlexibleDistribution() {
           </Card>
         )}
       </div>
-    </AdminLayout>
+    </Shell>
   );
 }

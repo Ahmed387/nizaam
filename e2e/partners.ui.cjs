@@ -27,6 +27,13 @@ const cards = { partner, contributions: 1000000, capital_withdrawals: 200000, ca
               mv("m3", "profit_share", 150000, "2026-10-31", { distribution_id: "d1", cancellable: false, branch_id: null, method: null, treasury_id: null })],
   advances_list: [] };
 
+const P2 = "b0000001-0000-4000-8000-000000000002";
+const cards2 = { partner: { ...partner, id: P2, name: "الحاج ناصر" }, contributions: 800000, capital_withdrawals: 0, capital: 800000, profit: 0, profit_in: 0, profit_out: 0, advances: 0, movements: [], advances_list: [] };
+const SHARES = { from: "2026-10-01", to: "2026-10-31", net_before: 300000, total: 39000, already: false,
+  months: [{ month: "2026-10", from: "2026-10-01", to: "2026-10-31", net_before: 300000, pay: 39000,
+    lines: [{ partner_id: P1, name: "شريك تجربة", kind: "fixed", amount: 10000 }, { partner_id: P1, name: "شريك تجربة", kind: "percent", percent: 0.1, percent_base: "after_fixed", base: 290000, amount: 29000 }] }],
+  rows: [{ key: `${P1}:salary`, partner_id: P1, name: "شريك تجربة", kind: "salary_share", amount: 10000, computed: 10000, percent: 0, base: 0, branch_id: null, typed: false, needs_owner: false },
+         { key: `${P1}:operating`, partner_id: P1, name: "شريك تجربة", kind: "operating_share", amount: 29000, computed: 29000, percent: 0.1, base: 290000, branch_id: null, typed: false, needs_owner: false }] };
 function makeDb() {
   return {
     calls: [],
@@ -36,7 +43,7 @@ function makeDb() {
     branches: [{ id: B1, name: "معرض عبدالمنعم", code: "FR-004", tenant_id: T, is_active: true, is_system: false, platform_paused: false }],
     tenants: [{ id: T, name: "A & N", slug: "an", is_suspended: false, owner_user_id: OWNER, setup_completed: true }],
     employees: [{ id: E1, name: "محمد ياسر", tenant_id: T, is_active: true, user_id: null }],
-    equity_partners: [partner],
+    equity_partners: [partner], partner_pay_rules: [],
   };
 }
 
@@ -70,7 +77,13 @@ async function open(browser, db, me) {
     if (path.startsWith("/rest/v1/rpc/")) {
       const name = path.split("/").pop(); let body = {}; try { body = req.postDataJSON() || {}; } catch {}
       db.calls.push({ rpc: name, body });
-      if (name === "partners_overview") return json([{ ...cards, movements: undefined, advances_list: undefined }]);
+      if (name === "partners_overview") return json([{ ...cards, movements: undefined, advances_list: undefined },
+        { ...cards2, movements: undefined, advances_list: undefined }]);
+      if (name === "partner_existing_capital") return json("tx-existing");
+      if (name === "set_partner_pay_rule") return json("rule-1");
+      if (name === "post_partner_period_shares") return json({ posted: 2 });
+      if (name === "partner_period_shares_preview") return json(SHARES);
+      if (name === "preview_flexible_distribution") return json({ net_profit: { net_profit: 0 }, distributable: 0, partners: [] });
       if (name === "partner_cards") return json(cards);
       if (name === "partner_money") return json({ treasury_id: "t9", capital: 0, profit: 150000, advance: 50000 });
       if (name === "save_partner") return json("b0000001-0000-4000-8000-000000000002");
@@ -104,58 +117,85 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   const db = makeDb();
   const { page } = await open(browser, db, OWNER);
 
-  // 1. the partners tab
-  await page.goto(`${BASE}/admin/financial-position?tab=partners`); await settle(page);
-  check("1. كارت الشريك ظاهر باسمه", await vis(page.getByText("شريك تجربة")));
-  check("2. الأرقام الخمسة على الكارت (المساهمات، مسحوب من رأس المال، رأس المال، صافي الربح، السلف)",
-    await vis(page.getByText("مسحوب من رأس المال")) && await vis(page.getByText("صافي الربح").first()) && await vis(page.getByText(/800[,٬]?000|٨٠٠/)));
-  check("3. زراير «شريك جديد» و«حصص التشغيل والمرتبات»", await vis(page.getByRole("button", { name: /شريك جديد/ })) && await vis(page.getByRole("button", { name: /حصص التشغيل والمرتبات/ })));
-  check("3b. نصيب الشريك من الربح ظاهر على كارته (100% — رأس المال كله بتاعه)", (await page.getByTestId("partner-share").first().innerText()).trim() === "100%");
-  check("3c. فلتر الفرع مش ظاهر في تاب الشركاء", !(await vis(page.getByText("كل الفروع (مجمّع للشركة)"))));
+  // 1. the partners tab: 5 tabs, no «نظرة عامة», each card with his % and his pay
+  await page.goto(`${BASE}/admin/financial-position`); await settle(page);
+  const tabs = await page.getByRole("tab").allInnerTexts();
+  check("1. التابات: الشركاء / رأس المال / توزيع الأرباح / الحركات / القوائم المالية — ومفيش «نظرة عامة»",
+    ["الشركاء", "رأس المال", "توزيع الأرباح", "الحركات", "القوائم المالية"].every((t) => tabs.some((x) => x.includes(t))) && !tabs.some((x) => x.includes("نظرة عامة")), tabs.join(" | "));
+  check("2. كارت كل شريك بالأرقام الخمسة", await vis(page.getByText("شريك تجربة")) && await vis(page.getByText("مسحوب من رأس المال").first()));
+  const sharesTxt = await page.getByTestId("partner-share").allInnerTexts();
+  check("3. نصيب كل واحد من الربح على كارته (800 ألف + 800 ألف → 50% / 50%)", sharesTxt.length === 2 && sharesTxt.every((t) => t.trim() === "50%"), sharesTxt.join(","));
+  check("3b. مرتبه على الكارت: «مالوش مرتب»", (await page.getByTestId("partner-pay").first().innerText()).includes("مالوش مرتب"));
+  check("3c. زراير الويزارد و«حصص التشغيل» القديمة اتشالت", !(await vis(page.getByRole("button", { name: /ظبّط رأس مال|حصص التشغيل/ }))));
   await shot(page, "partners-1-list");
 
-  // 2. withdrawal «من الربح» above his profit
+  // 2. withdrawal «من الربح» above his profit (unchanged money door)
   await page.getByRole("button", { name: /^سحب$/ }).first().click(); await page.waitForTimeout(600);
   await page.locator('input[type="number"]').first().fill("200000"); await page.waitForTimeout(300);
-  check("4. الشاشة بتقول: 150,000 من الربح + 50,000 سلفة", await vis(page.getByText(/من الربح \+ .*سلفة/)));
-  await shot(page, "partners-2-withdraw");
+  check("4. السحب: 150,000 من الربح + 50,000 سلفة", await vis(page.getByText(/من الربح \+ .*سلفة/)));
   await page.getByRole("button", { name: /سجّل السحب/ }).click(); await page.waitForTimeout(500);
   check("5. من غير فرع: رفض ومفيش طلب للسيرفر", !db.calls.some((c) => c.rpc === "partner_money"));
   await page.getByRole("combobox").first().click(); await page.getByRole("option", { name: "معرض عبدالمنعم" }).click();
   await page.getByRole("button", { name: /سجّل السحب/ }).click(); await page.waitForTimeout(800);
   const pm = db.calls.find((c) => c.rpc === "partner_money");
-  check("6. طلب واحد partner_money: سحب 200,000 من الربح من الفرع المختار نقدي",
-    !!pm && pm.body.p_kind === "withdrawal" && pm.body.p_amount === 200000 && pm.body.p_source === "profit" && pm.body.p_branch === B1 && pm.body.p_method === "cash",
-    JSON.stringify(pm?.body ?? {}));
+  check("6. طلب واحد partner_money بالفرع المختار", !!pm && pm.body.p_amount === 200000 && pm.body.p_branch === B1, JSON.stringify(pm?.body ?? {}));
 
-  // 3. the partner page: cards filter the movements
+  // 3. «رأس المال»: «موجود بالفعل» shows the % before → after, then ONE call
+  await page.getByRole("tab", { name: "رأس المال" }).click(); await settle(page);
+  check("7. جدول رأس المال: إجمالي 1,600,000 وكل واحد 50%", await vis(page.getByText(money(1600000))));
+  await page.getByRole("button", { name: /موجود بالفعل/ }).first().click(); await page.waitForTimeout(500);
+  await page.locator("#ex-amount").fill("1600000"); await page.waitForTimeout(300);
+  const eff = await page.getByTestId("existing-effect").innerText().catch(() => "");
+  check("8. قبل الحفظ: نسبته 50% ← 75% والخزن مش هتتغير", eff.includes("50%") && eff.includes("75%") && eff.includes("الخزن"), eff.replace(/\n/g, " "));
+  await shot(page, "partners-5-existing");
+  await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).click(); await page.waitForTimeout(700);
+  const ex = db.calls.filter((c) => c.rpc === "partner_existing_capital");
+  check("9. partner_existing_capital مرة واحدة: 1,600,000 من 2026-01-01", ex.length === 1 && ex[0].body.p_amount === 1600000 && ex[0].body.p_day === "2026-01-01" && ex[0].body.p_partner === P1, JSON.stringify(ex[0]?.body ?? {}));
+
+  // 4. «توزيع الأرباح»: the owner's example, then the pay dialog, then step 1
+  await page.getByRole("tab", { name: "توزيع الأرباح" }).click(); await settle(page);
+  await page.getByRole("button", { name: /حدد مرتبه/ }).first().click(); await page.waitForTimeout(500);
+  const d = page.getByRole("dialog");
+  await d.getByLabel("الاتنين").click();
+  await d.getByLabel("المرتب الثابت في الشهر").fill("10000");
+  await d.getByLabel("النسبة %").fill("10");
+  await d.getByLabel("لو الشهر كسب").fill("300000"); await page.waitForTimeout(300);
+  const ex1 = await d.getByTestId("pay-example").innerText();
+  check("10. المثال: 300,000 → شريك تجربة 169,500 والحاج ناصر 130,500", /169[,٬]?500/.test(ex1) && /130[,٬]?500/.test(ex1), ex1.replace(/\n/g, " | "));
+  await d.getByLabel("لو الشهر كسب").fill("-50000"); await page.waitForTimeout(300);
+  const ex2 = await d.getByTestId("pay-example").innerText();
+  check("11. الشهر الخسران −50,000: المرتب الثابت بيتصرف والنسبة صفر، −30,000 على كل واحد", /10[,٬]?000/.test(ex2) && /30[,٬]?000/.test(ex2), ex2.replace(/\n/g, " | "));
+  await shot(page, "partners-6-pay");
+  await d.getByRole("button", { name: /احفظ من شهر/ }).click(); await page.waitForTimeout(700);
+  const sr = db.calls.filter((c) => c.rpc === "set_partner_pay_rule");
+  check("12. set_partner_pay_rule: 10,000 ثابت + 10% بعد الثابت، من أول الشهر", sr.length === 1 && sr[0].body.p_fixed === 10000 && sr[0].body.p_percent === 0.1
+    && sr[0].body.p_percent_base === "after_fixed" && /-01$/.test(sr[0].body.p_from_month), JSON.stringify(sr[0]?.body ?? {}));
+  check("13. خطوة 1: شهر بشهر — صافي قبل المرتبات والمرتبات والباقي", await vis(page.getByText("خطوة 1: سجّل مرتبات الشركاء للفترة")) && await vis(page.getByText(money(261000)).first()));
+  await page.getByRole("button", { name: "سجّل مرتبات الشركاء" }).click(); await page.waitForTimeout(700);
+  check("14. «سجّل مرتبات الشركاء» = post_partner_period_shares مرة واحدة", db.calls.filter((c) => c.rpc === "post_partner_period_shares").length === 1);
+  check("15. خطوة 2 (التوزيع على رأس المال) جوه نفس التاب", await vis(page.getByText("خطوة 2: وزّع الباقي على رأس المال")));
+  await shot(page, "partners-7-distribution");
+
+  // 5. «القوائم المالية» inside the page; its own tabs do not move the page's tab
+  await page.getByRole("tab", { name: "القوائم المالية" }).click(); await settle(page);
+  check("16. تاب القوائم المالية جوه صفحة الشركاء", await vis(page.getByRole("tab", { name: /قائمة الدخل|الدخل/ }).first()) && page.url().includes("tab=statements"));
+
+  // 6. the add form: no pay fields there any more
+  await page.getByRole("tab", { name: "الشركاء" }).click(); await settle(page);
+  await page.getByRole("button", { name: /شريك جديد/ }).click(); await page.waitForTimeout(500);
+  check("17. فورم الشريك الجديد من غير خانات مرتب / حصة تشغيل (بقت في «توزيع الأرباح»)",
+    !(await vis(page.getByRole("dialog").getByText("حصة تشغيل؟"))) && await vis(page.getByRole("dialog").getByText(/توزيع الأرباح/).first()));
+  await shot(page, "partners-4-form");
+  await page.keyboard.press("Escape");
+
+  // 7. the partner page still works
   await page.goto(`${BASE}/admin/financial-position/partner/${P1}`); await settle(page);
-  check("7. صفحة الشريك فيها الخمس كروت", await vis(page.getByText("رأس المال لحد النهارده")) && await vis(page.getByText("المسحوبات من رأس المال")) && await vis(page.getByText("السلف").first()));
-  check("8. كل الحركات ظاهرة (3)", await vis(page.getByText("نصيبه من توزيع الأرباح")) && await vis(page.getByText("مساهمة في رأس المال")));
-  await page.getByText("رأس المال لحد النهارده").first().click(); await page.waitForTimeout(500);
-  check("9. دوسة على «رأس المال» بتعرض حركات رأس المال بس", await vis(page.getByText("حركات رأس المال")) && !(await vis(page.getByText("نصيبه من توزيع الأرباح"))));
+  check("18. صفحة الشريك فيها الخمس كروت", await vis(page.getByText("رأس المال لحد النهارده")) && await vis(page.getByText("السلف").first()));
   await shot(page, "partners-3-profile");
 
-  // 4. the add form: employee and partner, % of a branch, operating share 10%
-  await page.goto(`${BASE}/admin/financial-position?tab=partners`); await settle(page);
-  await page.getByRole("button", { name: /شريك جديد/ }).click(); await page.waitForTimeout(600);
-  await page.getByText("موظف وشريك").first().click();
-  await page.getByRole("combobox").first().click(); await page.getByRole("option", { name: "محمد ياسر" }).click();
-  await page.getByText("نسبة من صافي الربح").click();
-  await page.getByPlaceholder("مثلاً 5").fill("5");
-  await page.getByRole("dialog").getByRole("combobox").nth(1).click(); await page.getByRole("option", { name: "فرع واحد" }).click();
-  await page.getByRole("dialog").getByRole("combobox").nth(2).click(); await page.getByRole("option", { name: "معرض عبدالمنعم" }).click();
-  await page.getByRole("switch").click(); await page.getByPlaceholder("مثلاً 10").fill("10");
-  await shot(page, "partners-4-form");
-  await page.getByRole("button", { name: /ضيف الشريك/ }).click(); await page.waitForTimeout(800);
-  const sp = db.calls.find((c) => c.rpc === "save_partner");
-  const p = sp?.body?.p ?? {};
-  check("10. save_partner: موظف وشريك، 5% من ربح الفرع، حصة تشغيل 10% (كسور)",
-    p.role_kind === "employee_partner" && p.employee_id === E1 && p.salary_mode === "percent" && p.salary_percent === 0.05 && p.salary_base === "branch"
-      && p.salary_branch_id === B1 && p.operating_share === 0.1, JSON.stringify(p));
-
+  check("18b. مفيش رسالة خطأ ظهرت (toast) في أي خطوة", !(await vis(page.getByText(/حصل خطأ/))));
   const errs = db.calls.filter((c) => c.pageerror);
-  check("11. مفيش أخطاء في الصفحة", errs.length === 0, errs.map((e) => e.pageerror).join(" | "));
+  check("19. مفيش أخطاء في الصفحة", errs.length === 0, errs.map((e) => e.pageerror).join(" | "));
   console.log(results.join("\n"));
   await browser.close();
   process.exit(results.some((r) => r.startsWith("❌")) ? 1 : 0);

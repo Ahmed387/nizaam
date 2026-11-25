@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 import {
-  profitShares, pct,
+  profitShares, pct, payExample, payRuleText,
   formFromPartner, movementsOfCard, partnerFormProblem, partnerMoneyProblem, partnerPayload, salaryText, splitWithdrawal,
   txCard, txSign, withdrawalSentence, type PartnerForm, type PartnerMovement,
 } from "./partners";
@@ -113,9 +113,9 @@ describe("profitShares — the % on each card", () => {
     expect(pct(s.a.share)).toBe("54.55%");
   });
 
-  it("no capital recorded yet → the stored share, flagged (today: الحاج ناصر 100%, محمد 0%)", () => {
+  it("no capital recorded yet → 0% for everybody, flagged (the distribution splits by capital only)", () => {
     const s = profitShares([card("a", 0, 0), card("b", 0, 1)]);
-    expect(s.b).toEqual({ share: 1, fromCapital: false });
+    expect(s.b).toEqual({ share: 0, fromCapital: false });
     expect(s.a).toEqual({ share: 0, fromCapital: false });
   });
 
@@ -123,5 +123,38 @@ describe("profitShares — the % on each card", () => {
     const s = profitShares([card("a", 5_000_000, 0.5), card("b", 5_000_000, 0.5, false)]);
     expect(s.a.share).toBe(1);
     expect(s.b.share).toBe(0);
+  });
+});
+
+describe("payExample — fixed → % → the rest by capital (the owner's examples)", () => {
+  const m = { id: "m", name: "محمد ناصر", share: 0.5, rule: { fixed: 10000, percent: 0.1, base: "after_fixed" as const } };
+  const n = { id: "n", name: "الحاج ناصر", share: 0.5, rule: null };
+
+  it("300,000: محمد 10,000 + 29,000 + 130,500 = 169,500 — الحاج ناصر 130,500", () => {
+    const e = payExample(300000, [m, n]);
+    expect(e.byId.m).toMatchObject({ fixed: 10000, percent: 29000, capital: 130500, total: 169500 });
+    expect(e.byId.n).toMatchObject({ fixed: 0, percent: 0, capital: 130500, total: 130500 });
+    expect(e.left).toBe(261000);
+  });
+
+  it("% of the WHOLE profit when chosen: 30,000", () => {
+    const e = payExample(300000, [{ ...m, rule: { ...m.rule, base: "all" } }, n]);
+    expect(e.byId.m.percent).toBe(30000);
+    expect(e.left).toBe(260000);
+  });
+
+  it("a loss month −50,000: the fixed is paid, the % is 0, −60,000 split −30,000 each", () => {
+    const e = payExample(-50000, [m, n]);
+    expect(e.byId.m).toMatchObject({ fixed: 10000, percent: 0, capital: -30000, total: -20000 });
+    expect(e.byId.n.capital).toBe(-30000);
+  });
+});
+
+describe("payRuleText", () => {
+  it("says what he takes in words", () => {
+    expect(payRuleText(null)).toBe("مالوش مرتب");
+    expect(payRuleText({ fixed: 10000, percent: 0, base: "all" })).toBe(`مرتب ثابت ${formatEGP(10000)}`);
+    expect(payRuleText({ fixed: 0, percent: 0.1, base: "all" })).toBe("10% من الربح كله");
+    expect(payRuleText({ fixed: 10000, percent: 0.1, base: "after_fixed" })).toBe(`مرتب ثابت ${formatEGP(10000)} + 10% من الربح بعد المرتبات الثابتة`);
   });
 });

@@ -27,6 +27,8 @@ export type PartnerMovement = {
   id: string; type: PartnerTxType; amount: number; date: string; created_at: string; description: string | null;
   branch_id: string | null; method: string | null; void: boolean; cancel_reason: string | null;
   distribution_id: string | null; treasury_id: string | null; editable: boolean; cancellable: boolean;
+  /** 0280: «موجود بالفعل» — capital with no till row and no entry */
+  existing?: boolean;
 };
 
 export type PartnerAdvance = { id: string; amount: number; remaining: number; date: string; status: string; reason: string | null; paid_back: number };
@@ -116,8 +118,8 @@ export const toFraction = (percentText: string | number) => round4(Number(percen
 
 /**
  * The % of the profit each partner takes (the card shows it). Active partners only. When anybody has capital it follows
- * the capital (5M + 5M → 50 / 50); with no capital recorded yet it is the stored share, flagged `fromCapital: false`
- * so the screen can say «لسه مفيش رأس مال متسجل».
+ * the capital (5M + 5M → 50 / 50); with no capital recorded yet it is 0 for everybody (the distribution splits by
+ * capital only — `partner_shares_for_month`), flagged `fromCapital: false` so the screen says «لسه مفيش رأس مال متسجل».
  */
 export function profitShares(rows: Pick<PartnerCards, "partner" | "capital">[]): Record<string, { share: number; fromCapital: boolean }> {
   const active = rows.filter((r) => r.partner.is_active);
@@ -127,7 +129,7 @@ export function profitShares(rows: Pick<PartnerCards, "partner" | "capital">[]):
     if (!r.partner.is_active) { out[r.partner.id] = { share: 0, fromCapital: total > 0 }; continue; }
     out[r.partner.id] = total > 0
       ? { share: round4(Math.max(Number(r.capital) || 0, 0) / total), fromCapital: true }
-      : { share: Number(r.partner.capital_share) || 0, fromCapital: false };
+      : { share: 0, fromCapital: false };
   }
   return out;
 }
@@ -176,9 +178,13 @@ export const cancelPartnerTransaction = (txId: string, reason: string) =>
 
 export type SharesRow = {
   key: string; partner_id: string; name: string; kind: "operating_share" | "salary_share"; percent: number; base: number;
-  branch_id: string | null; amount: number; typed: boolean; needs_owner: boolean; salary_base?: string; salary_when?: string;
+  branch_id: string | null; amount: number; typed: boolean; needs_owner: boolean; salary_base?: string; salary_when?: string; computed?: number;
 };
-export type SharesPreview = { from: string; to: string; net_before: number; rows: SharesRow[]; total: number; already: boolean };
+export type SharesMonth = {
+  month: string; from: string; to: string; net_before: number; pay: number;
+  lines: { partner_id: string; name: string; kind: "fixed" | "percent"; amount: number; percent?: number; percent_base?: PayBase; base?: number }[];
+};
+export type SharesPreview = { from: string; to: string; net_before: number; rows: SharesRow[]; total: number; already: boolean; months?: SharesMonth[] };
 
 export const previewPeriodShares = (from: string, to: string, overrides: Record<string, number>) =>
   rpc<SharesPreview>("partner_period_shares_preview", { p_from: from, p_to: to, p_overrides: overrides });
@@ -248,4 +254,71 @@ export async function fetchMoneyBranches(): Promise<{ id: string; name: string; 
   const { data } = await supabase.from("branches").select("id, name, code, is_system, is_active").order("name");
   const rows = ((data ?? []) as any[]).filter((b) => b.is_active !== false && b.code !== "MAIN-TREASURY");
   return [...rows.filter((b) => !b.is_system), ...rows.filter((b) => b.is_system)].map((b) => ({ id: b.id, name: b.name, code: b.code }));
+}
+
+// ── «مرتب الشريك» (migration 0280): per month, fixed / % / both — the owner chooses ─────────────────────────────
+export type PayBase = "all" | "after_fixed";
+export type PayRule = { fixed: number; percent: number; base: PayBase };
+export type PayRuleRow = { id: string; partner_id: string; from_month: string; fixed_amount: number; percent: number; percent_base: PayBase; notes: string | null };
+
+/** What he takes, in words: «مرتب ثابت 10,000 ج.م + 10% من الربح بعد المرتبات الثابتة». */
+export function payRuleText(r: PayRule | null | undefined): string {
+  if (!r || (Number(r.fixed) <= 0 && Number(r.percent) <= 0)) return "مالوش مرتب";
+  const parts: string[] = [];
+  if (Number(r.fixed) > 0) parts.push(`مرتب ثابت ${formatEGP(Number(r.fixed))}`);
+  if (Number(r.percent) > 0) parts.push(`${pct(r.percent)} من الربح ${r.base === "all" ? "كله" : "بعد المرتبات الثابتة"}`);
+  return parts.join(" + ");
+}
+
+/** The rule in force in a month = the last one that started on / before it (same as `partner_pay_rule_for`). */
+export function ruleForMonth(rows: PayRuleRow[], partnerId: string, month: string): PayRule | null {
+  const m = `${month.slice(0, 7)}-01`;
+  const r = rows.filter((x) => x.partner_id === partnerId && x.from_month <= m).sort((a, b) => (a.from_month < b.from_month ? 1 : -1))[0];
+  return r ? { fixed: Number(r.fixed_amount), percent: Number(r.percent), base: r.percent_base } : null;
+}
+
+/**
+ * One month's split, like the server: 1) every fixed salary (paid in a loss month too), 2) each % — of the whole profit or of
+ * what is left after the fixed ones, 0 when that is not positive, 3) what is left by capital share.
+ * Example 300,000, محمد 10,000 + 10% after fixed, 50 / 50 → محمد 10,000 + 29,000 + 130,500 = 169,500, الحاج ناصر 130,500.
+ */
+export function payExample(profit: number, partners: { id: string; name: string; share: number; rule: PayRule | null }[]) {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const fixedAll = partners.reduce((s, p) => s + (p.rule ? Math.max(Number(p.rule.fixed) || 0, 0) : 0), 0);
+  const pctOf = (p: (typeof partners)[number]) => {
+    if (!p.rule || !(Number(p.rule.percent) > 0)) return 0;
+    const base = p.rule.base === "all" ? profit : profit - fixedAll;
+    return r2(Math.max(base, 0) * Number(p.rule.percent));
+  };
+  const pctAll = partners.reduce((s, p) => s + pctOf(p), 0);
+  const left = r2(profit - fixedAll - pctAll);
+  const byId: Record<string, { name: string; fixed: number; percent: number; capital: number; total: number }> = {};
+  for (const p of partners) {
+    const fixed = p.rule ? Math.max(Number(p.rule.fixed) || 0, 0) : 0;
+    const percent = pctOf(p);
+    const capital = r2(left * (Number(p.share) || 0));
+    byId[p.id] = { name: p.name, fixed, percent, capital, total: r2(fixed + percent + capital) };
+  }
+  return { fixedAll, pctAll, left, byId };
+}
+
+export async function fetchPayRules(): Promise<PayRuleRow[]> {
+  const { data, error } = await (supabase.from as any)("partner_pay_rules").select("id, partner_id, from_month, fixed_amount, percent, percent_base, notes").order("from_month");
+  if (error) throw error;
+  return (data ?? []) as PayRuleRow[];
+}
+
+export async function setPayRule(partnerId: string, month: string, rule: PayRule, notes?: string) {
+  const { error } = await (supabase.rpc as any)("set_partner_pay_rule", {
+    p_partner: partnerId, p_from_month: `${month.slice(0, 7)}-01`, p_fixed: Number(rule.fixed) || 0,
+    p_percent: Number(rule.percent) || 0, p_percent_base: rule.base, p_notes: notes || null,
+  });
+  if (error) throw error;
+}
+
+/** «موجود بالفعل»: counts in his capital from the month of `day` — no till row, no journal entry. */
+export async function addExistingCapital(partnerId: string, amount: number, day: string, notes?: string) {
+  const { data, error } = await (supabase.rpc as any)("partner_existing_capital", { p_partner: partnerId, p_amount: amount, p_day: day, p_notes: notes || null });
+  if (error) throw error;
+  return data as string;
 }

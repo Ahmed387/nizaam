@@ -13,6 +13,7 @@ import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
 import { VesselAccountBalances } from "@/components/treasury/VesselAccountBalances";
+import { CompanyPositionCards } from "@/components/treasury/CompanyPositionCards";
 import { REVERSAL_CATEGORIES } from "@/lib/treasuryReversals";
 import { StatCard } from "@/components/StatCard";
 import { DataTable } from "@/components/DataTable";
@@ -321,6 +322,7 @@ export default function MainTreasury() {
           </Button>
         }
       />
+      <CompanyPositionCards branchId={branchFilter === "all" ? null : branchFilter} />
       <VesselAccountBalances branchId={branchFilter === "all" ? null : branchFilter} />
       <TransferFeeCards branchId={branchFilter === "all" ? null : branchFilter} from={from} to={to} />
 

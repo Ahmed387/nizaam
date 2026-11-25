@@ -2,12 +2,25 @@ import { ReactNode, useEffect, useState } from "react";
 import {
   Home, Store, FolderTree, ListChecks, BarChart3, ScrollText, Settings, Sparkles,
   ShoppingCart, PackagePlus, Boxes, UserCircle, Factory, Wallet, BadgeDollarSign, Receipt, ArrowLeftRight, HandCoins, Warehouse, LayoutDashboard, CalendarRange, BookmarkPlus, ClipboardCheck, Coins, FileText, ArrowDownCircle, ArrowUpCircle, BookOpen, ShieldCheck, Inbox, TrendingUp, Percent, Trash2, History,
-Wand2, Building2, EyeOff } from "lucide-react";
+Wand2, Building2, EyeOff, Scale, Clock, Landmark, Lock, Package } from "lucide-react";
 import { AppShell, NavItem } from "./AppShell";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
+
+/** «المحاسبة» in the sidebar (owner 2026-11-25): what the partners page's old «نظرة عامة» tab linked to, each behind its own key. */
+const ACCOUNTING_LINKS: { to: string; label: string; perm: string; icon: ReactNode }[] = [
+  { to: "/admin/accounting/chart", label: "دليل الحسابات", perm: "admin_acc_books.view", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/admin/accounting/journal", label: "القيود اليومية", perm: "admin_acc_books.view", icon: <ScrollText className="w-4 h-4" /> },
+  { to: "/admin/accounting/ledger", label: "دفتر الأستاذ", perm: "admin_acc_books.view", icon: <FileText className="w-4 h-4" /> },
+  { to: "/admin/accounting/trial-balance", label: "ميزان المراجعة", perm: "admin_acc_books.view", icon: <Scale className="w-4 h-4" /> },
+  { to: "/admin/accounting/aging", label: "تقرير الأعمار", perm: "admin_acc_aging.view", icon: <Clock className="w-4 h-4" /> },
+  { to: "/admin/accounting/opening-balances", label: "الأرصدة الافتتاحية", perm: "admin_acc_opening.view", icon: <Scale className="w-4 h-4" /> },
+  { to: "/admin/accounting/bank-reconciliation", label: "المطابقة البنكية", perm: "admin_acc_bank.view", icon: <Landmark className="w-4 h-4" /> },
+  { to: "/admin/accounting/fiscal-closing", label: "الإقفال", perm: "admin_acc_closing.view", icon: <Lock className="w-4 h-4" /> },
+  { to: "/admin/accounting/fixed-assets", label: "الأصول الثابتة والإهلاك", perm: "admin_acc_assets.view", icon: <Package className="w-4 h-4" /> },
+];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { tenant, tenantId, branches, isAdmin, isSuperAdmin, isOwner, isViewer, hasRole, user, can } = useAuth();
@@ -117,15 +130,18 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       children: isOwner ? [{ to: "/admin/hidden-contacts", label: "الحسابات المخفية", icon: <EyeOff className="w-4 h-4" /> }] : undefined }),
 
     // ===== المالية =====
+    // «الشركاء» (owner 2026-11-25): the page is the partners only — its old «نظرة عامة» links live under «المحاسبة»
     ...only(allow("admin_financial_position.view", { ownerOnly: true }), {
-      to: "/admin/financial-position",
-      label: "المدين والدائن",
-      icon: <HandCoins className="w-4 h-4" />,
+      to: "/admin/financial-position?tab=partners",
+      label: "الشركاء",
+      icon: <UserCircle className="w-4 h-4" />,
       group: "الماليـة",
-      children: [
-        { to: "/admin/financial-position?tab=partners", label: "الشركاء", icon: <UserCircle className="w-4 h-4" /> },
-      ],
     }),
+    ...section(
+      false,
+      { to: "/admin/accounting/journal", label: "المحاسبة", icon: <BookOpen className="w-4 h-4" />, group: "الماليـة" },
+      ACCOUNTING_LINKS.filter((l) => allow(l.perm, { adminOnly: true })).map((l) => ({ to: l.to, label: l.label, icon: l.icon })),
+    ),
     ...section(
       allow("admin_main_treasury.view", { adminOnly: true }),
       { to: "/admin/main-treasury", label: "الخزينة", icon: <Wallet className="w-4 h-4" />, group: "الماليـة" },

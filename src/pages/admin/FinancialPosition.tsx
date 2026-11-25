@@ -1,23 +1,15 @@
-import { forwardRef, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { StatCard } from "@/components/StatCard";
-import { BranchFinancialDistribution, FinancialBranchFilter } from "@/components/FinancialBranchScope";
-import { ALL_FINANCIAL_BRANCHES, useAdminFinancialBranchMetrics } from "@/hooks/useAdminFinancialBranchMetrics";
-import { fetchPartnersOverview } from "@/lib/partners";
-import { useAuth } from "@/contexts/AuthContext";
+import { usePartnersData } from "@/components/partners/usePartnersData";
+import { PartnersCapitalTab } from "@/components/partners/PartnersCapitalTab";
+import { PartnersDistributionTab } from "@/components/partners/PartnersDistributionTab";
 import PartnersList from "./PartnersList";
 import PartnerTransactions from "./PartnerTransactions";
-import { Users, Wallet, TrendingUp, PlusCircle, ArrowUpCircle, ArrowDownCircle, Gift, HandCoins, BookOpen, FileText, ScrollText, Scale, PieChart, LineChart, Activity, Clock, Landmark, Lock, Target, BarChart3, Package, Building2, Info, Lightbulb } from "lucide-react";
-import { FinancialAmount } from "@/components/FinancialAmount";
-import { formatEGP } from "@/lib/format";
+import FinancialStatements from "./FinancialStatements";
 
-// Simple tooltip-like note wrapper — plain Arabic explanation under each button.
-/** accounting page → its permission (App.tsx guards the same keys) */
+/** accounting page → its permission (App.tsx guards the same keys; the sidebar «المحاسبة» group uses them too) */
 export const ACC_PAGE_PERM: Record<string, string> = {
   "/admin/accounting/chart": "admin_acc_books.view", "/admin/accounting/journal": "admin_acc_books.view",
   "/admin/accounting/ledger": "admin_acc_books.view", "/admin/accounting/trial-balance": "admin_acc_books.view",
@@ -30,283 +22,38 @@ export const ACC_PAGE_PERM: Record<string, string> = {
   "/admin/accounting/branch-capital": "admin_acc_branch_capital.view",
 };
 
-const ActionButton = forwardRef<HTMLAnchorElement, {
-  to: string;
-  icon: React.ReactNode;
-  title: string;
-  note: string;
-  variant?: "default" | "outline";
-  iconClass?: string;
-}>(function ActionButton({
-  to,
-  icon,
-  title,
-  note,
-  variant = "outline",
-  iconClass = "text-primary",
-}, ref) {
-  const { can } = useAuth();
-  // each accounting page has its own permission (settings → الأدوار والصلاحيات → المالية)
-  const perm = Object.entries(ACC_PAGE_PERM).find(([p]) => to.startsWith(p))?.[1];
-  if (perm && !can(perm)) return null;
-  return (
-    <Link
-      ref={ref}
-      to={to}
-      className={`group relative flex flex-col gap-1 rounded-xl border p-3 text-right transition-all hover:shadow-md hover:-translate-y-0.5 ${
-        variant === "default"
-          ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-          : "bg-card hover:bg-accent/40 border-border"
-      }`}
-    >
-      <div className="flex items-center gap-2 font-semibold text-sm">
-        <span className={variant === "default" ? "text-primary-foreground" : iconClass}>{icon}</span>
-        <span>{title}</span>
-      </div>
-      <p className={`text-xs leading-relaxed ${variant === "default" ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
-        {note}
-      </p>
-    </Link>
-  );
-});
+const TABS = ["partners", "capital", "distribution", "transactions", "statements"] as const;
+type Tab = (typeof TABS)[number];
 
+/**
+ * «الشركاء» (owner 2026-11-25 «صفحة الشركاء كلها عاوزه تتظبط من الاول»): five tabs — الشركاء (cards, % of the profit,
+ * pay), رأس المال («موجود بالفعل» / into a till / out), توزيع الأرباح (pay per month → the rest by capital), الحركات,
+ * القوائم المالية. The old «نظرة عامة» is gone: its accounting links are the sidebar «المحاسبة» group, its cash /
+ * مدين / دائن cards are on «الخزينة».
+ */
 export default function FinancialPosition() {
-  const { tenantId } = useAuth();
   const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") || "overview";
-  const [stats, setStats] = useState({ count: 0, capital: 0, balance: 0 });
-  const [branchFilter, setBranchFilter] = useState(ALL_FINANCIAL_BRANCHES);
-  const financial = useAdminFinancialBranchMetrics();
-  const selectedSnapshot = financial.distribution.find((row) => row.id === branchFilter);
-  const positionReceivables = branchFilter === ALL_FINANCIAL_BRANCHES ? financial.companyReceivables : selectedSnapshot?.receivables ?? 0;
-  const positionPayables = branchFilter === ALL_FINANCIAL_BRANCHES ? financial.companyPayables : selectedSnapshot?.payables ?? 0;
-  const positionCash = branchFilter === ALL_FINANCIAL_BRANCHES ? financial.totalCash : selectedSnapshot?.cash ?? 0;
-
-  // 0137: the same five-card numbers as the partners tab (capital = contributions − capital withdrawals; profit not yet taken)
-  const load = async () => {
-    if (!tenantId) return;
-    const rows = (await fetchPartnersOverview().catch(() => [])).filter((r) => r.partner.is_active);
-    setStats({
-      count: rows.length,
-      capital: rows.reduce((s, r) => s + Number(r.capital || 0), 0),
-      balance: rows.reduce((s, r) => s + Number(r.profit || 0), 0),
-    });
-  };
-  useEffect(() => { load(); }, [tenantId]);
-
-  const fmt = (n: number) => n.toLocaleString("en-EG", { maximumFractionDigits: 2 });
+  const raw = params.get("tab");
+  const tab: Tab = (TABS as readonly string[]).includes(raw ?? "") ? (raw as Tab) : "partners";
+  const data = usePartnersData();
 
   return (
     <AdminLayout>
       <div dir="rtl" className="text-right space-y-6">
-        <PageHeader title="الذمة المالية للشركاء" subtitle="كل حاجة عن فلوس الشركاء ورأس المال والأرباح — في مكان واحد" />
-
-        {/* partners are company-wide: the branch filter only shapes the overview tab */}
-        {tab === "overview" && <FinancialBranchFilter value={branchFilter} onChange={setBranchFilter} branches={financial.branches} />}
-
+        <PageHeader title="الشركاء" subtitle="رأس مال كل شريك ونسبته، ومرتبه، وتوزيع الأرباح — في مكان واحد" />
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v })}>
           <TabsList className="flex flex-wrap h-auto">
-            <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="partners">الشركاء</TabsTrigger>
+            <TabsTrigger value="capital">رأس المال</TabsTrigger>
+            <TabsTrigger value="distribution">توزيع الأرباح</TabsTrigger>
             <TabsTrigger value="transactions">الحركات</TabsTrigger>
+            <TabsTrigger value="statements">القوائم المالية</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="partners" className="mt-4"><PartnersList embedded /></TabsContent>
+          <TabsContent value="partners" className="mt-4"><PartnersList data={data} /></TabsContent>
+          <TabsContent value="capital" className="mt-4"><PartnersCapitalTab data={data} /></TabsContent>
+          <TabsContent value="distribution" className="mt-4"><PartnersDistributionTab data={data} /></TabsContent>
           <TabsContent value="transactions" className="mt-4"><PartnerTransactions embedded /></TabsContent>
-
-          <TabsContent value="overview" className="mt-4 space-y-6">
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <StatCard label="الكاش في كل الخزن" value={formatEGP(positionCash)} icon={<Wallet className="w-5 h-5" />} accent="primary" />
-          <StatCard label="إجمالي المدين (لنا)" value={formatEGP(positionReceivables)} icon={<HandCoins className="w-5 h-5" />} accent="success" />
-          <StatCard label="إجمالي الدائن (علينا)" value={formatEGP(positionPayables)} icon={<ArrowDownCircle className="w-5 h-5" />} accent="destructive" />
-        </div>
-
-        {branchFilter === ALL_FINANCIAL_BRANCHES && <BranchFinancialDistribution rows={financial.distribution} loading={financial.loading} />}
-
-        {/* Friendly intro */}
-        <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
-          <Lightbulb className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-          <div className="text-sm leading-relaxed">
-            <div className="font-bold text-primary mb-1">الصفحة دي بتقولك إيه؟</div>
-            <p className="text-muted-foreground">
-              هنا بتشوف <span className="font-semibold text-foreground">كل شريك في الشركة بيملك كام</span>،
-              <span className="font-semibold text-foreground"> ومحطوط رأسمال إد إيه</span>، و
-              <span className="font-semibold text-foreground">رصيده الحالي وصل لكام</span> بعد الأرباح والسحوبات.
-              كل زرار تحت هيوديك على شاشة تفصيلية — تحت كل زرار في شرح صغير علشان تعرف يعمل إيه قبل ما تدوس.
-            </p>
-          </div>
-        </div>
-
-        {/* KPI cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm">عدد الشركاء</CardTitle>
-              <Users className="w-5 h-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.count}</div>
-              <p className="text-xs text-muted-foreground mt-1">عدد الناس اللي معاك في الشركة دلوقتي.</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm">رأس مال الشركاء لحد النهارده</CardTitle>
-              <Wallet className="w-5 h-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-               <FinancialAmount value={fmt(stats.capital)} size="lg" className="justify-start" />
-              <p className="text-xs text-muted-foreground mt-1">المساهمات − المسحوب من رأس المال.</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm">صافي ربح الشركاء</CardTitle>
-              <TrendingUp className="w-5 h-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-               <FinancialAmount value={fmt(stats.balance)} size="lg" className="justify-start" />
-              <p className="text-xs text-muted-foreground mt-1">اللي اتحسبلهم من الربح ولسه ماسحبوهوش.</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>الإجراءات السريعة</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <Info className="w-3.5 h-3.5" />
-              الحاجات اللي بتعملها كتير — مساهمات، سحوبات، توزيع أرباح.
-            </p>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <ActionButton
-              to="/admin/financial-position?tab=partners"
-              icon={<PlusCircle className="w-4 h-4" />}
-              title="إدارة الشركاء"
-              note="ضيف شريك جديد، عدّل بياناته، أو شوف كشف حساب أي حد."
-              variant="default"
-            />
-            <ActionButton
-              to="/admin/financial-position?tab=partners"
-              icon={<ArrowUpCircle className="w-4 h-4" />}
-              title="تسجيل مساهمة"
-              note="من كارت الشريك: «مساهمة» — بتختار الفرع والوعاء والتاريخ."
-              iconClass="text-success"
-            />
-            <ActionButton
-              to="/admin/financial-position?tab=partners"
-              icon={<ArrowDownCircle className="w-4 h-4" />}
-              title="تسجيل سحب"
-              note="من كارت الشريك: «سحب» — من رأس المال أو من الربح (الزيادة بتبقى سلفة لوحدها)."
-              iconClass="text-destructive"
-            />
-            <ActionButton
-              to="/admin/accounting/flexible-distribution"
-              icon={<Gift className="w-4 h-4" />}
-              title="توزيع أرباح"
-              note="وزّع أرباح فترة معينة على الشركاء حسب نسبة كل واحد."
-            />
-          </CardContent>
-        </Card>
-
-        {/* Bookkeeping */}
-        <Card>
-          <CardHeader>
-            <CardTitle>الدفاتر المحاسبية</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <Info className="w-3.5 h-3.5" />
-              دي أساس المحاسبة — كل حركة فلوس بتتسجل هنا تلقائياً.
-            </p>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-            <ActionButton
-              to="/admin/accounting/chart"
-              icon={<BookOpen className="w-4 h-4" />}
-              title="دليل الحسابات"
-              note="قائمة بكل الحسابات في الشركة (كاش، بنك، مبيعات، مصاريف...)."
-            />
-            <ActionButton
-              to="/admin/accounting/journal"
-              icon={<ScrollText className="w-4 h-4" />}
-              title="القيود اليومية"
-              note="كل عملية فلوس بتحصل بتتسجل كقيد — هنا بتشوفها كلها."
-            />
-            <ActionButton
-              to="/admin/accounting/ledger"
-              icon={<FileText className="w-4 h-4" />}
-              title="دفتر الأستاذ"
-              note="كشف تفصيلي لكل حساب على حدة — إيه دخل وإيه طلع."
-            />
-            <ActionButton
-              to="/admin/accounting/trial-balance"
-              icon={<Scale className="w-4 h-4" />}
-              title="ميزان المراجعة"
-              note="بيتأكد إن كل الحسابات متوازنة (المدين = الدائن)."
-            />
-          </CardContent>
-        </Card>
-
-        {/* Financial statements */}
-        <Card>
-          <CardHeader>
-            <CardTitle>القوائم المالية والتقارير</CardTitle>
-            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-              <Info className="w-3.5 h-3.5" />
-              التقارير الكبيرة اللي بتقولك الشركة ماشية إزاي وبتكسب ولا لأ.
-            </p>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            <ActionButton
-              to="/admin/financial-statements"
-              icon={<LineChart className="w-4 h-4" />}
-              title="القوائم المالية"
-              note="الدخل، والمركز المالي، والتدفقات النقدية، والتغيرات في حقوق الملكية، وتكلفة البضاعة المباعة، وتحليلها — في صفحة واحدة."
-            />
-            <ActionButton
-              to="/admin/accounting/aging"
-              icon={<Clock className="w-4 h-4" />}
-              title="تقرير الأعمار"
-              note="مين ليه فلوس عندك بقالها كام يوم — علشان تعرف تحصّل بدري."
-              iconClass="text-warning"
-            />
-            <ActionButton
-              to="/admin/accounting/opening-balances"
-              icon={<Scale className="w-4 h-4" />}
-              title="الأرصدة الافتتاحية"
-              note="أول ما تبدأ شغل حقيقي — تدخل كاش الخزن وأرصدة العملاء والموردين وكميات المخزون."
-              iconClass="text-primary"
-            />
-            <ActionButton
-              to="/admin/accounting/bank-reconciliation"
-              icon={<Landmark className="w-4 h-4" />}
-              title="المطابقة البنكية"
-              note="بتطابق كشف حساب البنك مع اللي عندك في السيستم — تتأكد مفيش فرق."
-            />
-            <ActionButton
-              to="/admin/accounting/fiscal-closing"
-              icon={<Lock className="w-4 h-4" />}
-              title="الإقفال وتوزيع الأرباح"
-              note="لما السنة تخلص — بتقفل الحسابات وتوزع الربح على الشركاء."
-              iconClass="text-warning"
-            />
-            <ActionButton
-              to="/admin/accounting/fixed-assets"
-              icon={<Package className="w-4 h-4" />}
-              title="الأصول الثابتة والإهلاك"
-              note="الحاجات اللي اشتريتها للشركة (عربيات، أجهزة) وقيمتها بتقل مع الوقت."
-            />
-            <ActionButton
-              to="/admin/accounting/branch-capital"
-              icon={<Building2 className="w-4 h-4" />}
-              title="توزيع رأس المال على الفروع"
-              note="بتوزع رأس مال الشركة على الفروع علشان تعرف كل فرع بيربح لوحده كام."
-            />
-          </CardContent>
-        </Card>
-          </TabsContent>
+          <TabsContent value="statements" className="mt-4"><FinancialStatements embedded /></TabsContent>
         </Tabs>
       </div>
     </AdminLayout>

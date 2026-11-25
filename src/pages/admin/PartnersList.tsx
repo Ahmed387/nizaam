@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDownCircle, ArrowUpCircle, Calculator, Gift, Landmark, PlusCircle, UserCircle } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowDownCircle, ArrowUpCircle, Gift, PlusCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,62 +8,48 @@ import { StatCard } from "@/components/StatCard";
 import { PermCard } from "@/contexts/PermCustomize";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
-import { fetchPartnersOverview, pct, profitShares, salaryText, type PartnerCards } from "@/lib/partners";
+import { pct, payRuleText, ruleForMonth, type PartnerCards } from "@/lib/partners";
+import { cairoTodayDay } from "@/lib/cairoDate";
 import { PartnerFormDialog } from "@/components/partners/PartnerFormDialog";
 import { PartnerMoneyDialog } from "@/components/partners/PartnerMoneyDialog";
-import { PeriodSharesDialog } from "@/components/partners/PeriodSharesDialog";
-import { PartnerCapitalWizard } from "@/components/partners/PartnerCapitalWizard";
+import type { usePartnersData } from "@/components/partners/usePartnersData";
 
 /**
  * «الشركاء» (0137, owner «غيرها كلها من الاول»): every partner with his five numbers, and the three things the owner does
  * here — add / promote a partner, put money in / take it out (branch, vessel, day), and book the operating shares /
  * % salaries of a period before distributing it.
  */
-export default function PartnersList(_props: { embedded?: boolean } = {}) {
+export default function PartnersList({ data }: { data: ReturnType<typeof usePartnersData> }) {
+  const { rows, rules, loading, load } = data;
   const { isOwner, isAdmin } = useAuth();
   const canWrite = isOwner || isAdmin;
-  const [rows, setRows] = useState<PartnerCards[]>([]);
-  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
-  const [shares, setShares] = useState(false);
-  const [setup, setSetup] = useState(false);
   const [money, setMoney] = useState<{ kind: "contribution" | "withdrawal"; cards: PartnerCards } | null>(null);
   const [showOld, setShowOld] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    try { setRows(await fetchPartnersOverview()); } catch (e: any) { toast.error(e.message); }
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
+  const thisMonth = cairoTodayDay().slice(0, 7);
 
   const active = rows.filter((r) => r.partner.is_active);
   const shown = showOld ? rows : active;
   const totals = useMemo(() => active.reduce((s, r) => ({
     capital: s.capital + Number(r.capital), profit: s.profit + Number(r.profit), advances: s.advances + Number(r.advances),
   }), { capital: 0, profit: 0, advances: 0 }), [active]);
-  const shareOf = useMemo(() => profitShares(rows), [rows]);
+  const shareOf = data.shares;
 
   return (
     <div dir="rtl" className="text-right space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-xl font-extrabold">الشركاء</h2>
-          <p className="text-sm text-muted-foreground">رأس مال كل شريك وربحه وسلفه — دوس على أي شريك تشوف حركاته.</p>
+          <p className="text-sm text-muted-foreground">رأس مال كل شريك ونصيبه من الربح ومرتبه — دوس على أي شريك تشوف حركاته.</p>
         </div>
         {canWrite && (
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setAdding(true)} className="gap-2"><PlusCircle className="w-4 h-4" /> شريك جديد</Button>
-            {isOwner && <Button variant="outline" onClick={() => setSetup(true)} className="gap-2"><Landmark className="w-4 h-4" /> ظبّط رأس مال الشركاء</Button>}
-            <Button variant="outline" onClick={() => setShares(true)} className="gap-2"><Calculator className="w-4 h-4" /> حصص التشغيل والمرتبات</Button>
-            <Button variant="outline" asChild className="gap-2"><Link to="/admin/accounting/flexible-distribution"><Gift className="w-4 h-4" /> توزيع الأرباح</Link></Button>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="عدد الشركاء" value={String(active.length)} icon={<UserCircle className="w-5 h-5" />} accent="secondary"
-          metricHint={{ meaning: "الشركاء الشغالين دلوقتي", source: "الشركاء (partners_overview)", formula: "عدد الشركاء غير الموقوفين" }} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <StatCard label="رأس المال لحد النهارده" value={formatEGP(totals.capital)} icon={<ArrowUpCircle className="w-5 h-5" />} accent="primary"
           metricHint={{ meaning: "رأس مال كل الشركاء الشغالين", source: "حركات الشركاء (partners_overview)", formula: "Σ (المساهمات − المسحوبات من رأس المال)" }} />
         <StatCard label="صافي ربح الشركاء" value={formatEGP(totals.profit)} hint="اتحسبلهم ولسه ماسحبوهوش" icon={<Gift className="w-5 h-5" />} accent="success"
@@ -88,8 +73,7 @@ export default function PartnersList(_props: { embedded?: boolean } = {}) {
                       <Link to={`/admin/financial-position/partner/${r.partner.id}`} className="text-lg font-bold hover:underline">{r.partner.name}</Link>
                       <div className="flex flex-wrap gap-1 mt-1">
                         <Badge variant="secondary">{r.partner.role_kind === "employee_partner" ? "موظف وشريك" : "شريك"}</Badge>
-                        {Number(r.partner.operating_share) > 0 && <Badge variant="outline">حصة تشغيل {pct(r.partner.operating_share)}</Badge>}
-                        {r.partner.role_kind === "employee_partner" && <Badge variant="outline">{salaryText(r.partner)}</Badge>}
+                        <Badge variant="outline" data-testid="partner-pay">{payRuleText(ruleForMonth(rules, r.partner.id, thisMonth))}</Badge>
                         {!r.partner.is_active && <Badge variant="destructive">موقوف</Badge>}
                       </div>
                     </div>
@@ -128,8 +112,6 @@ export default function PartnersList(_props: { embedded?: boolean } = {}) {
       )}
 
       {adding && <PartnerFormDialog onClose={() => setAdding(false)} onDone={load} />}
-      {setup && <PartnerCapitalWizard onClose={() => setSetup(false)} onDone={load} />}
-      {shares && <PeriodSharesDialog onClose={() => setShares(false)} onDone={load} />}
       {money && <PartnerMoneyDialog kind={money.kind} cards={money.cards} onClose={() => setMoney(null)} onDone={load} />}
     </div>
   );

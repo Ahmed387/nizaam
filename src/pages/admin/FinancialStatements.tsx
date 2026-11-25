@@ -23,17 +23,22 @@ import { EquityChangesView } from "./EquityChanges";
 import { CogsStatementView } from "./CogsStatement";
 import { FinancialAnalysisView } from "@/components/statements/FinancialAnalysisView";
 
+const Shell = ({ embedded, children }: { embedded?: boolean; children: React.ReactNode }) =>
+  embedded ? <>{children}</> : <AdminLayout>{children}</AdminLayout>;
+
 const monthStart = (d: string) => `${d.slice(0, 7)}-01`;
 const lastOfMonth = (d: string) => {
   const [y, m] = d.split("-").map(Number);
   return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
 };
 
-export default function FinancialStatements() {
+/** `embedded`: inside the partners page (owner 2026-11-25) — no layout / header, its tab in `?st=` (the host owns `?tab=`). */
+export default function FinancialStatements({ embedded }: { embedded?: boolean } = {}) {
+  const tabKey = embedded ? "st" : "tab";
   const { tenantId } = useAuth();
   const [params, setParams] = useSearchParams();
   const today = cairoTodayDay();
-  const tab: StatementTab = isStatementTab(params.get("tab")) ? (params.get("tab") as StatementTab) : "income";
+  const tab: StatementTab = isStatementTab(params.get(tabKey)) ? (params.get(tabKey) as StatementTab) : "income";
   const [from, setFrom] = useState(params.get("from") || monthStart(today));
   const [to, setTo] = useState(params.get("to") || today);
   const [branch, setBranch] = useState<string>(params.get("branch") || "");
@@ -50,16 +55,16 @@ export default function FinancialStatements() {
       .then(({ data }) => setBranches((data ?? []) as any));
   }, [tenantId]);
 
-  const setTab = (t: string) => setParams((p) => { p.set("tab", t); return p; }, { replace: true });
+  const setTab = (t: string) => setParams((p) => { p.set(tabKey, t); return p; }, { replace: true });
   const valid = !!from && !!to && from <= to && (cmpMode === "prev" || (!!cmpFrom && !!cmpTo && cmpFrom <= cmpTo));
   const props = { from, to, branch: branch || null };
   const preset = (f: string, t: string) => { setFrom(f); setTo(t); };
   const lastMonth = (() => { const p = previousPeriod(monthStart(today), lastOfMonth(today)); return p; })();
 
   return (
-    <AdminLayout>
+    <Shell embedded={embedded}>
       <div dir="rtl" className="text-right space-y-5">
-        <PageHeader title="القوائم المالية" subtitle="كل القوائم في مكان واحد، من القيود — فلتر واحد للفترة والفرع لكل التابات، وتاب يحلل القوائم" />
+        {!embedded && <PageHeader title="القوائم المالية" subtitle="كل القوائم في مكان واحد، من القيود — فلتر واحد للفترة والفرع لكل التابات، وتاب يحلل القوائم" />}
 
         <Card>
           <CardContent className="p-4 flex flex-wrap items-end gap-3">
@@ -114,6 +119,6 @@ export default function FinancialStatements() {
           )}
         </Tabs>
       </div>
-    </AdminLayout>
+    </Shell>
   );
 }
