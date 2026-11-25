@@ -11,6 +11,7 @@ import { cancelPartnerTransaction, fetchPartnerCards, pct, TX_LABEL, type Partne
 import { ExistingCapitalDialog } from "./ExistingCapitalDialog";
 import { PartnerMoneyDialog } from "./PartnerMoneyDialog";
 import { ReasonDialog } from "./ReasonDialog";
+import { CapitalGapCard } from "./CapitalGapCard";
 import type { usePartnersData } from "./usePartnersData";
 
 type Data = ReturnType<typeof usePartnersData>;
@@ -98,6 +99,8 @@ export function PartnersCapitalTab({ data }: { data: Data }) {
           </p>
         </CardContent>
       </Card>
+
+      <CapitalGapCard reloadKey={ids} onDone={refresh} />
 
       <Card>
         <CardHeader><CardTitle>حركات رأس المال</CardTitle></CardHeader>

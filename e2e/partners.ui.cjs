@@ -34,6 +34,14 @@ const SHARES = { from: "2026-10-01", to: "2026-10-31", net_before: 300000, total
     lines: [{ partner_id: P1, name: "شريك تجربة", kind: "fixed", amount: 10000 }, { partner_id: P1, name: "شريك تجربة", kind: "percent", percent: 0.1, percent_base: "after_fixed", base: 290000, amount: 29000 }] }],
   rows: [{ key: `${P1}:salary`, partner_id: P1, name: "شريك تجربة", kind: "salary_share", amount: 10000, computed: 10000, percent: 0, base: 0, branch_id: null, typed: false, needs_owner: false },
          { key: `${P1}:operating`, partner_id: P1, name: "شريك تجربة", kind: "operating_share", amount: 29000, computed: 29000, percent: 0.1, base: 290000, branch_id: null, typed: false, needs_owner: false }] };
+const GAP = { start_day: "2026-01-01", opening: 4845828.43, opening_used: 0, opening_left: 4845828.43, capital_new: 10000000, gap: 5154171.57,
+  capital_by_partner: {}, partners: [{ id: P1, name: "شريك تجربة", capital_new: 4000000 }, { id: P2, name: "الحاج ناصر", capital_new: 6000000 }], decisions: [] };
+const GAP_LINES = [
+  { account_code: "3950", debit: 4845828.43, credit: 0, description: "الرصيد الافتتاحي ← رأس مال الشركاء" },
+  { account_code: "3800", debit: 4000000, credit: 0, description: "خسائر قبل السيستم" },
+  { account_code: "3200", debit: 1154171.57, credit: 0, description: "مسحوبات قبل السيستم — الحاج ناصر" },
+  { account_code: "3100", debit: 0, credit: 4000000, description: "رأس مال شريك تجربة" },
+  { account_code: "3100", debit: 0, credit: 6000000, description: "رأس مال الحاج ناصر" }];
 function makeDb() {
   return {
     calls: [],
@@ -82,6 +90,8 @@ async function open(browser, db, me) {
       if (name === "partner_existing_capital") return json("tx-existing");
       if (name === "set_partner_pay_rule") return json("rule-1");
       if (name === "post_partner_period_shares") return json({ posted: 2 });
+      if (name === "partner_capital_gap_info") return json(GAP);
+      if (name === "partner_capital_gap_settle") return json({ applied: !!body.p_apply, gap: GAP.gap, leave: false, balanced: true, lines: GAP_LINES });
       if (name === "partner_period_shares_preview") return json(SHARES);
       if (name === "preview_flexible_distribution") return json({ net_profit: { net_profit: 0 }, distributable: 0, partners: [] });
       if (name === "partner_cards") return json(cards);
@@ -151,6 +161,26 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).click(); await page.waitForTimeout(700);
   const ex = db.calls.filter((c) => c.rpc === "partner_existing_capital");
   check("9. partner_existing_capital مرة واحدة: 1,600,000 من 2026-01-01", ex.length === 1 && ex[0].body.p_amount === 1600000 && ex[0].body.p_day === "2026-01-01" && ex[0].body.p_partner === P1, JSON.stringify(ex[0]?.body ?? {}));
+
+  // 3b. «الفرق بين رأس المال والدفاتر»: 10M vs 4,845,828.43 → 4M loss + الحاج ناصر drew the rest (his % goes down)
+  const gc = page.getByTestId("capital-gap");
+  check("9b. كارت الفرق: 5,154,171.57", (await gc.getByTestId("gap-amount").innerText()).replace(/[^\d.]/g, "").startsWith("5154171.57"));
+  await gc.getByLabel(/خسارة قبل السيستم/).fill("4000000");
+  check("9c. فاضل 1,154,171.57 والزرار «راجع» مقفول", /1[,٬]?154[,٬]?171\.57/.test(await gc.getByTestId("gap-left").innerText()) && await gc.getByRole("button", { name: "راجع" }).isDisabled());
+  await gc.getByRole("button", { name: /ضيف سحب/ }).click();
+  await gc.locator("#gap-dp-0").selectOption(P2);
+  await gc.locator("#gap-da-0").fill("1154171.57");
+  await gc.getByRole("radio", { name: "نسبته تقل" }).click();
+  check("9d. «✓ الفرق كله اتوزع»", (await gc.getByTestId("gap-left").innerText()).includes("الفرق كله اتوزع"));
+  await gc.getByRole("button", { name: "راجع" }).click(); await page.waitForTimeout(600);
+  const pv = db.calls.filter((c) => c.rpc === "partner_capital_gap_settle");
+  const ptxt = await gc.getByTestId("gap-preview").innerText();
+  check("9e. «راجع» = معاينة بس (p_apply false) بالخسارة والسحب واختيار النسبة", pv.length === 1 && pv[0].body.p_apply === false
+    && JSON.stringify(pv[0].body.p_items) === JSON.stringify([{ kind: "loss", amount: 4000000 }, { kind: "drawing", partner_id: P2, amount: 1154171.57, keep_share: false }]), JSON.stringify(pv[0]?.body));
+  check("9f. المعاينة بالكلام ومن غير أرقام حسابات، وبتقول إن الخزن والربح مش هيتغيروا", ptxt.includes("خسائر قبل السيستم") && ptxt.includes("الخزن") && !/\b3[0-9]{3}\b/.test(ptxt), ptxt.replace(/\n/g, " | ").slice(0, 300));
+  await page.screenshot({ path: `${OUT}/partners-8-gap.png`, fullPage: true });
+  await gc.getByRole("button", { name: "سجّل" }).click(); await page.waitForTimeout(700);
+  check("9g. «سجّل» = طلب واحد p_apply true", db.calls.filter((c) => c.rpc === "partner_capital_gap_settle" && c.body.p_apply === true).length === 1);
 
   // 4. «توزيع الأرباح»: the owner's example, then the pay dialog, then step 1
   await page.getByRole("tab", { name: "توزيع الأرباح" }).click(); await settle(page);
