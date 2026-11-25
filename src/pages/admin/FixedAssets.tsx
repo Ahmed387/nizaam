@@ -13,7 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Plus, Package, PlayCircle, Trash2, CalendarClock } from "lucide-react";
+import { Plus, Package, PlayCircle, Trash2, CalendarClock, Pencil, Ban, Undo2 } from "lucide-react";
+import { assetMoneyChanged, cancelEffect, formOfAsset, liveAssets, STATUS_LABEL, type AssetStatus } from "@/lib/fixedAssets";
 import { FinancialAmount } from "@/components/FinancialAmount";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { choosable, loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
@@ -30,7 +31,12 @@ type FixedAsset = {
   cost: number;
   salvage_value: number;
   useful_life_months: number;
-  status: "active" | "disposed";
+  status: AssetStatus;
+  notes: string | null;
+  payment_method: string | null;
+  cancel_reason: string | null;
+  replaced_by: string | null;
+  replaces: string | null;
   disposal_date: string | null;
   disposal_amount: number | null;
   asset_account_id: string | null;
@@ -64,6 +70,13 @@ export default function FixedAssets() {
   });
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
+  // 0284: edit / cancel / undo a disposal
+  const [editing, setEditing] = useState<FixedAsset | null>(null);
+  const [editReason, setEditReason] = useState("");
+  const [cancelOpen, setCancelOpen] = useState<FixedAsset | null>(null);
+  const [undoOpen, setUndoOpen] = useState<FixedAsset | null>(null);
+  const [actionReason, setActionReason] = useState("");
+  const [acting, setActing] = useState(false);
   const [disposal, setDisposal] = useState({ disposal_date: cairoTodayDay(), disposal_amount: "0", method: "cash" });
   // 0245: the vessel account the money left from (purchase) / came to (sale)
   const [buyAcc, setBuyAcc] = useState("");
@@ -97,8 +110,29 @@ export default function FixedAssets() {
   const methodLabel = (v: string) => methods.find(m => m.value === v)?.label || v;
 
   const openCreate = () => {
+    setEditing(null);
     setForm({ ...emptyForm(), branch_id: branches.length === 1 ? branches[0].id : "" });
     setOpen(true);
+  };
+  const openEdit = (a: FixedAsset) => {
+    setEditing(a);
+    setForm(formOfAsset(a));
+    setBuyAcc("");
+    setEditReason("");
+    setOpen(true);
+  };
+  const moneyChanged = !!editing && assetMoneyChanged(editing, form, form.funding === "paid" ? buyAcc : "");
+  const codeOf = (id: string | null) => assets.find(x => x.id === id)?.code ?? "";
+
+  const runAction = async (fn: string, args: Record<string, unknown>, ok: string) => {
+    if (!actionReason.trim()) { toast.error("اكتب السبب"); return; }
+    setActing(true);
+    const { error } = await supabase.rpc(fn as any, args as any);
+    setActing(false);
+    if (error) { toast.error(rpcErrorText(error)); return; }
+    toast.success(ok);
+    setCancelOpen(null); setUndoOpen(null); setActionReason("");
+    load();
   };
 
   const monthly = useMemo(() => {
@@ -113,6 +147,32 @@ export default function FixedAssets() {
       return;
     }
     if (form.funding === "paid" && buyHasAcc && !buyAcc) { toast.error("اختار الحساب اللي الفلوس اتحولت منه"); return; }
+    if (editing) {
+      if (moneyChanged && !editReason.trim()) { toast.error("اكتب سبب التعديل"); return; }
+      setSaving(true);
+      const { data, error } = await supabase.rpc("edit_fixed_asset" as any, {
+        p_asset: editing.id,
+        p_name: form.name,
+        p_category: form.category || null,
+        p_branch: form.branch_id,
+        p_date: form.acquisition_date,
+        p_cost: Number(form.cost),
+        p_salvage: Number(form.salvage_value || 0),
+        p_life_months: Number(form.useful_life_months),
+        p_funding: form.funding,
+        p_method: form.method,
+        p_notes: form.notes || null,
+        p_account: form.funding === "paid" && buyHasAcc && buyAcc ? buyAcc : null,
+        p_reason: editReason || null,
+      } as any);
+      setSaving(false);
+      if (error) { toast.error(rpcErrorText(error)); return; }
+      const d = data as any;
+      toast.success(d?.mode === "replace" ? `اتلغى ${d.old_code} في يومه واتعمل ${d.code} بالأرقام الصح` : "تم حفظ التعديل");
+      setOpen(false); setEditing(null);
+      load();
+      return;
+    }
     setSaving(true);
     const { data, error } = await supabase.rpc("add_fixed_asset" as any, {
       p_name: form.name,
@@ -167,8 +227,9 @@ export default function FixedAssets() {
     load();
   };
 
-  const totalCost = useMemo(() => assets.reduce((s, a) => s + Number(a.cost || 0), 0), [assets]);
-  const totalAccum = useMemo(() => Object.values(accum).reduce((s, n) => s + n, 0), [accum]);
+  const live = useMemo(() => liveAssets(assets), [assets]);
+  const totalCost = useMemo(() => live.reduce((s, a) => s + Number(a.cost || 0), 0), [live]);
+  const totalAccum = useMemo(() => live.reduce((s, a) => s + (accum[a.id] || 0), 0), [live, accum]);
   const nbv = totalCost - totalAccum;
 
   return (
@@ -213,12 +274,12 @@ export default function FixedAssets() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
-              <Dialog open={open} onOpenChange={setOpen}>
+              <Dialog open={open} onOpenChange={o => { setOpen(o); if (!o) setEditing(null); }}>
                 <DialogTrigger asChild>
                   <Button onClick={openCreate}><Plus className="w-4 h-4 ml-2" />أصل جديد</Button>
                 </DialogTrigger>
                 <DialogContent dir="rtl" className="max-w-2xl">
-                  <DialogHeader><DialogTitle>إضافة أصل ثابت</DialogTitle></DialogHeader>
+                  <DialogHeader><DialogTitle>{editing ? `تعديل ${editing.code} — ${editing.name}` : "إضافة أصل ثابت"}</DialogTitle></DialogHeader>
                   <div className="grid grid-cols-2 gap-3">
                     <div><Label>الاسم *</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="عربية نقل، تكييف، رفوف..." /></div>
                     <div><Label>الفئة</Label><Input value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="سيارات، أجهزة..." /></div>
@@ -252,7 +313,16 @@ export default function FixedAssets() {
                       </div>
                     )}
                     <div className="col-span-2"><Label>ملاحظات</Label><Input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
-                    {form.funding && Number(form.cost) > 0 && (
+                    {editing && moneyChanged && (
+                      <div className="col-span-2 space-y-2 p-2 rounded border border-warning/40 bg-warning/10 text-sm">
+                        <div>التعديل ده بيغيّر الفلوس أو الدفاتر، فـ {editing.code} هيتلغي في أيامه (الشراء والإهلاك) ويتعمل أصل جديد بالأرقام الصح. الاتنين بيفضلوا في السجل.</div>
+                        <div><Label>سبب التعديل *</Label><Input value={editReason} onChange={e => setEditReason(e.target.value)} placeholder="مثلاً: التكلفة اتكتبت غلط" /></div>
+                      </div>
+                    )}
+                    {editing && !moneyChanged && (
+                      <div className="col-span-2 p-2 rounded bg-muted text-sm">الاسم / الفئة / الملاحظات بس — مفيش حاجة بتتحرك في الدفاتر.</div>
+                    )}
+                    {!editing && form.funding && Number(form.cost) > 0 && (
                       <div className="col-span-2 p-2 rounded bg-muted text-sm">
                         {form.funding === "paid"
                           ? `هيطلع ${fmt(Number(form.cost))} من ${methodLabel(form.method)} في ${branchName(form.branch_id)} يوم ${form.acquisition_date}، والأصل يدخل الدفاتر بنفس المبلغ (المصروفات والربح مش بيتأثروا يوم الشراء).`
@@ -261,7 +331,7 @@ export default function FixedAssets() {
                       </div>
                     )}
                   </div>
-                  <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : "حفظ"}</Button></DialogFooter>
+                  <DialogFooter><Button onClick={save} disabled={saving}>{saving ? "جاري الحفظ..." : editing ? "حفظ التعديل" : "حفظ"}</Button></DialogFooter>
                 </DialogContent>
               </Dialog>
             </div>
@@ -286,26 +356,40 @@ export default function FixedAssets() {
               <TableBody>
                 {assets.length === 0 && <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-6">لا توجد أصول</TableCell></TableRow>}
                 {assets.map(a => {
-                  const ac = accum[a.id] || 0;
-                  const bookValue = Number(a.cost) - ac;
+                  const cancelled = a.status === "cancelled";
+                  const ac = cancelled ? 0 : accum[a.id] || 0;
+                  const bookValue = a.status === "active" ? Number(a.cost) - ac : 0;
                   return (
-                    <TableRow key={a.id}>
+                    <TableRow key={a.id} className={cancelled ? "opacity-60" : undefined}>
                       <TableCell className="font-mono">{a.code}</TableCell>
-                      <TableCell>{a.name}</TableCell>
+                      <TableCell>
+                        <div className={cancelled ? "line-through" : undefined}>{a.name}</div>
+                        {a.replaces && <div className="text-xs text-muted-foreground">بدل {codeOf(a.replaces)}</div>}
+                        {cancelled && <div className="text-xs text-muted-foreground">{a.replaced_by ? `اتعدّل — بقى ${codeOf(a.replaced_by)}` : "اتلغى"} (كانت تكلفته {fmt(a.cost)}){a.cancel_reason ? ` — ${a.cancel_reason}` : ""}</div>}
+                      </TableCell>
                       <TableCell>{a.category || "—"}</TableCell>
                       <TableCell>{branchName(a.branch_id)}</TableCell>
                       <TableCell>{a.acquisition_date}</TableCell>
-                      <TableCell className="text-left font-mono">{fmt(a.cost)}</TableCell>
+                      <TableCell className="text-left font-mono">{cancelled ? "—" : fmt(a.cost)}</TableCell>
                       <TableCell className="text-left font-mono text-warning">{fmt(ac)}</TableCell>
                       <TableCell className="text-left font-mono text-success">{fmt(bookValue)}</TableCell>
                       <TableCell>{a.useful_life_months} شهر</TableCell>
-                      <TableCell>{a.status === "active" ? <Badge>نشط</Badge> : <Badge variant="secondary">مستبعد</Badge>}</TableCell>
+                      <TableCell>{a.status === "active" ? <Badge>{STATUS_LABEL.active}</Badge> : <Badge variant={cancelled ? "outline" : "secondary"}>{STATUS_LABEL[a.status]}</Badge>}</TableCell>
                       <TableCell>
-                        {a.status === "active" && (
-                          <Button variant="ghost" size="sm" onClick={() => setDisposeOpen(a)}>
-                            <Trash2 className="w-4 h-4 text-destructive ml-1" />التخلص
-                          </Button>
-                        )}
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {a.status === "active" && (
+                            <>
+                              <Button variant="ghost" size="sm" onClick={() => openEdit(a)}><Pencil className="w-4 h-4 ml-1" />تعديل</Button>
+                              <Button variant="ghost" size="sm" onClick={() => setDisposeOpen(a)}><Trash2 className="w-4 h-4 text-destructive ml-1" />التخلص</Button>
+                            </>
+                          )}
+                          {a.status === "disposed" && (
+                            <Button variant="ghost" size="sm" onClick={() => { setActionReason(""); setUndoOpen(a); }}><Undo2 className="w-4 h-4 ml-1" />إلغاء التخلص</Button>
+                          )}
+                          {!cancelled && (
+                            <Button variant="ghost" size="sm" onClick={() => { setActionReason(""); setCancelOpen(a); }}><Ban className="w-4 h-4 text-destructive ml-1" />إلغاء</Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -314,6 +398,42 @@ export default function FixedAssets() {
             </Table>
           </CardContent>
         </Card>
+
+        <Dialog open={!!cancelOpen} onOpenChange={o => { if (!o) setCancelOpen(null); }}>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>إلغاء {cancelOpen?.code} — {cancelOpen?.name}</DialogTitle></DialogHeader>
+            {cancelOpen && (
+              <div className="space-y-3 text-sm">
+                <ul className="list-disc pr-5 space-y-1">
+                  {cancelEffect(cancelOpen, accum[cancelOpen.id] || 0, methodLabel).map((l, i) => <li key={i}>{l}</li>)}
+                </ul>
+                <div><Label>سبب الإلغاء *</Label><Input value={actionReason} onChange={e => setActionReason(e.target.value)} placeholder="مثلاً: اتسجل بالغلط" /></div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="destructive" disabled={acting} onClick={() => cancelOpen && runAction("cancel_fixed_asset", { p_asset: cancelOpen.id, p_reason: actionReason }, `تم إلغاء ${cancelOpen.code}`)}>
+                {acting ? "جاري الإلغاء..." : "تأكيد الإلغاء"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!undoOpen} onOpenChange={o => { if (!o) setUndoOpen(null); }}>
+          <DialogContent dir="rtl">
+            <DialogHeader><DialogTitle>إلغاء التخلص من {undoOpen?.code} — {undoOpen?.name}</DialogTitle></DialogHeader>
+            {undoOpen && (
+              <div className="space-y-3 text-sm">
+                <p>الأصل يرجع «نشط» كأنه ما اتباعش. {Number(undoOpen.disposal_amount) > 0 ? `الـ ${fmt(Number(undoOpen.disposal_amount))} اللي دخلت من البيع هتطلع من نفس الخزنة يوم ${undoOpen.disposal_date}.` : "مكانش فيه فلوس دخلت."} والإهلاك يكمل من بعد كده.</p>
+                <div><Label>السبب *</Label><Input value={actionReason} onChange={e => setActionReason(e.target.value)} /></div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button disabled={acting} onClick={() => undoOpen && runAction("undo_fixed_asset_disposal", { p_asset: undoOpen.id, p_reason: actionReason }, `${undoOpen.code} رجع نشط`)}>
+                {acting ? "جاري..." : "تأكيد"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={!!disposeOpen} onOpenChange={() => setDisposeOpen(null)}>
           <DialogContent dir="rtl">
