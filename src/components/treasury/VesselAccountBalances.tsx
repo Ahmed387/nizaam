@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { FileDown, Users } from "lucide-react";
+import { ChevronDown, FileDown, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { loadAllPaymentMethods } from "@/lib/paymentMethods";
@@ -37,8 +37,15 @@ function Bar({ label, sent, limit }: { label: string; sent: number; limit: numbe
  * account, the sending limits as progress bars (today / this calendar month — company-wide, an account belongs to the
  * company) + «PDF» of all / one / several accounts with the statement of a period.
  */
-export function VesselAccountBalances({ branchId }: { branchId?: string | null }) {
+export function VesselAccountBalances({ branchId, onPickAccount }: {
+  branchId?: string | null;
+  /** 0287: a click on a number opens its movements in «حركات الخزنة» */
+  onPickAccount?: (a: { method: string; methodLabel: string; accountId: string | null; accountName: string }) => void;
+}) {
   const [rows, setRows] = useState<Row[] | null>(null);
+  // 0287 (owner 2026-11-26): every vessel closed until opened; open ones stay open until the page reloads
+  const [openVessels, setOpenVessels] = useState<Set<string>>(new Set());
+  const toggleVessel = (v: string) => setOpenVessels((p) => { const n = new Set(p); if (n.has(v)) n.delete(v); else n.add(v); return n; });
   const [usage, setUsage] = useState<AccountUsage[]>([]);
   const [labels, setLabels] = useState<Record<string, string>>({});
   const [pdfOpen, setPdfOpen] = useState(false);
@@ -79,23 +86,36 @@ export function VesselAccountBalances({ branchId }: { branchId?: string | null }
           <FileDown className="w-4 h-4 ml-1" /> PDF
         </Button>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-2 items-start">
         {withAcc.map((v) => {
           const list = (rows ?? []).filter((r) => r.payment_method === v);
           const total = list.reduce((s, r) => s + Number(r.balance || 0), 0);
+          const isOpen = openVessels.has(v);
           return (
-            <div key={v} className="rounded-xl border border-border p-3 bg-surface-2/50">
-              <div className="flex justify-between font-bold mb-2">
-                <span>{labels[v] ?? v}</span>
+            <div key={v} className="rounded-xl border border-border p-3 bg-surface-2/50" data-testid={`vessel-acc-${v}`}>
+              <button type="button" aria-expanded={isOpen} data-testid={`vessel-toggle-${v}`} onClick={() => toggleVessel(v)}
+                title={isOpen ? "اقفل الحسابات" : "افتح وشوف الأرقام اللي جوّا الوعاء ده"}
+                className="flex w-full items-center justify-between gap-2 font-bold text-start">
+                <span className="flex items-center gap-1.5">
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? "" : "rotate-90"}`} />
+                  {labels[v] ?? v}
+                  <span className="text-xs font-normal text-muted-foreground">({list.length} حساب)</span>
+                </span>
                 <span className="tabular-nums">{formatEGP(total)}</span>
-              </div>
-              <div className="space-y-2.5 text-sm">
+              </button>
+              {isOpen && <div className="space-y-2.5 text-sm mt-2">
                 {list.map((r) => {
                   const u = r.vessel_account_id ? byId.get(r.vessel_account_id) : undefined;
                   const left = u ? allowedNow(u) : null;
+                  const name = `${r.holder_name ?? "من غير حساب"}${r.account_number ? ` ${r.account_number}` : ""}`;
+                  const pickRow = onPickAccount ? () => onPickAccount({ method: v, methodLabel: labels[v] ?? v, accountId: r.vessel_account_id, accountName: name }) : undefined;
                   return (
                     <div key={r.vessel_account_id ?? "none"} className={r.is_active ? "" : "opacity-60"}>
-                      <div className="flex justify-between gap-2">
+                      <div className={`flex justify-between gap-2 ${pickRow ? "cursor-pointer rounded hover:bg-primary/5" : ""}`}
+                        role={pickRow ? "button" : undefined} tabIndex={pickRow ? 0 : undefined} onClick={pickRow}
+                        onKeyDown={pickRow ? (e) => { if (e.key === "Enter") pickRow(); } : undefined}
+                        data-testid={`vessel-row-${r.vessel_account_id ?? `${v}-none`}`}
+                        title={pickRow ? "اضغط تشوف حركات الرقم ده" : undefined}>
                         <span className="truncate">
                           {r.holder_name ?? "من غير حساب (حركات قبل الحسابات)"}
                           {r.account_number && <span className="text-xs text-muted-foreground" dir="ltr"> {r.account_number}</span>}
@@ -112,7 +132,7 @@ export function VesselAccountBalances({ branchId }: { branchId?: string | null }
                     </div>
                   );
                 })}
-              </div>
+              </div>}
             </div>
           );
         })}

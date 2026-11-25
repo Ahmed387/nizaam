@@ -55,7 +55,8 @@ import { FinancialAmount } from "@/components/FinancialAmount";
 import { RecordAttachments } from "@/components/RecordAttachments";
 import { useAttachmentCounts } from "@/hooks/useAttachmentCounts";
 import { TreasuryMetricsGrid, type PeriodTransaction, type TreasuryChannel } from "@/components/treasury/TreasuryMetricsGrid";
-import { fetchTreasuryLinks, payMethodLabel, SRC_LABEL, type TreasuryLink } from "@/lib/treasuryLinks";
+import { detailFilter, isBuiltinVessel, methodOfWord, vesselMeaning, vesselWord, type TreasuryDetail } from "@/lib/treasuryVessels";
+import { fetchTreasuryLinks, SRC_LABEL, type TreasuryLink } from "@/lib/treasuryLinks";
 import { AccountCell, SourceCell, PrintDocButton } from "@/components/documents/MoneyCells";
 import { DocAnnotationsButton } from "@/components/DocAnnotationsDialog";
 import { openDocs, OPEN_DOCS_MAX } from "@/lib/openDocs";
@@ -75,8 +76,10 @@ interface WalletBalances {
 
 const REVERSAL_IN = `(${REVERSAL_CATEGORIES.map((c) => `"${c}"`).join(",")})`;
 
-/** «طريقة الدفع» of a till row in words → its wallet */
-const METHOD_OF_LABEL: Record<string, PaymentMethod> = { كاش: "cash", محفظة: "vodafone", انستاباي: "instapay", بنكي: "bank" };
+/** names of the vessels made in «وسائل الدفع» (paymob → PayMob …), filled once they load (0287) */
+const VESSEL_NAMES: Record<string, string> = {};
+const vesselWordOf = (m?: string | null) => vesselWord(m, VESSEL_NAMES);
+const methodOfWordOf = (w?: string | null) => methodOfWord(w, VESSEL_NAMES);
 /** «المصدر» of a till row in words, as its cell shows it */
 function treasurySourceText(r: any): string {
   const l = r.__link;
@@ -92,7 +95,7 @@ const MOVE_COLS: ListColumn<any>[] = [
   // in + / out −, so the total is the net movement
   { key: "amount", label: "المبلغ", kind: "number", get: (r) => (r.type === "income" ? 1 : -1) * (Number(r.amount) || 0), sum: true, money: true },
   { key: "category", label: "التصنيف", kind: "text", get: (r) => `${treasuryCategoryLabel(r.category)}${r.is_fee ? " (عمولة)" : ""}` },
-  { key: "payment_method", label: "طريقة الدفع", kind: "text", get: (r) => payMethodLabel(r.payment_method) },
+  { key: "payment_method", label: "طريقة الدفع", kind: "text", get: (r) => vesselWordOf(r.payment_method) },
   { key: "transaction_date", label: "التاريخ", kind: "date", get: (r) => r.transaction_date },
   { key: "status", label: "الحالة", kind: "text", get: (r) => (r.voucher_status === "cancelled" ? "سند ملغي" : "نشط") },
   { key: "source", label: "المصدر", kind: "text", get: treasurySourceText },
@@ -105,7 +108,7 @@ const MOVE_COLS: ListColumn<any>[] = [
  * filter on the whole list — which holds every wallet of the period, so the «طريقة الدفع» arrow lists them all
  */
 const needsWholeTill = (s: FilterState) => !!s.sort || Object.entries(s.filters).some(([k, f]) =>
-  !((k === "transaction_date" && f.kind === "date" && !f.days?.length) || (k === "payment_method" && f.kind === "values" && f.values.length === 1 && METHOD_OF_LABEL[f.values[0]])));
+  !((k === "transaction_date" && f.kind === "date" && !f.days?.length) || (k === "payment_method" && f.kind === "values" && f.values.length === 1 && methodOfWordOf(f.values[0]))));
 
 export default function Treasury() {
   const { id: branchId } = useParams<{ id: string }>();
@@ -133,8 +136,17 @@ export default function Treasury() {
   // «التاريخ» / «طريقة الدفع» column filters (both stay, linked).
   const { pathname } = useLocation();
   const [colState, setColState] = useRememberedFilter(`xf:v1:${pathname}:${reversalView ? "reversals" : "movements"}`);
-  const methodFilter: "all" | PaymentMethod = METHOD_OF_LABEL[singleValueOf(colState, "payment_method")] ?? "all";
-  const setMethodFilter = (m: "all" | PaymentMethod) => setColState(withSingleValue(colState, "payment_method", m === "all" ? "" : payMethodLabel(m)));
+  // every vessel's name (0287: PayMob / الخزينة … no longer show as «كاش»); a re-render once they load
+  const [allVessels, setAllVessels] = useState<PaymentMethodOption[]>([]);
+  useEffect(() => { loadAllPaymentMethods().then((m) => {
+    for (const o of m) if (o.label) VESSEL_NAMES[o.value] = o.label;
+    setAllVessels(m);
+  }).catch(() => {}); }, []);
+  const methodFilter: "all" | PaymentMethod = methodOfWordOf(singleValueOf(colState, "payment_method")) ?? "all";
+  const setMethodFilter = (m: "all" | PaymentMethod) => setColState(withSingleValue(colState, "payment_method", m === "all" ? "" : vesselWordOf(m)));
+  // 0287: one number of a vessel (from «حسابات الأوعية»), and the banner of what a card click shows
+  const [accountFilter, setAccountFilter] = useState<{ id: string | null } | null>(null);
+  const [detailLabel, setDetailLabel] = useState("");
   const [openTransfer, setOpenTransfer] = useState(false);
   const [openReject, setOpenReject] = useState<any | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -180,10 +192,11 @@ export default function Treasury() {
   useEffect(() => { const t = setTimeout(() => setSearch(searchText.trim()), 300); return () => clearTimeout(t); }, [searchText]);
   useEffect(() => { const t = setTimeout(() => setNotesSearch(notesText.trim()), 300); return () => clearTimeout(t); }, [notesText]);
   const colStateSig = JSON.stringify(colState);
-  useEffect(() => { setPage(1); setSelected(new Map()); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, reversalView, colStateSig, createdBy]);
+  const accSig = accountFilter ? `acc:${accountFilter.id ?? "none"}` : "";
+  useEffect(() => { setPage(1); setSelected(new Map()); }, [fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, reversalView, colStateSig, createdBy, accSig]);
   const resetFilters = () => {
     setColState(EMPTY_STATE); setSearchText(""); setNotesText(""); setSearch(""); setNotesSearch("");
-    setMinAmount(""); setMaxAmount(""); setTab("all"); setCreatedBy("");
+    setMinAmount(""); setMaxAmount(""); setTab("all"); setCreatedBy(""); setAccountFilter(null); setDetailLabel("");
   };
   /** the unified filter's applied values ↔ this page's state (period and wallet live in the column filters) */
   const barValue: DocumentFilters = {
@@ -194,7 +207,7 @@ export default function Treasury() {
     setSearchText(n.q); setSearch(n.q.trim()); setNotesText(n.notes); setNotesSearch(n.notes.trim());
     setMinAmount(n.amountMin); setMaxAmount(n.amountMax); setTab((n.status || "all") as any); setCreatedBy(n.recipient);
     let st = withPeriod(colState, "transaction_date", n.from, n.to);
-    st = withSingleValue(st, "payment_method", n.payment ? payMethodLabel(n.payment as PaymentMethod) : "");
+    st = withSingleValue(st, "payment_method", n.payment ? vesselWordOf(n.payment) : "");
     setColState(st);
   };
 
@@ -207,8 +220,10 @@ export default function Treasury() {
     if (toDate) tq = tq.lte("transaction_date", toDate);
     if (tab !== "all") tq = tq.eq("type", tab);
     if (withMethod && methodFilter !== "all") tq = tq.eq("payment_method", methodFilter);
+    if (accountFilter) tq = accountFilter.id ? tq.eq("vessel_account_id", accountFilter.id) : tq.is("vessel_account_id", null);
     const s = safeLike(search);
-    if (s) tq = tq.or(`reference_number.ilike.%${s}%,description.ilike.%${s}%,category.ilike.%${s}%`);
+    // 0287: a number typed in the search finds the rows sent from / to it too
+    if (s) tq = tq.or(`reference_number.ilike.%${s}%,description.ilike.%${s}%,category.ilike.%${s}%,transfer_to_account.ilike.%${s}%,transfer_from_account.ilike.%${s}%`);
     const n = safeLike(notesSearch);
     if (n) tq = tq.ilike("description", `%${n}%`);
     if (minAmount !== "" && !isNaN(Number(minAmount))) tq = tq.gte("amount", Number(minAmount));
@@ -226,7 +241,7 @@ export default function Treasury() {
       setPeriodRows(data);
     } finally { setPeriodLoading(false); }
   };
-  useEffect(() => { if (branchId) loadPeriod(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, createdBy]);
+  useEffect(() => { if (branchId) loadPeriod(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, createdBy, accSig]);
 
   /** what the table shows beyond the till row: its voucher / invoice, the till after it (0097) and its account / source (0099) */
   const enrichMovements = async (movements: any[], signal?: AbortSignal): Promise<any[]> => {
@@ -316,7 +331,7 @@ export default function Treasury() {
   // like the page — and pages it here; otherwise the database pages it as before. The wallet stays out of that read
   // (applied in memory like any column filter) so its arrow still lists every wallet with its count, as in Excel; it
   // is in the signature only because the running balance is per wallet.
-  const wholeSig = `${branchId}|${reversalView}|${fromDate}|${toDate}|${search}|${notesSearch}|${minAmount}|${maxAmount}|${tab}|${methodFilter}|${createdBy}`;
+  const wholeSig = `${branchId}|${reversalView}|${fromDate}|${toDate}|${search}|${notesSearch}|${minAmount}|${maxAmount}|${tab}|${methodFilter}|${createdBy}|${accSig}`;
   const whole = useWholeList<any>(wholeSig, async (signal) => {
     const all = await readAll<any>(() => applyFilters(supabase.from("treasury").select("*"), true, false)
       .order("transaction_date", { ascending: false }).order("created_at", { ascending: false }).order("id", { ascending: false }), signal);
@@ -326,7 +341,7 @@ export default function Treasury() {
     rows: whole.rows, columns: MOVE_COLS, state: colState, onChange: setColState, ensureRows: whole.ensure,
   });
   const wholeMode = needsWholeTill(colEff);
-  useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, createdBy, wholeMode ? 0 : page, reversalView]);
+  useEffect(() => { load(); }, [branchId, fromDate, toDate, search, notesSearch, minAmount, maxAmount, tab, methodFilter, createdBy, wholeMode ? 0 : page, reversalView, accSig]);
   useRealtimeRefresh(["vouchers", "treasury", "treasury_transfers"], () => { load(); loadPeriod(); whole.refresh(); });
 
   const filtered = wholeMode ? (listRes ? listRes.rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE) : []) : rows;
@@ -446,24 +461,39 @@ export default function Treasury() {
   const [vesselRules, setVesselRules] = useState(myVesselRulesCache());
   useEffect(() => { loadMyVesselRules().then(setVesselRules).catch(() => {}); }, []);
   const shownVessel = (m: string) => m === "other" || methodLevel(vesselRules, m) !== "hidden";
-  const wallets = ([
-    { key: "cash_balance" as const, label: "كاش في الدرج", icon: Wallet, color: "text-success", method: "cash" as const },
-    { key: "vodafone_balance" as const, label: "فودافون كاش", icon: Smartphone, color: "text-rose-500", method: "vodafone" as const },
-    { key: "instapay_balance" as const, label: "انستاباي", icon: CreditCard, color: "text-violet-500", method: "instapay" as const },
-    { key: "bank_balance" as const, label: "حساب بنكي", icon: Landmark, color: "text-blue-500", method: "bank" as const },
-    // وسائل الدفع المخصّصة — من غيرها مجموع المحافظ ما كانش بيساوي إجمالي الخزنة
-    ...(Number(walletBalances.other_balance ?? 0) !== 0
-      ? [{ key: "other_balance" as const, label: "وسائل أخرى", icon: Wallet, color: "text-amber-500", method: "other" as const }]
-      : []),
-  ]).filter((w) => shownVessel(w.method));
-  const channels = useMemo<TreasuryChannel[]>(() => [
-    { method: "cash", label: "حركة الكاش (الدرج)", icon: Wallet, color: "text-success" },
-    { method: "vodafone", label: "حركة فودافون كاش", icon: Smartphone, color: "text-destructive" },
-    { method: "instapay", label: "حركة انستاباي", icon: CreditCard, color: "text-primary" },
-    { method: "bank", label: "حركة الحساب البنكي", icon: Landmark, color: "text-primary" },
-    ...(periodRows.some((r) => !["cash", "vodafone", "instapay", "bank"].includes(String(r.payment_method)))
-      ? [{ method: "other", label: "وسائل أخرى", icon: Wallet, color: "text-warning" }] : []),
-  ].filter((c) => shownVessel(c.method)), [periodRows, vesselRules]);
+  // 0287: one card per vessel by its own name (PayMob / الخزينة …) instead of «وسائل أخرى», each with what it shows
+  const channels = useMemo<TreasuryChannel[]>(() => {
+    const kindOf = (m: string) => (allVessels.find((o) => o.value === m) as any)?.kind ?? null;
+    // every vessel of the settings (stays when a card filters the page to one vessel) + any key only the rows have
+    const custom = [...new Set([...allVessels.filter((o) => (o.access ?? "use") !== "hidden").map((o) => o.value), ...periodRows.map((r) => String(r.payment_method ?? "cash"))])]
+      .filter((m) => !isBuiltinVessel(m)).sort((a, b) => vesselWordOf(a).localeCompare(vesselWordOf(b), "ar"));
+    return [
+      { method: "cash", label: "حركة الكاش (الدرج)", icon: Wallet, color: "text-success", meaning: vesselMeaning("cash", "كاش") },
+      { method: "vodafone", label: "حركة فودافون كاش", icon: Smartphone, color: "text-destructive", meaning: vesselMeaning("vodafone", "محفظة") },
+      { method: "instapay", label: "حركة انستاباي", icon: CreditCard, color: "text-primary", meaning: vesselMeaning("instapay", "انستاباي") },
+      { method: "bank", label: "حركة الحساب البنكي", icon: Landmark, color: "text-primary", meaning: vesselMeaning("bank", "بنكي") },
+      ...custom.map((m) => ({ method: m, label: vesselWordOf(m), icon: Wallet, color: "text-warning", meaning: vesselMeaning(m, vesselWordOf(m), kindOf(m)) })),
+    ].filter((c) => shownVessel(c.method));
+  }, [periodRows, vesselRules, allVessels]);
+
+  /** 0287: a card / account row → «حركات الخزنة» filtered to it, scrolled to, with a banner + «اعرض الكل» */
+  const [pendingDetail, setPendingDetail] = useState<TreasuryDetail | null>(null);
+  const applyDetail = (d: TreasuryDetail) => {
+    const f = detailFilter(d);
+    let st = f.allTime ? withPeriod(colState, "transaction_date", "", "") : colState;
+    st = withSingleValue(st, "payment_method", f.method ? vesselWordOf(f.method) : "");
+    setColState(st);
+    setTab(f.type);
+    setAccountFilter(f.account ?? null);
+    setDetailLabel(f.label);
+    setTimeout(() => document.getElementById("treasury-movements")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+  const showDetails = (d: TreasuryDetail) => {
+    if (initialTab !== "movements") { setPendingDetail(d); setSearchParams((p) => { p.set("tab", "movements"); return p; }, { replace: true }); return; }
+    applyDetail(d);
+  };
+  // the remembered filters switch to the movements tab's own first; then the pick lands on them
+  useEffect(() => { if (pendingDetail && initialTab === "movements") { const d = pendingDetail; setPendingDetail(null); setTimeout(() => applyDetail(d), 0); } }, [pendingDetail, initialTab]);
 
   // تحويلات واردة لسه محصلش عليها تأكيد استلام — الفلوس دي مش مضافة للرصيد
   const pendingIncoming = useMemo(
@@ -559,6 +589,7 @@ export default function Treasury() {
           periodRows={periodRows}
           channels={channels}
           loading={periodLoading}
+          onPick={showDetails}
           lowThresholdAlert={lowThreshold > 0 && walletBalances.total_balance < lowThreshold ? (
             <div className="mt-4 flex items-center justify-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive border border-destructive/30">
               <AlertTriangle className="w-5 h-5" />
@@ -572,7 +603,7 @@ export default function Treasury() {
         </div>
       )}
 
-      {canSeeBalances && <VesselAccountBalances branchId={branchId} />}
+      {canSeeBalances && <VesselAccountBalances branchId={branchId} onPickAccount={(a) => showDetails({ kind: "account", ...a })} />}
       {canSeeBalances && <PermPart page="treasury" part="transfer_fees" group><TransferFeeCards branchId={branchId} from={fromDate || undefined} to={toDate || undefined} /></PermPart>}
 
       {pendingIncoming.length > 0 && (
@@ -616,6 +647,14 @@ export default function Treasury() {
               هي داخلة في رصيد الخزنة وفي الكروت فوق عادي — اتشالت من جدول «حركات الخزنة» عشان يفضل نضيف.
             </div>
           )}
+          <div id="treasury-movements" className="scroll-mt-20" />
+          {detailLabel && !reversalView && (
+            <div data-testid="treasury-detail-banner" className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+              <span>بتعرض: <b>{detailLabel}</b></span>
+              <span className="text-xs text-muted-foreground">— تقدر تدوّر جوّاها من البحث تحت</span>
+              <Button size="sm" variant="outline" className="ms-auto" onClick={resetFilters}>اعرض الكل</Button>
+            </div>
+          )}
           <PermPart page="treasury" part="filters"><UnifiedDocumentFilters
             title="حركات الخزنة"
             noun="حركة"
@@ -626,14 +665,18 @@ export default function Treasury() {
             hasAnyFilter={Object.values(barValue).some(Boolean) || colStateSig !== JSON.stringify(EMPTY_STATE)}
             showAmount
             showNotes
-            searchLabel="بحث شامل (رقم العملية، البيان، التصنيف)"
-            searchPlaceholder="رقم العملية، البيان، التصنيف..."
+            searchLabel="بحث شامل (رقم العملية، البيان، التصنيف، رقم المحفظة/الحساب)"
+            searchPlaceholder="رقم العملية، البيان، التصنيف، رقم المحفظة..."
             customField={(d, set) => (
               <UnifiedDocumentFilters.Field label="النوع">
                 <UnifiedDocumentFilters.Select value={d.status} options={[{ value: "income", label: "دخول" }, { value: "expense", label: "خروج" }]} onChange={(v) => set({ status: v })} />
               </UnifiedDocumentFilters.Field>
             )}
-            paymentOptions={(["cash", "vodafone", "instapay", "bank"] as PaymentMethod[]).map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] }))}
+            paymentOptions={[
+              ...(["cash", "vodafone", "instapay", "bank"] as PaymentMethod[]).map((m) => ({ value: m, label: PAYMENT_METHOD_LABELS[m] })),
+              // 0287: the vessels made in the settings too (PayMob / الخزينة …)
+              ...allVessels.filter((o) => !isBuiltinVessel(o.value) && shownVessel(o.value)).map((o) => ({ value: o.value, label: o.label })),
+            ]}
             recipientOptions={recordedByOptions}
             recipientLabel="اللي سجّل الحركة"
           /></PermPart>
@@ -679,7 +722,7 @@ export default function Treasury() {
               { key: "category", header: "التصنيف", align: "center", width: "10rem", render: (r: any) => (
                 <span>{treasuryCategoryLabel(r.category)}{r.is_fee ? <span className="ml-1 text-warning text-xs">(عمولة)</span> : null}</span>
               )},
-              { key: "payment_method", header: "طريقة الدفع", align: "center", width: "7rem", render: (r: any) => payMethodLabel(r.payment_method) },
+              { key: "payment_method", header: "طريقة الدفع", align: "center", width: "7rem", render: (r: any) => vesselWordOf(r.payment_method) },
               { key: "transaction_date", header: "التاريخ", align: "center", width: "8rem", render: (r: any) => formatDate(r.transaction_date) },
               { key: "status", header: "الحالة", align: "center", width: "6rem", render: (r: any) => r.voucher_status === "cancelled"
                 ? <span className="font-semibold text-destructive">سند ملغي</span> : <span>نشط</span> },
@@ -956,7 +999,7 @@ function MovementDetailsRow({ r, branchId }: { r: any; branchId: string }) {
         <Item k="اسم الحساب">{r.__account ?? "—"}</Item>
         <Item k="المصدر"><SourceCell link={l} branchId={branchId} source={r.voucher_source} fallback={!r.voucher_id && !l?.src_type ? treasuryCategoryLabel(r.category) : null} /></Item>
         <Item k="السند">{r.voucher_number ?? "—"}{r.voucher_status === "cancelled" ? " (ملغي)" : ""}</Item>
-        <Item k="داخل / خارج">{r.type === "income" ? "داخل" : "خارج"} • {payMethodLabel(r.payment_method)}{r.reference_number ? ` • رقم العملية ${r.reference_number}` : ""}</Item>
+        <Item k="داخل / خارج">{r.type === "income" ? "داخل" : "خارج"} • {vesselWordOf(r.payment_method)}{r.reference_number ? ` • رقم العملية ${r.reference_number}` : ""}</Item>
         <Item k="تاريخ الحركة">{formatDate(r.transaction_date)}</Item>
         <Item k="اتسجلت فعلياً">{formatDateTime(r.created_at)}</Item>
         {l?.cancelled_voucher_number && <Item k="بتلغي">السند {l.cancelled_voucher_number}</Item>}
@@ -993,7 +1036,7 @@ function TreasurySelectionBar({ rows, branchId, onSelectPage, onClear }: { rows:
     rows: rows.map((r, i) => ({
       "#": i + 1, "رقم السند": resolveTreasuryOperationNumber(r.voucher_number, r.invoice_number, r.reference_number), "اسم الحساب": r.__account ?? "",
       "داخل": r.type === "income" ? Number(r.amount) : 0, "خارج": r.type !== "income" ? Number(r.amount) : 0, "التصنيف": treasuryCategoryLabel(r.category),
-      "طريقة الدفع": payMethodLabel(r.payment_method), "التاريخ": formatDate(r.transaction_date), "الحالة": r.voucher_status === "cancelled" ? "سند ملغي" : "نشط",
+      "طريقة الدفع": vesselWordOf(r.payment_method), "التاريخ": formatDate(r.transaction_date), "الحالة": r.voucher_status === "cancelled" ? "سند ملغي" : "نشط",
       "الرصيد بعد الحركة": r.balance_after ?? "", "البيان": sanitizeOperationalDescription(r.description) ?? "",
     })),
   }]);

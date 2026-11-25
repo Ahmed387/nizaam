@@ -387,9 +387,9 @@ async function common(page, name) {
     await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page);
     check("تحويلات الفروع: صادر = 2", await vis(p.getByText(/من أصل 2 تحويل/)));
     await p.getByRole("button", { name: "مسح الفلتر" }).click(); await settle(page);
-    await p.getByRole("combobox", { name: "الحالة" }).click(); await page.getByRole("option", { name: "بانتظار التأكيد", exact: true }).click();
+    await p.getByRole("combobox", { name: "الحالة" }).click(); await page.getByRole("option", { name: "بانتظار الاستلام", exact: true }).click();
     await p.getByRole("button", { name: /^بحث$/ }).click(); await settle(page);
-    check("تحويلات الفروع: بانتظار التأكيد = 3", await vis(p.getByText(/من أصل 3 تحويل/)));
+    check("تحويلات الفروع: بانتظار الاستلام = 3", await vis(p.getByText(/من أصل 3 تحويل/)));
   } else check("تحويلات الفروع: الفلتر ظاهر", false);
 
   // ===== 10) all branches inventory (admin)
