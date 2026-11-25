@@ -100,15 +100,17 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
       </div>
 
       <DataTable loading={loading} rows={filtered as any} columns={[
-        { key: "created_at", header: "التاريخ", render: (r: Req) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
-        { key: "requested_by_name", header: "مقدم الطلب" },
-        { key: "action", header: "النوع", render: (r: Req) => (
-          <span className={`px-2 py-1 rounded text-xs ${r.action === "delete" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
-            {actionLabel(r)}
-          </span>
+        { key: "created_at", header: "التاريخ", width: "7.5rem", render: (r: Req) => <span className="text-xs">{formatDateTime(r.created_at)}</span> },
+        { key: "requested_by_name", header: "مقدم الطلب", width: "6.5rem" },
+        { key: "action", header: "الطلب", width: "5.5rem", align: "center", render: (r: Req) => (
+          <div className="flex flex-col items-center gap-1">
+            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${r.action === "delete" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
+              {actionLabel(r)}
+            </span>
+            <span className="text-xs text-muted-foreground">{ENTITY_LABEL[r.entity_type] ?? r.entity_type}</span>
+          </div>
         )},
-        { key: "entity_type", header: "النوع", render: (r: Req) => <span className="text-sm">{ENTITY_LABEL[r.entity_type] ?? r.entity_type}</span> },
-        { key: "entity_label", header: "العنصر", render: (r: Req) => (
+        { key: "entity_label", header: "المستند والتعديل", render: (r: Req) => (
           <div>
             <span className="font-semibold">{r.entity_label}</span>
             {diffOf(r).length > 0 && (
@@ -117,21 +119,21 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
                 {diffOf(r).length > 4 && <li>و {diffOf(r).length - 4} تغيير كمان…</li>}
               </ul>
             )}
+            {r.reason && <div className="mt-1 text-xs"><span className="font-semibold">السبب:</span> <span className="text-muted-foreground">{r.reason}</span></div>}
           </div>
         ) },
-        { key: "reason", header: "السبب", render: (r: Req) => <span className="text-xs text-muted-foreground">{r.reason ?? "—"}</span> },
-        { key: "status", header: "الحالة", render: (r: Req) => {
+        { key: "status", header: "الحالة", width: "5rem", align: "center", render: (r: Req) => {
           if (r.status === "pending") return <span className="px-2 py-1 rounded text-xs bg-warning/10 text-warning">معلّق</span>;
           if (r.status === "approved") return <span className="px-2 py-1 rounded text-xs bg-success/10 text-success">موافق</span>;
           return <span className="px-2 py-1 rounded text-xs bg-destructive/10 text-destructive">مرفوض</span>;
         }},
-        { key: "actions", header: "إجراءات", render: (r: Req) => r.status === "pending" ? (
-          <div className="flex gap-1">
-            <Button size="sm" className="bg-success hover:bg-success/90 text-success-foreground" onClick={() => { setDecision({ req: r, type: "approve" }); setNote(""); setRetAction(null); }}>
-              <CheckCircle2 className="w-3.5 h-3.5 ml-1" /> موافقة
+        { key: "actions", header: "إجراءات", width: "11rem", align: "center", render: (r: Req) => r.status === "pending" ? (
+          <div className="flex gap-1.5">
+            <Button size="sm" className="gap-1 bg-success hover:bg-success/90 text-success-foreground" onClick={() => { setDecision({ req: r, type: "approve" }); setNote(""); setRetAction(null); }}>
+              <CheckCircle2 className="w-4 h-4" /> موافقة
             </Button>
-            <Button size="sm" variant="outline" className="text-destructive border-destructive/30" onClick={() => { setDecision({ req: r, type: "reject" }); setNote(""); }}>
-              <XCircle className="w-3.5 h-3.5 ml-1" /> رفض
+            <Button size="sm" variant="outline" className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => { setDecision({ req: r, type: "reject" }); setNote(""); }}>
+              <XCircle className="w-4 h-4" /> رفض
             </Button>
           </div>
         ) : (

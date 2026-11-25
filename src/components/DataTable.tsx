@@ -247,7 +247,7 @@ function DataTableInner<T>(
                     {columns.map((c, idx) => (
                       <td
                         key={c.key}
-                        className={`${cellPad} align-middle ${textMode} ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-nowrap [&>div]:justify-center [&_button]:h-8 [&_button]:w-8 [&_button]:p-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
+                        className={`${cellPad} align-middle ${textMode} ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-wrap [&>div]:justify-center [&>div]:gap-1 [&_button]:h-8 [&_button]:min-w-8 [&_button]:px-2 [&_button]:whitespace-nowrap [&_button]:shrink-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                       >
                         {c.render ? c.render(row) : ((row as any)[c.key] ?? "—")}
                       </td>
