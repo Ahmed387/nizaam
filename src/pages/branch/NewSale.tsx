@@ -1,3 +1,6 @@
+import { FeeField } from "@/components/payments/FeeField";
+import { payMethodLabel } from "@/lib/treasuryLinks";
+import { feeOf, type FeeMode } from "@/lib/paymentFee";
 import { VesselAccountSelect } from "@/components/payments/VesselAccountSelect";
 import { vesselAccountError } from "@/lib/vesselAccounts";
 import { CustomerSelect } from "@/components/CustomerSelect";
@@ -82,6 +85,9 @@ interface PaymentSplit {
   transfer_from_account: string;
   fee_amount: number;
   fee_on_customer: boolean;
+  /** 0286: typed by the cashier — none / fixed / percent of this payment */
+  fee_mode?: FeeMode;
+  fee_value?: string;
   /** «إيصال التحويل» — uploaded to this payment's receipt voucher after the save (never sent to the server) */
   proof_files?: File[];
 }
@@ -829,15 +835,14 @@ export default function NewSale() {
     setPayments((curr) => {
       let dirty = false;
       const next = curr.map((p) => {
-        const fk = feeKeyFor(p.payment_method);
-        const fee = fk ? calculateFee(fk as any, Number(p.amount) || 0, transferFees) : 0;
+        const fee = feeOf(p.payment_method, Number(p.amount) || 0, p.fee_mode, p.fee_value);
         if (fee !== p.fee_amount) { dirty = true; return { ...p, fee_amount: fee }; }
         return p;
       });
       return dirty ? next : curr;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transferFees, JSON.stringify(payments.map((p) => [p.payment_method, p.amount]))]);
+  }, [JSON.stringify(payments.map((p) => [p.payment_method, p.amount, p.fee_mode, p.fee_value]))]);
 
   const paymentsSum = useMemo(() => payments.reduce((s, p) => s + (Number(p.amount) || 0), 0), [payments]);
   const companyFeeTotal = useMemo(
@@ -1961,32 +1966,10 @@ export default function NewSale() {
                                                placeholder={defaultBankAccount || "حسابنا اللي وصل عليه"} />
                         </div>
                         <PaymentProofInput compact files={p.proof_files} onChange={(f) => updatePayment(idx, { proof_files: f })} />
-                        {p.fee_amount > 0 && (
-                          <div className="bg-warning/10 border border-warning/30 rounded p-2 text-xs space-y-1.5">
-                            <div className="flex justify-between">
-                              <span>عمولة التحويل:</span>
-                              <span className="font-bold">{formatEGP(p.fee_amount)}</span>
-                            </div>
-                            <div>
-                              <div className="mb-1 text-muted-foreground">من يتحمل العمولة؟</div>
-                              <div className="flex gap-1.5">
-                                <button type="button" onClick={() => updatePayment(idx, { fee_on_customer: true })}
-                                  className={`flex-1 px-2 py-1 rounded border ${p.fee_on_customer ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}>
-                                  العميل
-                                </button>
-                                <button type="button" onClick={() => updatePayment(idx, { fee_on_customer: false })}
-                                  className={`flex-1 px-2 py-1 rounded border ${!p.fee_on_customer ? "bg-destructive text-destructive-foreground border-destructive" : "bg-background"}`}>
-                                  الشركة (مصروف)
-                                </button>
-                              </div>
-                              {p.fee_on_customer ? (
-                                <div className="mt-1 text-success">العميل يحول {formatEGP(p.amount + p.fee_amount)} (المبلغ + العمولة)</div>
-                              ) : (
-                                <div className="mt-1 text-destructive">الشركة تتحمل {formatEGP(p.fee_amount)} كمصروف</div>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                        <FeeField compact method={p.payment_method} amount={Number(p.amount) || 0} mode={p.fee_mode} value={p.fee_value}
+                          direction="in" vesselLabel={methodOptions.find((o) => o.value === p.payment_method)?.label ?? payMethodLabel(p.payment_method)}
+                          onChange={(m, v) => updatePayment(idx, { fee_mode: m, fee_value: v })}
+                          onCustomer={p.fee_on_customer} onCustomerChange={(v) => updatePayment(idx, { fee_on_customer: v })} />
                       </div>
                     )}
 

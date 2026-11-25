@@ -36,6 +36,7 @@ export function EditPaymentDialog({ open, onOpenChange, target, maxAllowed, invo
       setMethod({
         method: r.payment_method || "cash",
         fee_amount: Number(r.fee_amount || 0),
+        ...(Number(r.fee_amount || 0) > 0 ? { fee_mode: "fixed" as const, fee_value: String(Number(r.fee_amount)) } : {}),
         total_with_fee: Number(r.amount || 0) + Number(r.fee_amount || 0),
         transfer_to_account: r.transfer_to_account ?? undefined,
         transfer_from_account: r.transfer_from_account ?? undefined,

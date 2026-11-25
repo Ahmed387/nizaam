@@ -497,7 +497,7 @@ function AddInvoicePaymentDialog({
         p_reference_number: reference || null,
         p_transfer_to_account: method.transfer_to_account || null,
         p_transfer_from_account: method.transfer_from_account || null,
-        p_fee_amount: 0,
+        p_fee_amount: Number(method.fee_amount || 0),
         p_fee_on_customer: false,
         p_received_by_name: null,
       });

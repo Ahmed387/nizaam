@@ -1,3 +1,5 @@
+import { FeeField } from "@/components/payments/FeeField";
+import { feeOf, type FeeMode } from "@/lib/paymentFee";
 import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -36,6 +38,9 @@ export interface PaymentLine {
   fee_amount: number;
   fee_type?: "percentage" | "fixed";
   fee_on_customer: boolean; // per-line
+  /** 0286: typed by whoever pays / receives — none / fixed / percent */
+  fee_mode?: FeeMode;
+  fee_value?: string;
   proof_files?: File[];
 }
 
@@ -120,9 +125,8 @@ export function MultiMethodPaymentDialog({
   useEffect(() => {
     setLines((prev) =>
       prev.map((l) => {
-        const fee = calculateFee(l.method, l.amount, fees);
-        const feeRow = fees.find((f) => f.payment_method === l.method);
-        return { ...l, fee_amount: fee, fee_type: feeRow?.fee_type };
+        const fee = feeOf(l.method, l.amount, l.fee_mode, l.fee_value);
+        return { ...l, fee_amount: fee, fee_type: l.fee_mode === "percent" ? "percentage" as const : l.fee_mode === "fixed" ? "fixed" as const : undefined };
       })
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,9 +137,8 @@ export function MultiMethodPaymentDialog({
       prev.map((l) => {
         if (l.id !== id) return l;
         const merged = { ...l, ...patch };
-        const fee = calculateFee(merged.method, merged.amount, fees);
-        const feeRow = fees.find((f) => f.payment_method === merged.method);
-        return { ...merged, fee_amount: fee, fee_type: feeRow?.fee_type };
+        const fee = feeOf(merged.method, merged.amount, merged.fee_mode, merged.fee_value);
+        return { ...merged, fee_amount: fee, fee_type: merged.fee_mode === "percent" ? "percentage" as const : merged.fee_mode === "fixed" ? "fixed" as const : undefined };
       })
     );
   };
@@ -369,24 +372,11 @@ export function MultiMethodPaymentDialog({
                   </div>
                 )}
 
-                {l.fee_amount > 0 && (
-                  <div className="bg-warning/10 border border-warning/30 rounded p-2 text-xs space-y-1.5">
-                    <div className="flex justify-between">
-                      <span>عمولة: {formatEGP(l.fee_amount)}</span>
-                      <span className="font-bold">
-                        إجمالي: {formatEGP(l.amount + (l.fee_on_customer ? l.fee_amount : 0))}
-                      </span>
-                    </div>
-                    {direction === "in" && (
-                      <div className="flex items-center justify-between border-t border-warning/20 pt-1.5">
-                        <span>العمولة على العميل؟</span>
-                        <Switch
-                          checked={l.fee_on_customer}
-                          onCheckedChange={(v) => updateLine(l.id, { fee_on_customer: v })}
-                        />
-                      </div>
-                    )}
-                  </div>
+                {l.method !== "cash" && (
+                  <FeeField compact method={l.method} amount={Number(l.amount) || 0} mode={l.fee_mode} value={l.fee_value}
+                    direction={direction} vesselLabel={PAYMENT_METHOD_OPTIONS.find((o) => o.value === l.method)?.label ?? l.method} party={direction === "in" ? "العميل" : "المورد"}
+                    onChange={(m, v) => updateLine(l.id, { fee_mode: m, fee_value: v })}
+                    {...(direction === "in" ? { onCustomer: l.fee_on_customer, onCustomerChange: (v: boolean) => updateLine(l.id, { fee_on_customer: v }) } : {})} />
                 )}
               </div>
             );

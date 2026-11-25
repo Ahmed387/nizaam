@@ -29,14 +29,19 @@ interface Req {
   decided_at: string | null;
 }
 
-const ENTITY_LABEL: Record<string, string> = { contact: "جهة تواصل", ...ENTITY_LABELS };
+const ENTITY_LABEL: Record<string, string> = {
+  contact: "جهة تواصل", ...ENTITY_LABELS,
+  // 0285: a transfer above the owner's limit waits for him — nothing moves until he approves
+  treasury_transfer: "تحويل فلوس بين الفروع", stock_transfer: "تحويل بضاعة بين الفروع",
+};
+const isTransfer = (r: { entity_type?: string }) => r.entity_type === "treasury_transfer" || r.entity_type === "stock_transfer";
 
 /** The «قبل ← بعد» lines of a document edit request (0141), else nothing. */
 const diffOf = (r: Req): string[] => (Array.isArray(r.payload?.diff) ? r.payload.diff : []);
 
 /** Invoices and purchase invoices are never deleted: an approved "delete" request cancels them (reversal kept). */
 const actionLabel = (r: { action: string; entity_type?: string }) =>
-  r.action !== "delete" ? "تعديل" : r.entity_type === "contact" ? "حذف" : "إلغاء";
+  isTransfer(r) ? "موافقة على تحويل" : r.action !== "delete" ? "تعديل" : r.entity_type === "contact" ? "حذف" : "إلغاء";
 
 export default function ApprovalRequests({ embedded }: { embedded?: boolean } = {}) {
   const Wrapper: any = embedded ? Fragment : AdminLayout;
@@ -148,7 +153,17 @@ export default function ApprovalRequests({ embedded }: { embedded?: boolean } = 
             <DialogDescription>
               {decision?.req.requested_by_name} يطلب {decision ? actionLabel(decision.req) : ""} <b>{decision?.req.entity_label}</b>
               {decision?.req.reason && <div className="mt-2 text-sm">السبب: {decision.req.reason}</div>}
-              {decision?.req.action === "update" && decision?.req.payload && (
+              {decision && isTransfer(decision.req) && (
+                <span className="mt-2 block rounded-lg border bg-muted/40 p-3 text-sm text-foreground" data-testid="transfer-approval-effect">
+                  {decision.type === "approve"
+                    ? decision.req.entity_type === "treasury_transfer"
+                      ? "لو وافقت: الفلوس بتتخصم من الفرع المرسل النهارده وتستنى الفرع التاني يستلمها."
+                      : "لو وافقت: البضاعة بتخرج من مخزن الفرع المرسل النهارده وتستنى الفرع التاني يستلمها."
+                    : "لو رفضت: مفيش أي حاجة بتتحرك، والمرسل بيتبلغ بالرفض."}
+                  {Number(decision.req.payload?.limit) > 0 && <span className="block text-xs text-muted-foreground mt-1">الحد اللي إنت محدده: {Number(decision.req.payload.limit).toLocaleString("en-US")} ج.م</span>}
+                </span>
+              )}
+              {decision?.req.action === "update" && decision?.req.payload && !isTransfer(decision.req) && (
                 diffOf(decision.req).length > 0 || stepsOf(decision.req.payload).length > 0 ? (
                   <span className="mt-2 block rounded-lg border bg-muted/40 p-3 text-sm text-foreground">
                     <span className="mb-1 block font-semibold">قبل ← بعد</span>

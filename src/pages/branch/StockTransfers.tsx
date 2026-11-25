@@ -21,7 +21,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { logAudit } from "@/lib/roles";
-import { notifyMany, getBranchManagers } from "@/lib/notifications";
 import { formatDateTime } from "@/lib/format";
 import { searchMatch } from "@/lib/search";
 import { matchProducts, similarCodes } from "@/lib/codeSuggest";
@@ -35,6 +34,7 @@ import { MetricCardWithHint } from "@/components/MetricCardWithHint";
 import { formatEGP } from "@/lib/format";
 import { format as formatDateFns } from "date-fns";
 import { cn } from "@/lib/utils";
+import { CancelStockTransferDialog, EditStockTransferDialog, StockTransferBadge, stockSenderCanChange } from "@/components/transfers/StockTransferChangeDialogs";
 
 type Item = { product_id: string; quantity: string };
 const cairoToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
@@ -69,6 +69,11 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const [rejFrom, setRejFrom] = useState<string>("");
   const [rejReason, setRejReason] = useState("");
   const [busy, setBusy] = useState(false);
+  // 0285: the sender edits the quantity / cancels while it is not received; who may send / receive is per person per branch
+  const [editRow, setEditRow] = useState<any | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<{ kind: "row" | "group"; id: string; label: string } | null>(null);
+  const canSend = !!branchId && canInBranch("transfers.create", branchId);
+  const canReceive = !!branchId && canInBranch("transfers.update", branchId);
   const [selfBranchName, setSelfBranchName] = useState<string>("");
   const [allBranches, setAllBranches] = useState<any[]>([]);
   // فلاتر تبويب "ما تم استلامه بالفعل"
@@ -170,24 +175,16 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     }
 
     const toBr = branches.find((b) => b.id === toBranch);
-    const fromBr = { name: profile?.name ? "فرعك" : "فرع آخر" };
-    const recipients = await getBranchManagers(toBranch);
-    await notifyMany(recipients, {
-      title: "طلب نقل بضاعة جديد",
-      body: `${cleaned.length} صنف من ${fromBr.name ?? ""} → ${toBr?.name ?? ""}`,
-      type: "general",
-      link: `/branch/${toBranch}/transfers`,
-      relatedEntity: "stock_transfer_group",
-      relatedEntityId: groupId as string,
-    });
+    const { data: waitRows } = await supabase.from("stock_transfers").select("id").eq("group_id", groupId as string).eq("status", "awaiting_approval" as any).limit(1);
+    const waiting = (waitRows ?? []).length > 0;
 
     await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "CREATE", entity: "stock_transfer_group", entityId: groupId as string, details: { items: cleaned, to: toBranch } });
     const summary = cleaned.map((c) => {
       const p = products.find((x) => x.id === c.product_id);
       return `• ${p?.name ?? "—"} × ${c.quantity}`;
     }).join("\n");
-    toast.success(`تم إرسال الطلب إلى ${toBr?.name ?? "الفرع"}`, {
-      description: `${cleaned.length} صنف بانتظار تأكيد الفرع المستلم:\n${summary}`,
+    toast.success(waiting ? "قيمة التحويل فوق الحد — اتبعت لصاحب الشركة يوافق الأول" : `تم إرسال الطلب إلى ${toBr?.name ?? "الفرع"}`, {
+      description: waiting ? `مفيش بضاعة اتحركت لحد ما يوافق:\n${summary}` : `${cleaned.length} صنف بانتظار تأكيد الفرع المستلم:\n${summary}`,
       duration: 6000,
     });
     setOpen(false);
@@ -228,14 +225,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
       await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: t.id, details: { received: res.received, returned: res.returned } });
     }
     if (ok) {
-      const senderMgrs = await getBranchManagers(recvFrom);
-      await notifyMany(senderMgrs, {
-        title: totalRet > 0 ? "⚠️ استلام جزئي للأصناف" : "✅ تم استلام الأصناف بالكامل",
-        body: lines.join("\n"),
-        type: "general",
-        link: `/branch/${recvFrom}/transfers`,
-        relatedEntity: "stock_transfer", relatedEntityId: recvRows[0]?.id,
-      });
+      // 0285: the server notifies who may send / receive / be told, with who did what
       toast.success(`تم استلام ${ok} صنف — إجمالي ${totalRecv}${totalRet > 0 ? ` ورجع ${totalRet} لمخزن الفرع المرسل` : ""}`);
     }
     setBusy(false);
@@ -274,14 +264,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     if (count) {
       const list = rejRows.map((r) => `• ${r.products?.name ?? "—"} × ${r.quantity}`).join("\n");
       await logAudit({ userId: user!.id, userName: profile?.name ?? "", branchId, action: "UPDATE", entity: "stock_transfer", entityId: rejRows[0]?.id, details: { rejected: count, reason: rejReason.trim() } });
-      const senderMgrs = await getBranchManagers(rejFrom);
-      await notifyMany(senderMgrs, {
-        title: `❌ تم رفض ${count} صنف — رجعت لمخزنك`,
-        body: `السبب: ${rejReason.trim()}\n${list}`,
-        type: "general",
-        link: `/branch/${rejFrom}/transfers`,
-        relatedEntity: "stock_transfer", relatedEntityId: rejRows[0]?.id,
-      });
+      // 0285: the server notifies who may send / receive / be told, with who did what
       toast.info(`تم رفض ${count} صنف وإرجاع الكميات لمخزن الفرع المرسل`);
     }
     setBusy(false);
@@ -305,21 +288,13 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     toast.success("تم إخفاء التحويل المرفوض من الشاشة");
   };
 
-  const statusBadge = (status: string) => {
-    if (status === "confirmed") {
-      return <Badge className="border-success/30 bg-success/15 text-success hover:bg-success/15">مؤكد</Badge>;
-    }
-    if (status === "rejected") {
-      return <Badge className="border-destructive/30 bg-destructive/15 text-destructive hover:bg-destructive/15">مرفوض</Badge>;
-    }
-    return <Badge className="border-warning/30 bg-warning/15 text-warning hover:bg-warning/15">معلق</Badge>;
-  };
+  const statusBadge = (status: string) => <StockTransferBadge status={status} />;
 
   // Group incoming by group_id (or by id if no group) — pending only + not visually dismissed
   const incomingGroups = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const t of incoming) {
-      if (t.status !== "pending") continue;
+      if (t.status !== "pending" && t.status !== "awaiting_approval") continue;
       const key = t.group_id ?? `single-${t.id}`;
       if (hidden.includes(key) || hidden.includes(t.id)) continue;
       if (!map.has(key)) map.set(key, []);
@@ -339,7 +314,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
   const outgoingGroups = useMemo(() => {
     const map = new Map<string, any[]>();
     for (const t of outgoing) {
-      if (t.status !== "pending") continue;
+      if (t.status !== "pending" && t.status !== "awaiting_approval") continue;
       const key = t.group_id ?? `single-${t.id}`;
       if (hidden.includes(key) || hidden.includes(t.id)) continue;
       if (!map.has(key)) map.set(key, []);
@@ -348,6 +323,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
     return Array.from(map.entries()).map(([key, rows]) => ({
       key, rows,
       to_name: rows[0].to_branch?.name,
+      groupId: rows[0].group_id as string | null,
       created_at: rows[0].created_at,
       reason: rows[0].reason,
     }));
@@ -414,7 +390,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
 
   // السجل التاريخي يعرض المكتمل والمرفوض فقط، مع تطبيق فلتر الحالة فوق نفس البيانات التي تغذي الكروت.
   const completedRows = useMemo(() => filteredTransferRows
-    .filter((row) => row.status === "confirmed" || row.status === "rejected")
+    .filter((row) => ["confirmed", "rejected", "refused", "cancelled"].includes(row.status))
     .filter((row) => statusFilter === "ALL" || row.status === statusFilter)
     .sort((a, b) => String(b.confirmed_at ?? b.created_at).localeCompare(String(a.confirmed_at ?? a.created_at))),
   [filteredTransferRows, statusFilter]);
@@ -451,7 +427,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   {g.reason && <div className="text-xs text-muted-foreground mt-1">السبب: {g.reason}</div>}
                 </div>
                 <div className="flex gap-2 items-center">
-                  {g.groupId && g.pendingCount > 1 && (
+                  {canReceive && g.groupId && g.pendingCount > 1 && (
                     <>
                       <Button size="sm" onClick={() => openReceive(g.rows, g.from_branch_id)} className="gap-1">
                         <Check className="w-3 h-3" /> استلام كل الأصناف ({g.pendingCount})
@@ -479,7 +455,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                     </div>
                     <div>{statusBadge(r.status)}</div>
                     <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
-                    {r.status === "pending" && (
+                    {r.status === "pending" && canReceive && (
                       <div className="flex items-center gap-1">
                         <Button size="sm" onClick={() => openReceive([r], r.from_branch_id)} className="gap-1"><Check className="w-3 h-3" /> استلام</Button>
                         <Button size="sm" variant="outline" onClick={() => openReject([r], r.from_branch_id, null)} className="gap-1 text-destructive"><X className="w-3 h-3" /> رفض</Button>
@@ -504,11 +480,19 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                   <div className="text-xs text-muted-foreground">{formatDateTime(g.created_at)} • {g.rows.length} صنف</div>
                   {g.reason && <div className="text-xs text-muted-foreground mt-1">السبب: {g.reason}</div>}
                 </div>
-                <Button size="icon" variant="ghost" title="إخفاء من الشاشة النشطة"
-                  onClick={() => dismissGroup(g.key, g.rows.map((r: any) => r.id))}
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex gap-2 items-center">
+                  {canSend && g.rows.filter((r: any) => stockSenderCanChange(r.status)).length > 1 && g.groupId && (
+                    <Button size="sm" variant="outline" className="text-destructive"
+                      onClick={() => setCancelTarget({ kind: "group", id: g.groupId!, label: `التحويل كله لـ ${g.to_name ?? "الفرع"}` })}>
+                      إلغاء التحويل كله
+                    </Button>
+                  )}
+                  <Button size="icon" variant="ghost" title="إخفاء من الشاشة النشطة"
+                    onClick={() => dismissGroup(g.key, g.rows.map((r: any) => r.id))}
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
               <div className="space-y-1">
                 {g.rows.map((r: any) => (
@@ -520,6 +504,13 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
                       )}
                     </div>
                     <div>{statusBadge(r.status)}</div>
+                    {canSend && stockSenderCanChange(r.status) && (
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="outline" onClick={() => setEditRow(r)}>تعديل الكمية</Button>
+                        <Button size="sm" variant="outline" className="text-destructive"
+                          onClick={() => setCancelTarget({ kind: "row", id: r.id, label: `${r.products?.name ?? "الصنف"} × ${r.quantity}` })}>إلغاء</Button>
+                      </div>
+                    )}
                     <AttachmentsDialogButton recordType="stock_transfer" recordId={r.id} count={attCounts[r.id] ?? 0} />
                   </div>
 
@@ -540,7 +531,7 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
             hasAnyFilter={Object.values(af).some(Boolean)}
             searchLabel="بحث بالمنتج (الاسم، الكود، الموديل، الماركة)"
             searchPlaceholder="بحث بالاسم، الكود، الموديل، الماركة…"
-            statusOptions={[{ value: "confirmed", label: "مستلم" }, { value: "rejected", label: "مرفوض" }]}
+            statusOptions={[{ value: "confirmed", label: "مستلم" }, { value: "rejected", label: "مرفوض" }, { value: "refused", label: "المالك رفضه" }, { value: "cancelled", label: "اتلغى" }]}
             extraFields={(d, set) => (<>
               <UnifiedDocumentFilters.Field label="الفرع المرسل">
                 <UnifiedDocumentFilters.Select value={d.fromBranch} options={allBranches.map((b: any) => ({ value: b.id, label: b.name }))} onChange={(v) => set({ fromBranch: v })} />
@@ -660,6 +651,9 @@ export default function StockTransfers({ embedded }: { embedded?: boolean } = {}
           />
         </TabsContent>
       </Tabs>
+
+      <EditStockTransferDialog row={editRow} onClose={() => setEditRow(null)} onDone={load} />
+      <CancelStockTransferDialog target={cancelTarget} onClose={() => setCancelTarget(null)} onDone={load} />
 
       <Dialog open={!!hideTarget} onOpenChange={(v) => { if (!hideBusy && !v) setHideTarget(null); }}>
         <DialogContent className="max-w-sm">

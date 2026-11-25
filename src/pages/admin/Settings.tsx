@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { VesselAccessEditor } from "@/components/settings/VesselAccessEditor";
+import { TransferApprovalLimits } from "@/components/settings/TransferApprovalLimits";
 import { useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/Layouts";
 import { PageHeader } from "@/components/layout/AppShell";
@@ -403,6 +404,7 @@ export default function Settings() {
 
         <TabsContent value="payments" className="mt-4 space-y-4">
           <PaymentFeesTab />
+          <TransferApprovalLimits />
           <VesselAccessEditor />
         </TabsContent>
 

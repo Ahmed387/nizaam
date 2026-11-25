@@ -1,3 +1,5 @@
+import { FeeField } from "@/components/payments/FeeField";
+import { feeOf, type FeeMode } from "@/lib/paymentFee";
 import { useEffect, useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -34,6 +36,9 @@ export interface PaymentSplit {
   received_by_name?: string;
   fee_amount: number;
   fee_type?: "percentage" | "fixed";
+  /** 0286: typed by whoever pays — none / fixed / percent */
+  fee_mode?: FeeMode;
+  fee_value?: string;
   /** «إيصال التحويل» — uploaded to this payment's voucher after the save */
   proof_files?: File[];
 }
@@ -115,9 +120,7 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
     const splits = value.splits.map((s) => {
       if (s.id !== id) return s;
       const merged = { ...s, ...patch };
-      const fee = calculateFee(merged.method, merged.amount, fees);
-      const fr = fees.find((f) => f.payment_method === merged.method);
-      return { ...merged, fee_amount: fee, fee_type: fr?.fee_type };
+      return withFee(merged);
     });
     onChange({ ...value, splits });
   };
@@ -257,11 +260,10 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
                       </div>
                     )}
 
-                    {sp.fee_amount > 0 && (
-                      <div className="bg-warning/10 border border-warning/30 rounded p-2 text-xs flex justify-between">
-                        <span>عمولة: {formatEGP(sp.fee_amount)}</span>
-                        <span className="font-bold">إجمالي: {formatEGP(sp.amount + (value.feeOnCustomer ? sp.fee_amount : 0))}</span>
-                      </div>
+                    {sp.method !== "cash" && (
+                      <FeeField compact method={sp.method} amount={Number(sp.amount) || 0} mode={sp.fee_mode} value={sp.fee_value}
+                        direction="out" party="المورد" vesselLabel={PAYMENT_METHOD_OPTIONS.find((o) => o.value === sp.method)?.label ?? sp.method}
+                        onChange={(m, v) => updateSplit(sp.id, { fee_mode: m, fee_value: v })} />
                     )}
                   </div>
                 );
@@ -279,12 +281,6 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
             </Button>
           )}
 
-          {showFeeBearerToggle && value.splits.some((s) => s.fee_amount > 0) && (
-            <div className="flex items-center justify-between p-2 border rounded">
-              <Label className="text-sm">العمولة على العميل؟</Label>
-              <Switch checked={value.feeOnCustomer} onCheckedChange={(b) => onChange({ ...value, feeOnCustomer: b })} />
-            </div>
-          )}
         </>
       )}
 
@@ -300,10 +296,11 @@ export function PaymentPlanSelector({ total, value, onChange, showFeeBearerToggl
   );
 }
 
-function recalcFees(splits: PaymentSplit[], fees: TransferFee[]): PaymentSplit[] {
-  return splits.map((s) => {
-    const fee = calculateFee(s.method, s.amount, fees);
-    const fr = fees.find((f) => f.payment_method === s.method);
-    return { ...s, fee_amount: fee, fee_type: fr?.fee_type };
-  });
+function withFee(s: PaymentSplit): PaymentSplit {
+  const fee = feeOf(s.method, s.amount, s.fee_mode, s.fee_value);
+  return { ...s, fee_amount: fee, fee_type: s.fee_mode === "percent" ? "percentage" : s.fee_mode === "fixed" ? "fixed" : undefined };
+}
+
+function recalcFees(splits: PaymentSplit[], _fees?: TransferFee[]): PaymentSplit[] {
+  return splits.map(withFee);
 }

@@ -4,7 +4,7 @@ import { Lock, Search, MousePointerClick, RotateCcw, CheckCheck } from "lucide-r
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ACTION_LABELS, CatalogPage, CatalogSection, PERMISSION_CATALOG, SectionId, searchCatalog } from "@/lib/permissionCatalog";
+import { actionLabel, CatalogPage, CatalogSection, PERMISSION_CATALOG, SectionId, searchCatalog } from "@/lib/permissionCatalog";
 import { pageKeys } from "@/lib/permissionModel";
 
 export interface EditorBinding {
@@ -101,9 +101,9 @@ export function PermissionEditor({ bind, personalNote }: { bind: EditorBinding; 
                       const v = !why && bind.get(k);
                       return (
                         <button key={a} type="button" aria-pressed={v} disabled={!!why} title={why ?? undefined}
-                          aria-label={why ? `${ACTION_LABELS[a]} — ${why}` : undefined} onClick={() => bind.set(k, !v)}
+                          aria-label={why ? `${actionLabel(p, a)} — ${why}` : undefined} onClick={() => bind.set(k, !v)}
                           className={`min-h-[36px] rounded-full px-3 text-xs font-bold border transition-colors ${why ? "bg-muted text-muted-foreground border-dashed opacity-70 cursor-not-allowed" : v ? "bg-primary/10 text-primary border-primary/40" : "bg-background text-muted-foreground border-dashed line-through"}`}>
-                          {why && <Lock className="w-3 h-3 inline ml-1" aria-hidden="true" />}{ACTION_LABELS[a]}
+                          {why && <Lock className="w-3 h-3 inline ml-1" aria-hidden="true" />}{actionLabel(p, a)}
                         </button>
                       );
                     })}

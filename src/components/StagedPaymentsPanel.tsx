@@ -766,6 +766,7 @@ function PaymentFormDialog({
       setMethod({
         method: initial.payment_method || "cash",
         fee_amount: Number(initial.fee_amount || 0),
+        ...(Number(initial.fee_amount || 0) > 0 ? { fee_mode: "fixed" as const, fee_value: String(Number(initial.fee_amount)) } : {}),
         total_with_fee: Number(initial.amount || 0) + Number(initial.fee_amount || 0),
         transfer_to_account: initial.transfer_to_account ?? undefined,
         transfer_from_account: initial.transfer_from_account ?? undefined,

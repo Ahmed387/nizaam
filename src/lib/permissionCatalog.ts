@@ -34,6 +34,8 @@ export interface CatalogPage {
   label: string;
   help?: string;
   actions: PermAction[];
+  /** words for the action chips when «يشوف / يضيف / يعدل» don't fit (0285 transfers) */
+  actionLabels?: Partial<Record<PermAction, string>>;
   /** where the page lives: a branch page (one per branch) or the company-wide admin page */
   scope: "branch" | "admin" | "data";
   /** tabs inside the page that have their own permission key (admin sub-sections) */
@@ -50,6 +52,8 @@ export interface CatalogSection {
 }
 
 export const ACTION_LABELS: Record<PermAction, string> = { view: "يشوف", create: "يضيف", update: "يعدل", delete: "يلغي" };
+/** the chip word of one action of one page */
+export const actionLabel = (p: Pick<CatalogPage, "actionLabels">, a: PermAction) => p.actionLabels?.[a] ?? ACTION_LABELS[a];
 
 /** Parts of each page that are switchable on their own. Pages not listed here have no parts yet. */
 export const PAGE_PARTS: Record<string, PagePart[]> = {
@@ -170,6 +174,7 @@ export const PAGE_ROUTES: Record<string, string> = {
   shipments: "/branch/:branch/shipments/new",
   inventory: "/branch/:branch/inventory",
   transfers: "/branch/:branch/transfers",
+  money_transfers: "/branch/:branch/treasury",
   customers: "/branch/:branch/contacts",
   suppliers: "/branch/:branch/suppliers",
   treasury: "/branch/:branch/treasury",
@@ -208,7 +213,7 @@ const SECTION_OF: Record<string, SectionId> = {
   customers: "ops", suppliers: "ops", employees: "ops", advances: "ops", salaries: "ops", attendance: "ops", attachments: "ops",
   doc_class: "ops", returns: "ops", admin_catalog: "ops", admin_product_attributes: "ops", admin_contacts: "ops",
   admin_employees: "ops", admin_presence: "ops", admin_shifts: "ops",
-  treasury: "money", vessel_transfers: "money", receipt_vouchers: "money", payment_vouchers: "money", reports: "money",
+  treasury: "money", money_transfers: "money", vessel_transfers: "money", receipt_vouchers: "money", payment_vouchers: "money", reports: "money",
   admin_main_treasury: "money", admin_finance: "money", admin_financial_position: "money",
   admin_reports_hub: "money", admin_monthly_profit: "money", admin_historical_analytics: "money", net_profit: "money",
   doc_edit_sales: "ops", doc_edit_purchases: "ops", doc_edit_returns: "ops", doc_edit_vouchers: "money",
@@ -221,13 +226,14 @@ export const SECTION_LABELS: Record<SectionId, string> = {
 
 function buildCatalog(): CatalogSection[] {
   const sections: CatalogSection[] = (Object.keys(SECTION_LABELS) as SectionId[]).map((id) => ({ id, label: SECTION_LABELS[id], pages: [] }));
-  const push = (g: { key: string; label: string; actions: PermAction[] }, scope: CatalogPage["scope"]) => {
+  const push = (g: { key: string; label: string; actions: PermAction[]; labels?: Partial<Record<PermAction, string>> }, scope: CatalogPage["scope"]) => {
     const section = sections.find((s) => s.id === (SECTION_OF[g.key] ?? "admin"))!;
     section.pages.push({
       key: g.key,
       label: g.label,
       help: PERM_HELP[g.key],
       actions: g.actions,
+      actionLabels: g.labels,
       scope,
       children: ADMIN_SUBSECTION_PERMISSION_GROUPS
         .filter((c) => SUBSECTION_PARENT[c.key] === g.key)

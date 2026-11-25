@@ -107,7 +107,7 @@ export function PaymentFeesTab() {
     const key = slugify(newM.key || newM.label);
     if (rows.some((r) => r.payment_method === key)) return toast.error("المفتاح موجود بالفعل");
     const { error } = await supabase.from("transfer_fees").insert({
-      payment_method: key, label, fee_type: newM.fee_type, fee_value: newM.kind === "virtual" ? 0 : newM.fee_value, is_enabled: true,
+      payment_method: key, label, fee_type: newM.fee_type, fee_value: 0, is_enabled: true,
       kind: newM.kind, updated_by: user!.id,
     } as any);
     if (error) return toast.error(error.message);
@@ -133,7 +133,7 @@ export function PaymentFeesTab() {
     <div className="space-y-4 max-w-2xl mx-auto">
       <div className="card-elevated p-4 text-sm bg-info/5 border border-info/20 flex items-center justify-between gap-3">
         <p className="text-muted-foreground flex-1">
-          فعّل/عطّل طرق الدفع وحدد العمولة (نسبة أو مبلغ ثابت). تقدر تضيف طرق دفع جديدة وهتظهر تلقائياً في صفحة المبيعات.
+          فعّل/عطّل طرق الدفع. العمولة مبقتش من هنا: اللي بيعمل العملية بيكتبها بنفسه (مفيش / رقم ثابت / نسبة) وقت البيع أو السند أو التحويل. تقدر تضيف طرق دفع جديدة وهتظهر تلقائياً في صفحة المبيعات.
         </p>
         <Button size="sm" className="gap-2 shrink-0" onClick={() => setAddOpen(true)}>
           <Plus className="w-4 h-4" /> إضافة طريقة
@@ -194,26 +194,6 @@ export function PaymentFeesTab() {
                 <Switch checked={f.kind === "virtual"} onCheckedChange={(v) => updateRow(f.payment_method, { kind: v ? "virtual" : "wallet", ...(v ? { fee_value: 0 } : {}) })} />
               </div>
             )}
-            {f.is_enabled && f.kind !== "virtual" && (
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div>
-                  <Label>نوع العمولة</Label>
-                  <Select value={f.fee_type} onValueChange={(v) => updateRow(f.payment_method, { fee_type: v as any })}>
-                    <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fixed">مبلغ ثابت (جنيه)</SelectItem>
-                      <SelectItem value="percentage">نسبة مئوية (%)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>{f.fee_type === "percentage" ? "النسبة %" : "المبلغ بالجنيه"}</Label>
-                  <Input type="number" step="0.01" min={0} value={f.fee_value}
-                    onChange={(e) => updateRow(f.payment_method, { fee_value: Number(e.target.value) })}
-                    className="mt-1.5" />
-                </div>
-              </div>
-            )}
             <Button className="mt-3 gap-2" onClick={() => save(f.payment_method)} disabled={saving === f.payment_method}>
               {saving === f.payment_method ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               حفظ
@@ -241,23 +221,6 @@ export function PaymentFeesTab() {
               </div>
               <Switch checked={newM.kind === "virtual"} onCheckedChange={(v) => setNewM({ ...newM, kind: v ? "virtual" : "wallet" })} />
             </div>
-            {newM.kind !== "virtual" && <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>نوع العمولة</Label>
-                <Select value={newM.fee_type} onValueChange={(v) => setNewM({ ...newM, fee_type: v as any })}>
-                  <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fixed">مبلغ ثابت</SelectItem>
-                    <SelectItem value="percentage">نسبة %</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>القيمة</Label>
-                <Input type="number" step="0.01" min={0} value={newM.fee_value}
-                  onChange={(e) => setNewM({ ...newM, fee_value: Number(e.target.value) })} className="mt-1.5" />
-              </div>
-            </div>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>إلغاء</Button>

@@ -6,7 +6,6 @@ import {
   PaymentMethod,
   PAYMENT_METHOD_OPTIONS,
   TransferFee,
-  calculateFee,
   loadTransferFees,
   loadAllPaymentMethods,
   choosable,
@@ -18,6 +17,8 @@ import {
   methodRequiresReference,
 } from "@/lib/paymentMethods";
 import { formatEGP } from "@/lib/format";
+import { feeOf, type FeeMode } from "@/lib/paymentFee";
+import { FeeField } from "@/components/payments/FeeField";
 import { PaymentProofInput } from "@/components/payments/PaymentProofInput";
 import { VesselAccountSelect } from "@/components/payments/VesselAccountSelect";
 
@@ -29,6 +30,9 @@ export interface PaymentMethodValue {
   received_by_name?: string;
   fee_amount: number;
   fee_type?: "percentage" | "fixed";
+  /** 0286: the fee is typed by whoever does the operation — none / fixed / percent of the amount (never on cash) */
+  fee_mode?: FeeMode;
+  fee_value?: string;
   total_with_fee: number;
   /** «إيصال التحويل» files, uploaded to the payment's voucher after the save (attachPaymentProofs) */
   proof_files?: File[];
@@ -82,20 +86,21 @@ export function PaymentMethodPicker({
   });
 
 
-  // Recompute fee whenever amount/method/fees change
+  const requiresRef = methodRequiresReference(value.method, fees);
+  // 0286 (owner 2026-11-25): the fee comes from what the person types, not from the settings
+  const mode: FeeMode = requiresRef ? (value.fee_mode ?? "none") : "none";
   useEffect(() => {
-    const fee = calculateFee(value.method, amount, fees);
-    const feeRow = fees.find((f) => f.payment_method === (value.method as any));
+    const fee = feeOf(value.method, amount, mode, value.fee_value);
+    if (fee === value.fee_amount && value.total_with_fee === amount + (feeOnCustomer ? fee : 0)) return;
     onChange({
       ...value,
       fee_amount: fee,
-      fee_type: feeRow?.fee_type,
+      fee_type: mode === "percent" ? "percentage" : mode === "fixed" ? "fixed" : undefined,
       total_with_fee: amount + (feeOnCustomer ? fee : 0),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value.method, amount, fees, feeOnCustomer]);
-
-  const requiresRef = methodRequiresReference(value.method, fees);
+  }, [value.method, amount, mode, value.fee_value, feeOnCustomer]);
+  const vesselName = enabledOptions.find((o) => o.value === value.method)?.label ?? value.method;
 
   return (
     <div className="space-y-3 p-3 rounded-lg bg-muted/30 border">
@@ -170,41 +175,10 @@ export function PaymentMethodPicker({
           <PaymentProofInput disabled={disabled} files={value.proof_files}
                              onChange={(f) => onChange({ ...value, proof_files: f })} />
 
-          {value.fee_amount > 0 && (
-            <div className="bg-warning/10 border border-warning/30 rounded-md p-2.5 text-sm space-y-1">
-              <div className="flex justify-between">
-                <span>عمولة التحويل:</span>
-                <span className="font-bold">{formatEGP(value.fee_amount)}</span>
-              </div>
-              <div className="flex justify-between border-t border-warning/20 pt-1">
-                <span className="font-bold">الإجمالي مع العمولة:</span>
-                <span className="font-extrabold text-warning">{formatEGP(amount + value.fee_amount)}</span>
-              </div>
-              {showFeeBearerToggle && (
-                <div className="pt-2 border-t border-warning/20">
-                  <Label className="text-xs mb-1.5 block">من يتحمل العمولة؟</Label>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => onFeeBearerChange?.(true)}
-                      className={`text-xs px-3 py-1.5 rounded border flex-1 ${feeOnCustomer ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
-                    >
-                      العميل (يُضاف للمبلغ)
-                    </button>
-                    <button
-                      type="button"
-                      disabled={disabled}
-                      onClick={() => onFeeBearerChange?.(false)}
-                      className={`text-xs px-3 py-1.5 rounded border flex-1 ${!feeOnCustomer ? "bg-primary text-primary-foreground border-primary" : "bg-background"}`}
-                    >
-                      الشركة (مصروف)
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          <FeeField method={value.method} amount={amount} mode={mode} value={value.fee_value} disabled={disabled}
+            direction={direction} vesselLabel={vesselName}
+            onChange={(m, v) => onChange({ ...value, fee_mode: m, fee_value: v })}
+            {...(showFeeBearerToggle ? { onCustomer: feeOnCustomer, onCustomerChange: (v: boolean) => onFeeBearerChange?.(v) } : {})} />
         </>
       )}
 

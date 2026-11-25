@@ -128,6 +128,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
       initPm.transfer_to_account = ev.transferred_to ?? undefined;
       initPm.transfer_from_account = (ev as any).transferred_from ?? undefined;
       initPm.fee_amount = Number(ev.fee_amount ?? 0);
+      if (initPm.fee_amount > 0) { initPm.fee_mode = "fixed"; initPm.fee_value = String(initPm.fee_amount); }
       setPm(initPm);
     } else {
       pendingPartyRef.current = ip ? { id: ip.id, name: ip.name } : null;

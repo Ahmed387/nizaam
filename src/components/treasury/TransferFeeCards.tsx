@@ -12,7 +12,7 @@ type FeeRow = { payment_method: string | null; amount: number; type: string };
  * «عمولات التحويل» — كارت لكل وسيلة (محفظة / انستاباي / بنك …):
  *   نسبة العمولة المتسجلة في الإعدادات + اتدفع كام عمولة في الفترة وعدد العمليات.
  * مين بيدخل العمولة؟ محدش بيكتبها بإيده: المدير بيحدد النسبة أو المبلغ الثابت مرة واحدة في
- * الإعدادات ← طرق الدفع والعمولات، والسيرفر بيحسبها لوحده في كل عملية (H-08) ويكتب سطر خزنة واحد
+ * 0286: typed by the person doing the operation (none / fixed / percent, never on cash); the server checks it and writes ONE till row
  * للعمولة (is_fee = true) في نفس الفرع.
  */
 export function TransferFeeCards({ branchId, from, to }: { branchId?: string | null; from?: string; to?: string }) {
@@ -74,8 +74,8 @@ export function TransferFeeCards({ branchId, from, to }: { branchId?: string | n
       </div>
       <p className="mt-3 text-xs text-muted-foreground leading-6 flex gap-1.5">
         <Info className="w-3.5 h-3.5 mt-1 shrink-0" />
-        العمولة محدش بيكتبها بإيده: المدير بيحدد نسبتها أو مبلغها الثابت مرة واحدة من «الإعدادات ← طرق الدفع والعمولات»،
-        والسيستم بيحسبها لوحده في كل عملية بالوسيلة دي وبيخصمها من الخزنة كسطر منفصل «عمولة». الكروت دي بتجمعها لكل وسيلة.
+        العمولة بيكتبها اللي بيعمل العملية نفسه (مفيش / رقم ثابت / نسبة) وقت البيع أو السند أو التحويل — الكاش ملوش عمولة —
+        والسيستم بيخصمها من نفس الوسيلة كسطر منفصل «عمولة». الكروت دي بتجمعها لكل وسيلة.
       </p>
     </div>
   );

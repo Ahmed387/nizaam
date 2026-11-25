@@ -22,7 +22,7 @@ import { formatDate, formatDateTime, formatEGP } from "@/lib/format";
 import { fetchDocumentAsOf, methodLabel, type DocumentAsOf } from "@/lib/ledger";
 import { exportToExcel } from "@/lib/export";
 import { rpcErrorText } from "@/lib/rpcError";
-import { Search, FileSpreadsheet, ExternalLink, X } from "lucide-react";
+import { Search, FileSpreadsheet, ExternalLink, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 /**
@@ -108,7 +108,7 @@ const needsWholeLog = (s: FilterState) => !!s.sort || Object.entries(s.filters).
   !((k === "at" && f.kind === "date" && !f.days?.length) || (LINKED_ONE.has(k) && f.kind === "values" && f.values.length === 1)));
 
 export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
-  const { branches, isAdmin } = useAuth();
+  const { branches, isAdmin, isOwner } = useAuth();
   const nav = useNavigate();
   const [q, setQ] = useState(""); const [dq, setDq] = useState("");
   const [users, setUsers] = useState<{ id: string; name: string }[]>([]);
@@ -353,7 +353,10 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
       <PageHeader
         title="سجل المستندات"
         subtitle={`${shownTotal.toLocaleString("en-US")} عملية — كل خطوة على فواتير البيع والشراء والمرتجعات وسندات القبض والصرف، باللي عملها ووقتها الفعلي. اضغط على أي صف تشوف قبل وبعد.`}
-        actions={<Button variant="outline" onClick={exportAll}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>}
+        actions={<div className="flex gap-2">
+          <Button variant="outline" onClick={exportAll}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>
+          {isOwner && <PurgeDocumentLogButton />}
+        </div>}
       />
 
       <PermCard label="بحث وفلاتر سجل المستندات"><div className="card-elevated mb-4 space-y-3 p-3">
@@ -458,5 +461,44 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
         </DialogContent>
       </Dialog>
     </ConditionalLayout>
+  );
+}
+
+
+/** «مسح السجل كله» (0285, owner 2026-11-25 «افضي مساحة»): owner only, typed «مسح», the table is emptied and its space returns. */
+function PurgeDocumentLogButton() {
+  const [open, setOpen] = useState(false);
+  const [word, setWord] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <>
+      <Button variant="destructive" onClick={() => { setWord(""); setOpen(true); }}><Trash2 className="w-4 h-4 ml-1" /> مسح السجل كله</Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent dir="rtl">
+          <DialogHeader>
+            <DialogTitle>مسح سجل المستندات كله</DialogTitle>
+            <DialogDescription>
+              السجل ده بيقول مين عمل إيه وإمتى في كل فاتورة ومرتجع وسند (قبل ← بعد). بعد المسح التاريخ ده بيروح ومابيرجعش،
+              وتقرير «نشاط اليوم» للأيام اللي فاتت هيبقى فاضي. الفواتير والسندات والخزن والأرصدة نفسها مابتتأثرش.
+              صدّر Excel الأول لو عاوز نسخة. اكتب كلمة «مسح» للتأكيد.
+            </DialogDescription>
+          </DialogHeader>
+          <Input value={word} onChange={(e) => setWord(e.target.value)} placeholder="مسح" aria-label="كلمة التأكيد" />
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>إلغاء</Button>
+            <Button variant="destructive" disabled={busy || word.trim() !== "مسح"} onClick={async () => {
+              setBusy(true);
+              try {
+                const { data, error } = await (supabase.rpc as any)("purge_document_log", { p_confirm: word.trim() });
+                if (error) throw error;
+                toast.success(`اتمسح ${data?.rows ?? ""} سطر — المساحة اللي رجعت ${data?.freed ?? ""}`);
+                setOpen(false);
+                setTimeout(() => window.location.reload(), 800);
+              } catch (e: any) { toast.error(rpcErrorText(e)); } finally { setBusy(false); }
+            }}>{busy ? "بمسح…" : "مسح نهائي"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

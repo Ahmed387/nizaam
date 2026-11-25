@@ -23,7 +23,10 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
 import { VesselAccountBalances } from "@/components/treasury/VesselAccountBalances";
 import { VesselTransferButton, VesselTransfersTable } from "@/components/treasury/VesselTransfers";
-import { receiveSplit } from "@/lib/treasuryTransfer";
+import { MONEY_TRANSFER_STATE_LABEL, moneyTransferState, needsOwnerApproval, receiveSplit, receiverCanAct, senderCanChange } from "@/lib/treasuryTransfer";
+import { CancelMoneyTransferDialog, EditMoneyTransferDialog, useTransferLimits } from "@/components/treasury/MoneyTransferDialogs";
+import { VesselAccountSelect, useHasVesselAccounts } from "@/components/payments/VesselAccountSelect";
+import { choosable, loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
 import { REVERSAL_CATEGORIES } from "@/lib/treasuryReversals";
 import { DataTable } from "@/components/DataTable";
 import { MetricHint } from "@/components/ui/MetricHint";
@@ -113,8 +116,9 @@ export default function Treasury() {
   // a tab hidden for this person (permissions 0114) falls back to the first one he can see
   const initialTab = tabOn(`tab_${askedTab}`) ? askedTab : (TABS.find((t) => tabOn(`tab_${t}`)) ?? askedTab);
   const reversalView = initialTab === "reversals";
-  const { user, profile, branches, isAdmin, hasRole, canInBranch } = useAuth();
-  const canTransfer = isAdmin || hasRole("branch_manager");
+  const { user, profile, branches, isAdmin, hasRole, canInBranch, isOwner } = useAuth();
+  // 0285: «تحويل الفلوس بين الفروع» — يبعت / يستلم per person per branch (owner sets them)
+  const canTransfer = !!branchId && canInBranch("money_transfers.create", branchId);
   const canSeeBalances = isAdmin || hasRole("branch_manager") || hasRole("viewer");
 
   const [rows, setRows] = useState<any[]>([]);
@@ -140,7 +144,17 @@ export default function Treasury() {
   const [receiveAmount, setReceiveAmount] = useState("");
   const [receiveNote, setReceiveNote] = useState("");
   const [tPayment, setTPayment] = useState<PaymentMethodValue>(emptyPaymentValue("cash"));
-  const [tFeeCharged, setTFeeCharged] = useState(true);
+  const limits = useTransferLimits();
+  const isOwnerUser = !!isOwner;
+  const [editTransfer, setEditTransfer] = useState<any | null>(null);
+  const [cancelTransfer, setCancelTransfer] = useState<any | null>(null);
+  // 0285: the vessel / number the money really arrived on
+  const [receiveMethod, setReceiveMethod] = useState("cash");
+  const [receiveAccount, setReceiveAccount] = useState("");
+  const receiveHasAcc = useHasVesselAccounts(receiveMethod);
+  const [vesselOptions, setVesselOptions] = useState<PaymentMethodOption[]>([]);
+  useEffect(() => { loadAllPaymentMethods().then((m) => setVesselOptions(m.filter(choosable))).catch(() => {}); }, []);
+  const vesselName = (m: string) => vesselOptions.find((o) => o.value === m)?.label ?? PAYMENT_METHOD_LABELS[m as PaymentMethod] ?? m;
   const [viewTransfer, setViewTransfer] = useState<any | null>(null);
   const [viewMovement, setViewMovement] = useState<TreasuryMovement | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -345,10 +359,12 @@ export default function Treasury() {
       p_reason: tForm.reason || null,
       p_payment_method: tPayment.method,
       p_fee_amount: tPayment.fee_amount,
+      p_fee_mode: tPayment.method === "cash" ? "none" : (tPayment.fee_mode ?? "none"),
+      p_fee_value: Number(tPayment.fee_value) || 0,
       p_reference_number: tPayment.reference_number || null,
       p_transfer_to_account: tPayment.transfer_to_account || null,
       ...(tPayment.transfer_from_account ? { p_transfer_from_account: tPayment.transfer_from_account } : {}),
-      p_fee_actually_charged: tPayment.fee_amount > 0 ? tFeeCharged : true,
+      p_fee_actually_charged: true,
       p_date: isAdmin && tForm.date ? tForm.date : null,
     } as any);
     if (error) return toast.error(error.message);
@@ -368,31 +384,31 @@ export default function Treasury() {
     }
 
     const toBr = branches.find((b) => b.id === tForm.to);
-    const recipients = await getBranchManagers(tForm.to);
-    await notifyMany(recipients, {
-      title: "💰 طلب استلام تحويل خزنة",
-      body: `${formatEGP(amt)} عبر ${PAYMENT_METHOD_LABELS[tPayment.method]}${tPayment.reference_number ? ` — رقم: ${tPayment.reference_number}` : ""}`,
-      type: "general",
-      link: `/branch/${tForm.to}/treasury`,
-      relatedEntity: "treasury_transfer",
-    });
 
-    toast.success(`تم تحويل ${formatEGP(amt)} لـ ${toBr?.name ?? "الفرع"}`);
+    toast.success(needsOwnerApproval(amt, limits.money, isOwnerUser)
+      ? `اتبعت لصاحب الشركة يوافق — مفيش فلوس اتحركت لحد ما يوافق`
+      : `تم تحويل ${formatEGP(amt)} لـ ${toBr?.name ?? "الفرع"}`);
     setOpenTransfer(false);
     setTForm({ to: "", amount: "", reason: "", date: cairoTodayDay() });
     setTPayment(emptyPaymentValue("cash"));
-    setTFeeCharged(true);
     load();
   };
 
 
-  const acknowledge = (t: any) => { setReceiveRow(t); setReceiveAmount(String(Number(t.amount))); setReceiveNote(""); };
+  const acknowledge = (t: any) => {
+    setReceiveRow(t); setReceiveAmount(String(Number(t.amount))); setReceiveNote("");
+    setReceiveMethod(t.payment_method ?? "cash"); setReceiveAccount(t.transfer_to_account ?? "");
+  };
   const confirmReceive = async () => {
     if (!receiveRow) return;
     const split = receiveSplit(Number(receiveRow.amount), receiveAmount, receiveNote);
     if (split.error) return toast.error(split.error);
     const got = split.received;
-    const { error } = await supabase.rpc("receive_treasury_transfer" as any, { p_transfer_id: receiveRow.id, p_received: got, p_note: receiveNote.trim() || null } as any);
+    if (got > 0 && receiveHasAcc && !receiveAccount) return toast.error("اختار الرقم / الحساب اللي الفلوس وصلت عليه");
+    const { error } = await supabase.rpc("receive_treasury_transfer" as any, {
+      p_transfer_id: receiveRow.id, p_received: got, p_note: receiveNote.trim() || null,
+      p_method: receiveMethod, p_account: receiveAccount || null,
+    } as any);
     if (error) return toast.error(error.message);
     const back = Number(receiveRow.amount) - got;
     toast.success(back > 0 ? `اتستلم ${formatEGP(got)} — ورجع ${formatEGP(back)} للفرع المرسل` : "تم تأكيد الاستلام");
@@ -411,12 +427,12 @@ export default function Treasury() {
   };
 
   const otherBranches = branches.filter((b) => b.id !== branchId);
-  const canAck = isAdmin || hasRole("branch_manager");
+  const canAck = !!branchId && canInBranch("money_transfers.update", branchId);
   // «تحويلات بين الفروع» — unified filter (owner 2026-11-18): رقم العملية / السبب، الفترة، المبلغ، طريقة الدفع، الحالة،
   // الاتجاه (صادر / وارد)، اللي سجّل التحويل (transferred_by)
   const [tf, setTf] = useState<DocumentFilters>(EMPTY_DOCUMENT_FILTERS);
   const transferUsers = useUserOptions(transfers.map((r: any) => r.transferred_by));
-  const transferState = (r: any) => r.rejected_at ? "rejected" : r.acknowledged_at ? "confirmed" : "pending";
+  const transferState = (r: any) => moneyTransferState(r);
   const transfersShown = useMemo(() => transfers.filter((r: any) =>
     searchHas([r.reference_number, r.reason, r.from_branch?.name, r.to_branch?.name], tf.q) && dayIn(r.created_at, tf.from, tf.to)
     && amountIn(r.amount, tf.amountMin, tf.amountMax) && methodMatches(r.payment_method ?? "cash", tf.payment)
@@ -451,7 +467,7 @@ export default function Treasury() {
 
   // تحويلات واردة لسه محصلش عليها تأكيد استلام — الفلوس دي مش مضافة للرصيد
   const pendingIncoming = useMemo(
-    () => transfers.filter((t: any) => t.to_branch_id === branchId && !t.acknowledged_at && !t.rejected_at),
+    () => transfers.filter((t: any) => t.to_branch_id === branchId && receiverCanAct(t)),
     [transfers, branchId]
   );
   const pendingIncomingTotal = pendingIncoming.reduce((s: number, t: any) => s + (Number(t.amount) || 0), 0);
@@ -712,7 +728,7 @@ export default function Treasury() {
             value={tf} onChange={setTf} onReset={() => setTf(EMPTY_DOCUMENT_FILTERS)} hasAnyFilter={hasAny(tf)}
             searchLabel="بحث (رقم العملية، السبب، الفرع)" searchPlaceholder="رقم العملية أو السبب..."
             showAmount paymentOptions={MOVEMENT_PAYMENT_OPTIONS.filter((o) => o.value !== "credit")}
-            statusOptions={[{ value: "confirmed", label: "مؤكد" }, { value: "pending", label: "بانتظار التأكيد" }, { value: "rejected", label: "مرفوض" }]}
+            statusOptions={(["pending", "waiting", "confirmed", "rejected", "refused", "cancelled"] as const).map((v) => ({ value: v, label: MONEY_TRANSFER_STATE_LABEL[v] }))}
             recipientOptions={transferUsers} recipientLabel="اللي سجّل التحويل"
             customField={(d, set) => (
               <UnifiedDocumentFilters.Field label="الاتجاه">
@@ -740,24 +756,32 @@ export default function Treasury() {
               { key: "fee", header: "عمولة", render: (r: any) => Number(r.fee_amount) > 0 ? <span className="text-warning text-xs">{formatEGP(r.fee_amount)}</span> : "—" },
               { key: "ref", header: "رقم العملية", render: (r: any) => r.reference_number ?? "—" },
               { key: "reason", header: "السبب", render: (r: any) => r.reason ?? "—" },
-              { key: "ack", header: "الحالة", render: (r: any) => (
-                r.rejected_at
-                  ? <span className="text-xs px-2 py-1 rounded bg-destructive/15 text-destructive font-bold">✗ مرفوض</span>
-                  : r.acknowledged_at
-                  ? <span className="text-xs px-2 py-1 rounded bg-success/15 text-success font-bold">
-                      ✓ {Number(r.returned_amount) > 0 ? `اتستلم ${formatEGP(r.received_amount)} ورجع ${formatEGP(r.returned_amount)}` : "مؤكد"} {formatDateTime(r.acknowledged_at)}
-                    </span>
-                  : r.to_branch_id === branchId && canAck
-                    ? (
-                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button size="sm" variant="outline" onClick={() => acknowledge(r)}><CheckCircle2 className="w-3.5 h-3.5 ml-1" /> تأكيد</Button>
-                        <Button size="sm" variant="outline" className="text-destructive" onClick={() => setOpenReject(r)}><XCircle className="w-3.5 h-3.5 ml-1" /> رفض</Button>
-                      </div>
-                    )
-                    : <span className="text-xs px-2 py-1 rounded bg-warning/15 text-warning">بانتظار التأكيد</span>
-              )},
+              { key: "ack", header: "الحالة", render: (r: any) => {
+                const st = moneyTransferState(r);
+                if (st === "confirmed") return (
+                  <span className="text-xs px-2 py-1 rounded bg-success/15 text-success font-bold">
+                    ✓ {Number(r.returned_amount) > 0 ? `اتستلم ${formatEGP(r.received_amount)} ورجع ${formatEGP(r.returned_amount)}` : "مؤكد"}
+                    {r.received_method && r.received_method !== r.payment_method ? ` على ${vesselName(r.received_method)}` : ""} {formatDateTime(r.acknowledged_at)}
+                  </span>);
+                if (st === "rejected") return <span className="text-xs px-2 py-1 rounded bg-destructive/15 text-destructive font-bold">✗ مرفوض</span>;
+                if (st === "cancelled") return <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground font-bold" title={r.cancel_reason ?? ""}>🚫 اتلغى{r.cancel_reason ? ` — ${r.cancel_reason}` : ""}</span>;
+                if (st === "refused") return <span className="text-xs px-2 py-1 rounded bg-destructive/15 text-destructive font-bold">✗ المالك رفضه</span>;
+                if (st === "waiting") return <span className="text-xs px-2 py-1 rounded bg-warning/15 text-warning font-bold">⏳ مستني موافقة المالك</span>;
+                return r.to_branch_id === branchId && canAck ? (
+                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                    <Button size="sm" variant="outline" onClick={() => acknowledge(r)}><CheckCircle2 className="w-3.5 h-3.5 ml-1" /> تأكيد</Button>
+                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => setOpenReject(r)}><XCircle className="w-3.5 h-3.5 ml-1" /> رفض</Button>
+                  </div>
+                ) : <span className="text-xs px-2 py-1 rounded bg-warning/15 text-warning">بانتظار الاستلام</span>;
+              }},
               { key: "actions", header: "الإجراءات", render: (r: any) => (
-                <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+                <div className="flex flex-wrap justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  {r.from_branch_id === branchId && canTransfer && senderCanChange(r) && (
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => setEditTransfer(r)}>تعديل</Button>
+                      <Button size="sm" variant="outline" className="text-destructive" onClick={() => setCancelTransfer(r)}>إلغاء</Button>
+                    </>
+                  )}
                   <AttachmentsDialogButton recordType="treasury_transfer" recordId={r.id} count={transferAttCounts[r.id] ?? 0} />
                 </div>
               )},
@@ -778,7 +802,7 @@ export default function Treasury() {
               {canSeeBalances && <> — المتاح: <b className="tabular-nums">{formatEGP(walletBalances[`${tPayment.method}_balance` as keyof WalletBalances])}</b></>})
               {" "}لفرع <b>{branches.find((b) => b.id === tForm.to)?.name ?? "— اختر الفرع —"}</b>.
               <div className="text-xs text-muted-foreground mt-1">
-                الفلوس بتتخصم من خزنتك على طول، ومش بتدخل خزنة الفرع التاني غير لما يأكّد الاستلام.
+                الفلوس بتتخصم من خزنتك على طول، ومش بتدخل خزنة الفرع التاني غير لما يأكّد الاستلام. طول ما ما اتستلمش تقدر تعدّله أو تلغيه.
               </div>
             </div>
             {canSeeBalances && (
@@ -798,22 +822,9 @@ export default function Treasury() {
             {isAdmin && <div><Label>تاريخ التحويل</Label><Input type="date" value={tForm.date} max={cairoTodayDay()} onChange={(e) => setTForm({ ...tForm, date: e.target.value })} className="mt-1.5" /></div>}
             <div><Label>السبب</Label><Textarea value={tForm.reason} onChange={(e) => setTForm({...tForm, reason: e.target.value})} className="mt-1.5" rows={2} /></div>
             <PaymentMethodPicker amount={Number(tForm.amount) || 0} value={tPayment} onChange={setTPayment} label="طريقة التنفيذ" direction="both" />
-            {tPayment.fee_amount > 0 && (
-              <div className="rounded-lg border border-border p-3 bg-muted/30 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm">
-                    <div className="font-medium">هل اتخصمت العمولة فعلاً؟ ({formatEGP(tPayment.fee_amount)})</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {tFeeCharged
-                        ? "العمولة هتفضل كمصروف لو الفرع التاني رفض"
-                        : "العمولة هترجع للخزنة لو الفرع التاني رفض"}
-                    </div>
-                  </div>
-                  <label className="inline-flex items-center gap-2 cursor-pointer shrink-0">
-                    <input type="checkbox" checked={tFeeCharged} onChange={(e) => setTFeeCharged(e.target.checked)} className="w-4 h-4" />
-                    <span className="text-xs">اتخصمت</span>
-                  </label>
-                </div>
+            {needsOwnerApproval(Number(tForm.amount) || 0, limits.money, isOwnerUser) && (
+              <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm" data-testid="needs-approval">
+                المبلغ فوق {formatEGP(limits.money)} — التحويل هيروح لصاحب الشركة يوافق عليه الأول، ومفيش فلوس هتتحرك لحد ما يوافق.
               </div>
             )}
           </div>
@@ -831,6 +842,21 @@ export default function Treasury() {
           <div className="space-y-3 text-sm">
             <p className="text-muted-foreground leading-6">اكتب اللي وصلك فعلاً. لو أقل، الفرق بيرجع لخزنة الفرع المرسل في نفس يوم التحويل.</p>
             <div><Label>المبلغ اللي وصل</Label><Input type="number" min={0} step="0.01" value={receiveAmount} onChange={(e) => setReceiveAmount(e.target.value)} className="mt-1.5" /></div>
+            {Number(receiveAmount) > 0 && (
+              <div className="grid gap-2">
+                <div>
+                  <Label>وصلت على أنهي وعاء؟</Label>
+                  <Select value={receiveMethod} onValueChange={(v) => { setReceiveMethod(v); setReceiveAccount(v === receiveRow?.payment_method ? (receiveRow?.transfer_to_account ?? "") : ""); }}>
+                    <SelectTrigger className="mt-1.5" aria-label="وصلت على أنهي وعاء"><SelectValue /></SelectTrigger>
+                    <SelectContent>{vesselOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                  {receiveRow && receiveMethod !== (receiveRow.payment_method ?? "cash") && (
+                    <p className="text-xs text-muted-foreground mt-1">اتبعتت {vesselName(receiveRow.payment_method ?? "cash")} — هتدخل خزنتك على {vesselName(receiveMethod)}.</p>
+                  )}
+                </div>
+                {receiveHasAcc && <div><Label>الرقم / الحساب اللي وصلت عليه *</Label><VesselAccountSelect method={receiveMethod} value={receiveAccount} onChange={setReceiveAccount} className="mt-1.5" /></div>}
+              </div>
+            )}
             {receiveRow && Number(receiveAmount) < Number(receiveRow.amount) && (
               <>
                 <div className="rounded-md border border-warning/30 bg-warning/10 p-2">هيرجع <b>{formatEGP(Number(receiveRow.amount) - (Number(receiveAmount) || 0))}</b> للفرع المرسل.</div>
@@ -844,6 +870,10 @@ export default function Treasury() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EditMoneyTransferDialog row={editTransfer} vesselLabel={editTransfer ? vesselName(editTransfer.payment_method ?? "cash") : ""}
+        onClose={() => setEditTransfer(null)} onDone={load} />
+      <CancelMoneyTransferDialog row={cancelTransfer} onClose={() => setCancelTransfer(null)} onDone={load} />
 
       <Dialog open={!!openReject} onOpenChange={(v) => !v && setOpenReject(null)}>
         <DialogContent>
@@ -889,13 +919,12 @@ export default function Treasury() {
                 )}
                 <div className="col-span-2">
                   <span className="text-muted-foreground">الحالة:</span>{" "}
-                  {viewTransfer.rejected_at ? (
-                    <span className="text-destructive font-bold">مرفوض</span>
-                  ) : viewTransfer.acknowledged_at ? (
-                    <span className="text-success font-bold">مؤكد — {formatDateTime(viewTransfer.acknowledged_at)}</span>
-                  ) : (
-                    <span className="text-warning font-bold">بانتظار التأكيد</span>
-                  )}
+                  <b>{MONEY_TRANSFER_STATE_LABEL[moneyTransferState(viewTransfer)]}</b>
+                  {viewTransfer.acknowledged_at && <> — {formatDateTime(viewTransfer.acknowledged_at)}{viewTransfer.received_by ? ` (${viewTransfer.received_by})` : ""}</>}
+                  {viewTransfer.cancel_reason && <> — {viewTransfer.cancel_reason}</>}
+                </div>
+                {viewTransfer.edit_note && <div className="col-span-2 text-xs text-muted-foreground">التعديلات: {viewTransfer.edit_note}</div>}
+                <div className="hidden">
                 </div>
               </div>
               <RecordAttachments recordType="treasury_transfer" recordId={viewTransfer.id} />

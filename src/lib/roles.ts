@@ -32,7 +32,14 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 /** Roles whose users only access their own profile (worker/driver). */
 export const SELF_ONLY_ROLES: AppRole[] = ["worker", "driver"];
 
-type PermGroup = { key: string; label: string; actions: ("view" | "create" | "update" | "delete")[] };
+type PermGroup = {
+  key: string; label: string; actions: ("view" | "create" | "update" | "delete")[];
+  /** words for the action chips when «يشوف / يضيف / يعدل» don't fit (0285 transfers) */
+  labels?: Partial<Record<"view" | "create" | "update" | "delete", string>>;
+};
+
+/** 0285: the three switches of a transfer between branches. */
+export const TRANSFER_LABELS = { view: "يتبلغ ويشوف", create: "يبعت (ويعدّل / يلغي قبل الاستلام)", update: "يستلم / يرفض" } as const;
 
 /** Branch/operations permission catalog. */
 export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
@@ -46,7 +53,9 @@ export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   // 0267 (owner 2026-11-18): «يضيف» = يفتح جرد ويعدّ ويسلّمه، «يعدل» = يراجع الفروق ويكتب أسبابها / يرجّعه / يلغيه قبل الاعتماد.
   // الاعتماد وإلغاء الجرد المعتمد لصاحب الشركة بس.
   { key: "stock_count", label: "جرد المخزن", actions: ["create", "update"] },
-  { key: "transfers", label: "نقل المخزون بين الفروع", actions: ["view", "create"] },
+  // 0285 (owner 2026-11-25): who sends / who receives, goods and money, per person per branch — set by the owner
+  { key: "transfers", label: "تحويل البضاعة بين الفروع", actions: ["view", "create", "update"], labels: TRANSFER_LABELS },
+  { key: "money_transfers", label: "تحويل الفلوس بين الفروع", actions: ["view", "create", "update"], labels: TRANSFER_LABELS },
   // 0262 (owner 2026-11-18 «خليهم اوبشن واحد»): ONE switch for customers AND suppliers — `suppliers.*` reads `customers.*`
   { key: "customers", label: "العملاء والموردين", actions: ["view", "create", "update", "delete"] },
   { key: "treasury", label: "الخزنة", actions: ["view"] },
@@ -173,7 +182,8 @@ export const PERM_HELP: Record<string, string> = {
   shipments: "فواتير الشراء من الموردين ودخول البضاعة للمخزن وتكاليف فاتورة الشراء.",
   inventory: "أصناف المخزن وكمياتها وأسعارها. «تعديل» بيسمح بتغيير بيانات الصنف وسعره.",
   stock_count: "جرد الفرع: «يضيف» = يفتح جرد ويدخّل الكميات اللي على الرف ويسلّمه. «يعدل» = يراجع الفروق ويكتب أسبابها ويبعته لصاحب الشركة، أو يرجّعه للعد، أو يلغيه قبل الاعتماد. الاعتماد لصاحب الشركة بس.",
-  transfers: "تحويل بضاعة من فرع لفرع تاني (الفرع المستلم لازم يأكد الاستلام).",
+  transfers: "تحويل بضاعة من فرع لفرع تاني. «يتبلغ ويشوف» = بيوصله إشعار بكل تحويل من فرعه أو ليه (مين بعت ومين استلم وإيه بالظبط). «يبعت» = يعمل التحويل ويعدّل الكمية أو يلغيه طول ما لسه ما اتستلمش. «يستلم / يرفض» = يأكد اللي وصل فعلاً أو يرفضه. التحويل اللي قيمته فوق الحد اللي حدده صاحب الشركة بيستنى موافقته.",
+  money_transfers: "تحويل فلوس من خزنة فرع لفرع تاني. «يتبلغ ويشوف» = بيوصله إشعار بكل تحويل. «يبعت» = يحوّل ويعدّل المبلغ والعمولة أو يلغي طول ما لسه ما اتستلمش. «يستلم / يرفض» = يأكد المبلغ اللي وصل وعلى أنهي وعاء، أو يرفضه. التحويل اللي فوق الحد اللي حدده صاحب الشركة بيستنى موافقته.",
   customers: "ملف العملاء وأرصدتهم وكشوف حسابهم.",
   suppliers: "ملف الموردين والمستحق عليهم أو ليهم.",
   treasury: "خزنة الفرع: الوارد والصادر والرصيد الحالي — بيشوف فلوس الفرع.",
@@ -301,6 +311,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
     "attendance.view": true, "attendance.create": true, "attendance.update": true,
     "reports.view": true, "salaries.create": true,
     "returns.update": true,
+    "money_transfers.view": true, "transfers.view": true,
   },
   cashier: {
     "dashboard.view": true, "sales.view": true, "sales.create": true,
@@ -313,7 +324,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Record<string, boolean>> =
   warehouse: {
     "dashboard.view": true, "inventory.view": true, "inventory.create": true, "inventory.update": true,
     "stock_count.create": true,
-    "transfers.view": true, "transfers.create": true,
+    "transfers.view": true, "transfers.create": true, "transfers.update": true,
     "shipments.view": true, "shipments.create": true, "shipments.update": true,
     "customers.view": true, "customers.create": true, "customers.update": true,
     "employees.view": true, "employees.create": true, "employees.update": true,
