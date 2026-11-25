@@ -49,7 +49,7 @@ export function VesselTransferButton({ branchId, onDone }: { branchId: string; o
   const toHasAcc = useHasVesselAccounts(to);
   const sameSide = from === to && (!fromHasAcc || !fromAcc || accountKey(fromAcc) === accountKey(toAcc));
 
-  useEffect(() => { if (open) loadAllPaymentMethods(true).then((m) => setMethods(m.filter((x) => x.is_enabled))); }, [open]);
+  useEffect(() => { if (open) loadAllPaymentMethods(true).then((m) => setMethods(m.filter((x) => x.is_enabled && (x.access ?? "use") === "use"))); }, [open]);
   const label = (k: string) => methods.find((m) => m.value === k)?.label ?? k;
   const fee = vesselTransferFee(Number(amount) || 0, feeMode, Number(feeValue) || 0);
 

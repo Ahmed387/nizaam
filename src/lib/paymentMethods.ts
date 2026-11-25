@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { loadMyVesselRules, methodLevel, type VesselLevel, type VesselRule } from "@/lib/vesselAccess";
 import { vesselAccountError } from "@/lib/vesselAccounts";
 
 // Built-in payment method keys (stable, used for icons + legacy data)
@@ -34,6 +35,8 @@ export interface PaymentMethodOption {
   fee_type?: "percentage" | "fixed";
   fee_value?: number;
   kind?: "wallet" | "virtual";
+  /** 0281: what the signed-in user may do with this vessel — «use» (default), «view» (sees it, cannot pay with it), «hidden». */
+  access?: VesselLevel;
 }
 
 let _feesCache: TransferFee[] | null = null;
@@ -49,13 +52,16 @@ export async function loadTransferFees(force = false): Promise<TransferFee[]> {
 }
 
 /** A vessel offered when choosing how money is paid / received (0242): enabled AND «تظهر في اختيارات الدفع». */
-export const choosable = (o: PaymentMethodOption) => o.value === "cash" || (o.is_enabled !== false && o.in_payments !== false);
+export const choosable = (o: PaymentMethodOption) =>
+  (o.access ?? "use") === "use" && (o.value === "cash" || (o.is_enabled !== false && o.in_payments !== false));
+/** 0281: shown in lists / balances / filters for the signed-in user (only «مخفي خالص» is left out). */
+export const visibleVessel = (o: PaymentMethodOption) => (o.access ?? "use") !== "hidden";
 /** Same for a fee row of a built-in (screens that list PAYMENT_METHOD_OPTIONS). */
 export const feeChoosable = (f: TransferFee | undefined) => (f ? f.is_enabled !== false && f.show_in_payments !== false : true);
 
 /** Full list of payment methods (cash + built-ins + custom rows in transfer_fees). */
 export async function loadAllPaymentMethods(force = false): Promise<PaymentMethodOption[]> {
-  const fees = await loadTransferFees(force);
+  const [fees, rules] = await Promise.all([loadTransferFees(force), loadMyVesselRules(force).catch(() => [] as VesselRule[])]);
   const list: PaymentMethodOption[] = [
     { value: "cash", label: BUILTIN_LABELS.cash, is_builtin: true, is_enabled: true },
   ];
@@ -86,6 +92,7 @@ export async function loadAllPaymentMethods(force = false): Promise<PaymentMetho
       kind: f.kind === "virtual" ? "virtual" : "wallet",
     });
   }
+  for (const o of list) o.access = methodLevel(rules, o.value);
   return list;
 }
 

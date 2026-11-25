@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { accountKey, accountText, activeAccountsOf, allowedNow, loadAccountUsage, loadVesselAccounts, vesselAccountsCache, type AccountUsage, type VesselAccount } from "@/lib/vesselAccounts";
 import { formatEGP } from "@/lib/format";
+import { accountLevel, loadMyVesselRules, myVesselRulesCache } from "@/lib/vesselAccess";
 
 /**
  * The company-side account of a transfer (0244). When the vessel has accounts → a required list «أحمد — 010…»
@@ -20,9 +21,11 @@ export function VesselAccountSelect({ method, value, onChange, placeholder, clas
 }) {
   const [list, setList] = useState<VesselAccount[] | null>(vesselAccountsCache());
   const [usage, setUsage] = useState<AccountUsage[]>([]);
-  useEffect(() => { loadVesselAccounts().then(setList); }, []);
+  const [rules, setRules] = useState(myVesselRulesCache());
+  useEffect(() => { loadVesselAccounts().then(setList); loadMyVesselRules().then(setRules).catch(() => {}); }, []);
   useEffect(() => { if (sending) loadAccountUsage().then(setUsage); }, [sending, method]);
-  const accounts = activeAccountsOf(method, list);
+  // 0281: only the numbers this person may receive / pay with
+  const accounts = activeAccountsOf(method, list).filter((a) => accountLevel(rules, method, a.id) === "use");
 
   if (!accounts.length) {
     return (
@@ -49,6 +52,7 @@ export function VesselAccountSelect({ method, value, onChange, placeholder, clas
 /** True when the vessel has accounts (the field is a required list). */
 export function useHasVesselAccounts(method: string): boolean {
   const [list, setList] = useState<VesselAccount[] | null>(vesselAccountsCache());
-  useEffect(() => { loadVesselAccounts().then(setList); }, []);
-  return activeAccountsOf(method, list).length > 0;
+  const [rules, setRules] = useState(myVesselRulesCache());
+  useEffect(() => { loadVesselAccounts().then(setList); loadMyVesselRules().then(setRules).catch(() => {}); }, []);
+  return activeAccountsOf(method, list).filter((a) => accountLevel(rules, method, a.id) === "use").length > 0;
 }

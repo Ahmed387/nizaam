@@ -1,4 +1,5 @@
 import { cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
+import { loadMyVesselRules, methodLevel, myVesselRulesCache } from "@/lib/vesselAccess";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { useDocUsers, docUserOptions, useUserOptions } from "@/lib/docUsers";
 import { amountIn, dayIn, hasAny, searchHas } from "@/lib/listFilter";
@@ -425,7 +426,11 @@ export default function Treasury() {
   // «إيصال التحويل» of each till movement lives on its voucher
   const movementAttCounts = useAttachmentCounts("voucher", useMemo(() => rows.map((r: any) => r.voucher_id).filter(Boolean), [rows]));
 
-  const wallets = [
+  // 0281: a vessel «مخفي خالص» for this person is not shown at all
+  const [vesselRules, setVesselRules] = useState(myVesselRulesCache());
+  useEffect(() => { loadMyVesselRules().then(setVesselRules).catch(() => {}); }, []);
+  const shownVessel = (m: string) => m === "other" || methodLevel(vesselRules, m) !== "hidden";
+  const wallets = ([
     { key: "cash_balance" as const, label: "كاش في الدرج", icon: Wallet, color: "text-success", method: "cash" as const },
     { key: "vodafone_balance" as const, label: "فودافون كاش", icon: Smartphone, color: "text-rose-500", method: "vodafone" as const },
     { key: "instapay_balance" as const, label: "انستاباي", icon: CreditCard, color: "text-violet-500", method: "instapay" as const },
@@ -434,7 +439,7 @@ export default function Treasury() {
     ...(Number(walletBalances.other_balance ?? 0) !== 0
       ? [{ key: "other_balance" as const, label: "وسائل أخرى", icon: Wallet, color: "text-amber-500", method: "other" as const }]
       : []),
-  ];
+  ]).filter((w) => shownVessel(w.method));
   const channels = useMemo<TreasuryChannel[]>(() => [
     { method: "cash", label: "حركة الكاش (الدرج)", icon: Wallet, color: "text-success" },
     { method: "vodafone", label: "حركة فودافون كاش", icon: Smartphone, color: "text-destructive" },
@@ -442,7 +447,7 @@ export default function Treasury() {
     { method: "bank", label: "حركة الحساب البنكي", icon: Landmark, color: "text-primary" },
     ...(periodRows.some((r) => !["cash", "vodafone", "instapay", "bank"].includes(String(r.payment_method)))
       ? [{ method: "other", label: "وسائل أخرى", icon: Wallet, color: "text-warning" }] : []),
-  ], [periodRows]);
+  ].filter((c) => shownVessel(c.method)), [periodRows, vesselRules]);
 
   // تحويلات واردة لسه محصلش عليها تأكيد استلام — الفلوس دي مش مضافة للرصيد
   const pendingIncoming = useMemo(

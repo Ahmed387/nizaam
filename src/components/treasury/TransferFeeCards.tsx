@@ -19,7 +19,7 @@ export function TransferFeeCards({ branchId, from, to }: { branchId?: string | n
   const [methods, setMethods] = useState<PaymentMethodOption[]>([]);
   const [rows, setRows] = useState<FeeRow[] | null>(null);
 
-  useEffect(() => { loadAllPaymentMethods().then((m) => setMethods(m.filter((x) => x.value !== "cash"))); }, []);
+  useEffect(() => { loadAllPaymentMethods().then((m) => setMethods(m.filter((x) => x.value !== "cash" && (x.access ?? "use") !== "hidden"))); }, []);
 
   useEffect(() => {
     let off = false;
