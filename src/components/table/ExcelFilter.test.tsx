@@ -219,4 +219,20 @@ describe("Excel filter on hand-made tables (PermTable / ui Table)", () => {
     expect(screen.queryByRole("button", { name: /فلتر وترتيب عمود/ })).toBeNull();
     expect(container.querySelector("tfoot[data-xf-totals]")).toBeNull();
   });
+
+  it("the «المجموع» label skips a column with no title (an arrow / expand column) — it was written letter by letter there", async () => {
+    const { container } = render(
+      <PermTable>
+        <thead><tr><th></th><th>اسم المنتج</th><th>الربح</th></tr></thead>
+        <tbody>
+          <tr><td>›</td><td>تكييف</td><td>{formatEGP(8700)}</td></tr>
+          <tr><td>›</td><td>قطعة</td><td>{formatEGP(-60)}</td></tr>
+        </tbody>
+      </PermTable>,
+    );
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    const cells = Array.from(container.querySelectorAll("tfoot[data-xf-totals] td")).map((td) => td.textContent?.trim());
+    expect(cells[0]).toBe("");
+    expect(cells[1]).toContain("المجموع");
+  });
 });

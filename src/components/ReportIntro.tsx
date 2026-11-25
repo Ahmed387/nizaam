@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 
 interface Props {
   icon: string;
@@ -20,7 +21,9 @@ const ACCENTS: Record<string, { border: string; bg: string; chip: string; dot: s
 
 export function ReportIntro({ icon, title, purpose, shows, unique, accent = "primary", extra }: Props) {
   const a = ACCENTS[accent];
+  // its own «ظاهر / مخفي» switch on every report page (owner 2026-11-25)
   return (
+    <PermCard label={`شرح التقرير — ${title}`}>
     <div dir="rtl" className={`relative overflow-hidden rounded-xl border ${a.border} bg-gradient-to-bl ${a.bg} backdrop-blur-sm mb-5 shadow-sm text-right`}>
       {/* Header */}
       <div className="flex flex-row items-center gap-3 px-5 pt-4 pb-3 border-b border-border/40 text-right">
@@ -61,5 +64,6 @@ export function ReportIntro({ icon, title, purpose, shows, unique, accent = "pri
 
       {extra && <div className="px-5 pb-4 text-right">{extra}</div>}
     </div>
+    </PermCard>
   );
 }

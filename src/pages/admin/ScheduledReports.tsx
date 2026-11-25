@@ -1,4 +1,5 @@
 import { edgeErrorMessage } from "@/lib/edgeError";
+import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { useEffect, useState } from "react";
 import { ConditionalLayout } from "@/components/layout/ConditionalLayout";
@@ -173,7 +174,7 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
 
 
       {isOwner && (
-        <div className="card-elevated p-4 mb-4">
+        <PermCard label="إعداد التقرير الأسبوعي"><div className="card-elevated p-4 mb-4">
           <div className="flex items-center gap-2 mb-3 font-semibold">
             <Clock className="w-4 h-4 text-primary" />
             موعد التقرير الأسبوعي التلقائي
@@ -213,7 +214,7 @@ export default function ScheduledReports({ embedded }: { embedded?: boolean } = 
               التوقيت: UTC (يتم التنفيذ أسبوعياً في اليوم والساعة المختارين)
             </div>
           </div>
-        </div>
+        </div></PermCard>
       )}
 
       <div className="flex justify-end mb-4">

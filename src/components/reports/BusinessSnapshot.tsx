@@ -112,7 +112,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
         <Kpi icon={<Boxes />} label="فروقات الجرد" value={t?.count_diff} hint="زيادة الجرد − العجز (سطر لوحده تحت الربح)" />
       </div>
 
-      <div className="card-elevated overflow-x-auto">
+      <PermCard label="جدول هل بنكسب لكل فرع"><div className="card-elevated overflow-x-auto">
         <PermTable className="w-full text-sm">
           <thead className="bg-surface-2">
             <tr className="text-xs">
@@ -142,7 +142,7 @@ export function BusinessSnapshot({ compact = false, defaultFrom }: { compact?: b
             ))}
           </tbody>
         </PermTable>
-      </div>
+      </div></PermCard>
       {!compact && (
         <p className="text-xs text-muted-foreground">
           الربح هنا من الدفاتر: نفس رقم قائمة الدخل وتوزيع الأرباح بالظبط. تكلفة المباع = متوسط تكلفة الصنف في الفرع وقت بيعه، والمرتجع بيرجّع تكلفته في شهره.

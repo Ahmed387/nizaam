@@ -470,7 +470,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
       />
 
       {/* ===== Scope selector — clear top-level switch ===== */}
-      <div className="card-elevated p-4 mb-4">
+      <PermCard label="نطاق التقرير"><div className="card-elevated p-4 mb-4">
         <div className="flex items-center gap-2 mb-3">
           <Layers className="w-4 h-4 text-primary" />
           <h3 className="font-bold">نطاق التقرير</h3>
@@ -503,10 +503,10 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             </button>
           ))}
         </div>
-      </div>
+      </div></PermCard>
 
       {/* ===== Date range ===== */}
-      <div className="card-elevated p-4 mb-6 flex flex-wrap gap-3 items-end">
+      <PermCard label="فترة التقرير"><div className="card-elevated p-4 mb-6 flex flex-wrap gap-3 items-end">
         <div><Label>من</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="mt-1.5" /></div>
         <div><Label>إلى</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="mt-1.5" /></div>
         <Button onClick={load} disabled={loading}>تحديث البيانات</Button>
@@ -517,7 +517,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           <Button size="sm" variant="ghost" onClick={() => { setFrom(daysAgo(90)); setTo(today()); }}>3 شهور</Button>
           <Button size="sm" variant="ghost" onClick={() => { setFrom(daysAgo(365)); setTo(today()); }}>سنة</Button>
         </div>
-      </div>
+      </div></PermCard>
 
       <ReportIntro
         icon="🏢"
@@ -597,7 +597,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             <MiniKpi label="المرتجعات" value={formatEGP(k.returnsTotal)} icon={<RotateCcw className="w-4 h-4" />} accent="warning" hint={`${scopedReturns.length} مرتجع`} />
           </div>
 
-          <div className="card-elevated p-4">
+          <PermCard label="المبيعات حسب طريقة الدفع"><div className="card-elevated p-4">
             <h4 className="font-bold mb-3">المبيعات حسب طريقة الدفع</h4>
             <DataTable rows={salesByMethod} loading={loading} empty="لا توجد فواتير"
               columns={[
@@ -606,9 +606,9 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                 { key: "total", header: "الإجمالي", render: (r: any) => <b className="text-success">{formatEGP(r.total)}</b> },
                 { key: "pct", header: "النسبة", render: (r: any) => `${k.sales > 0 ? ((r.total / k.sales) * 100).toFixed(1) : "0"}%` },
               ]} />
-          </div>
+          </div></PermCard>
 
-          <div className="card-elevated p-4">
+          <PermCard label="المبيعات حسب الكاشير / البائع"><div className="card-elevated p-4">
             <h4 className="font-bold mb-1">المبيعات حسب الكاشير / البائع</h4>
             <p className="text-[11px] text-muted-foreground mb-3">أداء تشغيلي لكل بائع — لتفاصيل الربحية والهامش لكل كاشير، فلتر "الكاشير" متاح في <Link to="/admin/reports-hub?tab=profitability" className="text-primary hover:underline">📊 الربحية</Link></p>
             <DataTable rows={salesByCashier} loading={loading} empty="لا توجد فواتير"
@@ -628,7 +628,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                   );
                 } },
               ]} />
-          </div>
+          </div></PermCard>
 
         </TabsContent>
 
@@ -690,7 +690,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
           <TabsContent value="branches" className="mt-4 space-y-6">
 
             {/* ===== Working-day averages (company wide) ===== */}
-            <div className="card-elevated p-0 overflow-hidden">
+            <PermCard label="المتوسطات على أيام العمل الفعلية"><div className="card-elevated p-0 overflow-hidden">
               <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center">
                 <h4 className="font-extrabold text-base md:text-lg">المتوسطات على أيام العمل الفعلية</h4>
                 <p className="text-[11px] text-muted-foreground mt-1">
@@ -713,8 +713,8 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                     { key: "ipd", header: "فواتير / يوم عمل", render: (r: any) => (r.workingDays ? r.invoices / r.workingDays : 0).toFixed(1) },
                   ]} />
               </div>
-            </div>
-            <div className="card-elevated p-5">
+            </div></PermCard>
+            <PermCard label="مقارنة الفروع — المبيعات والمصروفات التشغيلية"><div className="card-elevated p-5">
               <h4 className="font-bold mb-4">مقارنة الفروع — المبيعات والمصروفات التشغيلية</h4>
               {perBranch.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground text-sm">لا توجد فروع</div>
@@ -731,11 +731,11 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                   </BarChart>
                 </ResponsiveContainer>
               )}
-            </div>
+            </div></PermCard>
 
 
             {/* ===== Per-branch receipts × expenses (operational — net profit moved to 📊 الربحية / 👑 نظرة المالك) ===== */}
-            <div className="card-elevated p-0 overflow-hidden">
+            <PermCard label="المتحصلات لكل فرع حسب طريقة الدفع والمصروفات التشغيلية"><div className="card-elevated p-0 overflow-hidden">
               <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center relative">
                 <h4 className="font-extrabold text-base md:text-lg">المتحصلات لكل فرع حسب طريقة الدفع والمصروفات التشغيلية</h4>
                 <p className="mt-1 text-xs md:text-sm text-muted-foreground">قارن المتحصلات النقدية والإلكترونية لكل فرع مع المصروفات التشغيلية في نفس الفترة.</p>
@@ -786,7 +786,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                   </tfoot>
                 </PermTable>
               </div>
-            </div>
+            </div></PermCard>
 
             <div className="grid lg:grid-cols-2 gap-4">
               {perBranch.map((b) => (
@@ -843,7 +843,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
             <MiniKpi label="إجمالي العمولات" value={formatEGP(commissionAnalysis.totalFees)} icon={<Receipt className="w-4 h-4" />} accent="warning" />
             <MiniKpi label="نسبة العمولة من الحجم" value={`${commissionAnalysis.totalVolume > 0 ? ((commissionAnalysis.totalFees / commissionAnalysis.totalVolume) * 100).toFixed(2) : "0"}%`} icon={<TrendingDown className="w-4 h-4" />} />
           </div>
-          <div className="card-elevated p-5">
+          <PermCard label="المعاملات حسب طريقة الدفع"><div className="card-elevated p-5">
             <h4 className="font-bold mb-4">المعاملات حسب طريقة الدفع</h4>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={commissionAnalysis.byMethod.map((m) => ({ name: m.label, "حجم المعاملات": m.volume, "عمولة": m.fees }))}>
@@ -856,7 +856,7 @@ export default function AdminReports({ embedded }: { embedded?: boolean } = {}) 
                 <Bar dataKey="عمولة" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </div></PermCard>
           <DataTable rows={commissionAnalysis.byMethod} loading={loading} empty="لا توجد معاملات"
             columns={[
               { key: "label", header: "طريقة الدفع", render: (r: any) => <b>{r.label}</b> },
@@ -881,13 +881,13 @@ function Section({ icon, title, color, children }: { icon: React.ReactNode; titl
     warning: "bg-warning/10 text-warning",
   };
   return (
-    <div className="card-elevated p-5 mb-4">
+    <PermCard label={title}><div className="card-elevated p-5 mb-4">
       <div className="flex items-center gap-2 mb-4">
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${colors[color]}`}>{icon}</div>
         <h2 className="font-bold text-lg">{title}</h2>
       </div>
       {children}
-    </div>
+    </div></PermCard>
   );
 }
 

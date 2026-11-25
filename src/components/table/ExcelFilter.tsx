@@ -397,7 +397,9 @@ export function ExcelLayer({ table, storageId, server, disabled, minRows = 2, on
         <tr className="bg-surface-2 border-t-2 border-border font-extrabold">
           {Array.from({ length: snap.headCount }, (_, i) => {
             const c = snap.cols.find((x) => x.index === i);
-            const firstNonSum = snap.cols.find((x) => !x.sum && x.label !== "#" && x.label !== "✓");
+            // a column with no title (expand arrow, ✓) is too narrow for the word: the first titled one takes it
+            const firstNonSum = snap.cols.find((x) => !x.sum && x.label !== "#" && x.label !== "✓" && !/^col\d+$/.test(x.label))
+              ?? snap.cols.find((x) => !x.sum && x.label !== "#" && x.label !== "✓");
             if (c && c.sum && snap.totals[c.id] !== undefined) return <td key={i} className="px-2 md:px-3 py-2.5 text-center tabular-nums whitespace-nowrap">{fmtTotal(snap.totals[c.id], c.money)}</td>;
             if (c && firstNonSum && c.id === firstNonSum.id) return <td key={i} className="px-2 md:px-3 py-2.5 text-center whitespace-nowrap">المجموع{server ? "" : ` (${snap.shown.toLocaleString("en-US")})`}</td>;
             return <td key={i} />;

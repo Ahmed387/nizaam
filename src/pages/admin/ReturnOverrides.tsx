@@ -1,4 +1,5 @@
 import { getCairoDayBounds, cairoTodayDay } from "@/lib/cairoDate";
+import { PermCard } from "@/contexts/PermCustomize";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -103,7 +104,7 @@ export default function ReturnOverrides({ embedded }: { embedded?: boolean } = {
         <StatCard label="أقصى عمر فاتورة (يوم)" value={stats.maxDays} icon={<UserCheck className="w-5 h-5" />} accent="secondary" />
       </div>
 
-      <div className="card-elevated p-4 flex flex-wrap items-end gap-3">
+      <PermCard label="بحث وفلاتر تجاوزات المرتجعات"><div className="card-elevated p-4 flex flex-wrap items-end gap-3">
         <div className="flex-1 min-w-[200px]">
           <div className="text-xs text-muted-foreground mb-1">بحث (المالك / رقم الفاتورة / السبب)</div>
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ابحث…" />
@@ -119,7 +120,7 @@ export default function ReturnOverrides({ embedded }: { embedded?: boolean } = {
         <Button variant="outline" className="gap-2" onClick={exportExcel} disabled={!filtered.length}>
           <FileSpreadsheet className="w-4 h-4" /> تصدير Excel
         </Button>
-      </div>
+      </div></PermCard>
 
       <DataTable
         onView={setView}

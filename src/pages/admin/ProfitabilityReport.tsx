@@ -18,6 +18,7 @@ import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { lineProfit, isArchiveInvoice, fetchReturnLines, type ReturnLine } from "@/lib/profitEngine";
 import { ReportIntro } from "@/components/ReportIntro";
 import { StatCard } from "@/components/StatCard";
+import { PermCard } from "@/contexts/PermCustomize";
 import { generateProfitReport } from "@/utils/generatePDFReport";
 import { useBranchScope } from "@/lib/branchScope";
 import { useCanViewNetProfit, NET_PROFIT_MASK } from "@/lib/netProfitAccess";
@@ -317,6 +318,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
       )}
 
 
+      <PermCard label="فلاتر تقرير الربحية">
       <div className="card-elevated p-4 mb-4 grid md:grid-cols-6 gap-3">
         <div><Label className="text-xs">من تاريخ</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div><Label className="text-xs">إلى تاريخ</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
@@ -343,16 +345,19 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         </div>
         <div className="flex items-end"><Button onClick={load} className="w-full" disabled={loading}>{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "تشغيل"}</Button></div>
       </div>
+      </PermCard>
 
       <div className="grid md:grid-cols-4 gap-3 mb-4">
         <StatCard label="المبيعات (Revenue)" value={formatEGP(totals.revenue)} icon={<DollarSign />} accent="primary" hint="إجمالي المبيعات بعد المرتجعات" />
         <StatCard label="تكلفة البضاعة المباعة (COGS)" value={formatEGP(totals.cost)} icon={<Wallet />} accent="warning" hint="تكلفة البضاعة المباعة (بمتوسط التكلفة)" />
         <StatCard label="صافي الربح (Net Profit)" value={canViewNetProfit ? formatEGP(totals.profit) : NET_PROFIT_MASK} icon={<TrendingUp />} accent={canViewNetProfit ? (totals.profit >= 0 ? "success" : "destructive") : undefined} hint="الإيراد − التكلفة" />
+        <PermCard label="أعلى/أقل هامش">
         <div className={`rounded-2xl p-4 h-full border border-secondary/30 bg-secondary/10 flex flex-col items-center justify-center text-center`}>
           <div className="text-sm font-semibold text-muted-foreground mb-2">أعلى/أقل هامش</div>
           <div className="text-sm font-bold text-success truncate w-full">↑ {totals.best?.product_name ?? "—"} ({totals.best?.margin.toFixed(1) ?? 0}%)</div>
           <div className={`text-sm font-bold truncate w-full mt-1 ${(totals.worst?.margin ?? 0) < 10 ? "text-destructive" : "text-warning"}`}>↓ {totals.worst?.product_name ?? "—"} ({totals.worst?.margin.toFixed(1) ?? 0}%)</div>
         </div>
+        </PermCard>
       </div>
 
       {/* Top / Bottom margin lists — unique to Profitability (margin-quality view, not volume-based like Insights) */}
@@ -362,6 +367,7 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         const bottomMargin = [...eligible].sort((a, b) => a.margin - b.margin).slice(0, 10);
         return (
           <div className="grid md:grid-cols-2 gap-4 mb-4">
+            <PermCard label="أعلى 10 منتجات بالهامش">
             <div className="card-elevated p-0 overflow-hidden border-r-4 border-success/50 shadow-sm">
               <div className="px-5 py-4 bg-success/10 border-b border-success/20 text-center">
                 <h4 className="font-extrabold text-success text-base md:text-lg flex items-center justify-center gap-2"><TrendingUp className="w-5 h-5" /> أعلى 10 منتجات بالهامش</h4>
@@ -398,6 +404,8 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 </tbody>
               </PermTable>
             </div>
+            </PermCard>
+            <PermCard label="أقل 10 منتجات بالهامش">
             <div className="card-elevated p-0 overflow-hidden border-r-4 border-destructive/50 shadow-sm">
               <div className="px-5 py-4 bg-destructive/10 border-b border-destructive/20 text-center">
                 <h4 className="font-extrabold text-destructive text-base md:text-lg flex items-center justify-center gap-2"><TrendingDown className="w-5 h-5" /> أقل 10 منتجات بالهامش</h4>
@@ -434,11 +442,13 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
                 </tbody>
               </PermTable>
             </div>
+            </PermCard>
           </div>
         );
       })()}
 
 
+      <PermCard label="الربحية حسب المنتج">
       <div className="card-elevated overflow-hidden mb-4">
         <div className="px-5 py-4 border-b border-border bg-gradient-to-b from-surface-2/60 to-transparent text-center">
           <h3 className="font-extrabold text-base md:text-lg">الربحية حسب المنتج</h3>
@@ -514,8 +524,10 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
           </PermTable>
         </div>
       </div>
+      </PermCard>
 
-
+      <PermCard label="الربحية حسب الفاتورة">
+      <div>
       <h3 className="font-bold mt-6 mb-2">حسب الفاتورة</h3>
       <DataTable loading={loading} rows={invRows as any} columns={[
         {
@@ -551,6 +563,8 @@ export default function ProfitabilityReport({ embedded }: { embedded?: boolean }
         { key: "margin", header: "الهامش %", align: "center", numeric: true, render: (r: InvRow) => r.cost_unknown ? "—" : `${r.margin.toFixed(1)}%` },
 
       ]} />
+      </div>
+      </PermCard>
     </Wrapper>
   );
 }

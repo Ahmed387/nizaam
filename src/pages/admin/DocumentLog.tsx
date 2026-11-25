@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PermCard } from "@/contexts/PermCustomize";
 import { PermTable } from "@/components/PermTable";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useListFilter, useRememberedFilter } from "@/hooks/useListFilter";
@@ -355,7 +356,7 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
         actions={<Button variant="outline" onClick={exportAll}><FileSpreadsheet className="w-4 h-4 ml-1" /> تصدير Excel</Button>}
       />
 
-      <div className="card-elevated mb-4 space-y-3 p-3">
+      <PermCard label="بحث وفلاتر سجل المستندات"><div className="card-elevated mb-4 space-y-3 p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} className="h-10 pr-9 bg-background"
@@ -396,7 +397,7 @@ export default function DocumentLog({ embedded }: { embedded?: boolean } = {}) {
           الفترة على وقت العملية الفعلي (مش تاريخ المستند). المدفوع والمتبقي وطريقة الدفع للفواتير محسوبين لحد آخر يوم العملية؛ «التصنيف» هو تصنيف الفاتورة النهارده.
           العمليات قبل تشغيل السجل اتجمعت من السجل القديم والمستندات نفسها، فممكن يكون ناقصها اسم المستخدم.
         </p>
-      </div>
+      </div></PermCard>
 
       <DataTable
         loading={wholeMode ? !listRes : loading}
