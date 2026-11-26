@@ -101,3 +101,31 @@ export function isManualVoucherCategory(c: VoucherCategory): boolean {
   return !isReservedVoucherCategory(c);
 }
 
+
+/**
+ * 0293 (owner 2026-11-26): who a hand-written voucher of this category must name — same rule as the server's
+ * `voucher_category_party_rule`: on 1200 → a customer («تحصيل أقساط عملاء»، «مدفوعات لعملاء»), on 2100 → a supplier
+ * («مدفوعات موردين»، «مقبوضات من موردين»), salaries / advances / advance repayments → an ACTIVE employee. A sub-item
+ * follows the nearest parent that has a rule. null = the party is optional.
+ */
+export type PartyRule = "customer" | "supplier" | "employee" | null;
+const EMPLOYEE_KEYS = new Set(["salary", "advance", "advance_repayment"]);
+export function categoryPartyRule(categoryId: string | null | undefined, cats: VoucherCategory[]): PartyRule {
+  let c = cats.find((x) => x.id === categoryId);
+  for (let i = 0; c && i < 6; i++) {
+    if (c.gl_account_code === "1200") return "customer";
+    if (c.gl_account_code === "2100") return "supplier";
+    if ((c.system_key && EMPLOYEE_KEYS.has(c.system_key)) || c.gl_account_code === "1450" || c.gl_account_code === "5200") return "employee";
+    c = c.parent_id ? cats.find((x) => x.id === c!.parent_id) : undefined;
+  }
+  return null;
+}
+
+/** The message when the party the category needs is missing (null = fine). */
+export function partyRuleProblem(rule: PartyRule, categoryName: string, partyType: string, partyId: string): string | null {
+  if (!rule) return null;
+  if (partyType === rule && partyId) return null;
+  return rule === "employee"
+    ? `التصنيف «${categoryName}» لازم تختار الموظف من الموظفين الشغالين`
+    : `التصنيف «${categoryName}» لازم تختار له ${rule === "customer" ? "العميل" : "المورد"}`;
+}

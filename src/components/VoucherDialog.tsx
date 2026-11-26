@@ -12,7 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from "@/components/ui/badge";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./PaymentMethodPicker";
 import { validateTransferPayment, PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
-import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher } from "@/lib/vouchers";
+import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher, categoryPartyRule, partyRuleProblem } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
 import { submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
 import { fetchSideBalance, sideBalanceLabel, type Side } from "@/lib/ledger";
@@ -54,7 +54,7 @@ const FIELD_LABELS_AR: Record<string, string> = {
   fee_amount: "العمولة",
 };
 
-interface PartyOption { id: string; name: string; }
+interface PartyOption { id: string; name: string; branch?: string | null; }
 
 export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, editingVoucher, initialParty, focusDate }: Props) {
   const { user, branches } = useAuth();
@@ -158,7 +158,14 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     return roots.map((r) => ({ root: r, children: visible.filter((c) => c.parent_id === r.id) }));
   }, [cats]);
 
-  // Load party options when party_type changes
+  // 0293: the category decides who the voucher is for (customer / supplier / active employee) — the type is locked
+  const partyRule = useMemo(() => categoryPartyRule(form.category_id, cats), [form.category_id, cats]);
+  const categoryName = cats.find((c) => c.id === form.category_id)?.name ?? "";
+  useEffect(() => {
+    if (!open || !partyRule || form.party_type === partyRule) return;
+    setForm((f) => ({ ...f, party_type: partyRule, party_id: "", party_name: "" }));
+  }, [partyRule, open]);
+
   // Load party options when party_type changes
   useEffect(() => {
     if (!open) return;
@@ -178,13 +185,17 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
         }
       } else if (form.party_type === "employee") {
         pendingPartyRef.current = null;
+        // 0293: active employees only — this branch's first, then the others with their branch name
         const { data, error } = await supabase
           .from("employees")
-          .select("id, name")
-          .eq("branch_id", branchId)
+          .select("id, name, branch_id")
+          .eq("is_active", true)
           .order("name");
         if (error) { toast.error(error.message); return; }
-        setPartyOptions(((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name })));
+        const rows = ((data ?? []) as any[]).map((r) => ({ id: r.id, name: r.name,
+          branch: r.branch_id === branchId ? null : (branches.find((b) => b.id === r.branch_id)?.name ?? null) }));
+        rows.sort((a, b) => Number(!!a.branch) - Number(!!b.branch) || a.name.localeCompare(b.name, "ar"));
+        setPartyOptions(rows);
       }
     })();
   }, [form.party_type, open, branchId]);
@@ -230,9 +241,11 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     }
 
     if (vErr) return toast.error(vErr);
-    if (type === "receipt" && form.party_type === "supplier") {
+    const ruleErr = partyRuleProblem(partyRule, categoryName, form.party_type, form.party_id);
+    if (ruleErr) return toast.error(ruleErr);
+    if (type === "receipt" && form.party_type === "supplier" && partyRule !== "supplier") {
       return toast.error("مينفعش سند قبض من مورد", {
-        description: "فلوس جاية من فرع تاني → «التحويلات بين الفروع» (تحويل خزنة). فلوس رجعها مورد → «مرتجع شراء».",
+        description: "سند القبض من مورد على تصنيف «مقبوضات من موردين» بس. فلوس جاية من فرع تاني → «التحويلات بين الفروع». بضاعة رجعت للمورد → «مرتجع شراء».",
         duration: 8000,
       });
     }
@@ -453,16 +466,18 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
             <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <UserIcon className="w-4 h-4 text-primary" />
               {isReceipt ? "الجهة المُستلَم منها" : "الجهة المصروف إليها"}
-              <span className="text-xs font-normal text-muted-foreground">(اختياري)</span>
+              {partyRule
+                ? <span className="text-xs font-semibold text-destructive" data-testid="party-required">* إجباري مع التصنيف ده</span>
+                : <span className="text-xs font-normal text-muted-foreground">(اختياري)</span>}
             </h3>
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs font-medium">{isReceipt ? "نوع الحساب" : "نوع الجهة"}</Label>
-                <Select value={form.party_type} onValueChange={(v) => setForm({ ...form, party_type: v as any })}>
-                  <SelectTrigger className="mt-1.5 h-10"><SelectValue placeholder={isReceipt ? "اختر نوع الحساب" : "اختر النوع"} /></SelectTrigger>
+                <Select value={form.party_type} onValueChange={(v) => setForm({ ...form, party_type: v as any })} disabled={!!partyRule}>
+                  <SelectTrigger className="mt-1.5 h-10" data-testid="party-type"><SelectValue placeholder={isReceipt ? "اختر نوع الحساب" : "اختر النوع"} /></SelectTrigger>
                   <SelectContent>
                     {/* a receipt can't come from a supplier: branch money is a till transfer, supplier money back is a purchase return (DB enforces it too — migration 0070) */}
-                    {(Object.keys(PARTY_TYPE_LABEL) as VoucherPartyType[]).filter((k) => !(isReceipt && k === "supplier")).map((k) => (
+                    {(Object.keys(PARTY_TYPE_LABEL) as VoucherPartyType[]).filter((k) => !(isReceipt && k === "supplier" && partyRule !== "supplier")).map((k) => (
                       <SelectItem key={k} value={k}>{PARTY_TYPE_LABEL[k]}</SelectItem>
                     ))}
                   </SelectContent>
@@ -483,8 +498,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
                 ) : form.party_type && form.party_type !== "other" ? (
                   <Popover open={partyOpen} onOpenChange={setPartyOpen}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" role="combobox" className="mt-1.5 w-full justify-between font-normal h-10">
-                        {selectedParty?.name ?? "اختر..."}
+                      <Button variant="outline" role="combobox" className="mt-1.5 w-full justify-between font-normal h-10" data-testid="party-pick">
+                        {selectedParty?.name ?? (form.party_type === "employee" ? "اختار الموظف..." : "اختر...")}
                         <ChevronsUpDown className="ms-2 h-4 w-4 opacity-50" />
                       </Button>
                     </PopoverTrigger>
@@ -495,12 +510,13 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
                           <CommandEmpty>لا توجد نتائج</CommandEmpty>
                           <CommandGroup>
                             {partyOptions.map((p) => (
-                              <CommandItem key={p.id} value={p.name} onSelect={() => {
+                              <CommandItem key={p.id} value={`${p.name} ${p.branch ?? ""}`} data-testid={`party-opt-${p.id}`} onSelect={() => {
                                 setForm((f) => ({ ...f, party_id: p.id, party_name: p.name }));
                                 setPartyOpen(false);
                               }}>
                                 <Check className={cn("me-2 h-4 w-4", form.party_id === p.id ? "opacity-100" : "opacity-0")} />
                                 {p.name}
+                                {p.branch && <span className="ms-auto text-xs text-muted-foreground">{p.branch}</span>}
                               </CommandItem>
                             ))}
                           </CommandGroup>
