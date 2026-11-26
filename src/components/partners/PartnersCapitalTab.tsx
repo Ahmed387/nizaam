@@ -3,11 +3,11 @@ import { toast } from "sonner";
 import { ArrowDownCircle, ArrowUpCircle, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { PermTable } from "@/components/PermTable";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { cancelPartnerTransaction, fetchPartnerCards, pct, TX_LABEL, type PartnerCards, type PartnerMovement } from "@/lib/partners";
+import { PartnerMoveActions, PartnerMoveStatus } from "./PartnerMoveActions";
 import { ExistingCapitalDialog } from "./ExistingCapitalDialog";
 import { PartnerMoneyDialog } from "./PartnerMoneyDialog";
 import { ReasonDialog } from "./ReasonDialog";
@@ -15,7 +15,7 @@ import { CapitalGapCard } from "./CapitalGapCard";
 import type { usePartnersData } from "./usePartnersData";
 
 type Data = ReturnType<typeof usePartnersData>;
-type CapMove = PartnerMovement & { partner: string; existing?: boolean };
+type CapMove = PartnerMovement & { partner: string; existing?: boolean; cards: PartnerCards };
 
 /**
  * «رأس المال» tab (owner 2026-11-25): each partner's capital and % of the profit, and the three ways it moves —
@@ -37,14 +37,14 @@ export function PartnersCapitalTab({ data }: { data: Data }) {
       const all = await Promise.all(active.map((r) => fetchPartnerCards(r.partner.id)));
       setMoves(all.flatMap((c) => (c.movements ?? [])
         .filter((m) => ["contribution", "capital_withdrawal", "capital_adjustment"].includes(m.type))
-        .map((m) => ({ ...m, partner: c.partner.name })))
+        .map((m) => ({ ...m, partner: c.partner.name, cards: c })))
         .sort((a, b) => (a.date < b.date ? 1 : -1)));
     } catch (e: any) { toast.error(e.message); }
   };
   const ids = useMemo(() => active.map((r) => r.partner.id + r.capital).join(), [active]);
   useEffect(() => { loadMoves(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [ids]);
 
-  const refresh = () => { load(); };
+  const refresh = () => { load(); loadMoves(); };
   const cancel = async (reason: string) => {
     if (!cancelling) return;
     try {
@@ -106,23 +106,24 @@ export function PartnersCapitalTab({ data }: { data: Data }) {
         <CardHeader><CardTitle>حركات رأس المال</CardTitle></CardHeader>
         <CardContent>
           {moves.length === 0 ? <div className="text-sm text-muted-foreground">مفيش حركات لسه.</div> : (
-            <PermTable className="w-full text-sm" permTable="capital_moves">
+            <div className="overflow-x-auto"><PermTable className="w-full text-sm" permTable="capital_moves">
               <thead className="bg-muted/40">
-                <tr className="text-right"><th className="p-2">التاريخ</th><th className="p-2">الشريك</th><th className="p-2">الحركة</th><th className="p-2">المبلغ</th><th className="p-2">الحالة</th>{canWrite && <th className="p-2">إجراءات</th>}</tr>
+                <tr className="text-right"><th className="p-2">التاريخ / بيتحسب من</th><th className="p-2">اتدفعت إمتى</th><th className="p-2">الشريك</th><th className="p-2">الحركة</th><th className="p-2">المبلغ</th><th className="p-2">الحالة</th><th className="p-2">إجراءات</th></tr>
               </thead>
               <tbody>
                 {moves.map((m) => (
-                  <tr key={m.id} className={`border-t ${m.void ? "opacity-50" : ""}`}>
+                  <tr key={m.id} data-testid={`cap-move-${m.id}`} className={`border-t ${m.void ? "opacity-50" : ""}`}>
                     <td className="p-2 tabular-nums">{m.date}</td>
+                    <td className="p-2 tabular-nums" title={m.deposited_on ? "اليوم اللي الشريك حط فيه الفلوس فعلاً" : "مش متسجل — عدّل الحركة وحطه"}>{m.deposited_on ?? "—"}</td>
                     <td className="p-2">{m.partner}</td>
                     <td className="p-2">{m.existing ? "رأس مال موجود بالفعل" : TX_LABEL[m.type]}</td>
                     <td className={`p-2 tabular-nums font-bold ${m.type === "capital_withdrawal" ? "text-destructive" : "text-success"}`}>{formatEGP(m.amount)}</td>
-                    <td className="p-2">{m.void ? <Badge variant="destructive">ملغي{m.cancel_reason ? ` — ${m.cancel_reason}` : ""}</Badge> : <Badge variant="secondary">شغال</Badge>}</td>
-                    {canWrite && <td className="p-2">{m.cancellable && <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setCancelling(m)}>إلغاء</Button>}</td>}
+                    <td className="p-2"><PartnerMoveStatus m={m} /></td>
+                    <td className="p-2"><PartnerMoveActions m={m} cards={m.cards} active={active} canWrite={canWrite} onCancel={(x) => setCancelling(x as CapMove)} onChanged={refresh} /></td>
                   </tr>
                 ))}
               </tbody>
-            </PermTable>
+            </PermTable></div>
           )}
         </CardContent>
       </Card>

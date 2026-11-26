@@ -14,7 +14,7 @@ import { formatEGP } from "@/lib/format";
 import { loadAllPaymentMethods } from "@/lib/paymentMethods";
 import { downloadPartnerStatementPdf } from "@/lib/partnerStatement";
 import {
-  fetchMoneyBranches, fetchPartnerCards, formFromPartner, movementsOfCard, pct, salaryText,
+  fetchMoneyBranches, fetchPartnerCards, fetchPartnersOverview, formFromPartner, movementsOfCard, pct, salaryText,
   type CardKey, type PartnerCards,
 } from "@/lib/partners";
 import { PartnerCardsRow } from "@/components/partners/PartnerCardsRow";
@@ -43,10 +43,13 @@ export default function PartnerProfile() {
   const [editing, setEditing] = useState(false);
   const [branches, setBranches] = useState<Record<string, string>>({});
   const [methods, setMethods] = useState<Record<string, string>>({});
+  // every active partner: «موجود بالفعل» edit shows his % before → after against all of them (0288)
+  const [activeAll, setActiveAll] = useState<PartnerCards[]>([]);
 
   const load = async () => {
     if (!id) return;
     try { setCards(await fetchPartnerCards(id)); } catch (e: any) { toast.error(e.message); }
+    if (canWrite) fetchPartnersOverview().then((r) => setActiveAll(r.filter((x) => x.partner.is_active))).catch(() => {});
   };
   useEffect(() => { load(); }, [id]);
   useEffect(() => {
@@ -109,6 +112,8 @@ export default function PartnerProfile() {
               branchName={(b) => (b ? branches[b] ?? "—" : "—")}
               methodName={(m) => (m ? methods[m] ?? m : "—")}
               canWrite={canWrite}
+              cards={cards}
+              active={activeAll}
               onChanged={load}
             />
           </CardContent>

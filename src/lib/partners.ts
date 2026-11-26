@@ -29,6 +29,10 @@ export type PartnerMovement = {
   distribution_id: string | null; treasury_id: string | null; editable: boolean; cancellable: boolean;
   /** 0280: «موجود بالفعل» — capital with no till row and no entry */
   existing?: boolean;
+  /** 0288: «اتدفعت إمتى» (information only), who edited / cancelled, what it replaced, proof files */
+  deposited_on?: string | null; edited_at?: string | null; edited_by?: string | null; edit_reason?: string | null;
+  cancelled_at?: string | null; cancelled_by?: string | null; replaces?: string | null; replaced_by?: string | null;
+  replaces_amount?: number | null; files?: number;
 };
 
 export type PartnerAdvance = { id: string; amount: number; remaining: number; date: string; status: string; reason: string | null; paid_back: number };
@@ -317,8 +321,55 @@ export async function setPayRule(partnerId: string, month: string, rule: PayRule
 }
 
 /** «موجود بالفعل»: counts in his capital from the month of `day` — no till row, no journal entry. */
-export async function addExistingCapital(partnerId: string, amount: number, day: string, notes?: string) {
-  const { data, error } = await (supabase.rpc as any)("partner_existing_capital", { p_partner: partnerId, p_amount: amount, p_day: day, p_notes: notes || null });
+export async function addExistingCapital(partnerId: string, amount: number, day: string, notes?: string, deposited?: string) {
+  const { data, error } = await (supabase.rpc as any)("partner_existing_capital", {
+    p_partner: partnerId, p_amount: amount, p_day: day, p_notes: notes || null, p_deposited_on: deposited || null,
+  });
   if (error) throw error;
   return data as string;
+}
+
+/** 0288: edit «رأس مال موجود بالفعل» (any time, reason required) → the new movement's id */
+export const editExistingCapital = (txId: string, v: { amount: number; day: string; deposited?: string; notes?: string | null; reason: string }) =>
+  rpc<string>("edit_existing_capital", {
+    p_tx: txId, p_amount: v.amount, p_day: v.day, p_deposited_on: v.deposited || null, p_notes: v.notes ?? null, p_reason: v.reason,
+  });
+
+/** 0288: edit a contribution / capital withdrawal that went through the till (cancel on its day + the corrected one) */
+export const editPartnerCapitalMove = (txId: string, v: { amount: number; date: string; notes?: string | null; reason: string }) =>
+  rpc<{ old: string; new: string; difference: number }>("edit_partner_capital_move", {
+    p_tx: txId, p_amount: v.amount, p_date: v.date, p_notes: v.notes ?? null, p_reason: v.reason,
+  });
+
+/** which edit a movement takes: «موجود بالفعل» (no till) or a till capital movement; null = none */
+export function editKindOf(m: Pick<PartnerMovement, "editable" | "existing" | "type" | "void">): "existing" | "till" | null {
+  if (!m.editable || m.void) return null;
+  if (m.existing && m.type === "capital_adjustment") return "existing";
+  if (m.type === "contribution" || m.type === "capital_withdrawal") return "till";
+  return null;
+}
+
+/** «اتدفعت إمتى» against «بيتحسب من»: an error stops the save, a warning only shows (owner 2026-11-26) */
+export function depositCheck(day: string, deposited: string, today: string): { error?: string; warning?: string } {
+  if (!deposited) return {};
+  if (deposited > today) return { error: "تاريخ الإيداع مينفعش يكون بعد النهارده" };
+  if (day && deposited > day) return { warning: "تاريخ الإيداع بعد «بيتحسب من» — يعني بياخد ربح عن فترة قبل ما يدفع. اتأكد إن ده مقصود." };
+  return {};
+}
+
+const shortDay = (iso?: string | null) => (iso ? iso.slice(0, 10).split("-").reverse().join("/") : "");
+/** the status line of a movement: cancelled / edited, by whom, when, why */
+export function moveStatusText(m: PartnerMovement): string {
+  if (m.void) {
+    const who = [m.cancelled_by, shortDay(m.cancelled_at)].filter(Boolean).join(" — ");
+    const what = m.replaced_by ? "اتعدلت" : "ملغية";
+    const why = (m.cancel_reason ?? "").replace(/^اتعدلت: /, "");
+    return [what, who, why].filter(Boolean).join(" — ");
+  }
+  if (m.replaces) {
+    const before = m.replaces_amount != null ? ` (كانت ${formatEGP(Number(m.replaces_amount))})` : "";
+    const who = [m.edited_by, shortDay(m.edited_at)].filter(Boolean).join(" — ");
+    return [`معدلة${before}`, who, m.edit_reason ?? ""].filter(Boolean).join(" — ");
+  }
+  return "شغالة";
 }

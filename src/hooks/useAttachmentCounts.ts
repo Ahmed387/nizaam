@@ -11,7 +11,8 @@ export type RecordType =
   | "treasury_transfer"
   | "inventory_adjustment"
   | "quote"
-  | "personal_expense";
+  | "personal_expense"
+  | "partner_transaction";
 
 /**
  * Returns a map of record_id → attachment count for the given record_type, filtered

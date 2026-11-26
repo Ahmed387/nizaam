@@ -23,7 +23,13 @@ const partner = { id: P1, name: "شريك تجربة", role_kind: "partner", emp
 const mv = (id, type, amount, date, extra = {}) => ({ id, type, amount, date, created_at: `${date}T10:00:00Z`, description: null, branch_id: B1,
   method: "cash", void: false, cancel_reason: null, distribution_id: null, treasury_id: `t-${id}`, editable: false, cancellable: true, ...extra });
 const cards = { partner, contributions: 1000000, capital_withdrawals: 200000, capital: 800000, profit: 150000, profit_in: 150000, profit_out: 0, advances: 0,
-  movements: [mv("m1", "contribution", 1000000, "2026-09-15"), mv("m2", "capital_withdrawal", 200000, "2026-10-01"),
+  movements: [mv("m1", "contribution", 1000000, "2026-09-15", { editable: true }), mv("m2", "capital_withdrawal", 200000, "2026-10-01"),
+              // 0288: an edited «موجود بالفعل» (deposit 2024-03-15, one proof file) and the cancelled one it replaced
+              mv("m4", "capital_adjustment", 1200, "2026-01-01", { existing: true, editable: true, branch_id: null, method: null, treasury_id: null,
+                description: "رأس مال موجود بالفعل — المساهمة الأولى", deposited_on: "2024-03-15", files: 1, replaces: "m5", replaces_amount: 1000,
+                edited_by: "احمد ناصر", edited_at: "2026-11-26T10:00:00Z", edit_reason: "المبلغ غلط" }),
+              mv("m5", "capital_adjustment", 1000, "2026-01-01", { existing: true, void: true, cancellable: false, branch_id: null, method: null, treasury_id: null,
+                replaced_by: "m4", cancelled_by: "احمد ناصر", cancelled_at: "2026-11-26T10:00:00Z", cancel_reason: "اتعدلت: المبلغ غلط" }),
               mv("m3", "profit_share", 150000, "2026-10-31", { distribution_id: "d1", cancellable: false, branch_id: null, method: null, treasury_id: null })],
   advances_list: [] };
 
@@ -51,7 +57,7 @@ function makeDb() {
     branches: [{ id: B1, name: "معرض عبدالمنعم", code: "FR-004", tenant_id: T, is_active: true, is_system: false, platform_paused: false }],
     tenants: [{ id: T, name: "A & N", slug: "an", is_suspended: false, owner_user_id: OWNER, setup_completed: true }],
     employees: [{ id: E1, name: "محمد ياسر", tenant_id: T, is_active: true, user_id: null }],
-    equity_partners: [partner], partner_pay_rules: [],
+    equity_partners: [partner], partner_pay_rules: [], attachments: [],
   };
 }
 
@@ -94,7 +100,10 @@ async function open(browser, db, me) {
       if (name === "partner_capital_gap_settle") return json({ applied: !!body.p_apply, gap: GAP.gap, leave: false, balanced: true, lines: GAP_LINES });
       if (name === "partner_period_shares_preview") return json(SHARES);
       if (name === "preview_flexible_distribution") return json({ net_profit: { net_profit: 0 }, distributable: 0, partners: [] });
-      if (name === "partner_cards") return json(cards);
+      if (name === "partner_cards") return json(body.p_partner === P2 ? cards2 : cards);
+      if (name === "edit_existing_capital") return json("m6");
+      if (name === "edit_partner_capital_move") return json({ old: body.p_tx, new: "m7", difference: -100000 });
+      if (name === "cancel_partner_transaction") return json({ voided: 1, amount: 200000 });
       if (name === "partner_money") return json({ treasury_id: "t9", capital: 0, profit: 150000, advance: 50000 });
       if (name === "save_partner") return json("b0000001-0000-4000-8000-000000000002");
       if (name === "ledger_position") return json({ customers: {}, suppliers: {}, cross_branch: {} });   // the page's other cards
@@ -155,12 +164,57 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   check("7. جدول رأس المال: إجمالي 1,600,000 وكل واحد 50%", await vis(page.getByText(money(1600000))));
   await page.getByRole("button", { name: /موجود بالفعل/ }).first().click(); await page.waitForTimeout(500);
   await page.locator("#ex-amount").fill("1600000"); await page.waitForTimeout(300);
+  // 0288: «اتدفعت إمتى» — after «بيتحسب من» warns, after today refuses, older than 2026 is fine
+  check("8a. خانة «اتدفعت إمتى» جنب «بيتحسب من»", await vis(page.locator("#ex-deposited")) && await vis(page.getByText("اتدفعت إمتى (تاريخ الإيداع)")));
+  await page.locator("#ex-deposited").fill("2026-03-01"); await page.waitForTimeout(200);
+  check("8b. إيداع بعد «بيتحسب من» = تنبيه بس والزرار شغال", await vis(page.getByTestId("deposit-warning"))
+    && !(await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).isDisabled()));
+  await page.locator("#ex-deposited").fill("2099-01-01"); await page.waitForTimeout(200);
+  check("8c. إيداع بعد النهارده = ممنوع والزرار مقفول", await vis(page.getByTestId("deposit-error"))
+    && await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).isDisabled());
+  await page.locator("#ex-deposited").fill("2024-03-15"); await page.waitForTimeout(200);
   const eff = await page.getByTestId("existing-effect").innerText().catch(() => "");
   check("8. قبل الحفظ: نسبته 50% ← 75% والخزن مش هتتغير", eff.includes("50%") && eff.includes("75%") && eff.includes("الخزن"), eff.replace(/\n/g, " "));
   await shot(page, "partners-5-existing");
   await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).click(); await page.waitForTimeout(700);
   const ex = db.calls.filter((c) => c.rpc === "partner_existing_capital");
-  check("9. partner_existing_capital مرة واحدة: 1,600,000 من 2026-01-01", ex.length === 1 && ex[0].body.p_amount === 1600000 && ex[0].body.p_day === "2026-01-01" && ex[0].body.p_partner === P1, JSON.stringify(ex[0]?.body ?? {}));
+  check("9. partner_existing_capital مرة واحدة: 1,600,000 من 2026-01-01 واتدفعت 2024-03-15", ex.length === 1 && ex[0].body.p_amount === 1600000 && ex[0].body.p_day === "2026-01-01"
+    && ex[0].body.p_partner === P1 && ex[0].body.p_deposited_on === "2024-03-15", JSON.stringify(ex[0]?.body ?? {}));
+  check("9h. بعد الحفظ بيطلب الإثبات (إيصال / عقد)", await vis(page.getByText("اتسجل ✓ — ارفع الإثبات")));
+  await page.getByRole("dialog").getByRole("button", { name: "خلاص" }).click(); await page.waitForTimeout(500);
+
+  // 0288: capital movements — deposit column, who edited, edit / proof / cancel
+  const capTxt = await page.locator("table").filter({ hasText: "اتدفعت إمتى" }).first().innerText().catch(() => "");
+  check("9i. جدول حركات رأس المال فيه «اتدفعت إمتى» = 2024-03-15", capTxt.includes("2024-03-15"));
+  check("9j. الحركة المعدلة بتقول «معدلة (كانت 1,000) — احمد ناصر — … — المبلغ غلط»", /معدلة \(كانت .*1[,٬]?000.*\) — احمد ناصر — 26\/11\/2026 — المبلغ غلط/.test(capTxt), capTxt.replace(/\n/g, " | ").slice(0, 300));
+  check("9k. القديمة متعلّمة «اتعدلت — احمد ناصر» ومالهاش تعديل", /اتعدلت — احمد ناصر/.test(capTxt) && !(await vis(page.getByTestId("edit-move-m5"))));
+  await page.getByTestId("edit-move-m4").first().click(); await page.waitForTimeout(400);
+  const dlg = page.getByRole("dialog");
+  check("9l. تعديل «موجود بالفعل» بيفتح بالقيم القديمة والسبب إجباري", (await page.locator("#ex-amount").inputValue()) === "1200"
+    && (await page.locator("#ex-deposited").inputValue()) === "2024-03-15" && await dlg.getByRole("button", { name: "احفظ التعديل" }).isDisabled());
+  await page.locator("#ex-amount").fill("1500"); await page.locator("#ex-reason").fill("نسيت 300");
+  await dlg.getByRole("button", { name: "احفظ التعديل" }).click(); await page.waitForTimeout(700);
+  const ee = db.calls.filter((c) => c.rpc === "edit_existing_capital");
+  check("9m. edit_existing_capital مرة واحدة بالمبلغ والإيداع والسبب", ee.length === 1 && ee[0].body.p_tx === "m4" && ee[0].body.p_amount === 1500
+    && ee[0].body.p_deposited_on === "2024-03-15" && ee[0].body.p_reason === "نسيت 300", JSON.stringify(ee[0]?.body ?? {}));
+  if (await vis(page.getByRole("button", { name: "خلاص" }))) await page.getByRole("button", { name: "خلاص" }).click();
+  await page.waitForTimeout(400);
+  await page.getByTestId("edit-move-m1").first().click(); await page.waitForTimeout(400);
+  await page.locator("#tm-amount").fill("900000"); await page.locator("#tm-date").fill("2026-09-10"); await page.waitForTimeout(200);
+  const teff = await page.getByTestId("till-edit-effect").innerText().catch(() => "");
+  check("9n. تعديل مساهمة في الخزنة: بيقول إيه هيحصل في اليومين", teff.includes("2026-09-15") && teff.includes("2026-09-10") && teff.includes("يقل"), teff.replace(/\n/g, " | "));
+  await page.locator("#tm-reason").fill("اليوم غلط"); await page.getByRole("dialog").getByRole("button", { name: "احفظ التعديل" }).click(); await page.waitForTimeout(700);
+  const tm = db.calls.filter((c) => c.rpc === "edit_partner_capital_move");
+  check("9o. edit_partner_capital_move مرة واحدة", tm.length === 1 && tm[0].body.p_tx === "m1" && tm[0].body.p_amount === 900000 && tm[0].body.p_date === "2026-09-10" && tm[0].body.p_reason === "اليوم غلط", JSON.stringify(tm[0]?.body ?? {}));
+  await page.getByRole("button", { name: "إثبات الحركة (إيصال / عقد)" }).first().click(); await page.waitForTimeout(500);
+  check("9p. زرار الإثبات بيفتح المرفقات", await vis(page.getByRole("dialog").getByText("إثبات الحركة (إيصال / عقد)")));
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+  await page.getByTestId("cancel-move-m2").first().click(); await page.waitForTimeout(300);
+  await page.getByRole("dialog").locator("textarea").fill("اتسجل مرتين");
+  await page.getByRole("dialog").getByRole("button", { name: "تأكيد" }).click(); await page.waitForTimeout(600);
+  const cx = db.calls.filter((c) => c.rpc === "cancel_partner_transaction");
+  check("9q. الإلغاء بسبب = cancel_partner_transaction مرة واحدة", cx.length === 1 && cx[0].body.p_tx === "m2" && cx[0].body.p_reason === "اتسجل مرتين", JSON.stringify(cx[0]?.body ?? {}));
+  await shot(page, "partners-6-capital-moves");
 
   // 3b. «الفرق بين رأس المال والدفاتر»: 10M vs 4,845,828.43 → 4M loss + الحاج ناصر drew the rest (his % goes down)
   const gc = page.getByTestId("capital-gap");
@@ -211,6 +265,7 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   check("16. تاب القوائم المالية جوه صفحة الشركاء", await vis(page.getByRole("tab", { name: /قائمة الدخل|الدخل/ }).first()) && page.url().includes("tab=statements"));
 
   // 6. the add form: no pay fields there any more
+  await page.evaluate(() => document.querySelectorAll("[data-sonner-toast]").forEach((t) => t.remove()));   // a toast can sit over the tabs
   await page.getByRole("tab", { name: "الشركاء" }).click(); await settle(page);
   await page.getByRole("button", { name: /شريك جديد/ }).click(); await page.waitForTimeout(500);
   check("17. فورم الشريك الجديد من غير خانات مرتب / حصة تشغيل (بقت في «توزيع الأرباح»)",
@@ -221,6 +276,9 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   // 7. the partner page still works
   await page.goto(`${BASE}/admin/financial-position/partner/${P1}`); await settle(page);
   check("18. صفحة الشريك فيها الخمس كروت", await vis(page.getByText("رأس المال لحد النهارده")) && await vis(page.getByText("السلف").first()));
+  const ptab = await page.locator("table").filter({ hasText: "اتدفعت إمتى" }).first().innerText().catch(() => "");
+  check("18c. صفحة الشريك: «اتدفعت إمتى» + تعديل الحركات + الإثبات", ptab.includes("2024-03-15") && await vis(page.getByTestId("edit-move-m4")) && await vis(page.getByTestId("edit-move-m1"))
+    && await vis(page.getByRole("button", { name: "إثبات الحركة (إيصال / عقد)" })));
   await shot(page, "partners-3-profile");
 
   check("18b. مفيش رسالة خطأ ظهرت (toast) في أي خطوة", !(await vis(page.getByText(/حصل خطأ/))));

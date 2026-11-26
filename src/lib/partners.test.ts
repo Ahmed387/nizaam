@@ -3,7 +3,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 import {
   profitShares, pct, payExample, payRuleText,
   formFromPartner, movementsOfCard, partnerFormProblem, partnerMoneyProblem, partnerPayload, salaryText, splitWithdrawal,
-  txCard, txSign, withdrawalSentence, type PartnerForm, type PartnerMovement,
+  txCard, txSign, withdrawalSentence, editKindOf, depositCheck, moveStatusText, type PartnerForm, type PartnerMovement,
 } from "./partners";
 import { formatEGP } from "./format";
 
@@ -156,5 +156,36 @@ describe("payRuleText", () => {
     expect(payRuleText({ fixed: 10000, percent: 0, base: "all" })).toBe(`مرتب ثابت ${formatEGP(10000)}`);
     expect(payRuleText({ fixed: 0, percent: 0.1, base: "all" })).toBe("10% من الربح كله");
     expect(payRuleText({ fixed: 10000, percent: 0.1, base: "after_fixed" })).toBe(`مرتب ثابت ${formatEGP(10000)} + 10% من الربح بعد المرتبات الثابتة`);
+  });
+});
+
+describe("0288 capital records", () => {
+  const base = { editable: true, existing: false, type: "contribution" as const, void: false };
+  it("editKindOf: existing capital, till capital movement, else none", () => {
+    expect(editKindOf({ ...base, existing: true, type: "capital_adjustment" })).toBe("existing");
+    expect(editKindOf(base)).toBe("till");
+    expect(editKindOf({ ...base, type: "capital_withdrawal" })).toBe("till");
+    expect(editKindOf({ ...base, type: "profit_withdrawal" })).toBeNull();
+    expect(editKindOf({ ...base, editable: false })).toBeNull();
+    expect(editKindOf({ ...base, void: true })).toBeNull();
+  });
+  it("depositCheck: future refused, after the start only warns, empty is fine", () => {
+    expect(depositCheck("2026-01-01", "", "2026-11-26")).toEqual({});
+    expect(depositCheck("2026-01-01", "2024-03-15", "2026-11-26")).toEqual({});
+    expect(depositCheck("2026-01-01", "2026-11-27", "2026-11-26").error).toBeTruthy();
+    const w = depositCheck("2026-01-01", "2026-03-01", "2026-11-26");
+    expect(w.error).toBeUndefined();
+    expect(w.warning).toContain("بعد «بيتحسب من»");
+  });
+  it("moveStatusText: edited / cancelled say who, when, why", () => {
+    const m = { id: "1", type: "capital_adjustment", amount: 1200, date: "2026-01-01", created_at: "", description: null, branch_id: null,
+      method: null, void: false, cancel_reason: null, distribution_id: null, treasury_id: null, editable: true, cancellable: true } as any;
+    expect(moveStatusText(m)).toBe("شغالة");
+    expect(moveStatusText({ ...m, replaces: "0", replaces_amount: 1000, edited_by: "احمد", edited_at: "2026-11-26T10:00:00Z", edit_reason: "غلط" }))
+      .toMatch(/^معدلة \(كانت .*1,000.*\) — احمد — 26\/11\/2026 — غلط$/);
+    expect(moveStatusText({ ...m, void: true, replaced_by: "2", cancelled_by: "احمد", cancelled_at: "2026-11-26T10:00:00Z", cancel_reason: "اتعدلت: غلط" }))
+      .toBe("اتعدلت — احمد — 26/11/2026 — غلط");
+    expect(moveStatusText({ ...m, void: true, cancelled_by: "احمد", cancelled_at: "2026-11-26T10:00:00Z", cancel_reason: "مكررة" }))
+      .toBe("ملغية — احمد — 26/11/2026 — مكررة");
   });
 });
