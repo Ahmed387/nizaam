@@ -28,6 +28,9 @@ const cards = { partner, contributions: 1000000, capital_withdrawals: 200000, ca
               mv("m4", "capital_adjustment", 1200, "2026-01-01", { existing: true, editable: true, branch_id: null, method: null, treasury_id: null,
                 description: "رأس مال موجود بالفعل — المساهمة الأولى", deposited_on: "2024-03-15", files: 1, replaces: "m5", replaces_amount: 1000,
                 edited_by: "احمد ناصر", edited_at: "2026-11-26T10:00:00Z", edit_reason: "المبلغ غلط" }),
+              // 0290: a pre-system withdrawal «من الربح»
+              mv("m8", "profit_withdrawal", 40000, "2026-01-01", { existing: true, editable: true, branch_id: null, method: null, treasury_id: null,
+                description: "سحب قبل السيستم — عربية", deposited_on: "2025-05-01" }),
               mv("m5", "capital_adjustment", 1000, "2026-01-01", { existing: true, void: true, cancellable: false, branch_id: null, method: null, treasury_id: null,
                 replaced_by: "m4", cancelled_by: "احمد ناصر", cancelled_at: "2026-11-26T10:00:00Z", cancel_reason: "اتعدلت: المبلغ غلط" }),
               mv("m3", "profit_share", 150000, "2026-10-31", { distribution_id: "d1", cancellable: false, branch_id: null, method: null, treasury_id: null })],
@@ -111,6 +114,8 @@ async function open(browser, db, me) {
       if (name === "preview_flexible_distribution") return json({ net_profit: { net_profit: 0 }, distributable: 0, partners: [] });
       if (name === "partner_cards") return json(body.p_partner === P2 ? cards2 : cards);
       if (name === "edit_existing_capital") return json("m6");
+      if (name === "partner_existing_capital") return json("new-ex");
+      if (name === "partner_pre_system_withdrawal") return json("new-ps");
       if (name === "period_split_preview") return json(SPLIT);
       if (name === "profit_distributions_list") return json(DISTS);
       if (name === "distribute_profits_manual") return json({ distribution_id: "dist-2", total_amount: body.p_lines.reduce((s, l) => s + l.amount, 0), available: 600000,
@@ -177,37 +182,73 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   // 3. «رأس المال»: «موجود بالفعل» shows the % before → after, then ONE call
   await page.getByRole("tab", { name: "رأس المال" }).click(); await settle(page);
   check("7. جدول رأس المال: إجمالي 1,600,000 وكل واحد 50%", await vis(page.getByText(money(1600000))));
-  await page.getByRole("button", { name: /موجود بالفعل/ }).first().click(); await page.waitForTimeout(500);
-  await page.locator("#ex-amount").fill("1600000"); await page.waitForTimeout(300);
+  // 0290: each partner's capital is a card with icon actions (tooltip + name), the page link included
+  check("7a. كارت لكل شريك فيه 5 أيقونات (موجود بالفعل / سحب قبل السيستم / مساهمة / سحب / صفحته)",
+    await vis(page.getByTestId(`cap-act-existing-${P1}`)) && await vis(page.getByTestId(`cap-act-presys-${P1}`)) && await vis(page.getByTestId(`cap-act-in-${P1}`))
+    && await vis(page.getByTestId(`cap-act-out-${P1}`)) && (await page.getByTestId(`cap-act-page-${P1}`).getAttribute("href")) === `/admin/financial-position/partner/${P1}`);
+  await page.getByTestId(`cap-act-presys-${P1}`).hover(); await page.waitForTimeout(700);
+  check("7b. الوقوف على الأيقونة بيقول بتعمل إيه", await vis(page.getByRole("tooltip").filter({ hasText: "من غير خزنة ولا قيد" })));
+  await shot(page, "partners-4-capital-cards");
+  await page.getByTestId(`cap-act-existing-${P1}`).click(); await page.waitForTimeout(500);
+  await page.locator("#om-amount").fill("1600000"); await page.waitForTimeout(300);
+  check("8z. الفورم الجديد: المبلغ مكتوب بالفاصلات تحته ورأس ماله ونسبته فوق", money(1600000).test(await page.getByTestId("om-amount-text").innerText().catch(() => ""))
+    && await vis(page.getByRole("dialog").getByText("نسبته من الربح:")));
   // 0288: «اتدفعت إمتى» — after «بيتحسب من» warns, after today refuses, older than 2026 is fine
-  check("8a. خانة «اتدفعت إمتى» جنب «بيتحسب من»", await vis(page.locator("#ex-deposited")) && await vis(page.getByText("اتدفعت إمتى (تاريخ الإيداع)")));
-  await page.locator("#ex-deposited").fill("2026-03-01"); await page.waitForTimeout(200);
+  check("8a. خانة «اتدفعت إمتى» جنب «بيتحسب من»", await vis(page.locator("#om-money-day")) && await vis(page.getByText("اتدفعت إمتى (اختياري)")));
+  await page.locator("#om-money-day").fill("2026-03-01"); await page.waitForTimeout(200);
   check("8b. إيداع بعد «بيتحسب من» = تنبيه بس والزرار شغال", await vis(page.getByTestId("deposit-warning"))
     && !(await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).isDisabled()));
-  await page.locator("#ex-deposited").fill("2099-01-01"); await page.waitForTimeout(200);
+  await page.locator("#om-money-day").fill("2099-01-01"); await page.waitForTimeout(200);
   check("8c. إيداع بعد النهارده = ممنوع والزرار مقفول", await vis(page.getByTestId("deposit-error"))
     && await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).isDisabled());
-  await page.locator("#ex-deposited").fill("2024-03-15"); await page.waitForTimeout(200);
+  await page.locator("#om-money-day").fill("2024-03-15"); await page.waitForTimeout(200);
   const eff = await page.getByTestId("existing-effect").innerText().catch(() => "");
   check("8. قبل الحفظ: نسبته 50% ← 75% والخزن مش هتتغير", eff.includes("50%") && eff.includes("75%") && eff.includes("الخزن"), eff.replace(/\n/g, " "));
+  await page.getByTestId("om-files").setInputFiles({ name: "receipt.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") });
+  await page.waitForTimeout(200);
+  check("8y. الإثبات بيتختار جوه الفورم قبل الحفظ", await vis(page.getByRole("dialog").getByText("receipt.pdf")));
   await shot(page, "partners-5-existing");
-  await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).click(); await page.waitForTimeout(700);
+  await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).click(); await page.waitForTimeout(1200);
   const ex = db.calls.filter((c) => c.rpc === "partner_existing_capital");
   check("9. partner_existing_capital مرة واحدة: 1,600,000 من 2026-01-01 واتدفعت 2024-03-15", ex.length === 1 && ex[0].body.p_amount === 1600000 && ex[0].body.p_day === "2026-01-01"
     && ex[0].body.p_partner === P1 && ex[0].body.p_deposited_on === "2024-03-15", JSON.stringify(ex[0]?.body ?? {}));
-  check("9h. بعد الحفظ بيطلب الإثبات (إيصال / عقد)", await vis(page.getByText("اتسجل ✓ — ارفع الإثبات")));
-  await page.getByRole("dialog").getByRole("button", { name: "خلاص" }).click(); await page.waitForTimeout(500);
+  check("9h. الإثبات اترفع على الحركة الجديدة والفورم اتقفل", db.calls.some((c) => c.table === "attachments" && c.method === "POST") && !(await vis(page.getByTestId("old-money-dialog"))));
+
+  // 0290: «سحب قبل السيستم» — the owner picks each time: from his capital or from the profit
+  await page.waitForTimeout(800);
+  await page.getByTestId(`cap-act-presys-${P1}`).click(); await page.waitForTimeout(500);
+  await page.locator("#om-amount").fill("100000"); await page.waitForTimeout(200);
+  check("9r. من غير ما تختار «من فين» الزرار مقفول", await page.getByTestId("om-save").isDisabled() && (await page.getByTestId("om-problem").innerText()).includes("رأس ماله ولا من الربح"));
+  await page.getByTestId("om-mode-capital").click(); await page.waitForTimeout(200);
+  const effC = await page.getByTestId("existing-effect").innerText();
+  check("9s. من رأس ماله: رأس ماله 800,000 ← 700,000 ونسبته تقل", money(800000).test(effC) && money(700000).test(effC) && /50%/.test(effC), effC.replace(/\n/g, " | "));
+  await page.getByTestId("om-mode-profit").click(); await page.waitForTimeout(200);
+  const effP = await page.getByTestId("existing-effect").innerText();
+  check("9t. من الربح: رأس ماله زي ما هو وصافي ربحه يقل", effP.includes("زي ما هو") && effP.includes("صافي ربحه"), effP.replace(/\n/g, " | "));
+  await page.getByTestId("om-mode-capital").click(); await page.locator("#om-amount").fill("9999999"); await page.waitForTimeout(200);
+  check("9u. أكتر من رأس ماله = الزرار مقفول", await page.getByTestId("om-save").isDisabled());
+  await page.locator("#om-amount").fill("100000"); await page.locator("#om-money-day").fill("2025-06-10"); await page.locator("#om-notes").fill("سحب قديم");
+  await page.getByTestId("om-save").click(); await page.waitForTimeout(900);
+  const ps = db.calls.filter((c) => c.rpc === "partner_pre_system_withdrawal");
+  check("9v. partner_pre_system_withdrawal مرة واحدة: من رأس المال، اتسحبت 2025-06-10", ps.length === 1 && ps[0].body.p_mode === "capital" && ps[0].body.p_amount === 100000
+    && ps[0].body.p_withdrawn_on === "2025-06-10" && ps[0].body.p_day === "2026-01-01" && ps[0].body.p_partner === P1, JSON.stringify(ps[0]?.body ?? {}));
+  await page.waitForTimeout(600);
 
   // 0288: capital movements — deposit column, who edited, edit / proof / cancel
-  const capTxt = await page.locator("table").filter({ hasText: "اتدفعت إمتى" }).first().innerText().catch(() => "");
+  const capTxt = await page.getByTestId("cap-moves-live").innerText().catch(() => "");
   check("9i. جدول حركات رأس المال فيه «اتدفعت إمتى» = 2024-03-15", capTxt.includes("2024-03-15"));
   check("9j. الحركة المعدلة بتقول «معدلة (كانت 1,000) — احمد ناصر — … — المبلغ غلط»", /معدلة \(كانت .*1[,٬]?000.*\) — احمد ناصر — 26\/11\/2026 — المبلغ غلط/.test(capTxt), capTxt.replace(/\n/g, " | ").slice(0, 300));
-  check("9k. القديمة متعلّمة «اتعدلت — احمد ناصر» ومالهاش تعديل", /اتعدلت — احمد ناصر/.test(capTxt) && !(await vis(page.getByTestId("edit-move-m5"))));
+  check("9w. «الشغالة» مفيهاش الحركة الملغية، وفيها «سحب قبل السيستم (من الربح)»", !capTxt.includes("اتعدلت — احمد ناصر") && capTxt.includes("سحب قبل السيستم (من الربح)"));
+  await page.getByTestId("moves-tab-cancelled").click(); await page.waitForTimeout(400);
+  const cxTxt = await page.getByTestId("cap-moves-cancelled").innerText().catch(() => "");
+  check("9k. تاب «الملغاة»: القديمة متعلّمة «اتعدلت — احمد ناصر» ومالهاش تعديل", /اتعدلت — احمد ناصر/.test(cxTxt) && !(await vis(page.getByTestId("edit-move-m5"))), cxTxt.replace(/\n/g, " | ").slice(0, 200));
+  await shot(page, "partners-6b-cancelled");
+  await page.getByTestId("moves-tab-live").click(); await page.waitForTimeout(400);
   await page.getByTestId("edit-move-m4").first().click(); await page.waitForTimeout(400);
   const dlg = page.getByRole("dialog");
-  check("9l. تعديل «موجود بالفعل» بيفتح بالقيم القديمة والسبب إجباري", (await page.locator("#ex-amount").inputValue()) === "1200"
-    && (await page.locator("#ex-deposited").inputValue()) === "2024-03-15" && await dlg.getByRole("button", { name: "احفظ التعديل" }).isDisabled());
-  await page.locator("#ex-amount").fill("1500"); await page.locator("#ex-reason").fill("نسيت 300");
+  check("9l. تعديل «موجود بالفعل» بيفتح بالقيم القديمة والسبب إجباري", (await page.locator("#om-amount").inputValue()) === "1200"
+    && (await page.locator("#om-money-day").inputValue()) === "2024-03-15" && await dlg.getByRole("button", { name: "احفظ التعديل" }).isDisabled());
+  await page.locator("#om-amount").fill("1500"); await page.locator("#om-reason").fill("نسيت 300");
   await dlg.getByRole("button", { name: "احفظ التعديل" }).click(); await page.waitForTimeout(700);
   const ee = db.calls.filter((c) => c.rpc === "edit_existing_capital");
   check("9m. edit_existing_capital مرة واحدة بالمبلغ والإيداع والسبب", ee.length === 1 && ee[0].body.p_tx === "m4" && ee[0].body.p_amount === 1500

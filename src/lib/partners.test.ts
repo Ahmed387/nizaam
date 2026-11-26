@@ -3,7 +3,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 import {
   profitShares, pct, payExample, payRuleText,
   formFromPartner, movementsOfCard, partnerFormProblem, partnerMoneyProblem, partnerPayload, salaryText, splitWithdrawal,
-  txCard, txSign, withdrawalSentence, editKindOf, depositCheck, moveStatusText, type PartnerForm, type PartnerMovement,
+  txCard, txSign, withdrawalSentence, editKindOf, depositCheck, moveStatusText, moveLabel, isCapitalMove, splitMoves, TX_LABEL, type PartnerForm, type PartnerMovement,
 } from "./partners";
 import { formatEGP } from "./format";
 
@@ -187,5 +187,30 @@ describe("0288 capital records", () => {
       .toBe("اتعدلت — احمد — 26/11/2026 — غلط");
     expect(moveStatusText({ ...m, void: true, cancelled_by: "احمد", cancelled_at: "2026-11-26T10:00:00Z", cancel_reason: "مكررة" }))
       .toBe("ملغية — احمد — 26/11/2026 — مكررة");
+  });
+});
+
+describe("0290 pre-system withdrawal + «الملغاة»", () => {
+  it("moveLabel names the no-till kinds", () => {
+    expect(moveLabel({ type: "capital_adjustment", existing: true })).toBe("رأس مال موجود بالفعل");
+    expect(moveLabel({ type: "capital_withdrawal", existing: true })).toBe("سحب قبل السيستم (من رأس المال)");
+    expect(moveLabel({ type: "profit_withdrawal", existing: true })).toBe("سحب قبل السيستم (من الربح)");
+    expect(moveLabel({ type: "capital_withdrawal", existing: false })).toBe(TX_LABEL.capital_withdrawal);
+  });
+  it("editKindOf: a pre-system withdrawal is edited in the no-till form", () => {
+    const b = { editable: true, void: false };
+    expect(editKindOf({ ...b, existing: true, type: "capital_withdrawal" })).toBe("existing");
+    expect(editKindOf({ ...b, existing: true, type: "profit_withdrawal" })).toBe("existing");
+    expect(editKindOf({ ...b, existing: false, type: "profit_withdrawal" })).toBeNull();
+  });
+  it("isCapitalMove keeps a pre-system profit withdrawal on the capital tab", () => {
+    expect(isCapitalMove({ type: "profit_withdrawal", existing: true })).toBe(true);
+    expect(isCapitalMove({ type: "profit_withdrawal", existing: false })).toBe(false);
+    expect(isCapitalMove({ type: "contribution", existing: false })).toBe(true);
+  });
+  it("splitMoves: cancelled and edited-away rows go to «الملغاة»", () => {
+    const r = splitMoves([{ id: "a", void: false }, { id: "b", void: true }, { id: "c", void: true }] as any[]);
+    expect(r.live.map((x: any) => x.id)).toEqual(["a"]);
+    expect(r.cancelled.map((x: any) => x.id)).toEqual(["b", "c"]);
   });
 });

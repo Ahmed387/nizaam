@@ -344,7 +344,8 @@ export const editPartnerCapitalMove = (txId: string, v: { amount: number; date: 
 /** which edit a movement takes: «موجود بالفعل» (no till) or a till capital movement; null = none */
 export function editKindOf(m: Pick<PartnerMovement, "editable" | "existing" | "type" | "void">): "existing" | "till" | null {
   if (!m.editable || m.void) return null;
-  if (m.existing && m.type === "capital_adjustment") return "existing";
+  // «موجود بالفعل» and «سحب قبل السيستم» (0290) are edited in the same no-till form
+  if (m.existing && (m.type === "capital_adjustment" || m.type === "capital_withdrawal" || m.type === "profit_withdrawal")) return "existing";
   if (m.type === "contribution" || m.type === "capital_withdrawal") return "till";
   return null;
 }
@@ -389,3 +390,29 @@ export const fetchDistributions = () => rpc<DistributionRow[]>("profit_distribut
 export const reverseDistribution = (id: string, reason: string) => rpc<null>("reverse_period_distribution", { p_id: id, p_reason: reason });
 export const lockDistributedPeriod = (from: string, to: string, reason?: string) =>
   rpc<unknown>("lock_distributed_period", { p_from: from, p_to: to, p_reason: reason || null });
+
+// ===== 0290: «سحب قبل السيستم» and the «الملغاة» tab =====
+/** money a partner took before the system: no till, no entry; 'capital' lowers his capital and %, 'profit' keeps his % */
+export const addPreSystemWithdrawal = (partnerId: string, v: { amount: number; day: string; mode: "capital" | "profit"; withdrawnOn?: string; notes?: string }) =>
+  rpc<string>("partner_pre_system_withdrawal", {
+    p_partner: partnerId, p_amount: v.amount, p_day: v.day, p_mode: v.mode, p_withdrawn_on: v.withdrawnOn || null, p_notes: v.notes || null,
+  });
+
+/** the movement in words: the no-till kinds have their own names */
+export function moveLabel(m: Pick<PartnerMovement, "type" | "existing">): string {
+  if (m.existing) {
+    if (m.type === "capital_adjustment") return "رأس مال موجود بالفعل";
+    if (m.type === "capital_withdrawal") return "سحب قبل السيستم (من رأس المال)";
+    if (m.type === "profit_withdrawal") return "سحب قبل السيستم (من الربح)";
+  }
+  return TX_LABEL[m.type] ?? m.type;
+}
+
+/** a capital-tab row: capital movements and every no-till one (a pre-system profit withdrawal too) */
+export const isCapitalMove = (m: Pick<PartnerMovement, "type" | "existing">) =>
+  ["contribution", "capital_withdrawal", "capital_adjustment"].includes(m.type) || !!m.existing;
+
+/** «الشغالة» / «الملغاة»: a cancelled row and the old side of an edit go to «الملغاة» */
+export function splitMoves<T extends Pick<PartnerMovement, "void">>(rows: T[]): { live: T[]; cancelled: T[] } {
+  return { live: rows.filter((m) => !m.void), cancelled: rows.filter((m) => m.void) };
+}
