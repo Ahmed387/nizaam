@@ -1,7 +1,8 @@
 // «الفواتير الإلكترونية الواردة» (migration 0220, owner 2026-11-14 «عاوز استقبل بس»). RECEIVE ONLY.
 // Called by pg_cron (eta_sync_all → nizam_cron_call, x-cron-secret = system_cron_tokens 'eta-sync') or by
-// eta_sync_now (same path); modes 'test' (connection check) and 'detail' (one document's lines, kept in
-// eta_documents.detail) are also open to the signed-in owner / admin of the company. Reads the company's ETA credentials (secret from Vault, through eta_credentials, service role),
+// eta_sync_now (same path); modes 'test' (connection check), 'detail' (one document's lines, kept in
+// eta_documents.detail) and 'pdf' (the portal's own printout of up to 5 documents, GET documents/{uuid}/pdf — returned
+// as base64, never stored) are also open to the signed-in owner / admin of the company. Reads the company's ETA credentials (secret from Vault, through eta_credentials, service role),
 // gets a token from the ETA identity server, searches the documents RECEIVED by the company
 // (GET /api/v1.0/documents/search?direction=Received, windows of ≤ 30 days, pages with continuationToken, one request
 // every 2.1 s — the ETA limit), and hands them to eta_ingest (upsert + notifications). Nothing is ever sent to the ETA.
@@ -36,7 +37,7 @@ Deno.serve(async (req) => {
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
   const body = await req.json().catch(() => ({}));
-  const mode = body?.mode === "test" ? "test" : body?.mode === "detail" ? "detail" : "sync";
+  const mode = body?.mode === "test" ? "test" : body?.mode === "detail" ? "detail" : body?.mode === "pdf" ? "pdf" : "sync";
   let tenantId = String(body?.tenant_id ?? "");
 
   // who: the hourly job / eta_sync_now (x-cron-secret) — or, for «اختبار الاتصال» only, the signed-in owner / admin
@@ -110,6 +111,53 @@ Deno.serve(async (req) => {
     } catch (e) {
       return json({ ok: false, error: errText(e) });
     }
+  }
+
+  if (mode === "pdf") {
+    // the official printout, exactly as the portal gives it (owner 2026-11-27 «نفس ال PDF اللي علي المنصة»)
+    const uuids = (Array.isArray(body?.uuids) ? body.uuids : [body?.uuid]).map((u: unknown) => String(u ?? ""));
+    if (!uuids.length || uuids.length > 5 || uuids.some((u: string) => !/^[A-Za-z0-9]{10,40}$/.test(u))) {
+      return json({ ok: false, error: "ابعت من 1 لـ 5 فواتير في المرة" }, 400);
+    }
+    const lang = body?.lang === "en" ? "en" : "ar";
+    const { data: own } = await admin.from("eta_documents").select("eta_uuid").eq("tenant_id", tenantId).in("eta_uuid", uuids);
+    const mine = new Set((own ?? []).map((r: any) => r.eta_uuid));
+    let accessToken: string;
+    try { accessToken = await getToken(); } catch (e) { return json({ ok: false, error: errText(e) }); }
+    const toB64 = (bytes: Uint8Array) => {
+      let s = "";
+      for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return btoa(s);
+    };
+    const files: { uuid: string; ok: boolean; pdf?: string; size?: number; error?: string }[] = [];
+    for (let i = 0; i < uuids.length; i++) {
+      const u = uuids[i];
+      if (!mine.has(u)) { files.push({ uuid: u, ok: false, error: "الفاتورة مش موجودة عندك" }); continue; }
+      if (i > 0) await sleep(1000);
+      try {
+        let r: Response | null = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          r = await fetch(`${host.api}/api/v1.0/documents/${u}/pdf`, {
+            headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/pdf", "Accept-Language": lang },
+          });
+          if ((r.status !== 429 && r.status < 500) || attempt === 1) break;
+          const wait = Math.min(10, Number(r.headers.get("Retry-After")) || 3);
+          await sleep(wait * 1000);
+        }
+        if (!r!.ok) {
+          throw new Error(r!.status === 404 ? "المنظومة مش لاقية ملف الفاتورة دي"
+            : r!.status === 403 ? "النظام مالوش صلاحية يحمّل الفاتورة دي على البوابة"
+            : r!.status === 429 ? "المنظومة مشغولة — جرّب تاني بعد دقيقة"
+            : `منظومة الضرايب رجّعت ${r!.status} وهي بتجيب الـ PDF`);
+        }
+        const bytes = new Uint8Array(await r!.arrayBuffer());
+        if (bytes.length < 5 || String.fromCharCode(...bytes.subarray(0, 4)) !== "%PDF") throw new Error("المنظومة رجّعت حاجة مش PDF");
+        files.push({ uuid: u, ok: true, pdf: toB64(bytes), size: bytes.length });
+      } catch (e) {
+        files.push({ uuid: u, ok: false, error: errText(e) });
+      }
+    }
+    return json({ ok: true, files });
   }
 
   if (mode === "test") {

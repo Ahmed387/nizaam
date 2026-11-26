@@ -15,6 +15,7 @@ import { ArrowRight, EyeOff, ExternalLink, Link2, Loader2, Unlink } from "lucide
 import { rpcErrorText } from "@/lib/rpcError";
 import { ETA_STATE, etaState, etaTypeLabel, type EtaDoc, type EtaIssuer } from "@/lib/etaInvoices";
 import { EtaDocLines, IssuerLinker, LinkDialog, day, fmt, statusOf } from "@/components/eta/EtaDocParts";
+import { EtaPdfButton, useEtaPdfDownload } from "@/components/eta/EtaPdfDownload";
 
 function Item({ k, children }: { k: string; children: React.ReactNode }) {
   return (
@@ -34,6 +35,7 @@ export default function EtaInvoiceDetail() {
   const [loading, setLoading] = useState(true);
   const [missing, setMissing] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
+  const pdf = useEtaPdfDownload();
 
   const load = async () => {
     if (!id) return;
@@ -90,6 +92,7 @@ export default function EtaInvoiceDetail() {
           actions={
             <div className="flex flex-wrap gap-2">
               {back}
+              <EtaPdfButton busy={pdf.busy} onClick={() => pdf.download([doc])} label="حمّل الـ PDF من المنظومة" />
               {doc.public_url && <Button variant="outline" asChild><a href={doc.public_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4 ml-2" />افتحها على البوابة</a></Button>}
             </div>
           }
@@ -166,6 +169,7 @@ export default function EtaInvoiceDetail() {
         <LinkDialog doc={linkOpen ? doc : null} onClose={() => setLinkOpen(false)}
           onLink={async (shipment, note) => { if (await setMatch("link", shipment, note)) setLinkOpen(false); }} />
       </div>
+      {pdf.dialog}
     </AdminLayout>
   );
 }

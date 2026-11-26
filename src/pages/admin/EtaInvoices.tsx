@@ -4,6 +4,8 @@
 // linking only says «this ETA invoice = that purchase invoice we already have».
 //   tab «الفواتير»: every document + where it stands (متسجلة / مش متسجلة / المورد مش مربوط / مش فاتورة شراء), its lines
 //                   (fetched once from the ETA, then kept), link / unlink / «مش فاتورة شراء».
+//   PDF (owner 2026-11-27): tick invoices → ONE merged PDF or a ZIP with a file each, the portal's own printout; a row
+//                   button downloads one (`useEtaPdfDownload`, eta-sync mode 'pdf').
 //   tab «الموردين»: the ETA suppliers by tax id, linked to one or more of our supplier accounts (suggestions by name);
 //                   linking runs the automatic pairing (amount ± 1 pound, our invoice 10 days before → 30 days after).
 // Credentials live in settings → «الربط مع الفاتورة الإلكترونية» (EtaConnectionWizard).
@@ -34,6 +36,8 @@ import { ETA_STATE, ETA_VIEW_LABEL, etaInView, etaState, etaTotals, etaTypeLabel
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { LinkDialog, STATUS, day, fmt } from "@/components/eta/EtaDocParts";
 import { etaSyncView, manualWait, mmss, type EtaSyncSettings } from "@/lib/etaSyncStatus";
+import { Checkbox } from "@/components/ui/checkbox";
+import { EtaPdfBar, EtaPdfButton, useEtaPdfDownload } from "@/components/eta/EtaPdfDownload";
 
 const firstOfMonth = () => cairoTodayDay().slice(0, 8) + "01";
 
@@ -98,6 +102,12 @@ export default function EtaInvoices() {
   }, [docs, stateFilter, q]);
   const t = useMemo(() => etaTotals(docs), [docs]);
   const st = useMemo(() => etaTotals(shown), [shown]);
+  // picked invoices for the PDF download, in the table's order; a filter change keeps only what is still shown
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const pickedDocs = useMemo(() => shown.filter((d) => picked.has(d.id)), [shown, picked]);
+  const allPicked = shown.length > 0 && pickedDocs.length === shown.length;
+  const togglePick = (id: string, on: boolean) => setPicked((p) => { const n = new Set(p); if (on) n.add(id); else n.delete(id); return n; });
+  const pdf = useEtaPdfDownload();
 
   // «اسحب دلوقتي»: eta_sync_now starts the pull (one per 2 min); we watch last_sync_at until the run writes it (≤ 2.5 min)
   const syncNow = async () => {
@@ -268,10 +278,18 @@ export default function EtaInvoices() {
               })}
             </div>
 
+            {pickedDocs.length > 0 && (
+              <EtaPdfBar count={pickedDocs.length} lang={pdf.lang} setLang={pdf.setLang} busy={pdf.busy}
+                onMerged={() => pdf.download(pickedDocs, "merged")} onZip={() => pdf.download(pickedDocs, "zip")} onClear={() => setPicked(new Set())} />
+            )}
             <Card><CardContent className="p-0">
               <Table permTable="eta_docs">
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10 text-center">
+                      <Checkbox aria-label="حدد كل اللي معروض" data-testid="eta-pick-all" checked={allPicked}
+                        onCheckedChange={(v) => setPicked(v ? new Set(shown.map((d) => d.id)) : new Set())} />
+                    </TableHead>
                     <TableHead className="whitespace-nowrap">الفاتورة</TableHead>
                     <TableHead>المورد</TableHead>
                     <TableHead className="text-center whitespace-nowrap">التاريخ</TableHead>
@@ -284,8 +302,8 @@ export default function EtaInvoices() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loading && <TableRow><TableCell colSpan={9} className="text-center py-6"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>}
-                  {!loading && shown.length === 0 && <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-6">مفيش فواتير بالشروط دي</TableCell></TableRow>}
+                  {loading && <TableRow><TableCell colSpan={10} className="text-center py-6"><Loader2 className="w-5 h-5 animate-spin inline" /></TableCell></TableRow>}
+                  {!loading && shown.length === 0 && <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-6">مفيش فواتير بالشروط دي</TableCell></TableRow>}
                   {!loading && shown.map(d => {
                     const s = STATUS[d.status ?? ""] ?? { label: d.status ?? "—", cls: "bg-muted" };
                     const es = etaState(d);
@@ -293,6 +311,9 @@ export default function EtaInvoices() {
                       <TableRow key={d.id} className={`cursor-pointer hover:bg-muted/40 ${d.seen_at ? "" : "bg-primary/5"}`}
                         title="اضغط لتفاصيل الفاتورة"
                         onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a, input, [role=checkbox]")) openDoc(d); }}>
+                        <TableCell className="text-center">
+                          <Checkbox aria-label="حدد الفاتورة" data-testid={`eta-pick-${d.id}`} checked={picked.has(d.id)} onCheckedChange={(v) => togglePick(d.id, !!v)} />
+                        </TableCell>
                         <TableCell className="whitespace-nowrap">
                           <div>{etaTypeLabel(d.type_name)}{!d.seen_at && <Badge className="mr-2">جديد</Badge>}</div>
                           <div className="font-mono text-xs text-muted-foreground">{d.internal_id || "—"}</div>
@@ -321,6 +342,7 @@ export default function EtaInvoices() {
                         <TableCell>
                           <div className="flex items-center justify-center gap-0.5">
                             <Button size="sm" variant="ghost" title="تفاصيل الفاتورة" onClick={() => openDoc(d)}><ListTree className="w-4 h-4" /></Button>
+                            <EtaPdfButton busy={pdf.busy} onClick={() => pdf.download([d])} />
                             {d.public_url && <Button size="sm" variant="ghost" title="افتحها على البوابة" asChild><a href={d.public_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="w-4 h-4" /></a></Button>}
                             {canWrite && d.status === "Valid" && !d.match && d.match_mode !== "ignored" && (
                               <>
@@ -340,7 +362,7 @@ export default function EtaInvoices() {
                 {!loading && shown.length > 0 && (
                   <TableFooter>
                     <TableRow>
-                      <TableCell colSpan={3}>الإجمالي ({st.count} صحيحة، الإشعارات الدائنة بالسالب)</TableCell>
+                      <TableCell colSpan={4}>الإجمالي ({st.count} صحيحة، الإشعارات الدائنة بالسالب)</TableCell>
                       <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(st.total)}</TableCell>
                       <TableCell colSpan={2} />
                       <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(st.vat)}</TableCell>
@@ -358,6 +380,7 @@ export default function EtaInvoices() {
         </Tabs>
 
         <LinkDialog doc={linkDoc} onClose={() => setLinkDoc(null)} onLink={async (id, note) => { if (linkDoc && await setMatch(linkDoc, "link", id, note)) setLinkDoc(null); }} />
+        {pdf.dialog}
         <BackfillDialog open={backfillOpen} onClose={() => setBackfillOpen(false)} onDone={() => setTimeout(load, 60_000)} />
       </div>
     </AdminLayout>
