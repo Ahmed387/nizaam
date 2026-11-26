@@ -12,7 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Badge } from "@/components/ui/badge";
 import { PaymentMethodPicker, emptyPaymentValue, PaymentMethodValue } from "./PaymentMethodPicker";
 import { validateTransferPayment, PAYMENT_METHOD_LABELS } from "@/lib/paymentMethods";
-import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher, categoryPartyRule, partyRuleProblem } from "@/lib/vouchers";
+import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher, categoryPartyRule, partyRuleProblem, categoryEmployeeKind, salaryDuplicateWarning } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
 import { submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
 import { fetchSideBalance, sideBalanceLabel, type Side } from "@/lib/ledger";
@@ -166,6 +166,20 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     setForm((f) => ({ ...f, party_type: partyRule, party_id: "", party_name: "" }));
   }, [partyRule, open]);
 
+  // 0294: a salary voucher for a month the payroll already paid → a warning the person must confirm
+  const [salaryWarn, setSalaryWarn] = useState<string | null>(null);
+  const [salaryOk, setSalaryOk] = useState(false);
+  const isSalaryVoucher = !isEdit && type === "payment" && categoryEmployeeKind(form.category_id, cats) === "salary";
+  useEffect(() => {
+    setSalaryWarn(null); setSalaryOk(false);
+    if (!open || !isSalaryVoucher || form.party_type !== "employee" || !form.party_id || !form.voucher_date) return;
+    const month = form.voucher_date.slice(0, 7);
+    let live = true;
+    (supabase.from("salaries") as any).select("net_salary").eq("employee_id", form.party_id).eq("month", month).eq("status", "active")
+      .then(({ data }: any) => { if (live) setSalaryWarn(salaryDuplicateWarning(form.party_name, month, data ?? [])); });
+    return () => { live = false; };
+  }, [open, isSalaryVoucher, form.party_type, form.party_id, form.party_name, form.voucher_date]);
+
   // Load party options when party_type changes
   useEffect(() => {
     if (!open) return;
@@ -249,6 +263,7 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
         duration: 8000,
       });
     }
+    if (salaryWarn && !salaryOk) return toast.error("المرتب ده اتصرف قبل كده", { description: "علّم «متأكد» تحت اسم الموظف لو السند ده مش نفس المرتب." });
     if (isEdit && !editReason.trim()) return toast.error("سبب التعديل مطلوب");
     setBusy(true);
     try {
@@ -530,6 +545,13 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
                 )}
               </div>
             </div>
+
+            {salaryWarn && (
+              <label className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm leading-6" data-testid="salary-dup">
+                <input type="checkbox" className="mt-1.5" checked={salaryOk} onChange={(e) => setSalaryOk(e.target.checked)} data-testid="salary-dup-ok" />
+                <span><b className="text-warning">تنبيه: </b>{salaryWarn}<br />متأكد — السند ده حاجة تانية غير المرتب (حافز / فرق / مكافأة).</span>
+              </label>
+            )}
 
             {partyBalance && (
               <div className={cn(

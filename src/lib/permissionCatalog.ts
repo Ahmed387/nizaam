@@ -213,7 +213,7 @@ const SECTION_OF: Record<string, SectionId> = {
   customers: "ops", suppliers: "ops", employees: "ops", advances: "ops", salaries: "ops", attendance: "ops", attachments: "ops",
   doc_class: "ops", returns: "ops", admin_catalog: "ops", admin_product_attributes: "ops", admin_contacts: "ops",
   admin_employees: "ops", admin_presence: "ops", admin_shifts: "ops",
-  treasury: "money", money_transfers: "money", vessel_transfers: "money", receipt_vouchers: "money", payment_vouchers: "money", reports: "money",
+  treasury: "money", money_transfers: "money", vessel_transfers: "money", vessel_counts: "money", receipt_vouchers: "money", payment_vouchers: "money", reports: "money",
   admin_main_treasury: "money", admin_finance: "money", admin_financial_position: "money",
   admin_reports_hub: "money", admin_monthly_profit: "money", admin_historical_analytics: "money", net_profit: "money",
   doc_edit_sales: "ops", doc_edit_purchases: "ops", doc_edit_returns: "ops", doc_edit_vouchers: "money",

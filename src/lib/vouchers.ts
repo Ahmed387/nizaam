@@ -82,6 +82,11 @@ export const RESERVED_CATEGORY_KEYS = new Set([
   "customer_return",
   "branch_transfer_in",
   "branch_transfer_out",
+  // 0294: «تسوية الوعاء» books these itself
+  "vessel_short_loss",
+  "vessel_short_prior",
+  "vessel_over_gain",
+  "vessel_over_prior",
 ]);
 
 const RESERVED_CATEGORY_NAMES = ["مبيعات نقدية", "مرتجعات للعملاء", "تحويلات بين الفروع"];
@@ -119,6 +124,24 @@ export function categoryPartyRule(categoryId: string | null | undefined, cats: V
     c = c.parent_id ? cats.find((x) => x.id === c!.parent_id) : undefined;
   }
   return null;
+}
+
+/** 0294: the employee kind of a category (walks up to its parents) — like the DB's `voucher_category_employee_kind`. */
+export type EmployeeKind = "salary" | "advance" | "advance_repayment" | null;
+export function categoryEmployeeKind(categoryId: string | null | undefined, cats: VoucherCategory[]): EmployeeKind {
+  let c = cats.find((x) => x.id === categoryId);
+  for (let i = 0; c && i < 6; i++) {
+    if (c.system_key && EMPLOYEE_KEYS.has(c.system_key)) return c.system_key as EmployeeKind;
+    c = c.parent_id ? cats.find((x) => x.id === c!.parent_id) : undefined;
+  }
+  return null;
+}
+
+/** 0294: a salary voucher for a month the payroll already paid — the warning text (null = no payroll that month). */
+export function salaryDuplicateWarning(employeeName: string, month: string, paid: { net_salary: number | null }[]): string | null {
+  if (!paid.length) return null;
+  const total = paid.reduce((s, r) => s + Number(r.net_salary || 0), 0);
+  return `${employeeName || "الموظف"} اتصرفله مرتب شهر ${month} من المرتبات قبل كده (${total.toLocaleString("en-US")} ج.م). لو السند ده نفس المرتب هيتحسب مرتين.`;
 }
 
 /** The message when the party the category needs is missing (null = fine). */

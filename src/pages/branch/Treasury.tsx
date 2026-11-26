@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/layout/AppShell";
 import { TransferFeeCards } from "@/components/treasury/TransferFeeCards";
 import { VesselAccountBalances } from "@/components/treasury/VesselAccountBalances";
 import { VesselTransferButton, VesselTransfersTable } from "@/components/treasury/VesselTransfers";
+import { VesselCountButton, VesselCountsTable, useVesselCountBoard } from "@/components/treasury/VesselCounts";
 import { MONEY_TRANSFER_STATE_LABEL, moneyTransferState, needsOwnerApproval, receiveSplit, receiverCanAct, senderCanChange } from "@/lib/treasuryTransfer";
 import { CancelMoneyTransferDialog, EditMoneyTransferDialog, useTransferLimits } from "@/components/treasury/MoneyTransferDialogs";
 import { VesselAccountSelect, useHasVesselAccounts } from "@/components/payments/VesselAccountSelect";
@@ -120,6 +121,8 @@ export default function Treasury() {
   const initialTab = tabOn(`tab_${askedTab}`) ? askedTab : (TABS.find((t) => tabOn(`tab_${t}`)) ?? askedTab);
   const reversalView = initialTab === "reversals";
   const { user, profile, branches, isAdmin, hasRole, canInBranch, isOwner } = useAuth();
+  // 0294: «تسوية الوعاء» — the board says who may count (owner / approval mode) and lists the counts
+  const { board: vesselBoard, reload: reloadVesselBoard } = useVesselCountBoard(branchId);
   // 0285: «تحويل الفلوس بين الفروع» — يبعت / يستلم per person per branch (owner sets them)
   const canTransfer = !!branchId && canInBranch("money_transfers.create", branchId);
   const canSeeBalances = isAdmin || hasRole("branch_manager") || hasRole("viewer");
@@ -574,6 +577,9 @@ export default function Treasury() {
             {branchId && canInBranch("vessel_transfers.create", branchId) && (
               <VesselTransferButton branchId={branchId} onDone={() => window.dispatchEvent(new Event("treasury:refresh"))} />
             )}
+            {branchId && (
+              <VesselCountButton branchId={branchId} board={vesselBoard} onDone={() => window.dispatchEvent(new Event("treasury:refresh"))} />
+            )}
             {canTransfer && otherBranches.length > 0 && (
               <PermPart page="treasury" part="transfer_button"><Button className="btn-gradient" onClick={() => setOpenTransfer(true)}>
                 <ArrowLeftRight className="w-4 h-4 ml-1" /> تحويل لفرع
@@ -628,6 +634,7 @@ export default function Treasury() {
           <TabsTrigger value="payments">سندات الصرف</TabsTrigger>
           <TabsTrigger value="transfers">تحويلات بين الفروع ({transfers.length})</TabsTrigger>
           <TabsTrigger value="vessel_transfers">تحويلات بين الأوعية</TabsTrigger>
+          <TabsTrigger value="vessel_counts">تسويات الأوعية{vesselBoard?.counts.some((c) => c.status === "pending") ? ` (${vesselBoard.counts.filter((c) => c.status === "pending").length} مستنية)` : ""}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="receipts" className="mt-4">
@@ -832,6 +839,10 @@ export default function Treasury() {
         </TabsContent>
         <TabsContent value="vessel_transfers" className="mt-4">
           {branchId && <VesselTransfersTable branchId={branchId} canCancel={canInBranch("vessel_transfers.create", branchId)} />}
+        </TabsContent>
+
+        <TabsContent value="vessel_counts" className="mt-4">
+          {branchId && <VesselCountsTable branchId={branchId} board={vesselBoard} onDone={() => { reloadVesselBoard(); window.dispatchEvent(new Event("treasury:refresh")); }} />}
         </TabsContent>
       </Tabs>
 

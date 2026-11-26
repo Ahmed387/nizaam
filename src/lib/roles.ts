@@ -61,6 +61,8 @@ export const BRANCH_PERMISSION_GROUPS: PermGroup[] = [
   { key: "treasury", label: "الخزنة", actions: ["view"] },
   // 0139: «تحويل بين الأوعية» inside one branch (cash ↔ wallet ↔ bank …), optional fee = expense
   { key: "vessel_transfers", label: "التحويل بين أوعية الفرع (كاش / محافظ / بنك)", actions: ["create"] },
+  // 0294: «تسوية الوعاء» — counts the real money of a vessel; works only when the owner sets «الموظف يعدّ والمالك يوافق»
+  { key: "vessel_counts", label: "تسوية الوعاء (يعدّ الفلوس الفعلية ويبعتها للمالك)", actions: ["create"] },
   { key: "receipt_vouchers", label: "سندات القبض", actions: ["view", "create", "delete"] },
   { key: "payment_vouchers", label: "سندات الصرف", actions: ["view", "create", "delete"] },
   { key: "employees", label: "الموظفين", actions: ["view", "create", "update", "delete"] },

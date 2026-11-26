@@ -31,6 +31,7 @@ import { TemplatesPermissions } from "@/components/permissions/TemplatesPermissi
 import { EmployeesPermissions } from "@/components/permissions/EmployeesPermissions";
 import { OrphanedBatchesCheck } from "@/components/OrphanedBatchesCheck";
 import { NegativeStockSetting } from "@/components/settings/NegativeStockSetting";
+import { VesselCountSetting } from "@/components/settings/VesselCountSetting";
 
 import { BranchSchedulesTab } from "@/components/BranchSchedulesTab";
 import { ShiftSchedulesTab } from "@/components/ShiftSchedulesTab";
@@ -406,6 +407,7 @@ export default function Settings() {
           <PaymentFeesTab />
           <TransferApprovalLimits />
           <VesselAccessEditor />
+          <VesselCountSetting />
         </TabsContent>
 
         <TabsContent value="voucher-cats" className="mt-4">

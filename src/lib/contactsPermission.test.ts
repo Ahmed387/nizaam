@@ -42,6 +42,8 @@ describe("role defaults are read per switch, like perm_resolve (parity check 202
     expect(m.cashier["sales.create"]).toBe(true);
     const bm = mergeRolePerms([{ role: "branch_manager", permission_key: "sales.view", allowed: true }]);
     expect(bm.branch_manager["vessel_transfers.create"]).toBe(true);
+    expect(bm.branch_manager["vessel_counts.create"]).toBe(true);   // 0294, like role_permission_default
+    expect(m.cashier["vessel_counts.create"]).toBeFalsy();
   });
   it("a saved row wins over the default", () => {
     const m = mergeRolePerms([{ role: "cashier", permission_key: "returns.update", allowed: false }]);
