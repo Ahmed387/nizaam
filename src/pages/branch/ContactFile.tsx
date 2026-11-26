@@ -2,6 +2,7 @@ import { netOf, netText, netTone } from "@/lib/netBalance";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
 import { SettleWithoutMoneyButton } from "@/components/contact/SettleWithoutMoneyButton";
+import { SettleToBalanceButton } from "@/components/contact/SettleToBalanceButton";
 import { MergeContactButton } from "@/components/contact/MergeContactButton";
 import { HideContactButton } from "@/components/contact/HideContactButton";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
@@ -188,6 +189,11 @@ export default function ContactFile() {
             )}
             {c && contactId && (hasCustomer || hasSupplier) && (
               <SettleWithoutMoneyButton contactId={contactId} contactName={c.name} side={side}
+                sides={[...(hasCustomer ? ["customer" as const] : []), ...(hasSupplier ? ["supplier" as const] : [])]}
+                defaultBranch={scopeBranch ?? routeBranchId ?? null} onDone={() => { loadOverview(); }} />
+            )}
+            {c && contactId && (hasCustomer || hasSupplier) && (
+              <SettleToBalanceButton contactId={contactId} contactName={c.name} side={side}
                 sides={[...(hasCustomer ? ["customer" as const] : []), ...(hasSupplier ? ["supplier" as const] : [])]}
                 defaultBranch={scopeBranch ?? routeBranchId ?? null} onDone={() => { loadOverview(); }} />
             )}

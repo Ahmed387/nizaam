@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Scale } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -6,62 +6,87 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PermTable } from "@/components/PermTable";
 import { useAuth } from "@/contexts/AuthContext";
 import { cairoTodayDay } from "@/lib/cairoDate";
-import { formatDate, formatEGP } from "@/lib/format";
+import { formatEGP } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
-  cancelContactSettlement, fetchContactSettlements, settleContactWithoutMoney, settleDirections, settleEffect, settleProblem,
-  type ContactSettlement, type SettleDirection, type SettleSide,
+  balanceAfter, balanceText, branchesWithBalance, directionAllowed, fetchContactSettlements, fetchSettleInfo, overBalance,
+  settleContactWithoutMoney, settleDirections, settleEffect, settleProblem, sideNet,
+  type BranchBalance, type ContactSettlement, type SettleDirection, type SettleSide,
 } from "@/lib/contactSettlement";
+import { BranchBalancePick, ChoiceCards, SettlementList } from "./SettlementList";
+
+type Props = { contactId: string; contactName: string; side: SettleSide; sides: SettleSide[]; defaultBranch: string | null; onDone?: () => void };
 
 /**
- * «تسوية رصيد بدون فلوس» in the contact file — owner only (migration 0148). Lowers his balance against «أرباح السنين
- * اللي فاتت» without moving a real till; lists his settlements with «إلغاء» (cancelled on their own day).
+ * «تسوية رصيد بدون فلوس» in the contact file — owner only (0148, safety 0291). Lowers his balance against «أرباح السنين
+ * اللي فاتت» without moving a real till. 0291: only a branch where that side has a balance, only the direction that
+ * matches it, and an amount above it asks the owner «لحد الصفر بس» or «كمّل ويقلب».
  */
-export function SettleWithoutMoneyButton({ contactId, contactName, side, sides, defaultBranch, onDone }: {
-  contactId: string; contactName: string; side: SettleSide; sides: SettleSide[]; defaultBranch: string | null; onDone?: () => void;
-}) {
-  const { isOwner, branches } = useAuth();
+export function SettleWithoutMoneyButton(p: Props) {
+  const { isOwner } = useAuth();
   const [open, setOpen] = useState(false);
+  if (!isOwner) return null;
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}><Scale className="w-4 h-4 ml-1" /> تسوية رصيد بدون فلوس</Button>
+      {open && <SettleWithoutMoneyDialog {...p} open={open} onOpenChange={setOpen} />}
+    </>
+  );
+}
+
+export function SettleWithoutMoneyDialog({ contactId, contactName, side, sides, defaultBranch, onDone, open, onOpenChange }: Props & {
+  open: boolean; onOpenChange: (o: boolean) => void;
+}) {
   const [sd, setSd] = useState<SettleSide>(side);
   const [direction, setDirection] = useState<SettleDirection | null>(null);
-  const [branchId, setBranchId] = useState<string | null>(defaultBranch);
+  const [branchId, setBranchId] = useState<string | null>(null);
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(cairoTodayDay());
   const [reason, setReason] = useState("");
+  const [over, setOver] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [info, setInfo] = useState<BranchBalance[] | null>(null);
   const [list, setList] = useState<ContactSettlement[]>([]);
-  const [cancelRow, setCancelRow] = useState<ContactSettlement | null>(null);
-  const [cancelReason, setCancelReason] = useState("");
 
-  const branchList = (branches ?? []).filter((b: any) => !b.is_system);
-  const branchName = (id: string) => branchList.find((b: any) => b.id === id)?.name ?? "—";
-  const dirs = settleDirections(sd);
-  const amt = Number(amount) || 0;
-  const effect = settleEffect(sd, direction, amt);
-
-  const load = () => fetchContactSettlements(contactId).then(setList).catch(() => setList([]));
+  const load = () => {
+    fetchSettleInfo(contactId).then(setInfo).catch(() => setInfo([]));
+    fetchContactSettlements(contactId).then(setList).catch(() => setList([]));
+  };
   useEffect(() => { if (open) load(); }, [open, contactId]);
 
-  if (!isOwner) return null;
+  const withBal = useMemo(() => branchesWithBalance(info ?? [], sd), [info, sd]);
+  const net = sideNet(info ?? [], branchId, sd);
+  const amt = Number(amount) || 0;
+  const isOver = !!direction && amt > 0 && overBalance(net, amt);
+  const effect = settleEffect(sd, direction, amt);
 
-  const start = () => {
-    setSd(side); setDirection(side === "supplier" ? "we_owe_less" : null);
-    setBranchId(defaultBranch ?? (branchList.length === 1 ? branchList[0].id : null));
-    setAmount(""); setDate(cairoTodayDay()); setReason(""); setOpen(true);
-  };
+  // pick a branch with a balance and the direction that matches it
+  useEffect(() => {
+    if (!info) return;
+    const keep = withBal.find((b) => b.branch_id === branchId) ?? withBal.find((b) => b.branch_id === defaultBranch) ?? withBal[0];
+    const id = keep?.branch_id ?? null;
+    if (id !== branchId) setBranchId(id);
+    const n = sideNet(info, id, sd);
+    const ok = settleDirections(sd).find((d) => directionAllowed(sd, d.value, n));
+    setDirection(ok?.value ?? null);
+  }, [info, sd, branchId]);
+  useEffect(() => { setOver(null); }, [amount, branchId, sd, direction]);
+
+  const branchName = (id: string) => (info ?? []).find((b) => b.branch_id === id)?.branch ?? "—";
 
   const save = async () => {
     const input = { branchId, side: sd, direction, amount: amt, date, reason };
     const problem = settleProblem(input, cairoTodayDay());
     if (problem) return toast.error(problem);
+    if (direction && !directionAllowed(sd, direction, net)) return toast.error("الاتجاه ده عكس رصيده في الفرع ده");
+    if (isOver && !over) return toast.error("المبلغ أكبر من رصيده — اختار: لحد الصفر بس ولا كمّل ويقلب");
+    const send = isOver && over === "zero" ? { ...input, amount: Math.abs(net) } : input;
     setBusy(true);
     try {
-      const res = await settleContactWithoutMoney(contactId, input);
-      toast.success(`اتسجلت التسوية ${res?.settlement_number ?? ""} — ${effect.split(" — ")[0]}`);
+      const res = await settleContactWithoutMoney(contactId, send, isOver && over === "flip");
+      toast.success(`اتسجلت التسوية ${res?.settlement_number ?? ""} — ${settleEffect(sd, direction, send.amount).split(" — ")[0]}`);
       setAmount(""); setReason("");
       load(); onDone?.();
     } catch (e: any) {
@@ -71,121 +96,95 @@ export function SettleWithoutMoneyButton({ contactId, contactName, side, sides, 
     }
   };
 
-  const doCancel = async () => {
-    if (!cancelRow) return;
-    if (!cancelReason.trim()) return toast.error("اكتب سبب الإلغاء");
-    setBusy(true);
-    try {
-      await cancelContactSettlement(cancelRow.id, cancelReason);
-      toast.success(`اتلغت التسوية ${cancelRow.settlement_number} في يومها`);
-      setCancelRow(null); setCancelReason("");
-      load(); onDone?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "تعذر الإلغاء");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <>
-      <Button variant="outline" onClick={start}><Scale className="w-4 h-4 ml-1" /> تسوية رصيد بدون فلوس</Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent dir="rtl" className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>تسوية رصيد {contactName} بدون فلوس</DialogTitle>
-            <DialogDescription>
-              الرصيد بيقل على «أرباح السنين اللي فاتت». مفيش فلوس بتدخل أو تطلع من أي خزنة، وربح 2026 ما بيتغيرش.
-            </DialogDescription>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="swm-dialog">
+        <DialogHeader>
+          <DialogTitle>تسوية رصيد {contactName} بدون فلوس</DialogTitle>
+          <DialogDescription>
+            الرصيد بيقل على «أرباح السنين اللي فاتت». مفيش فلوس بتدخل أو تطلع من أي خزنة، وربح 2026 ما بيتغيرش.
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="space-y-3 text-sm">
-            {sides.length > 1 && (
-              <div className="flex gap-2">
-                {sides.map((s) => (
-                  <Button key={s} size="sm" variant={sd === s ? "default" : "outline"}
-                    onClick={() => { setSd(s); setDirection(s === "supplier" ? "we_owe_less" : null); }}>
-                    {s === "customer" ? "حساب العميل" : "حساب المورد"}
-                  </Button>
-                ))}
-              </div>
-            )}
-            <div className="space-y-2" role="radiogroup">
-              {dirs.map((d) => (
-                <button key={d.value} type="button" role="radio" aria-checked={direction === d.value} onClick={() => setDirection(d.value)}
-                  className={cn("w-full text-right rounded-md border p-2 transition-colors",
-                    direction === d.value ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-muted")}>
-                  <div className="font-semibold">{d.label}</div>
-                </button>
+        <div className="space-y-3 text-sm">
+          {sides.length > 1 && (
+            <div className="flex gap-2">
+              {sides.map((s) => (
+                <Button key={s} size="sm" variant={sd === s ? "default" : "outline"} data-testid={`swm-side-${s}`} onClick={() => setSd(s)}>
+                  {s === "customer" ? "حساب العميل" : "حساب المورد"}
+                </Button>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>الفرع</Label>
-                <Select value={branchId ?? ""} onValueChange={setBranchId}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="اختار الفرع" /></SelectTrigger>
-                  <SelectContent>{branchList.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>التاريخ</Label>
-                <Input type="date" className="mt-1" value={date} min="2026-01-01" max={cairoTodayDay()} onChange={(e) => setDate(e.target.value)} />
-              </div>
-            </div>
-            <div>
-              <Label>المبلغ</Label>
-              <Input type="number" inputMode="decimal" className="mt-1" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            </div>
-            <div>
-              <Label>السبب</Label>
-              <Textarea rows={2} className="mt-1" value={reason} onChange={(e) => setReason(e.target.value)} />
-            </div>
-            {effect && <div className="rounded-md border border-warning/40 bg-warning/5 p-2 text-xs">{effect}</div>}
-          </div>
-
-          <DialogFooter className="gap-2 sm:justify-start">
-            <Button onClick={save} disabled={busy}>سجّل التسوية</Button>
-            <Button variant="ghost" onClick={() => setOpen(false)}>رجوع</Button>
-          </DialogFooter>
-
-          {list.length > 0 && (
-            <div className="mt-2 border-t pt-3">
-              <div className="mb-2 text-sm font-semibold">التسويات اللي اتعملت</div>
-              <PermTable className="w-full text-xs">
-                <thead><tr><th className="text-right">الرقم</th><th className="text-right">التاريخ</th><th className="text-right">الحساب</th>
-                  <th className="text-right">المبلغ</th><th className="text-right">الفرع</th><th className="text-right">الحالة</th><th /></tr></thead>
-                <tbody>
-                  {list.map((s) => (
-                    <tr key={s.id} className={cn(s.status === "cancelled" && "text-muted-foreground line-through")}>
-                      <td>{s.settlement_number}</td>
-                      <td>{formatDate(s.settlement_date)}</td>
-                      <td>{s.side === "customer" ? "عميل" : "مورد"} · {s.direction === "he_owes_less" ? "قلّ اللي عليه" : "قلّ اللي علينا"}</td>
-                      <td>{formatEGP(s.amount)}</td>
-                      <td>{branchName(s.branch_id)}</td>
-                      <td>{s.status === "active" ? "شغالة" : "ملغية"}</td>
-                      <td>{s.status === "active" && <Button size="sm" variant="ghost" className="h-7 text-destructive" onClick={() => { setCancelRow(s); setCancelReason(""); }}>إلغاء</Button>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </PermTable>
-            </div>
           )}
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={!!cancelRow} onOpenChange={(o) => !o && setCancelRow(null)}>
-        <DialogContent dir="rtl" className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>إلغاء التسوية {cancelRow?.settlement_number}</DialogTitle>
-            <DialogDescription>الرصيد يرجع زي ما كان، والإلغاء بيتسجل في يوم التسوية نفسه.</DialogDescription>
-          </DialogHeader>
-          <Textarea rows={2} placeholder="سبب الإلغاء" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
-          <DialogFooter className="gap-2 sm:justify-start">
-            <Button variant="destructive" onClick={doCancel} disabled={busy}>الغيها</Button>
-            <Button variant="ghost" onClick={() => setCancelRow(null)}>رجوع</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          {info === null ? <div className="text-muted-foreground">بيحمّل الرصيد…</div>
+            : withBal.length === 0 ? (
+              <div className="rounded-md border border-dashed p-3 text-center text-muted-foreground" data-testid="swm-empty">
+                مفيش رصيد على حساب ال{sd === "customer" ? "عميل" : "مورد"} في أي فرع — مفيش حاجة تتسوّى.
+              </div>
+            ) : (
+              <>
+                <div>
+                  <Label>الفرع (اللي ليه فيه رصيد بس)</Label>
+                  <div className="mt-1">
+                    <BranchBalancePick prefix="swm" value={branchId} onPick={setBranchId} text={(n) => balanceText(sd, n)}
+                      items={withBal.map((b) => ({ id: b.branch_id, name: b.branch, net: Number(b[sd]) }))} />
+                  </div>
+                </div>
+                <div className="space-y-2" role="radiogroup">
+                  {settleDirections(sd).map((d) => {
+                    const ok = directionAllowed(sd, d.value, net);
+                    return (
+                      <button key={d.value} type="button" role="radio" aria-checked={direction === d.value} disabled={!ok}
+                        data-testid={`swm-dir-${d.value}`} onClick={() => ok && setDirection(d.value)}
+                        className={cn("w-full text-right rounded-md border p-2 transition-colors",
+                          direction === d.value ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-muted",
+                          !ok && "opacity-50 cursor-not-allowed hover:bg-background")}>
+                        <div className="font-semibold">{d.label}</div>
+                        {!ok && <div className="text-xs text-muted-foreground">مش متاح — رصيده {balanceText(sd, net)}</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>المبلغ</Label>
+                    <Input type="number" inputMode="decimal" className="mt-1" data-testid="swm-amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>التاريخ</Label>
+                    <Input type="date" className="mt-1" value={date} min="2026-01-01" max={cairoTodayDay()} onChange={(e) => setDate(e.target.value)} />
+                  </div>
+                </div>
+                {isOver && (
+                  <div className="rounded-md border border-warning/50 bg-warning/5 p-2 space-y-2" data-testid="swm-over">
+                    <div className="font-semibold">المبلغ {formatEGP(amt)} أكبر من رصيده ({balanceText(sd, net)}) — انت تقرر:</div>
+                    <ChoiceCards prefix="swm-over" value={over} onPick={setOver} options={[
+                      { value: "zero", title: `سوّي لحد الصفر بس (${formatEGP(Math.abs(net))})`, note: "رصيده يبقى صفر، والباقي ما يتسجلش." },
+                      { value: "flip", title: `كمّل بـ ${formatEGP(amt)} ويقلب`, note: `رصيده يبقى ${balanceText(sd, balanceAfter(net, amt))}.` },
+                    ]} />
+                  </div>
+                )}
+                <div>
+                  <Label>السبب</Label>
+                  <Textarea rows={2} className="mt-1" data-testid="swm-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+                </div>
+                {effect && !isOver && (
+                  <div className="rounded-md border border-warning/40 bg-warning/5 p-2 text-xs" data-testid="swm-effect">
+                    {effect} — رصيده يبقى {balanceText(sd, balanceAfter(net, amt))}.
+                  </div>
+                )}
+              </>
+            )}
+        </div>
+
+        <DialogFooter className="gap-2 sm:justify-start">
+          <Button onClick={save} disabled={busy || !withBal.length} data-testid="swm-save">سجّل التسوية</Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>رجوع</Button>
+        </DialogFooter>
+
+        <SettlementList list={list} branchName={branchName} onChanged={() => { load(); onDone?.(); }} />
+      </DialogContent>
+    </Dialog>
   );
 }
