@@ -48,6 +48,15 @@ const GAP_LINES = [
   { account_code: "3200", debit: 1154171.57, credit: 0, description: "مسحوبات قبل السيستم — الحاج ناصر" },
   { account_code: "3100", debit: 0, credit: 4000000, description: "رأس مال شريك تجربة" },
   { account_code: "3100", debit: 0, credit: 6000000, description: "رأس مال الحاج ناصر" }];
+// 0289: step 2 — the owner's example (600,000 available; محمد 340,000 / أحمد 226,667 / إبراهيم 33,333; one partner with no capital)
+const P3 = "b0000001-0000-4000-8000-000000000003", P4 = "b0000001-0000-4000-8000-000000000004";
+const SPLIT = { from: "2026-10-01", to: "2026-10-31", net_profit: 600000, already: 0, available: 600000, pay_missing: false, partners: [
+  { partner_id: P1, name: "محمد", capital_start: 3000000, capital_end: 3000000, suggested: 340000 / 600000, in_period: true, advances: 0 },
+  { partner_id: P2, name: "أحمد", capital_start: 2000000, capital_end: 2000000, suggested: 226666.67 / 600000, in_period: true, advances: 0 },
+  { partner_id: P3, name: "إبراهيم", capital_start: 0, capital_end: 1000000, suggested: 33333.33 / 600000, in_period: true, advances: 20000 },
+  { partner_id: P4, name: "شريك من غير رأس مال", capital_start: 0, capital_end: 0, suggested: 0, in_period: false, advances: 0 }] };
+const DISTS = [{ id: "dist-1", day: "2026-09-30", from: "2026-09-01", to: "2026-09-30", total: 100000, status: "posted", mode: "manual", rest: "keep",
+  available: 120000, notes: null, by: "احمد ناصر", lines: [{ partner_id: P1, name: "محمد", amount: 60000, pct: 60, suggested: 56.67 }, { partner_id: P2, name: "أحمد", amount: 40000, pct: 40, suggested: 37.78 }] }];
 function makeDb() {
   return {
     calls: [],
@@ -80,7 +89,7 @@ function filt(rows, url) {
 async function open(browser, db, me) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: "ar-EG" });
   const page = await ctx.newPage();
-  page.on("pageerror", (e) => db.calls.push({ pageerror: String(e).slice(0, 300) }));
+  page.on("pageerror", (e) => db.calls.push({ pageerror: String(e).slice(0, 300) + " @after " + JSON.stringify(db.calls.slice(-3).map((c) => c.rpc || c.table)) + " " + String(e.stack || "").split("\n").slice(1, 6).join(" | ") }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   await ctx.route(`${SB}/**`, async (route) => {
     const req = route.request(); const url = new URL(req.url()); const path = url.pathname;
@@ -102,6 +111,12 @@ async function open(browser, db, me) {
       if (name === "preview_flexible_distribution") return json({ net_profit: { net_profit: 0 }, distributable: 0, partners: [] });
       if (name === "partner_cards") return json(body.p_partner === P2 ? cards2 : cards);
       if (name === "edit_existing_capital") return json("m6");
+      if (name === "period_split_preview") return json(SPLIT);
+      if (name === "profit_distributions_list") return json(DISTS);
+      if (name === "distribute_profits_manual") return json({ distribution_id: "dist-2", total_amount: body.p_lines.reduce((s, l) => s + l.amount, 0), available: 600000,
+        kept: 600000 - body.p_lines.reduce((s, l) => s + l.amount, 0), advances_settled: 0, day: "2026-10-31" });
+      if (name === "reverse_period_distribution") return null || json(null);
+      if (name === "lock_distributed_period") return json("p1");
       if (name === "edit_partner_capital_move") return json({ old: body.p_tx, new: "m7", difference: -100000 });
       if (name === "cancel_partner_transaction") return json({ voided: 1, amount: 200000 });
       if (name === "partner_money") return json({ treasury_id: "t9", capital: 0, profit: 150000, advance: 50000 });
@@ -257,7 +272,56 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   check("13. خطوة 1: شهر بشهر — صافي قبل المرتبات والمرتبات والباقي", await vis(page.getByText("خطوة 1: سجّل مرتبات الشركاء للفترة")) && await vis(page.getByText(money(261000)).first()));
   await page.getByRole("button", { name: "سجّل مرتبات الشركاء" }).click(); await page.waitForTimeout(700);
   check("14. «سجّل مرتبات الشركاء» = post_partner_period_shares مرة واحدة", db.calls.filter((c) => c.rpc === "post_partner_period_shares").length === 1);
-  check("15. خطوة 2 (التوزيع على رأس المال) جوه نفس التاب", await vis(page.getByText("خطوة 2: وزّع الباقي على رأس المال")));
+  check("15. خطوة 2 (التوزيع على الشركا) جوه نفس التاب", await vis(page.getByText("خطوة 2: وزّع الباقي على الشركا")));
+  // 0289: the owner types % / amounts; a remainder is his choice on the screen
+  const sp = page.getByTestId("period-split");
+  await sp.getByTestId("split-available").waitFor({ timeout: 8000 }).catch(() => {});
+  check("15a. المتاح 600,000 والمقترح 3 شركا (اللي ملوش رأس مال برا الجدول)", money(600000).test(await sp.getByTestId("split-available").innerText().catch(() => ""))
+    && await vis(sp.getByTestId(`split-row-${P3}`)) && !(await vis(sp.getByTestId(`split-row-${P4}`))));
+  check("15b. من غير ما تكتب حاجة الإجمالي = المتاح", (await sp.getByTestId("split-diff").innerText()).includes("المتاح بالظبط"));
+  await sp.getByLabel("نسبة إبراهيم").fill("10"); await page.waitForTimeout(200);
+  const amtI = await sp.getByLabel("مبلغ إبراهيم").inputValue();
+  check("15c. 10% لإبراهيم = 60,000 والباقيين زي ما هما", amtI === "60000" && (await sp.getByLabel("مبلغ محمد").inputValue()) === "340000", amtI);
+  check("15d. زيادة 26,666.67 عن المتاح والزرار مقفول", /زيادة .*26[,٬]?666\.67/.test(await sp.getByTestId("split-diff").innerText()) && await sp.getByTestId("split-go").isDisabled());
+  await sp.getByLabel("مبلغ محمد").fill("313333.33"); await page.waitForTimeout(200);
+  check("15e. محمد 313,333.33 → النسبة 52.22% والإجمالي = المتاح", (await sp.getByLabel("نسبة محمد").inputValue()) === "52.22"
+    && (await sp.getByTestId("split-diff").innerText()).includes("المتاح بالظبط") && !(await sp.getByTestId("split-go").isDisabled()));
+  await sp.getByLabel("مبلغ محمد").fill("250000"); await sp.getByLabel("مبلغ أحمد").fill("200000"); await sp.getByLabel("مبلغ إبراهيم").fill("50000"); await page.waitForTimeout(200);
+  check("15f. فاضل 100,000 → لازم تختار أ ولا ب", /فاضل .*100[,٬]?000/.test(await sp.getByTestId("split-diff").innerText()) && await vis(sp.getByTestId("rest-choice"))
+    && await sp.getByTestId("split-go").isDisabled() && (await sp.getByTestId("split-problem").innerText()).includes("الباقي"));
+  const rc = await sp.getByTestId("rest-choice").innerText();
+  check("15g. كل اختيار بيقول الفلوس هتروح فين (ب: محمد 300,000 / أحمد 240,000 / إبراهيم 60,000)", rc.includes("أرباح محتجزة") && rc.includes("مش في كارت أي شريك")
+    && money(300000).test(rc) && money(240000).test(rc), rc.replace(/\n/g, " | "));
+  await sp.getByText("(ب) وزّع الباقي على الشركا").click(); await page.waitForTimeout(200);
+  const fin = await sp.getByTestId("split-final").innerText();
+  check("15h. ب: الكروت تاخد 300,000 / 240,000 / 60,000 وإبراهيم بيسدد سلفته الأول", money(300000).test(fin) && money(240000).test(fin) && /سداد سلفته/.test(fin), fin.replace(/\n/g, " | "));
+  await sp.getByTestId("split-go").click(); await page.waitForTimeout(400);
+  await page.getByRole("button", { name: "أيوه، وزّع" }).click(); await page.waitForTimeout(600);
+  if (await vis(page.getByRole("button", { name: "لأ، سيبها مفتوحة" }))) await page.getByRole("button", { name: "لأ، سيبها مفتوحة" }).click();
+  await page.waitForTimeout(400);
+  const dm = db.calls.filter((c) => c.rpc === "distribute_profits_manual");
+  check("15i. distribute_profits_manual (ب): المتاح كله 600,000 و p_rest spread", dm.length === 1 && dm[0].body.p_rest === "spread"
+    && Math.abs(dm[0].body.p_lines.reduce((s, l) => s + l.amount, 0) - 600000) < 0.01 && dm[0].body.p_from === dm[0].body.p_from, JSON.stringify(dm[0]?.body ?? {}));
+  // أ: keep the remainder
+  await sp.getByLabel("مبلغ محمد").fill("250000"); await sp.getByLabel("مبلغ أحمد").fill("200000"); await sp.getByLabel("مبلغ إبراهيم").fill("50000"); await page.waitForTimeout(200);
+  await sp.getByText("(أ) سيب الباقي في الشركة").click(); await page.waitForTimeout(200);
+  check("15j. أ: بيقول الباقي 100,000 في الشركة", /والباقي .*100[,٬]?000.* في الشركة/.test(await sp.getByTestId("split-final").innerText()));
+  await sp.getByTestId("split-go").click(); await page.waitForTimeout(400);
+  await page.getByRole("button", { name: "أيوه، وزّع" }).click(); await page.waitForTimeout(600);
+  if (await vis(page.getByRole("button", { name: "أيوه، اقفلها" }))) await page.getByRole("button", { name: "أيوه، اقفلها" }).click();
+  await page.waitForTimeout(400);
+  const dm2 = db.calls.filter((c) => c.rpc === "distribute_profits_manual");
+  check("15k. distribute_profits_manual (أ): 500,000 و p_rest keep + سؤال القفل", dm2.length === 2 && dm2[1].body.p_rest === "keep"
+    && dm2[1].body.p_lines.reduce((s, l) => s + l.amount, 0) === 500000 && db.calls.some((c) => c.rpc === "lock_distributed_period"), JSON.stringify(dm2[1]?.body ?? {}));
+  await sp.getByLabel("ضيف شريك").selectOption(P4); await sp.getByRole("button", { name: "ضيف شريك" }).click(); await page.waitForTimeout(200);
+  check("15l. «ضيف شريك» بيضيف اللي ملوش رأس مال بـ 0", await vis(sp.getByTestId(`split-row-${P4}`)) && (await sp.getByLabel("مبلغ شريك من غير رأس مال").inputValue()) === "0");
+  const dl = await sp.getByTestId("dist-dist-1").innerText().catch(() => "");
+  check("15m. «توزيعات الفترات»: نصيب كل واحد بنسبته والمقترح والباقي في الشركة", dl.includes("نسب يدوية") && /60[,٬]?000/.test(dl) && dl.includes("المقترح 56.67%") && /20[,٬]?000 .*في الشركة/.test(dl), dl.replace(/\n/g, " | "));
+  await sp.getByTestId("dist-dist-1").getByRole("button", { name: "اعكس التوزيع" }).click(); await page.waitForTimeout(300);
+  await page.getByRole("dialog").locator("textarea").fill("النسب غلط");
+  await page.getByRole("dialog").getByRole("button", { name: "اعكس التوزيع" }).click(); await page.waitForTimeout(600);
+  const rv = db.calls.filter((c) => c.rpc === "reverse_period_distribution");
+  check("15n. «اعكس التوزيع» بسبب = reverse_period_distribution مرة واحدة", rv.length === 1 && rv[0].body.p_id === "dist-1" && rv[0].body.p_reason === "النسب غلط", JSON.stringify(rv[0]?.body ?? {}));
   await shot(page, "partners-7-distribution");
 
   // 5. «القوائم المالية» inside the page; its own tabs do not move the page's tab
@@ -265,7 +329,8 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   check("16. تاب القوائم المالية جوه صفحة الشركاء", await vis(page.getByRole("tab", { name: /قائمة الدخل|الدخل/ }).first()) && page.url().includes("tab=statements"));
 
   // 6. the add form: no pay fields there any more
-  await page.evaluate(() => document.querySelectorAll("[data-sonner-toast]").forEach((t) => t.remove()));   // a toast can sit over the tabs
+  // a toast can sit over the tabs: wait for it to go (removing it by hand breaks React — «removeChild»)
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
   await page.getByRole("tab", { name: "الشركاء" }).click(); await settle(page);
   await page.getByRole("button", { name: /شريك جديد/ }).click(); await page.waitForTimeout(500);
   check("17. فورم الشريك الجديد من غير خانات مرتب / حصة تشغيل (بقت في «توزيع الأرباح»)",

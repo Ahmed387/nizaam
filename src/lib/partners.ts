@@ -373,3 +373,19 @@ export function moveStatusText(m: PartnerMovement): string {
   }
   return "شغالة";
 }
+
+// ===== 0289: step 2 with the owner's own % / amounts, the distributions list, «اعكس التوزيع» =====
+export type DistributionLine = { partner_id: string; name: string; amount: number; pct: number; suggested: number | null };
+export type DistributionRow = {
+  id: string; day: string; from: string | null; to: string | null; total: number; status: string; mode: "manual" | "auto";
+  rest: "keep" | "spread" | null; available: number | null; notes: string | null; by: string | null; lines: DistributionLine[];
+};
+export const fetchSplitPreview = (from: string, to: string) =>
+  rpc<import("./periodSplit").SplitPreview>("period_split_preview", { p_from: from, p_to: to });
+export const distributeManual = (from: string, to: string, lines: { partner_id: string; amount: number }[], rest: "keep" | "spread", notes?: string) =>
+  rpc<{ distribution_id: string; total_amount: number; available: number; kept: number; advances_settled: number; day: string }>(
+    "distribute_profits_manual", { p_from: from, p_to: to, p_lines: lines, p_notes: notes || null, p_rest: rest });
+export const fetchDistributions = () => rpc<DistributionRow[]>("profit_distributions_list", {});
+export const reverseDistribution = (id: string, reason: string) => rpc<null>("reverse_period_distribution", { p_id: id, p_reason: reason });
+export const lockDistributedPeriod = (from: string, to: string, reason?: string) =>
+  rpc<unknown>("lock_distributed_period", { p_from: from, p_to: to, p_reason: reason || null });

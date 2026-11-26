@@ -1,6 +1,6 @@
 # Spec Delta: تاريخ إيداع رأس المال + تعديل/إلغاء/إثبات حركات رأس المال + توزيع فترة بنسب أو مبالغ تكتبها
 
-Status: approved (2026-11-26) — capital-records in progress (0288), period-split next
+Status: implemented (2026-11-26, migrations 0288 + 0289 + 0289b) — browser check pending the Publish
 
 ## Capability map
 

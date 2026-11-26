@@ -13,7 +13,7 @@ import {
   cancelPeriodShares, payExample, payRuleText, pct, postPeriodShares, previewPeriodShares, ruleForMonth,
   type PartnerCards, type SharesPreview,
 } from "@/lib/partners";
-import FlexibleDistribution from "@/pages/admin/FlexibleDistribution";
+import { PeriodSplit } from "./PeriodSplit";
 import { PartnerPayDialog } from "./PartnerPayDialog";
 import { PayExampleTable } from "./PayExampleTable";
 import { ReasonDialog } from "./ReasonDialog";
@@ -52,6 +52,8 @@ export function PartnersDistributionTab({ data }: { data: Data }) {
   const [preview, setPreview] = useState<SharesPreview | null>(null);
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
+  // step 2 reads the same period and reloads after step 1 changes it (0289)
+  const [stepKey, setStepKey] = useState(0);
   const overrides = () => Object.fromEntries(Object.entries(typed).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)]));
   const loadPreview = async () => {
     if (!from || !to || from > to) return;
@@ -64,11 +66,11 @@ export function PartnersDistributionTab({ data }: { data: Data }) {
     try {
       const r = await postPeriodShares(from, to, overrides());
       toast.success(`اتسجل ${r.posted} — اتخصموا من ربح الفترة كمرتبات للشركاء`);
-      setTyped({}); await loadPreview(); load();
+      setTyped({}); await loadPreview(); load(); setStepKey((k) => k + 1);
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
   const cancel = async (reason: string) => {
-    try { await cancelPeriodShares(from, to, reason); toast.success("اتلغت مرتبات الفترة"); setAsking(false); await loadPreview(); load(); }
+    try { await cancelPeriodShares(from, to, reason); toast.success("اتلغت مرتبات الفترة"); setAsking(false); await loadPreview(); load(); setStepKey((k) => k + 1); }
     catch (e: any) { toast.error(e.message); }
   };
 
@@ -178,10 +180,12 @@ export function PartnersDistributionTab({ data }: { data: Data }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>خطوة 2: وزّع الباقي على رأس المال</CardTitle>
-          <p className="text-xs text-muted-foreground">كل شريك ياخد على قد نسبته في كل شهر. السلف المفتوحة بتتخصم من نصيبه الأول.</p>
+          <CardTitle>خطوة 2: وزّع الباقي على الشركا</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            النظام بيقترح النسب حسب رأس مال كل واحد في كل شهر — وانت تكتب النسبة أو المبلغ اللي تحبه لكل شريك. السلف المفتوحة بتتخصم من نصيبه الأول.
+          </p>
         </CardHeader>
-        <CardContent><FlexibleDistribution embedded onDone={load} /></CardContent>
+        <CardContent><PeriodSplit from={from} to={to} reloadKey={stepKey} onDone={load} /></CardContent>
       </Card>
 
       {editing && <PartnerPayDialog cards={editing} active={active} shares={shares} rules={rules} onClose={() => setEditing(null)} onDone={load} />}
