@@ -14,8 +14,12 @@ import { createPortal } from "react-dom";
  * (localStorage `colw:v1:<path>:<id of the table>`), keyed by the column's title; a column whose title is not saved keeps its
  * natural width. Applied with a <style> of nth-child rules (like PermTable's hidden columns), never by editing cells,
  * so React re-renders do not lose it. Nothing is sent to the server.
+ * Look and feel = the ETA portal's table (owner video 2026-11-27 «اعمل زيها بالظبط»): nothing shows at rest; near the border
+ * between two titles a THIN line appears with the ↔ cursor, grabbable from both sides of the border (the end of one title and
+ * the start of the next); it stays lit while dragging and the column follows the pointer live; the other columns keep their
+ * widths and just move; once a table was resized its cells stay on ONE line and cut with «…» (the full text on hover).
  */
-const MIN = 60;
+const MIN = 36;
 type Head = { el: HTMLTableCellElement; idx: number; label: string };
 
 const labelOf = (th: HTMLTableCellElement) =>
@@ -72,6 +76,7 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
   const key = `colw:v1:${pathname}:${storageId ?? "t"}`;
   const [widths, setWidths] = useState<Record<string, number>>({});
   const drag = useRef<{ label: string; startX: number; startW: number; rtl: boolean } | null>(null);
+  const [dragging, setDragging] = useState<string | null>(null);
   // personal hide / show of columns
   const hideKey = `colh:v1:${pathname}:${storageId ?? "t"}`;
   const [hidden, setHidden] = useState<string[]>([]);
@@ -147,16 +152,30 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
   const natural = useRef<Record<string, number>>({});
   useEffect(() => { natural.current = {}; }, [sig]);
   const measure = useCallback(() => {
-    heads.forEach((h) => { if (natural.current[h.label] == null) natural.current[h.label] = Math.max(MIN, Math.round(h.el.getBoundingClientRect().width)); });
+    // frozen as they are (a narrow check-box column stays narrow); MIN only limits a column being dragged
+    heads.forEach((h) => { if (natural.current[h.label] == null) natural.current[h.label] = Math.max(16, Math.ceil(h.el.getBoundingClientRect().width)); });
   }, [heads]);
+
+  // a column put back to its natural width: measure it with our widths switched off for a moment (the table is fixed by
+  // then, so its own width says nothing); the other columns keep the widths they had
+  const styleRef = useRef<HTMLStyleElement | null>(null);
+  const naturalAgain = (label: string) => {
+    const sheet = styleRef.current?.sheet;
+    if (sheet) sheet.disabled = true;
+    const h = heads.find((x) => x.label === label);
+    if (h) natural.current[label] = Math.max(16, Math.ceil(h.el.getBoundingClientRect().width));
+    if (sheet) sheet.disabled = false;
+  };
 
   const css = useMemo(() => {
     if (!active) return "";
-    const w = (h: Head) => Math.max(MIN, Math.round(widths[h.label] ?? natural.current[h.label] ?? h.el.getBoundingClientRect().width));
+    const w = (h: Head) => Math.max(16, Math.round(widths[h.label] ?? natural.current[h.label] ?? h.el.getBoundingClientRect().width));
     const total = heads.reduce((s, h) => s + (hidden.includes(h.label) ? 0 : w(h)), 0);
     const rules = heads.map((h) => {
       const px = w(h);
-      return `[data-cr="${uid}"] > * > tr > :nth-child(${h.idx}):not([colspan]) { width: ${px}px !important; min-width: ${px}px !important; max-width: ${px}px !important; overflow: hidden; text-overflow: ellipsis; }`;
+      const cell = `[data-cr="${uid}"] > * > tr > :nth-child(${h.idx}):not([colspan])`;
+      return `${cell} { width: ${px}px !important; min-width: ${px}px !important; max-width: ${px}px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; }
+${cell} > div:not([class*="flex"]), ${cell} > p, ${cell} > a, ${cell} > [data-perm-label] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap !important; max-width: 100%; }`;
     });
     return `[data-cr="${uid}"] { table-layout: fixed !important; width: ${total}px !important; min-width: ${total}px !important; max-width: none !important; }\n${rules.join("\n")}`;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,14 +187,29 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
     const offs = heads.map((h) => {
       const fn = (e: MouseEvent) => {
         if ((e.target as HTMLElement).closest?.("button,input,a,[role=separator]")) return;
+        naturalAgain(h.label);
         setWidths((w) => { if (w[h.label] == null) return w; const n = { ...w }; delete n[h.label]; save(key, n); return n; });
-        natural.current = {}; setTick((t) => t + 1);
+        setTick((t) => t + 1);
       };
       h.el.addEventListener("dblclick", fn);
       return () => h.el.removeEventListener("dblclick", fn);
     });
     return () => offs.forEach((off) => off());
   }, [heads, key]);
+
+  // a cell cut with «…» shows its whole text on hover (only cells with no title of their own)
+  useEffect(() => {
+    if (!table || !active) return;
+    const over = (e: MouseEvent) => {
+      const cell = (e.target as HTMLElement).closest?.("td, th") as HTMLElement | null;
+      if (!cell || !table.contains(cell)) return;
+      const cut = [cell, ...Array.from(cell.children)].some((x) => (x as HTMLElement).scrollWidth > (x as HTMLElement).clientWidth + 1);
+      if (cut && !cell.hasAttribute("title")) { cell.setAttribute("title", (cell.innerText || "").replace(/\s+/g, " ").trim()); cell.setAttribute("data-cr-title", ""); }
+      else if (!cut && cell.hasAttribute("data-cr-title")) { cell.removeAttribute("title"); cell.removeAttribute("data-cr-title"); }
+    };
+    table.addEventListener("mouseover", over);
+    return () => table.removeEventListener("mouseover", over);
+  }, [table, active]);
 
   const start = (h: Head, e: React.PointerEvent) => {
     e.preventDefault(); e.stopPropagation();
@@ -185,6 +219,7 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
+    setDragging(h.label);
   };
   const move = (e: React.PointerEvent) => {
     const d = drag.current;
@@ -197,12 +232,13 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
     if (!drag.current) return;
     drag.current = null;
     document.body.style.cursor = ""; document.body.style.userSelect = "";
+    setDragging(null);
     setWidths((w) => { save(key, w); return w; });
   };
   const reset = (h: Head, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
+    naturalAgain(h.label);
     setWidths((w) => { const n = { ...w }; delete n[h.label]; save(key, n); return n; });
-    natural.current = {};
     setTick((t) => t + 1);
   };
 
@@ -230,7 +266,7 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
   if (!table || heads.length === 0) return null;
   return (
     <>
-      {css && <style>{css}</style>}
+      {css && <style ref={styleRef}>{css}</style>}
       {rowCss && <style>{rowCss}</style>}
       {hideCss && <style>{hideCss}</style>}
       {host && heads.length > 1 && createPortal(
@@ -255,18 +291,31 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
             </div>, document.body)}
         </div>, host)}
       <style>{`[data-cr="${uid}"] > thead > tr:last-child > *:not(.sticky) { position: relative; }${active ? `\n*:has(> [data-cr="${uid}"]) { overflow-x: auto !important; }` : ""}`}</style>
-      {heads.map((h) => createPortal(
-        <span
-          role="separator" aria-orientation="vertical" aria-label={`تغيير عرض عمود ${h.label}`} title="اسحب لتغيير عرض العمود — دبل كليك يرجّعه"
-          data-xf-ignore="" data-no-print=""
-          onPointerDown={(e) => start(h, e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
-          onDoubleClick={(e) => reset(h, e)} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()} draggable={false}
-          className="print:hidden absolute top-0 bottom-0 z-10 w-2 cursor-col-resize select-none touch-none hover:bg-primary/40 active:bg-primary/60"
-          style={{ insetInlineEnd: 0 }}
-        />,
-        holderOf(h.el),
-        `cr-${h.idx}-${h.label}`,
-      ))}
+      {heads.map((h, i) => {
+        // the border between this title and the one before it is grabbable from this side too (it resizes the one before)
+        const prev = heads.slice(0, i).reverse().find((x) => !hidden.includes(x.label));
+        const grip = (target: Head, side: "end" | "start", w: number) => (
+          <span
+            role="separator" aria-orientation="vertical" aria-label={`تغيير عرض عمود ${target.label}`} title="اسحب لتغيير عرض العمود — دبل كليك يرجّعه"
+            data-xf-ignore="" data-no-print="" data-cr-grip={side}
+            onPointerDown={(e) => start(target, e)} onPointerMove={move} onPointerUp={end} onPointerCancel={end}
+            onDoubleClick={(e) => reset(target, e)} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.preventDefault()} draggable={false}
+            className="group/cr print:hidden absolute top-0 bottom-0 z-10 cursor-col-resize select-none touch-none"
+            style={side === "end" ? { insetInlineEnd: 0, width: w } : { insetInlineStart: 0, width: w }}
+          >
+            <span aria-hidden className={`pointer-events-none absolute top-0 bottom-0 w-[2px] rounded-full bg-primary transition-opacity duration-75 ${dragging === target.label ? "opacity-100" : "opacity-0 group-hover/cr:opacity-90"}`}
+              style={side === "end" ? { insetInlineEnd: 0 } : { insetInlineStart: -1 }} />
+          </span>
+        );
+        return createPortal(
+          <>
+            {grip(h, "end", 7)}
+            {prev && grip(prev, "start", 5)}
+          </>,
+          holderOf(h.el),
+          `cr-${h.idx}-${h.label}`,
+        );
+      })}
       {heads.map((h) => createPortal(
         <span
           role="separator" aria-orientation="horizontal" aria-label="تغيير ارتفاع الصفوف" title="اسحب لتحت أو لفوق لتغيير ارتفاع الصفوف — دبل كليك يرجّعه"

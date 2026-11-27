@@ -17,8 +17,10 @@ import { partKey } from "@/lib/permissionCatalog";
  */
 type Props = TableHTMLAttributes<HTMLTableElement> & {
   permTable?: string;
-  /** no Excel filter (forms, previews before saving, print, grids) */
+  /** no Excel filter (forms, previews before saving, grids) — the columns can still be resized (owner 2026-11-28 «كل جداول السيستم») */
   noFilter?: boolean;
+  /** no column resizing either (print / receipt layouts) */
+  noResize?: boolean;
   /** tells apart tables with the same columns on one page (their filters are remembered separately) */
   filterId?: string;
   /** Below 768 px show each row as a card (src/components/table/MobileCards.tsx); desktop unchanged. */
@@ -29,7 +31,7 @@ type Props = TableHTMLAttributes<HTMLTableElement> & {
  * Every PermTable also gets the Excel-like filter (owner 2026-10-26, src/components/table/ExcelFilter.tsx): an arrow in
  * each column title, a bar of the active filters and a totals row — read from what the table shows, no setup.
  */
-export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable({ permTable, noFilter, filterId, mobileCards, ...props }, ref) {
+export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable({ permTable, noFilter, noResize, filterId, mobileCards, ...props }, ref) {
   const page = useCurrentPermPage();
   const [el, setEl] = useState<HTMLTableElement | null>(null);
   const setRef = useCallback((t: HTMLTableElement | null) => {
@@ -42,9 +44,10 @@ export const PermTable = forwardRef<HTMLTableElement, Props>(function PermTable(
   return (
     <>
       {!noFilter && <ExcelLayer table={el} storageId={filterId ?? permTable} />}
-      {page ? <PermTableInner page={page} permTable={permTable} tableRef={setRef} {...props} {...(noFilter ? { "data-no-resize": "" } : {})} /> : <table ref={setRef} {...props} {...(noFilter ? { "data-no-resize": "" } : {})} />}
-      {/* after the table: its styles must not come before the column-hiding style */}
-      {!noFilter && <ColumnResizeLayer table={el} storageId={filterId ?? permTable} />}
+      {page ? <PermTableInner page={page} permTable={permTable} tableRef={setRef} {...props} {...(noResize ? { "data-no-resize": "" } : {})} /> : <table ref={setRef} {...props} {...(noResize ? { "data-no-resize": "" } : {})} />}
+      {/* after the table: its styles must not come before the column-hiding style. A noFilter table with no id of its own is
+          left to GlobalColumnResize, which numbers the tables of the page (two of them would share one key here) */}
+      {!noResize && (!noFilter || filterId || permTable) && <ColumnResizeLayer table={el} storageId={filterId ?? permTable} />}
     </>
   );
 });
