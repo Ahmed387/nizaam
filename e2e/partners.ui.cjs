@@ -37,7 +37,13 @@ const cards = { partner, contributions: 1000000, capital_withdrawals: 200000, ca
   advances_list: [] };
 
 const P2 = "b0000001-0000-4000-8000-000000000002";
-const cards2 = { partner: { ...partner, id: P2, name: "الحاج ناصر" }, contributions: 800000, capital_withdrawals: 0, capital: 800000, profit: 0, profit_in: 0, profit_out: 0, advances: 0, movements: [], advances_list: [] };
+// 0296: an employee-partner with an open advance, a limit and two payments (one cash = cancellable, one from the distribution)
+const cards2 = { partner: { ...partner, id: P2, name: "الحاج ناصر", role_kind: "employee_partner", employee_id: E1, max_advance: 40000 },
+  contributions: 800000, capital_withdrawals: 0, capital: 800000, profit: 0, profit_in: 0, profit_out: 0, advances: 30000, movements: [],
+  advances_list: [{ id: "adv-1", amount: 50000, remaining: 30000, date: "2026-10-05", status: "partially_paid", reason: "سحب أكتر من ربحه", paid_back: 20000,
+    repay_mode: "profit", monthly: 30000, payments: [
+      { id: "pay-1", amount: 15000, date: "2026-10-20", method: "cash_till", ref_type: "treasury", ref: "tr-cash-1", status: "active" },
+      { id: "pay-2", amount: 5000, date: "2026-10-31", method: "profit_deduction", ref_type: "distribution", ref: "d1", status: "active" }] }] };
 const SHARES = { from: "2026-10-01", to: "2026-10-31", net_before: 300000, total: 39000, already: false,
   months: [{ month: "2026-10", from: "2026-10-01", to: "2026-10-31", net_before: 300000, pay: 39000,
     lines: [{ partner_id: P1, name: "شريك تجربة", kind: "fixed", amount: 10000 }, { partner_id: P1, name: "شريك تجربة", kind: "percent", percent: 0.1, percent_base: "after_fixed", base: 290000, amount: 29000 }] }],
@@ -131,7 +137,12 @@ async function open(browser, db, me) {
       if (name === "lock_distributed_period") return json("p1");
       if (name === "edit_partner_capital_move") return json({ old: body.p_tx, new: "m7", difference: -100000 });
       if (name === "cancel_partner_transaction") return json({ voided: 1, amount: 200000 });
-      if (name === "partner_money") return json({ treasury_id: "t9", capital: 0, profit: 150000, advance: 50000 });
+      if (name === "partner_money") return json({ treasury_id: "t9", capital: 0, profit: 150000, advance: 50000, advance_id: "adv-new" });
+      if (name === "partner_advance_repay") return json({ treasury_id: "tr-new", paid: body.p_amount, left: 30000 - body.p_amount });
+      if (name === "partner_advance_from_capital") return json({ tx_id: "tx-new", paid: body.p_amount, left: 30000 - body.p_amount });
+      if (name === "cancel_partner_advance_repay") return json({ kind: "cash", amount: 15000 });
+      if (name === "set_partner_advance_limit") return json({ max_advance: body.p_max });
+      if (name === "set_partner_advance_repay") return json({ mode: body.p_mode });
       if (name === "save_partner") return json("b0000001-0000-4000-8000-000000000002");
       if (name === "ledger_position") return json({ customers: {}, suppliers: {}, cross_branch: {} });   // the page's other cards
       return json(null);
@@ -454,6 +465,62 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   await page.getByTestId("pa-confirm").click(); await page.waitForTimeout(600);
   const rs = db.calls.filter((c) => c.rpc === "set_partner_archived");
   check("20g. «استرجاع» = set_partner_archived(false)", rs.length === 2 && rs[1].body.p_partner === P6 && rs[1].body.p_archived === false, JSON.stringify(rs[1]?.body ?? {}));
+
+  // 9. 0296: the advances panel on the partner page
+  db.withNour = false;
+  await page.goto(`${BASE}/admin/financial-position/partner/${P2}`); await settle(page);
+  const ap = page.getByTestId("partner-advances");
+  check("21. «السلف»: عليه 30,000 والحد 40,000 والدفعات بطريقتها", (await ap.innerText()).includes("رد كاش") && (await ap.innerText()).includes("من توزيع الأرباح")
+    && money(40000).test(await page.getByTestId("advance-limit").innerText()) && (await page.getByTestId("adv-mode-adv-1").innerText()) === "من الربح");
+  check("21a. «إلغاء» على الدفعة الكاش بس", await vis(page.getByTestId("adv-cancel-pay-1")) && !(await vis(page.getByTestId("adv-cancel-pay-2"))));
+  await shot(page, "partners-10-advances");
+  await page.getByTestId("adv-repay-cash").click(); await page.waitForTimeout(300);
+  await page.locator("#adv-amount").fill("40000"); await page.waitForTimeout(150);
+  check("22. رد أكتر من السلف = الزرار مقفول", await page.getByTestId("adv-cash-dialog-save").isDisabled());
+  await page.locator("#adv-amount").fill("10000");
+  await page.getByTestId("adv-branch").click(); await page.getByRole("option", { name: "معرض عبدالمنعم" }).click(); await page.waitForTimeout(150);
+  check("22a. اللي هيحصل: الخزنة +10,000 والسلف 30,000 ← 20,000", money(20000).test(await page.getByTestId("adv-cash-effect").innerText()));
+  await page.getByTestId("adv-cash-dialog-save").click(); await page.waitForTimeout(600);
+  const arc = db.calls.filter((c) => c.rpc === "partner_advance_repay");
+  check("22b. partner_advance_repay مرة واحدة بالفرع والوعاء", arc.length === 1 && arc[0].body.p_amount === 10000 && arc[0].body.p_branch === B1 && arc[0].body.p_method === "cash", JSON.stringify(arc[0]?.body ?? {}));
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+  await page.getByTestId("adv-repay-capital").click(); await page.waitForTimeout(300);
+  await page.locator("#adv-amount").fill("5000"); await page.locator("#adv-reason").fill("اتفقنا"); await page.waitForTimeout(150);
+  check("23. من رأس ماله: رأس ماله 800,000 ← 795,000", money(795000).test(await page.getByTestId("adv-capital-effect").innerText()));
+  await page.getByTestId("adv-capital-dialog-save").click(); await page.waitForTimeout(600);
+  const rk = db.calls.filter((c) => c.rpc === "partner_advance_from_capital");
+  check("23a. partner_advance_from_capital مرة واحدة", rk.length === 1 && rk[0].body.p_amount === 5000 && rk[0].body.p_reason === "اتفقنا", JSON.stringify(rk[0]?.body ?? {}));
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+  await page.getByTestId("adv-mode-btn-adv-1").click(); await page.waitForTimeout(300);
+  await page.getByTestId("repay-salary").click(); await page.waitForTimeout(150);
+  check("24. «من المرتب» من غير قسط = مقفول", await page.getByTestId("adv-mode-dialog-save").isDisabled());
+  await page.locator("#repay-monthly").fill("5000"); await page.waitForTimeout(150);
+  check("24a. 30,000 ÷ 5,000 = 6 شهر", (await page.getByTestId("adv-mode-dialog").innerText()).includes("6 شهر"));
+  await page.getByTestId("adv-mode-dialog-save").click(); await page.waitForTimeout(600);
+  const rm = db.calls.filter((c) => c.rpc === "set_partner_advance_repay");
+  check("24b. set_partner_advance_repay(salary, 5000)", rm.length === 1 && rm[0].body.p_advance === "adv-1" && rm[0].body.p_mode === "salary" && rm[0].body.p_monthly === 5000, JSON.stringify(rm[0]?.body ?? {}));
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+  await page.getByTestId("adv-cancel-pay-1").click(); await page.waitForTimeout(300);
+  await page.locator("#adv-cancel-reason").fill("غلط"); await page.getByTestId("adv-cancel-dialog-save").click(); await page.waitForTimeout(600);
+  const cr = db.calls.filter((c) => c.rpc === "cancel_partner_advance_repay");
+  check("25. إلغاء الدفعة الكاش = cancel_partner_advance_repay بمرجع الخزنة", cr.length === 1 && cr[0].body.p_ref === "tr-cash-1" && cr[0].body.p_reason === "غلط", JSON.stringify(cr[0]?.body ?? {}));
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+  await page.getByTestId("adv-limit").click(); await page.waitForTimeout(300);
+  await page.locator("#adv-limit-input").fill(""); await page.getByTestId("adv-limit-dialog-save").click(); await page.waitForTimeout(500);
+  const lm = db.calls.filter((c) => c.rpc === "set_partner_advance_limit");
+  check("26. شيل الحد = set_partner_advance_limit(null)", lm.length === 1 && lm[0].body.p_max === null, JSON.stringify(lm[0]?.body ?? {}));
+  // a withdrawal that makes an advance: limit + «تتسد إزاي؟»
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+  await page.getByRole("button", { name: /^سحب$/ }).first().click(); await page.waitForTimeout(500);
+  await page.locator("#pm-amount").fill("20000"); await page.waitForTimeout(200);
+  check("27. سحب 20,000 من غير ربح: «هيعمل سلفة 20,000 — تتسد إزاي؟» وفوق الحد = مقفول", await vis(page.getByTestId("pm-repay"))
+    && (await page.getByTestId("pm-problem").innerText()).includes("حد السلفة") && await page.getByTestId("pm-save").isDisabled());
+  await page.locator("#pm-amount").fill("8000"); await page.getByTestId("repay-both").click(); await page.locator("#repay-monthly").fill("2000");
+  await page.getByTestId("pm-branch").click(); await page.getByRole("option", { name: "معرض عبدالمنعم" }).click(); await page.waitForTimeout(200);
+  await shot(page, "partners-11-withdraw-advance");
+  await page.getByTestId("pm-save").click(); await page.waitForTimeout(800);
+  const rm2 = db.calls.filter((c) => c.rpc === "set_partner_advance_repay");
+  check("27a. بعد السحب: set_partner_advance_repay(السلفة الجديدة، الاتنين، 2,000)", rm2.length === 2 && rm2[1].body.p_advance === "adv-new" && rm2[1].body.p_mode === "both" && rm2[1].body.p_monthly === 2000, JSON.stringify(rm2[1]?.body ?? {}));
 
   check("18b. مفيش رسالة خطأ ظهرت (toast) في أي خطوة", !(await vis(page.getByText(/حصل خطأ/))));
   const errs = db.calls.filter((c) => c.pageerror);

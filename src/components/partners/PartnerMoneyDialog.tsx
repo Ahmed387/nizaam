@@ -15,10 +15,11 @@ import { cairoTodayDay } from "@/lib/cairoDate";
 import { formatEGP } from "@/lib/format";
 import { choosable, loadAllPaymentMethods, type PaymentMethodOption } from "@/lib/paymentMethods";
 import {
-  fetchMoneyBranches, fetchPartnersOverview, monthLabel, partnerMoney, partnerMoneyProblem, pct, splitWithdrawal, suggestCountsFrom,
+  advanceLimitProblem, fetchMoneyBranches, fetchPartnersOverview, monthLabel, repayProblem, setPartnerAdvanceRepay, type RepayMode, partnerMoney, partnerMoneyProblem, pct, splitWithdrawal, suggestCountsFrom,
   withdrawalSentence, type PartnerCards, type WithdrawSource,
 } from "@/lib/partners";
 import { CountsFromFields, EffectRow, PartnerChips, ProofPicker } from "@/components/partners/PartnerFormParts";
+import { RepayModeFields } from "@/components/partners/PartnerAdvancesPanel";
 
 /**
  * «مساهمة» / «سحب» (0137, redesigned 2026-11-27 like «سحب قبل السيستم»): the money moves in the till of the branch and vessel
@@ -53,6 +54,9 @@ export function PartnerMoneyDialog({ kind, cards, active: activeIn, onClose, onD
   const [notes, setNotes] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  // 0296: «تتسد إزاي؟» when this withdrawal makes an advance
+  const [repayMode, setRepayMode] = useState<RepayMode>("profit");
+  const [monthly, setMonthly] = useState("");
 
   useEffect(() => {
     fetchMoneyBranches().then(setBranches).catch(() => setBranches([]));
@@ -71,8 +75,13 @@ export function PartnerMoneyDialog({ kind, cards, active: activeIn, onClose, onD
   const shareAfter = total + capDelta > 0 ? Math.max(capAfter, 0) / (total + capDelta) : 0;
   const profitNow = Number(cards.profit) || 0;
   const advNow = Number(cards.advances) || 0;
+  const isEmployee = cards.partner.role_kind === "employee_partner" && !!cards.partner.employee_id;
+  const makesAdvance = !isIn && split.advance > 0;
 
-  const problem = partnerMoneyProblem({ kind, amount: amt, branchId, date, today, source, capitalPart: Number(capitalPart || 0), cards })
+  // the limit first: it decides whether this withdrawal can happen at all
+  const problem = (makesAdvance ? advanceLimitProblem(cards.partner.max_advance, advNow, split.advance) : null)
+    ?? partnerMoneyProblem({ kind, amount: amt, branchId, date, today, source, capitalPart: Number(capitalPart || 0), cards })
+    ?? (makesAdvance ? repayProblem(repayMode, Number(monthly || 0), split.advance, isEmployee) : null)
     ?? (!month ? "اختار يتحسب من بداية أنهي شهر" : hasAccounts && !account ? (isIn ? "اختار الحساب اللي الفلوس وصلت عليه" : "اختار الحساب اللي الفلوس اتحولت منه") : null);
 
   const save = async () => {
@@ -82,6 +91,10 @@ export function PartnerMoneyDialog({ kind, cards, active: activeIn, onClose, onD
       const r = await partnerMoney({ partnerId: cards.partner.id, kind, amount: amt, source, capitalPart: Number(capitalPart || 0),
         branchId: branchId!, method, date, notes, account: hasAccounts ? account : null, countsFrom: month });
       let failed = 0;
+      if (makesAdvance && repayMode !== "profit" && r.advance_id) {
+        try { await setPartnerAdvanceRepay(r.advance_id, repayMode, Number(monthly || 0)); }
+        catch (e: any) { toast.error(`السحب اتسجل، بس طريقة السداد ماتسجلتش: ${e.message} — غيّرها من «السلف» في صفحته`); }
+      }
       if (files.length) {
         const { data } = await supabase.from("partner_transactions").select("id").eq("related_treasury_id", r.treasury_id).order("created_at").limit(1);
         const id = data?.[0]?.id;
@@ -159,6 +172,14 @@ export function PartnerMoneyDialog({ kind, cards, active: activeIn, onClose, onD
                   <Input id="pm-cap-part" type="number" inputMode="decimal" min={0} value={capitalPart} onChange={(e) => setCapitalPart(e.target.value)} className="mt-1" />
                 </div>
               )}
+            </section>
+          )}
+
+          {makesAdvance && (
+            <section className="rounded-xl border border-warning/40 bg-warning/5 p-3 space-y-2" data-testid="pm-repay">
+              <div className="text-sm font-semibold">السحب ده هيعمل سلفة {formatEGP(split.advance)} — تتسد إزاي؟</div>
+              <RepayModeFields mode={repayMode} setMode={setRepayMode} monthly={monthly} setMonthly={setMonthly} remaining={split.advance} isEmployee={isEmployee} />
+              {cards.partner.max_advance != null && <div className="text-[11px] text-muted-foreground">الحد الأقصى لسلفه {formatEGP(Number(cards.partner.max_advance))} — عليه دلوقتي {formatEGP(advNow)}</div>}
             </section>
           )}
 

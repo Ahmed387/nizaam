@@ -23,6 +23,8 @@ export type PartnerInfo = {
   start_date: string | null; notes: string | null; initial_capital: number;
   /** 0295b: archived (هو كمان is_active = false) */
   archived_at?: string | null; archive_reason?: string | null;
+  /** 0296: the maximum open advances (NULL = no limit) */
+  max_advance?: number | null;
 };
 
 export type PartnerMovement = {
@@ -39,7 +41,11 @@ export type PartnerMovement = {
   counts_from?: string | null;
 };
 
-export type PartnerAdvance = { id: string; amount: number; remaining: number; date: string; status: string; reason: string | null; paid_back: number };
+export type RepayMode = "profit" | "salary" | "both";
+export type AdvancePayment = { id: string; amount: number; date: string; method: "treasury" | "profit_deduction" | "manual" | "cash_till" | "capital" | "salary";
+  ref_type: string | null; ref: string | null; status: string };
+export type PartnerAdvance = { id: string; amount: number; remaining: number; date: string; status: string; reason: string | null; paid_back: number;
+  /** 0296 */ repay_mode?: RepayMode; monthly?: number | null; payments?: AdvancePayment[] };
 
 export type PartnerCards = {
   partner: PartnerInfo;
@@ -173,7 +179,7 @@ export function partnerMoney(input: {
   /** 0295: «يتحسب من بداية شهر» (the 1st of a month) — the owner's choice */
   countsFrom?: string | null;
 }) {
-  return rpc<{ treasury_id: string; capital: number; profit: number; advance: number; counts_from?: string }>("partner_money", {
+  return rpc<{ treasury_id: string; capital: number; profit: number; advance: number; advance_id?: string | null; counts_from?: string }>("partner_money", {
     p_partner: input.partnerId, p_kind: input.kind, p_amount: input.amount, p_source: input.source ?? "capital",
     p_capital_part: input.source === "split" ? input.capitalPart ?? 0 : null, p_branch: input.branchId, p_method: input.method,
     p_date: input.date, p_notes: input.notes || null,
@@ -481,3 +487,36 @@ export const isCapitalMove = (m: Pick<PartnerMovement, "type" | "existing">) =>
 export function splitMoves<T extends Pick<PartnerMovement, "void">>(rows: T[]): { live: T[]; cancelled: T[] } {
   return { live: rows.filter((m) => !m.void), cancelled: rows.filter((m) => m.void) };
 }
+
+// ── 0296: advances — how they are paid back ─────────────────────────────────────────────────────────────────────────
+export const REPAY_MODE_LABEL: Record<RepayMode, string> = { profit: "من الربح", salary: "من المرتب", both: "من المرتب والربح" };
+export const PAY_METHOD_LABEL: Record<AdvancePayment["method"], string> = {
+  cash_till: "رد كاش", capital: "من رأس ماله", salary: "خصم من المرتب", profit_deduction: "من توزيع الأرباح", treasury: "خزنة (قديم)", manual: "يدوي (قديم)",
+};
+/** a payment the owner can cancel here (cash into a till / from his capital), with the reference to send */
+export const cancellableRepay = (x: AdvancePayment) => x.status === "active" && (x.method === "cash_till" || x.method === "capital") && !!x.ref;
+/** why a withdrawal of `advance` more would pass his limit, or null */
+export function advanceLimitProblem(maxAdvance: number | null | undefined, openNow: number, advance: number): string | null {
+  if (maxAdvance == null || !(advance > 0)) return null;
+  if (openNow + advance > maxAdvance + 0.005) return `حد السلفة ${formatEGP(maxAdvance)} — عليه ${formatEGP(openNow)}، والسحب ده هيعمل سلفة ${formatEGP(advance)}`;
+  return null;
+}
+/** «تتسد إزاي؟» check before sending */
+export function repayProblem(mode: RepayMode, monthly: number, remaining: number, isEmployee: boolean): string | null {
+  if (mode === "profit") return null;
+  if (!isEmployee) return "مش موظف — مالوش مرتب يتخصم منه";
+  if (!(monthly > 0)) return "اكتب القسط اللي يتخصم من المرتب كل شهر";
+  if (monthly > remaining + 0.005) return `القسط أكبر من الباقي (${formatEGP(remaining)})`;
+  return null;
+}
+/** months to finish at that instalment */
+export const monthsToRepay = (remaining: number, monthly: number) => (monthly > 0 ? Math.ceil(round2(remaining) / monthly - 1e-9) : 0);
+export const repayAdvanceCash = (v: { partnerId: string; amount: number; branchId: string; method: string; date: string; notes?: string; account?: string | null }) =>
+  rpc<{ treasury_id: string; paid: number; left: number }>("partner_advance_repay", { p_partner: v.partnerId, p_amount: v.amount, p_branch: v.branchId,
+    p_method: v.method, p_date: v.date, p_notes: v.notes || null, ...(v.account ? { p_account: v.account } : {}) });
+export const repayAdvanceFromCapital = (partnerId: string, amount: number, date: string, reason?: string) =>
+  rpc<{ tx_id: string; paid: number; left: number }>("partner_advance_from_capital", { p_partner: partnerId, p_amount: amount, p_date: date, p_reason: reason || null });
+export const cancelAdvanceRepay = (ref: string, reason: string) => rpc<{ kind: string; amount: number }>("cancel_partner_advance_repay", { p_ref: ref, p_reason: reason });
+export const setPartnerAdvanceLimit = (partnerId: string, max: number | null) => rpc<{ max_advance: number | null }>("set_partner_advance_limit", { p_partner: partnerId, p_max: max });
+export const setPartnerAdvanceRepay = (advanceId: string, mode: RepayMode, monthly?: number | null) =>
+  rpc<{ mode: RepayMode }>("set_partner_advance_repay", { p_advance: advanceId, p_mode: mode, p_monthly: mode === "profit" ? null : monthly ?? null });

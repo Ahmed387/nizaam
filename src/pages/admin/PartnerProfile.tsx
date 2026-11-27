@@ -21,6 +21,7 @@ import { PartnerCardsRow } from "@/components/partners/PartnerCardsRow";
 import { PartnerMoneyDialog } from "@/components/partners/PartnerMoneyDialog";
 import { PartnerFormDialog } from "@/components/partners/PartnerFormDialog";
 import { PartnerArchiveActions } from "@/components/partners/PartnerArchiveActions";
+import { PartnerAdvancesPanel } from "@/components/partners/PartnerAdvancesPanel";
 import { PartnerMovementsTable } from "@/components/partners/PartnerMovementsTable";
 
 const CARD_TITLE: Record<CardKey, string> = {
@@ -31,7 +32,6 @@ const CARD_TITLE: Record<CardKey, string> = {
   advances: "السلف وسدادها",
 };
 
-const ADV_STATUS: Record<string, string> = { active: "مفتوحة", partially_paid: "اتسدد جزء", fully_paid: "اتسددت", cancelled: "ملغية" };
 
 /** One partner (0137): the five cards (click one → its movements), money in / out, his answers, the advances. */
 export default function PartnerProfile() {
@@ -124,31 +124,10 @@ export default function PartnerProfile() {
           </CardContent>
         </Card>
 
-        {(card === null || card === "advances") && (cards.advances_list?.length ?? 0) > 0 && (
-          <Card>
-            <CardHeader><CardTitle>السلف</CardTitle></CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-              <PermTable className="w-full text-sm" permTable="partner_advances">
-                <thead className="bg-muted/40"><tr className="text-right"><th className="p-2">التاريخ</th><th className="p-2">السلفة</th><th className="p-2">اتسدد</th><th className="p-2">الباقي</th><th className="p-2">الحالة</th><th className="p-2">السبب</th></tr></thead>
-                <tbody>
-                  {cards.advances_list!.map((a) => (
-                    <tr key={a.id} className="border-t">
-                      <td className="p-2">{a.date}</td>
-                      <td className="p-2">{formatEGP(a.amount)}</td>
-                      <td className="p-2 text-success">{formatEGP(a.paid_back)}</td>
-                      <td className="p-2 font-semibold text-warning">{formatEGP(a.remaining)}</td>
-                      <td className="p-2"><Badge variant={a.status === "cancelled" ? "destructive" : "secondary"}>{ADV_STATUS[a.status] ?? a.status}</Badge></td>
-                      <td className="p-2 text-xs">{a.reason}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </PermTable>
-            </CardContent>
-          </Card>
-        )}
+        {(card === null || card === "advances") && <PartnerAdvancesPanel cards={cards} canWrite={canWrite} onChanged={load} />}
       </div>
 
-      {money && <PartnerMoneyDialog kind={money} cards={cards} onClose={() => setMoney(null)} onDone={load} />}
+      {money && <PartnerMoneyDialog kind={money} cards={cards} active={activeAll} onClose={() => setMoney(null)} onDone={load} />}
       {editing && <PartnerFormDialog initial={formFromPartner(p)} onClose={() => setEditing(false)} onDone={load} />}
     </AdminLayout>
   );
