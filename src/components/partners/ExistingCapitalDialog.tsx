@@ -1,19 +1,20 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { Archive, ArrowLeft, CalendarDays, History, Paperclip, X } from "lucide-react";
+import { Archive, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
-import { formatDate, formatEGP } from "@/lib/format";
+import { formatEGP } from "@/lib/format";
 import { cairoTodayDay } from "@/lib/cairoDate";
-import { isSupportedAttachment, uploadRecordAttachment } from "@/lib/attachmentUpload";
+import { uploadRecordAttachment } from "@/lib/attachmentUpload";
 import {
-  addExistingCapital, addPreSystemWithdrawal, depositCheck, editExistingCapital, pct,
+  addExistingCapital, addPreSystemWithdrawal, editExistingCapital, monthLabel, pct,
   type PartnerCards, type PartnerMovement,
 } from "@/lib/partners";
+import { CountsFromFields, EffectRow, PartnerChips, ProofPicker } from "@/components/partners/PartnerFormParts";
 
 type Kind = "in" | "out";
 type Mode = "capital" | "profit";
@@ -37,13 +38,15 @@ export function OldMoneyDialog({ kind, cards, active, editing, onClose, onDone }
   const isIn = kind === "in";
   const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
   const [mode, setMode] = useState<Mode | null>(editing ? (editing.type === "profit_withdrawal" ? "profit" : "capital") : null);
-  const [day, setDay] = useState(editing?.date ?? "2026-01-01");
+  // «يتحسب من بداية شهر» (the 1st of a month) + «اتدفعت/اتسحبت إمتى» (the exact day) — owner 2026-11-27
+  const [day, setDay] = useState(editing?.date ? `${editing.date.slice(0, 7)}-01` : "");
   const [moneyDay, setMoneyDay] = useState(editing?.deposited_on ?? "");
+  const [touched, setTouched] = useState(!!editing);
   const [notes, setNotes] = useState(editing ? notesOf(editing.description) : "");
   const [reason, setReason] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const thisMonth = `${today.slice(0, 7)}-01`;
 
   const amt = Number(amount || 0);
   const old = editing ? Number(editing.amount) : 0;
@@ -59,29 +62,21 @@ export function OldMoneyDialog({ kind, cards, active, editing, onClose, onDone }
   const shareAfter = totalAfter > 0 ? Math.max(capAfter, 0) / totalAfter : 0;
   const profitNow = Number(cards.profit) || 0;
   const profitAfter = !isIn && mode === "profit" ? profitNow + (editing ? old : 0) - amt : profitNow;
-  const dep = depositCheck(day, moneyDay, today);
   const overCapital = !isIn && mode === "capital" && amt > base + 0.005;
   const problem = !(amt > 0) ? "اكتب المبلغ" : !isIn && !mode ? "اختار السحبة دي من رأس ماله ولا من الربح"
-    : overCapital ? `رأس ماله ${formatEGP(base)} بس` : !day ? "اختار من إمتى بيتحسب" : day > today ? "التاريخ مينفعش يكون بعد النهارده"
-    : dep.error ? dep.error : editing && !reason.trim() ? "اكتب سبب التعديل" : null;
-
-  const pick = (list: FileList | null) => {
-    const ok = Array.from(list ?? []).filter((f) => {
-      if (!isSupportedAttachment(f)) { toast.error(`«${f.name}» — صورة أو PDF بس`); return false; }
-      return true;
-    });
-    setFiles((p) => [...p, ...ok]);
-  };
+    : overCapital ? `رأس ماله ${formatEGP(base)} بس` : !moneyDay ? `اختار ${isIn ? "اتدفعت" : "اتسحبت"} إمتى` : moneyDay > today ? "اليوم مينفعش يكون بعد النهارده"
+    : !day ? "اختار يتحسب من بداية أنهي شهر" : day > today ? "الشهر ده لسه مجاش — سجّلها «مساهمة» من الخزنة"
+    : editing && !reason.trim() ? "اكتب سبب التعديل" : null;
 
   const save = async () => {
     if (problem) return toast.error(problem);
     setBusy(true);
     try {
       const id = editing
-        ? await editExistingCapital(editing.id, { amount: amt, day, deposited: moneyDay || undefined, notes, reason: reason.trim() })
+        ? await editExistingCapital(editing.id, { amount: amt, day, deposited: moneyDay, notes, reason: reason.trim() })
         : isIn
-          ? await addExistingCapital(cards.partner.id, amt, day, notes, moneyDay || undefined)
-          : await addPreSystemWithdrawal(cards.partner.id, { amount: amt, day, mode: mode!, withdrawnOn: moneyDay || undefined, notes });
+          ? await addExistingCapital(cards.partner.id, amt, day, notes, moneyDay)
+          : await addPreSystemWithdrawal(cards.partner.id, { amount: amt, day, mode: mode!, withdrawnOn: moneyDay, notes });
       let failed = 0;
       for (const f of files) {
         try { await uploadRecordAttachment("partner_transaction", id, f, user?.id); } catch { failed += 1; }
@@ -109,11 +104,10 @@ export function OldMoneyDialog({ kind, cards, active, editing, onClose, onDone }
             {isIn ? "فلوس الشريك دفعها قبل السيستم. بتتحسب في رأس ماله ونسبته من الربح بس."
               : "فلوس الشريك سحبها قبل السيستم."} الخزن والدفاتر مش بتتحرك.
           </DialogDescription>
-          <div className="flex flex-wrap gap-2 mt-3 text-xs">
-            <span className="rounded-full border bg-background px-2.5 py-1">رأس ماله: <b className="tabular-nums">{formatEGP(capNow)}</b></span>
-            <span className="rounded-full border bg-background px-2.5 py-1">نسبته من الربح: <b className="tabular-nums">{pct(shareNow)}</b></span>
-            {!isIn && <span className="rounded-full border bg-background px-2.5 py-1">صافي ربحه: <b className="tabular-nums">{formatEGP(profitNow)}</b></span>}
-          </div>
+          <PartnerChips items={[
+            { label: "رأس ماله", value: formatEGP(capNow) }, { label: "نسبته من الربح", value: pct(shareNow) },
+            ...(!isIn ? [{ label: "صافي ربحه", value: formatEGP(profitNow) }] : []),
+          ]} />
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-5 overflow-y-auto">
@@ -149,14 +143,8 @@ export function OldMoneyDialog({ kind, cards, active, editing, onClose, onDone }
             </section>
           )}
 
-          <section className="grid gap-4 sm:grid-cols-2">
-            <DayField id="om-day" label="بيتحسب من" value={day} max={today} onChange={setDay}
-              hint={isIn ? "من الشهر ده بياخد نسبة من الربح" : mode === "profit" ? "الشهر اللي يتسجل فيه" : "من الشهر ده نسبته تقل"} />
-            <DayField id="om-money-day" label={isIn ? "اتدفعت إمتى (اختياري)" : "اتسحبت إمتى (اختياري)"} value={moneyDay} max={today} onChange={setMoneyDay}
-              hint={`اليوم اللي ${isIn ? "حط" : "سحب"} فيه الفلوس فعلاً — ينفع قبل 2026. فاضية = «بيتحسب من»`} />
-          </section>
-          {dep.error && <div className="text-sm text-destructive" data-testid="deposit-error">{dep.error}</div>}
-          {dep.warning && isIn && <div className="rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-xs" data-testid="deposit-warning">{dep.warning}</div>}
+          <CountsFromFields prefix="om" dir={isIn ? "in" : "out"} day={moneyDay} onDay={setMoneyDay} month={day} onMonth={setDay}
+            touched={touched} onTouched={() => setTouched(true)} today={today} maxMonth={thisMonth} />
 
           <section>
             <Label htmlFor="om-notes" className="text-sm font-semibold">ملاحظات</Label>
@@ -164,21 +152,7 @@ export function OldMoneyDialog({ kind, cards, active, editing, onClose, onDone }
               placeholder={isIn ? "مثلاً: المساهمة الأولى في المعرض" : "مثلاً: سحبها لشراء عربية سنة 2025"} />
           </section>
 
-          <section>
-            <div className="text-sm font-semibold">الإثبات <span className="font-normal text-muted-foreground text-xs">(صورة إيصال أو عقد — اختياري)</span></div>
-            <input ref={fileRef} type="file" accept="image/*,application/pdf" multiple className="hidden" data-testid="om-files"
-              onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
-            <div className="mt-1.5 flex flex-wrap items-center gap-2">
-              <Button type="button" size="sm" variant="outline" className="gap-1.5" onClick={() => fileRef.current?.click()}><Paperclip className="w-4 h-4" /> اختار ملف</Button>
-              {files.map((f, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs max-w-[220px]">
-                  <span className="truncate">{f.name}</span>
-                  <button type="button" aria-label={`شيل ${f.name}`} onClick={() => setFiles((p) => p.filter((_, j) => j !== i))}><X className="w-3.5 h-3.5" /></button>
-                </span>
-              ))}
-              {editing && (editing.files ?? 0) > 0 && <span className="text-[11px] text-muted-foreground">+ {editing.files} مرفق قديم بيتنقل مع التعديل</span>}
-            </div>
-          </section>
+          <ProofPicker files={files} setFiles={setFiles} oldCount={editing?.files} testId="om-files" />
 
           {editing && (
             <section>
@@ -192,7 +166,7 @@ export function OldMoneyDialog({ kind, cards, active, editing, onClose, onDone }
               <div className="font-semibold text-xs text-muted-foreground">اللي هيحصل</div>
               <EffectRow label="رأس ماله" before={formatEGP(capNow)} after={formatEGP(Math.max(capAfter, 0))} changed={capAfter !== capNow} />
               <EffectRow label="نسبته من الربح" before={pct(shareNow)} after={pct(shareAfter)} changed={Math.abs(shareAfter - shareNow) > 1e-6}
-                note={isIn || mode === "capital" ? `من شهر ${day.slice(0, 7)}` : undefined} />
+                note={(isIn || mode === "capital") && day ? `من ${monthLabel(day)}` : undefined} />
               {!isIn && mode === "profit" && (
                 <EffectRow label="صافي ربحه" before={formatEGP(profitNow)} after={formatEGP(profitAfter)} changed warn={profitAfter < 0} />
               )}
@@ -209,33 +183,6 @@ export function OldMoneyDialog({ kind, cards, active, editing, onClose, onDone }
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DayField({ id, label, value, max, onChange, hint }: { id: string; label: string; value: string; max: string; onChange: (v: string) => void; hint: string }) {
-  return (
-    <div>
-      <Label htmlFor={id} className="text-sm font-semibold">{label}</Label>
-      <div className="relative mt-1.5">
-        <Input id={id} type="date" lang="ar-EG" value={value} max={max} onChange={(e) => onChange(e.target.value)} className="h-11 tabular-nums" />
-      </div>
-      <div className="mt-1 flex items-center gap-1 text-xs font-semibold text-foreground/80 min-h-4">
-        {value ? <><CalendarDays className="w-3.5 h-3.5" /><span>{formatDate(value)}</span></> : <span className="font-normal text-muted-foreground">مش متحدد</span>}
-      </div>
-      <div className="text-[11px] leading-4 text-muted-foreground mt-0.5">{hint}</div>
-    </div>
-  );
-}
-
-function EffectRow({ label, before, after, changed, note, warn }: { label: string; before: string; after: string; changed: boolean; note?: string; warn?: boolean }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-muted-foreground w-28">{label}</span>
-      <b className="tabular-nums">{before}</b>
-      {changed && <><ArrowLeft className="w-4 h-4 text-muted-foreground" /><b className={`tabular-nums ${warn ? "text-destructive" : "text-primary"}`}>{after}</b></>}
-      {!changed && <span className="text-xs text-muted-foreground">(زي ما هو)</span>}
-      {note && changed && <span className="text-[11px] text-muted-foreground">{note}</span>}
-    </div>
   );
 }
 

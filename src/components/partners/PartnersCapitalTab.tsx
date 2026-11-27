@@ -156,7 +156,7 @@ export function PartnersCapitalTab({ data }: { data: Data }) {
       </Card>
 
       {oldMoney && <OldMoneyDialog kind={oldMoney.kind} cards={oldMoney.cards} active={active} onClose={() => setOldMoney(null)} onDone={refresh} />}
-      {money && <PartnerMoneyDialog kind={money.kind} cards={money.cards} onClose={() => setMoney(null)} onDone={refresh} />}
+      {money && <PartnerMoneyDialog kind={money.kind} cards={money.cards} active={active} onClose={() => setMoney(null)} onDone={refresh} />}
       {cancelling && <ReasonDialog title={`إلغاء ${moveLabel(cancelling)} — ${formatEGP(cancelling.amount)}`}
         description={cancelling.existing ? "الحركة بتتشال من حسابه — مفيش خزنة ولا قيد يتعكس. هتلاقيها في «الملغاة»." : "الفلوس هترجع / تطلع من نفس الخزنة في نفس اليوم. هتلاقيها في «الملغاة»."}
         onConfirm={cancel} onClose={() => setCancelling(null)} />}

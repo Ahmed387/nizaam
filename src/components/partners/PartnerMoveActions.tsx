@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AttachmentsDialogButton } from "@/components/AttachmentsDialogButton";
 import { formatEGP } from "@/lib/format";
 import { cairoTodayDay } from "@/lib/cairoDate";
-import { editKindOf, editPartnerCapitalMove, moveStatusText, TX_LABEL, type PartnerCards, type PartnerMovement } from "@/lib/partners";
+import { editKindOf, editPartnerCapitalMove, monthLabel, moveStatusText, suggestCountsFrom, TX_LABEL, type PartnerCards, type PartnerMovement } from "@/lib/partners";
+import { CountsFromFields } from "./PartnerFormParts";
 import { ExistingCapitalDialog } from "./ExistingCapitalDialog";
 
 /**
@@ -61,35 +62,40 @@ function TillMoveEditDialog({ m, onClose, onDone }: { m: PartnerMovement; onClos
   const today = cairoTodayDay();
   const [amount, setAmount] = useState(String(m.amount));
   const [date, setDate] = useState(m.date);
+  const dir = m.type === "contribution" ? "in" as const : "out" as const;
+  // 0295: the month it counts from (old rows had none → the old rule: the month after the day)
+  const oldMonth = m.counts_from ?? suggestCountsFrom("in", m.date);
+  const [month, setMonth] = useState(oldMonth);
+  const [touched, setTouched] = useState(true);
   const [notes, setNotes] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const amt = Number(amount || 0);
   const inFlow = m.type === "contribution";
-  const changed = amt !== Number(m.amount) || date !== m.date || notes.trim() !== "";
+  const changed = amt !== Number(m.amount) || date !== m.date || month !== oldMonth || notes.trim() !== "";
   const save = async () => {
     if (!(amt > 0)) return toast.error("اكتب المبلغ");
     if (!date || date > today) return toast.error("التاريخ مينفعش يكون بعد النهارده");
     if (!reason.trim()) return toast.error("اكتب سبب التعديل");
     setBusy(true);
     try {
-      await editPartnerCapitalMove(m.id, { amount: amt, date, notes: notes.trim() || null, reason: reason.trim() });
+      await editPartnerCapitalMove(m.id, { amount: amt, date, notes: notes.trim() || null, reason: reason.trim(), countsFrom: month });
       toast.success(`اتعدلت ${TX_LABEL[m.type]}: ${formatEGP(Number(m.amount))} ← ${formatEGP(amt)}`);
       onDone();
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent dir="rtl" className="max-w-md">
+      <DialogContent dir="rtl" className="max-w-lg">
         <DialogHeader>
           <DialogTitle>تعديل {TX_LABEL[m.type]}</DialogTitle>
           <DialogDescription>الحركة القديمة بتتلغي في يومها والجديدة بتتسجل بنفس الفرع والوعاء، وبيفضل مكتوب مين عدّل وليه.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label htmlFor="tm-amount">المبلغ الصح</Label><Input id="tm-amount" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
-            <div><Label htmlFor="tm-date">اليوم الصح</Label><Input id="tm-date" type="date" max={today} value={date} onChange={(e) => setDate(e.target.value)} /></div>
-          </div>
+          <div><Label htmlFor="tm-amount">المبلغ الصح</Label><Input id="tm-amount" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus /></div>
+          <CountsFromFields prefix="tm" dir={dir} day={date} onDay={setDate} month={month} onMonth={setMonth}
+            touched={touched} onTouched={() => setTouched(true)} today={today} minDay="2026-01-01" />
+          <button type="button" className="text-xs text-primary underline justify-self-start" onClick={() => setMonth(suggestCountsFrom(dir, date))}>رجّع الشهر للقاعدة</button>
           <div><Label htmlFor="tm-notes">البيان (سيبه فاضي = زي ما هو)</Label><Textarea id="tm-notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
           <div><Label htmlFor="tm-reason">سبب التعديل (إجباري)</Label><Input id="tm-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="مثلاً: اتكتب يوم غلط" /></div>
           {changed && (
@@ -97,8 +103,9 @@ function TillMoveEditDialog({ m, onClose, onDone }: { m: PartnerMovement; onClos
               <div>• يوم {m.date}: {inFlow ? "يطلع" : "يرجع"} {formatEGP(Number(m.amount))} {inFlow ? "من" : "لـ"} الخزنة (إلغاء الحركة القديمة) والقيد بيتعكس في نفس اليوم.</div>
               <div>• يوم {date}: {inFlow ? "يدخل" : "يطلع"} {formatEGP(amt)} {inFlow ? "الخزنة" : "من الخزنة"} بنفس الفرع والوعاء.</div>
               {amt !== Number(m.amount) && (
-                <div>• رأس ماله {(inFlow ? amt > Number(m.amount) : amt < Number(m.amount)) ? "يزيد" : "يقل"} {formatEGP(Math.abs(amt - Number(m.amount)))} — والنسبة تتغير من أول الشهر اللي بعد {date.slice(0, 7)}.</div>
+                <div>• رأس ماله {(inFlow ? amt > Number(m.amount) : amt < Number(m.amount)) ? "يزيد" : "يقل"} {formatEGP(Math.abs(amt - Number(m.amount)))}.</div>
               )}
+              <div>• بيتحسب من {monthLabel(month)}{month !== oldMonth ? ` (كان ${monthLabel(oldMonth)})` : ""}.</div>
             </div>
           )}
         </div>

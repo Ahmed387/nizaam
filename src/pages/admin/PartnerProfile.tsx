@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowDownCircle, ArrowRight, ArrowUpCircle, FileText, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/components/layout/Layouts";
@@ -20,6 +20,7 @@ import {
 import { PartnerCardsRow } from "@/components/partners/PartnerCardsRow";
 import { PartnerMoneyDialog } from "@/components/partners/PartnerMoneyDialog";
 import { PartnerFormDialog } from "@/components/partners/PartnerFormDialog";
+import { PartnerArchiveActions } from "@/components/partners/PartnerArchiveActions";
 import { PartnerMovementsTable } from "@/components/partners/PartnerMovementsTable";
 
 const CARD_TITLE: Record<CardKey, string> = {
@@ -40,6 +41,7 @@ export default function PartnerProfile() {
   const [cards, setCards] = useState<PartnerCards | null>(null);
   const [card, setCard] = useState<CardKey | null>(null);
   const [money, setMoney] = useState<"contribution" | "withdrawal" | null>(null);
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [branches, setBranches] = useState<Record<string, string>>({});
   const [methods, setMethods] = useState<Record<string, string>>({});
@@ -80,8 +82,10 @@ export default function PartnerProfile() {
         </Link>
         <PageHeader
           title={p.name}
-          subtitle={[p.role_kind === "employee_partner" ? "موظف وشريك" : "شريك", p.start_date ? `من ${p.start_date}` : null].filter(Boolean).join(" • ")}
-          actions={canWrite && p.is_active ? (
+          subtitle={[p.role_kind === "employee_partner" ? "موظف وشريك" : "شريك", p.start_date ? `من ${p.start_date}` : null, p.archived_at ? `مؤرشف${p.archive_reason ? ` — ${p.archive_reason}` : ""}` : !p.is_active ? "موقوف" : null].filter(Boolean).join(" • ")}
+          actions={canWrite && !p.is_active ? (
+            <PartnerArchiveActions cards={cards} onDone={load} onDeleted={() => navigate("/admin/financial-position?tab=partners")} />
+          ) : canWrite ? (
             <>
               <Button className="gap-1" onClick={() => setMoney("contribution")}><ArrowUpCircle className="w-4 h-4" /> مساهمة</Button>
               <Button variant="outline" className="gap-1" onClick={() => setMoney("withdrawal")}><ArrowDownCircle className="w-4 h-4" /> سحب</Button>
@@ -89,6 +93,7 @@ export default function PartnerProfile() {
               <Button variant="ghost" className="gap-1" onClick={() => downloadPartnerStatementPdf({ partnerId: p.id, branchName: "الشركة", userName: profile?.name ?? "" })}>
                 <FileText className="w-4 h-4" /> كشف حساب PDF
               </Button>
+              <PartnerArchiveActions cards={cards} onDone={load} onDeleted={() => navigate("/admin/financial-position?tab=partners")} />
             </>
           ) : undefined}
         />

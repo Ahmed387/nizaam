@@ -60,6 +60,11 @@ const SPLIT = { from: "2026-10-01", to: "2026-10-31", net_profit: 600000, alread
   { partner_id: P4, name: "شريك من غير رأس مال", capital_start: 0, capital_end: 0, suggested: 0, in_period: false, advances: 0 }] };
 const DISTS = [{ id: "dist-1", day: "2026-09-30", from: "2026-09-01", to: "2026-09-30", total: 100000, status: "posted", mode: "manual", rest: "keep",
   available: 120000, notes: null, by: "احمد ناصر", lines: [{ partner_id: P1, name: "محمد", amount: 60000, pct: 60, suggested: 56.67 }, { partner_id: P2, name: "أحمد", amount: 40000, pct: 40, suggested: 37.78 }] }];
+// 0295: a test partner with nothing at all (delete / archive) and an archived one
+const P5 = "b0000001-0000-4000-8000-000000000005", P6 = "b0000001-0000-4000-8000-000000000006";
+const NOUR = { partner: { ...partner, id: P5, name: "نور ناصر" }, contributions: 0, capital_withdrawals: 0, capital: 0, profit: 0, profit_in: 0, profit_out: 0, advances: 0 };
+const NOUR_OLD = { partner: { ...partner, id: P6, name: "شريك قديم", is_active: false, archived_at: "2026-11-27T10:00:00Z", archive_reason: "خرج من الشراكة" },
+  contributions: 50000, capital_withdrawals: 50000, capital: 0, profit: 0, profit_in: 0, profit_out: 0, advances: 0 };
 function makeDb() {
   return {
     calls: [],
@@ -104,7 +109,9 @@ async function open(browser, db, me) {
       const name = path.split("/").pop(); let body = {}; try { body = req.postDataJSON() || {}; } catch {}
       db.calls.push({ rpc: name, body });
       if (name === "partners_overview") return json([{ ...cards, movements: undefined, advances_list: undefined },
-        { ...cards2, movements: undefined, advances_list: undefined }]);
+        { ...cards2, movements: undefined, advances_list: undefined }, ...(db.withNour ? [NOUR, NOUR_OLD] : [])]);
+      if (name === "delete_partner") return json({ name: "نور ناصر" });
+      if (name === "set_partner_archived") return json({ name: "x", archived: body.p_archived });
       if (name === "partner_existing_capital") return json("tx-existing");
       if (name === "set_partner_pay_rule") return json("rule-1");
       if (name === "post_partner_period_shares") return json({ posted: 2 });
@@ -172,12 +179,38 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   await page.getByRole("button", { name: /^سحب$/ }).first().click(); await page.waitForTimeout(600);
   await page.locator('input[type="number"]').first().fill("200000"); await page.waitForTimeout(300);
   check("4. السحب: 150,000 من الربح + 50,000 سلفة", await vis(page.getByText(/من الربح \+ .*سلفة/)));
-  await page.getByRole("button", { name: /سجّل السحب/ }).click(); await page.waitForTimeout(500);
-  check("5. من غير فرع: رفض ومفيش طلب للسيرفر", !db.calls.some((c) => c.rpc === "partner_money"));
-  await page.getByRole("combobox").first().click(); await page.getByRole("option", { name: "معرض عبدالمنعم" }).click();
+  check("5. من غير فرع: الزرار مقفول ومفيش طلب للسيرفر", await page.getByTestId("pm-save").isDisabled() && !db.calls.some((c) => c.rpc === "partner_money"));
+  // 0295: the exact day + «يتحسب من بداية شهر» — a withdrawal stops counting in its own month
+  const thisMonthLabel = await page.getByTestId("pm-rule").innerText().catch(() => "");
+  check("5a. السحب: «اتسحبت إمتى» + «يتحسب من بداية شهر» والقاعدة = نفس الشهر", await vis(page.locator("#pm-day")) && /نوفمبر|ديسمبر|يناير|202\d/.test(thisMonthLabel)
+    && (await page.getByTestId("pm-month").innerText()).includes(thisMonthLabel), thisMonthLabel);
+  await page.getByTestId("pm-branch").click(); await page.getByRole("option", { name: "معرض عبدالمنعم" }).click();
+  await shot(page, "partners-2-withdrawal");
   await page.getByRole("button", { name: /سجّل السحب/ }).click(); await page.waitForTimeout(800);
   const pm = db.calls.find((c) => c.rpc === "partner_money");
-  check("6. طلب واحد partner_money بالفرع المختار", !!pm && pm.body.p_amount === 200000 && pm.body.p_branch === B1, JSON.stringify(pm?.body ?? {}));
+  check("6. طلب واحد partner_money بالفرع المختار والشهر", !!pm && pm.body.p_amount === 200000 && pm.body.p_branch === B1 && /^\d{4}-\d{2}-01$/.test(pm.body.p_counts_from)
+    && pm.body.p_counts_from === `${pm.body.p_date.slice(0, 7)}-01`, JSON.stringify(pm?.body ?? {}));
+
+  // 0295: a contribution — rule = the month after; an earlier month = a warning only
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+  await page.getByRole("button", { name: /^مساهمة$/ }).first().click(); await page.waitForTimeout(600);
+  check("6a. فورم المساهمة بنفس شكل «سحب قبل السيستم» (عنوان + رأس ماله ونسبته + اللي هيحصل)", await vis(page.getByTestId("partner-money-dialog"))
+    && await vis(page.getByRole("dialog").getByText("نسبته من الربح:")));
+  await page.locator("#pm-amount").fill("10000"); await page.locator("#pm-day").fill("2026-10-15"); await page.waitForTimeout(300);
+  check("6b. دخلت 15/10 → القاعدة نوفمبر 2026 والشهر اتحط لوحده", (await page.getByTestId("pm-rule").innerText()) === "نوفمبر 2026"
+    && (await page.getByTestId("pm-month").innerText()).includes("نوفمبر 2026"));
+  await page.getByTestId("pm-month").click(); await page.getByRole("option", { name: "أكتوبر 2026" }).click(); await page.waitForTimeout(300);
+  check("6c. شهر قبل القاعدة = تنبيه أصفر بس", await vis(page.getByTestId("pm-warning")) && (await page.getByTestId("pm-warning").innerText()).includes("قبل ما الفلوس تدخل"));
+  await page.getByTestId("pm-branch").click(); await page.getByRole("option", { name: "معرض عبدالمنعم" }).click(); await page.waitForTimeout(200);
+  const peff = await page.getByTestId("pm-effect").innerText();
+  check("6d. اللي هيحصل: رأس ماله يزيد من أكتوبر 2026", money(810000).test(peff) && peff.includes("أكتوبر 2026"), peff.replace(/\n/g, " | "));
+  await page.getByTestId("pm-files").setInputFiles({ name: "transfer.png", mimeType: "image/png", buffer: Buffer.from("89504e47", "hex") });
+  await shot(page, "partners-2b-contribution");
+  check("6e. الزرار شغال رغم التنبيه", !(await page.getByTestId("pm-save").isDisabled()));
+  await page.getByTestId("pm-save").click(); await page.waitForTimeout(900);
+  const pmc = db.calls.filter((c) => c.rpc === "partner_money");
+  check("6f. partner_money للمساهمة: يوم 2026-10-15 ويتحسب من 2026-10-01", pmc.length === 2 && pmc[1].body.p_kind === "contribution" && pmc[1].body.p_date === "2026-10-15"
+    && pmc[1].body.p_counts_from === "2026-10-01", JSON.stringify(pmc[1]?.body ?? {}));
 
   // 3. «رأس المال»: «موجود بالفعل» shows the % before → after, then ONE call
   await page.getByRole("tab", { name: "رأس المال" }).click(); await settle(page);
@@ -193,15 +226,16 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   await page.locator("#om-amount").fill("1600000"); await page.waitForTimeout(300);
   check("8z. الفورم الجديد: المبلغ مكتوب بالفاصلات تحته ورأس ماله ونسبته فوق", money(1600000).test(await page.getByTestId("om-amount-text").innerText().catch(() => ""))
     && await vis(page.getByRole("dialog").getByText("نسبته من الربح:")));
-  // 0288: «اتدفعت إمتى» — after «بيتحسب من» warns, after today refuses, older than 2026 is fine
-  check("8a. خانة «اتدفعت إمتى» جنب «بيتحسب من»", await vis(page.locator("#om-money-day")) && await vis(page.getByText("اتدفعت إمتى (اختياري)")));
-  await page.locator("#om-money-day").fill("2026-03-01"); await page.waitForTimeout(200);
-  check("8b. إيداع بعد «بيتحسب من» = تنبيه بس والزرار شغال", await vis(page.getByTestId("deposit-warning"))
-    && !(await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).isDisabled()));
-  await page.locator("#om-money-day").fill("2099-01-01"); await page.waitForTimeout(200);
-  check("8c. إيداع بعد النهارده = ممنوع والزرار مقفول", await vis(page.getByTestId("deposit-error"))
-    && await page.getByRole("dialog").getByRole("button", { name: "سجّل" }).isDisabled());
-  await page.locator("#om-money-day").fill("2024-03-15"); await page.waitForTimeout(200);
+  // 0295: «اتدفعت إمتى» (required) + «يتحسب من بداية شهر» — rule = the month after; earlier = a warning only
+  check("8a. «اتدفعت إمتى» إجباري جنب «يتحسب من بداية شهر»", await vis(page.locator("#om-day")) && await vis(page.getByTestId("om-month"))
+    && await page.getByTestId("om-save").isDisabled() && (await page.getByTestId("om-problem").innerText()).includes("اتدفعت إمتى"));
+  await page.locator("#om-day").fill("2026-03-01"); await page.waitForTimeout(200);
+  check("8b. دفع 1/3 → القاعدة أبريل 2026 واتختار لوحده", (await page.getByTestId("om-rule").innerText()) === "أبريل 2026" && (await page.getByTestId("om-month").innerText()).includes("أبريل 2026"));
+  await page.getByTestId("om-month").click(); await page.getByRole("option", { name: "يناير 2026" }).click(); await page.waitForTimeout(200);
+  check("8c. يناير قبل القاعدة = تنبيه بس والزرار شغال", await vis(page.getByTestId("om-warning")) && !(await page.getByTestId("om-save").isDisabled()));
+  await page.locator("#om-day").fill("2099-01-01"); await page.waitForTimeout(200);
+  check("8d. يوم بعد النهارده = الزرار مقفول", await page.getByTestId("om-save").isDisabled());
+  await page.locator("#om-day").fill("2024-03-15"); await page.waitForTimeout(200);
   const eff = await page.getByTestId("existing-effect").innerText().catch(() => "");
   check("8. قبل الحفظ: نسبته 50% ← 75% والخزن مش هتتغير", eff.includes("50%") && eff.includes("75%") && eff.includes("الخزن"), eff.replace(/\n/g, " "));
   await page.getByTestId("om-files").setInputFiles({ name: "receipt.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") });
@@ -227,7 +261,7 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   check("9t. من الربح: رأس ماله زي ما هو وصافي ربحه يقل", effP.includes("زي ما هو") && effP.includes("صافي ربحه"), effP.replace(/\n/g, " | "));
   await page.getByTestId("om-mode-capital").click(); await page.locator("#om-amount").fill("9999999"); await page.waitForTimeout(200);
   check("9u. أكتر من رأس ماله = الزرار مقفول", await page.getByTestId("om-save").isDisabled());
-  await page.locator("#om-amount").fill("100000"); await page.locator("#om-money-day").fill("2025-06-10"); await page.locator("#om-notes").fill("سحب قديم");
+  await page.locator("#om-amount").fill("100000"); await page.locator("#om-day").fill("2025-06-10"); await page.locator("#om-notes").fill("سحب قديم");
   await page.getByTestId("om-save").click(); await page.waitForTimeout(900);
   const ps = db.calls.filter((c) => c.rpc === "partner_pre_system_withdrawal");
   check("9v. partner_pre_system_withdrawal مرة واحدة: من رأس المال، اتسحبت 2025-06-10", ps.length === 1 && ps[0].body.p_mode === "capital" && ps[0].body.p_amount === 100000
@@ -247,7 +281,7 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   await page.getByTestId("edit-move-m4").first().click(); await page.waitForTimeout(400);
   const dlg = page.getByRole("dialog");
   check("9l. تعديل «موجود بالفعل» بيفتح بالقيم القديمة والسبب إجباري", (await page.locator("#om-amount").inputValue()) === "1200"
-    && (await page.locator("#om-money-day").inputValue()) === "2024-03-15" && await dlg.getByRole("button", { name: "احفظ التعديل" }).isDisabled());
+    && (await page.locator("#om-day").inputValue()) === "2024-03-15" && (await page.getByTestId("om-month").innerText()).includes("يناير 2026") && await dlg.getByRole("button", { name: "احفظ التعديل" }).isDisabled());
   await page.locator("#om-amount").fill("1500"); await page.locator("#om-reason").fill("نسيت 300");
   await dlg.getByRole("button", { name: "احفظ التعديل" }).click(); await page.waitForTimeout(700);
   const ee = db.calls.filter((c) => c.rpc === "edit_existing_capital");
@@ -256,12 +290,14 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   if (await vis(page.getByRole("button", { name: "خلاص" }))) await page.getByRole("button", { name: "خلاص" }).click();
   await page.waitForTimeout(400);
   await page.getByTestId("edit-move-m1").first().click(); await page.waitForTimeout(400);
-  await page.locator("#tm-amount").fill("900000"); await page.locator("#tm-date").fill("2026-09-10"); await page.waitForTimeout(200);
+  check("9n0. تعديل حركة خزنة قديمة: الشهر = القاعدة القديمة (أكتوبر 2026)", (await page.getByTestId("tm-month").innerText()).includes("أكتوبر 2026"));
+  await page.locator("#tm-amount").fill("900000"); await page.locator("#tm-day").fill("2026-09-10"); await page.waitForTimeout(200);
   const teff = await page.getByTestId("till-edit-effect").innerText().catch(() => "");
   check("9n. تعديل مساهمة في الخزنة: بيقول إيه هيحصل في اليومين", teff.includes("2026-09-15") && teff.includes("2026-09-10") && teff.includes("يقل"), teff.replace(/\n/g, " | "));
   await page.locator("#tm-reason").fill("اليوم غلط"); await page.getByRole("dialog").getByRole("button", { name: "احفظ التعديل" }).click(); await page.waitForTimeout(700);
   const tm = db.calls.filter((c) => c.rpc === "edit_partner_capital_move");
-  check("9o. edit_partner_capital_move مرة واحدة", tm.length === 1 && tm[0].body.p_tx === "m1" && tm[0].body.p_amount === 900000 && tm[0].body.p_date === "2026-09-10" && tm[0].body.p_reason === "اليوم غلط", JSON.stringify(tm[0]?.body ?? {}));
+  check("9o. edit_partner_capital_move مرة واحدة بالشهر", tm.length === 1 && tm[0].body.p_tx === "m1" && tm[0].body.p_amount === 900000 && tm[0].body.p_date === "2026-09-10"
+    && tm[0].body.p_reason === "اليوم غلط" && tm[0].body.p_counts_from === "2026-10-01", JSON.stringify(tm[0]?.body ?? {}));
   await page.getByRole("button", { name: "إثبات الحركة (إيصال / عقد)" }).first().click(); await page.waitForTimeout(500);
   check("9p. زرار الإثبات بيفتح المرفقات", await vis(page.getByRole("dialog").getByText("إثبات الحركة (إيصال / عقد)")));
   await page.keyboard.press("Escape"); await page.waitForTimeout(300);
@@ -386,6 +422,38 @@ const money = (n) => new RegExp(String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "[,٬
   check("18c. صفحة الشريك: «اتدفعت إمتى» + تعديل الحركات + الإثبات", ptab.includes("2024-03-15") && await vis(page.getByTestId("edit-move-m4")) && await vis(page.getByTestId("edit-move-m1"))
     && await vis(page.getByRole("button", { name: "إثبات الحركة (إيصال / عقد)" })));
   await shot(page, "partners-3-profile");
+
+  // 8. 0295: delete / archive — a partner with nothing → «حذف»; with capital → «أرشفة» locked; archived → «المؤرشفين» + «استرجاع»
+  db.withNour = true;
+  await page.goto(`${BASE}/admin/financial-position`); await settle(page);
+  const nour = page.locator("div").filter({ has: page.getByRole("link", { name: "نور ناصر" }) }).filter({ has: page.getByTestId("partner-delete") }).last();
+  const p1card = page.locator("div").filter({ has: page.getByRole("link", { name: "شريك تجربة" }) }).filter({ has: page.getByTestId("partner-archive") }).last();
+  check("20. نور (مفيش حاجة): «حذف» ظاهر و«أرشفة» شغالة", await vis(nour.getByTestId("partner-delete")) && !(await nour.getByTestId("partner-archive").isDisabled()));
+  check("20a. شريك عنده رأس مال: «أرشفة» مقفولة ومفيش «حذف»", await p1card.getByTestId("partner-archive").isDisabled() && !(await vis(p1card.getByTestId("partner-delete"))));
+  check("20b. المؤرشف مش في القايمة، وفي زرار «المؤرشفين (1)»", !(await vis(page.getByRole("link", { name: "شريك قديم" }))) && (await page.getByTestId("show-archived").innerText()).includes("(1)"));
+  await nour.getByTestId("partner-delete").click(); await page.waitForTimeout(300);
+  check("20c. الحذف بيطلب سبب", await page.getByTestId("pa-confirm").isDisabled());
+  await page.locator("#pa-reason").fill("اتسجلت للتجربة"); await shot(page, "partners-8-delete");
+  await page.getByTestId("pa-confirm").click(); await page.waitForTimeout(600);
+  const dp = db.calls.filter((c) => c.rpc === "delete_partner");
+  check("20d. delete_partner مرة واحدة بالسبب", dp.length === 1 && dp[0].body.p_partner === P5 && dp[0].body.p_reason === "اتسجلت للتجربة", JSON.stringify(dp[0]?.body ?? {}));
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+  await nour.getByTestId("partner-archive").click().catch(() => {});
+  await page.waitForTimeout(300);
+  if (await vis(page.getByTestId("partner-archive-dialog"))) {
+    await page.locator("#pa-reason").fill("خرج"); await page.getByTestId("pa-confirm").click(); await page.waitForTimeout(600);
+  }
+  const ar = db.calls.filter((c) => c.rpc === "set_partner_archived");
+  check("20e. set_partner_archived(true) بالسبب", ar.length === 1 && ar[0].body.p_archived === true && ar[0].body.p_reason === "خرج", JSON.stringify(ar[0]?.body ?? {}));
+  await page.locator("[data-sonner-toast]").first().waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
+  await page.getByTestId("show-archived").click(); await page.waitForTimeout(400);
+  check("20f. «المؤرشفين»: شريك قديم + «مؤرشف — خرج من الشراكة» + «استرجاع»", await vis(page.getByRole("link", { name: "شريك قديم" }))
+    && (await page.getByTestId("partner-archived-badge").first().innerText()).includes("خرج من الشراكة") && await vis(page.getByTestId("partner-restore")));
+  await shot(page, "partners-9-archived");
+  await page.getByTestId("partner-restore").first().click(); await page.waitForTimeout(300);
+  await page.getByTestId("pa-confirm").click(); await page.waitForTimeout(600);
+  const rs = db.calls.filter((c) => c.rpc === "set_partner_archived");
+  check("20g. «استرجاع» = set_partner_archived(false)", rs.length === 2 && rs[1].body.p_partner === P6 && rs[1].body.p_archived === false, JSON.stringify(rs[1]?.body ?? {}));
 
   check("18b. مفيش رسالة خطأ ظهرت (toast) في أي خطوة", !(await vis(page.getByText(/حصل خطأ/))));
   const errs = db.calls.filter((c) => c.pageerror);

@@ -21,6 +21,8 @@ export type PartnerInfo = {
   salary_mode: "none" | "fixed" | "percent"; salary_amount: number; salary_percent: number;
   salary_base: "company" | "branch"; salary_branch_id: string | null; salary_when: "before" | "after";
   start_date: string | null; notes: string | null; initial_capital: number;
+  /** 0295b: archived (هو كمان is_active = false) */
+  archived_at?: string | null; archive_reason?: string | null;
 };
 
 export type PartnerMovement = {
@@ -33,6 +35,8 @@ export type PartnerMovement = {
   deposited_on?: string | null; edited_at?: string | null; edited_by?: string | null; edit_reason?: string | null;
   cancelled_at?: string | null; cancelled_by?: string | null; replaces?: string | null; replaced_by?: string | null;
   replaces_amount?: number | null; files?: number;
+  /** 0295: the month it counts in his capital and % from (the 1st of that month) */
+  counts_from?: string | null;
 };
 
 export type PartnerAdvance = { id: string; amount: number; remaining: number; date: string; status: string; reason: string | null; paid_back: number };
@@ -166,14 +170,74 @@ export function partnerMoney(input: {
   branchId: string; method: string; date: string; notes?: string;
   /** 0245: the vessel account the money came to / left from */
   account?: string | null;
+  /** 0295: «يتحسب من بداية شهر» (the 1st of a month) — the owner's choice */
+  countsFrom?: string | null;
 }) {
-  return rpc<{ treasury_id: string; capital: number; profit: number; advance: number }>("partner_money", {
+  return rpc<{ treasury_id: string; capital: number; profit: number; advance: number; counts_from?: string }>("partner_money", {
     p_partner: input.partnerId, p_kind: input.kind, p_amount: input.amount, p_source: input.source ?? "capital",
     p_capital_part: input.source === "split" ? input.capitalPart ?? 0 : null, p_branch: input.branchId, p_method: input.method,
     p_date: input.date, p_notes: input.notes || null,
     ...(input.account ? { p_account: input.account } : {}),
+    ...(input.countsFrom ? { p_counts_from: input.countsFrom } : {}),
   });
 }
+
+// ── «يتحسب من بداية شهر» (owner 2026-11-27) ──────────────────────────────────
+// money IN counts from the month AFTER the day it came in; money OUT stops counting in the month it went out (the
+// month it left is not counted for it). The owner may choose another month: then a warning only (owner «تنبيه بس»).
+export type MoneyDir = "in" | "out";
+const FIRST_MONTH = "2026-01-01";
+const monthStart = (day: string) => `${day.slice(0, 7)}-01`;
+const addMonth = (m1: string, n: number) => {
+  const [y, m] = m1.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + n, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+};
+/** the month the rule suggests (never before January 2026, when the split starts) */
+export function suggestCountsFrom(dir: MoneyDir, day: string): string {
+  if (!day) return "";
+  const m = dir === "in" ? addMonth(monthStart(day), 1) : monthStart(day);
+  return m < FIRST_MONTH ? FIRST_MONTH : m;
+}
+/** a warning when the chosen month is against the rule, else null */
+export function countsFromWarning(dir: MoneyDir, day: string, chosen: string): string | null {
+  if (!day || !chosen) return null;
+  const s = suggestCountsFrom(dir, day);
+  if (dir === "in" && chosen < s) return `الفلوس دخلت يوم ${shortDayText(day)} — لو اتحسبت من ${monthLabel(chosen)} هياخد ربح عن أيام قبل ما الفلوس تدخل. القاعدة: من ${monthLabel(s)}.`;
+  if (dir === "out" && chosen > s) return `الفلوس طلعت يوم ${shortDayText(day)} — لو اتحسبت من ${monthLabel(chosen)} هياخد ربح ${monthLabel(s)} على فلوس خرجت. القاعدة: من ${monthLabel(s)}.`;
+  return null;
+}
+const MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+export function monthLabel(m1: string): string {
+  if (!m1) return "";
+  const [y, m] = m1.split("-").map(Number);
+  return `${MONTHS[m - 1]} ${y}`;
+}
+const shortDayText = (d: string) => d.slice(0, 10).split("-").reverse().join("/");
+/** months to choose from: January 2026 → the month after today (and the current value, if outside) */
+export function monthChoices(today: string, current?: string | null): string[] {
+  const out: string[] = [];
+  const last = addMonth(monthStart(today), 1);
+  for (let m = FIRST_MONTH; m <= last; m = addMonth(m, 1)) out.push(m);
+  if (current && !out.includes(monthStart(current))) out.push(monthStart(current));
+  return out.sort();
+}
+
+// ── delete / archive a partner (0295) ────────────────────────────────────────
+/** «حذف» only for a partner with nothing at all (the server checks movements / advances / logins too) */
+export function canDeletePartner(c: Pick<PartnerCards, "contributions" | "capital_withdrawals" | "capital" | "profit" | "profit_in" | "profit_out" | "advances">): boolean {
+  return [c.contributions, c.capital_withdrawals, c.capital, c.profit, c.profit_in, c.profit_out, c.advances].every((v) => Math.abs(Number(v) || 0) < 0.005);
+}
+/** why «أرشفة» is not possible yet, or null */
+export function archiveProblem(c: Pick<PartnerCards, "capital" | "profit" | "advances">): string | null {
+  if (Math.abs(Number(c.capital) || 0) > 0.005) return `رأس ماله ${formatEGP(Number(c.capital))} — اسحبه الأول`;
+  if (Math.abs(Number(c.profit) || 0) > 0.005) return `صافي ربحه ${formatEGP(Number(c.profit))} — صفّيه الأول`;
+  if ((Number(c.advances) || 0) > 0.005) return `عليه سلف ${formatEGP(Number(c.advances))} — اتسدّ الأول`;
+  return null;
+}
+export const deletePartner = (partnerId: string, reason: string) => rpc<{ name: string }>("delete_partner", { p_partner: partnerId, p_reason: reason });
+export const setPartnerArchived = (partnerId: string, archived: boolean, reason?: string) =>
+  rpc<{ name: string; archived: boolean }>("set_partner_archived", { p_partner: partnerId, p_archived: archived, p_reason: reason ?? null });
 
 export const editPartnerContribution = (txId: string, amount: number, notes?: string) =>
   rpc<unknown>("edit_partner_contribution", { p_tx: txId, p_amount: amount, p_notes: notes || null });
@@ -336,9 +400,10 @@ export const editExistingCapital = (txId: string, v: { amount: number; day: stri
   });
 
 /** 0288: edit a contribution / capital withdrawal that went through the till (cancel on its day + the corrected one) */
-export const editPartnerCapitalMove = (txId: string, v: { amount: number; date: string; notes?: string | null; reason: string }) =>
+export const editPartnerCapitalMove = (txId: string, v: { amount: number; date: string; notes?: string | null; reason: string; countsFrom?: string | null }) =>
   rpc<{ old: string; new: string; difference: number }>("edit_partner_capital_move", {
     p_tx: txId, p_amount: v.amount, p_date: v.date, p_notes: v.notes ?? null, p_reason: v.reason,
+    ...(v.countsFrom ? { p_counts_from: v.countsFrom } : {}),
   });
 
 /** which edit a movement takes: «موجود بالفعل» (no till) or a till capital movement; null = none */

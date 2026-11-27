@@ -12,6 +12,7 @@ import { pct, payRuleText, ruleForMonth, type PartnerCards } from "@/lib/partner
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { PartnerFormDialog } from "@/components/partners/PartnerFormDialog";
 import { PartnerMoneyDialog } from "@/components/partners/PartnerMoneyDialog";
+import { PartnerArchiveActions } from "@/components/partners/PartnerArchiveActions";
 import type { usePartnersData } from "@/components/partners/usePartnersData";
 
 /**
@@ -25,11 +26,14 @@ export default function PartnersList({ data }: { data: ReturnType<typeof usePart
   const canWrite = isOwner || isAdmin;
   const [adding, setAdding] = useState(false);
   const [money, setMoney] = useState<{ kind: "contribution" | "withdrawal"; cards: PartnerCards } | null>(null);
-  const [showOld, setShowOld] = useState(false);
+  const [showOld, setShowOld] = useState<"none" | "stopped" | "archived">("none");
   const thisMonth = cairoTodayDay().slice(0, 7);
 
   const active = rows.filter((r) => r.partner.is_active);
-  const shown = showOld ? rows : active;
+  // 0295: «مؤرشف» (archived_at) apart from «موقوف» (is_active off by «بياناته»)
+  const archivedRows = rows.filter((r) => !!r.partner.archived_at);
+  const stopped = rows.filter((r) => !r.partner.is_active && !r.partner.archived_at);
+  const shown = showOld === "archived" ? archivedRows : showOld === "stopped" ? [...active, ...stopped] : active;
   const totals = useMemo(() => active.reduce((s, r) => ({
     capital: s.capital + Number(r.capital), profit: s.profit + Number(r.profit), advances: s.advances + Number(r.advances),
   }), { capital: 0, profit: 0, advances: 0 }), [active]);
@@ -74,7 +78,8 @@ export default function PartnersList({ data }: { data: ReturnType<typeof usePart
                       <div className="flex flex-wrap gap-1 mt-1">
                         <Badge variant="secondary">{r.partner.role_kind === "employee_partner" ? "موظف وشريك" : "شريك"}</Badge>
                         <Badge variant="outline" data-testid="partner-pay">{payRuleText(ruleForMonth(rules, r.partner.id, thisMonth))}</Badge>
-                        {!r.partner.is_active && <Badge variant="destructive">موقوف</Badge>}
+                        {r.partner.archived_at ? <Badge variant="outline" data-testid="partner-archived-badge">مؤرشف{r.partner.archive_reason ? ` — ${r.partner.archive_reason}` : ""}</Badge>
+                          : !r.partner.is_active && <Badge variant="destructive">موقوف</Badge>}
                       </div>
                     </div>
                     <div className="text-left">
@@ -100,6 +105,7 @@ export default function PartnersList({ data }: { data: ReturnType<typeof usePart
                       <Button size="sm" variant="outline" className="gap-1" onClick={() => setMoney({ kind: "withdrawal", cards: r })}><ArrowDownCircle className="w-4 h-4" /> سحب</Button>
                     </>
                   )}
+                  {canWrite && <PartnerArchiveActions cards={r} onDone={load} />}
                   </div>
                 </CardContent>
               </Card>
@@ -107,12 +113,17 @@ export default function PartnersList({ data }: { data: ReturnType<typeof usePart
           ))}
         </div>
       )}
-      {rows.length > active.length && (
-        <Button variant="link" className="px-0" onClick={() => setShowOld((v) => !v)}>{showOld ? "اخفي الموقوفين" : `اعرض الموقوفين (${rows.length - active.length})`}</Button>
-      )}
+      <div className="flex flex-wrap gap-4">
+        {stopped.length > 0 && (
+          <Button variant="link" className="px-0" onClick={() => setShowOld((v) => v === "stopped" ? "none" : "stopped")}>{showOld === "stopped" ? "اخفي الموقوفين" : `اعرض الموقوفين (${stopped.length})`}</Button>
+        )}
+        {archivedRows.length > 0 && (
+          <Button variant="link" className="px-0" data-testid="show-archived" onClick={() => setShowOld((v) => v === "archived" ? "none" : "archived")}>{showOld === "archived" ? "ارجع للشركاء الشغالين" : `المؤرشفين (${archivedRows.length})`}</Button>
+        )}
+      </div>
 
       {adding && <PartnerFormDialog onClose={() => setAdding(false)} onDone={load} />}
-      {money && <PartnerMoneyDialog kind={money.kind} cards={money.cards} onClose={() => setMoney(null)} onDone={load} />}
+      {money && <PartnerMoneyDialog kind={money.kind} cards={money.cards} active={active} onClose={() => setMoney(null)} onDone={load} />}
     </div>
   );
 }
