@@ -132,6 +132,49 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
   const body = await page.locator("body").innerText();
   check("page title", body.includes("الفواتير الإلكترونية الواردة"));
   check("status: last pull today + next pull", body.includes("آخر سحب من المنظومة: النهارده") && body.includes("السحب الجاي"));
+
+  // the filter box (owner 2026-11-27 «زي صفحة السندات والبيع والشراء») + the column order / alignment
+  const rowsShown = () => page.locator('[data-testid^="eta-pick-d"]').count();
+  check("filter box: same panel as vouchers / sales (search, period, amount, status, supplier, type, ETA status)",
+    (await page.locator("[data-unified-filters]").count()) === 1 && (await page.locator("[data-unified-filters]").getByLabel("المورد", { exact: true }).count()) > 0 && (await page.locator("[data-unified-filters]").getByLabel("النوع", { exact: true }).count()) > 0
+    && (await page.locator("[data-unified-filters]").getByLabel("حالتها على المنظومة", { exact: true }).count()) > 0 && (await page.locator("[data-unified-filters]").getByLabel("المبلغ من", { exact: true }).count()) > 0);
+  const heads = (await page.locator('table').first().locator("thead th").allInnerTexts()).map((x) => x.trim()).filter(Boolean);
+  check("columns: number · supplier · amounts · status · date · actions", heads.join("|") === "الفاتورة|المورد|الإجمالي|قبل الضريبة|الضريبة|في السيستم|على المنظومة|التاريخ|إجراءات", heads.join("|"));
+  const n0 = await rowsShown();
+  const box = page.locator("[data-unified-filters]");
+  await box.getByPlaceholder("أي كلمة بأي ترتيب…").fill("الاجهزه فريش");
+  check("typing alone does not filter (draft until «بحث»)", (await rowsShown()) === n0);
+  await box.getByRole("button", { name: "بحث" }).click(); await page.waitForTimeout(300);
+  check("search «الاجهزه فريش» (any order, spelling rules) → the two فريش invoices", (await rowsShown()) === 2, String(await rowsShown()));
+  await box.getByRole("button", { name: "مسح الفلتر" }).click(); await page.waitForTimeout(300);
+  check("«مسح الفلتر» → every row again", (await rowsShown()) === n0);
+  await box.getByLabel("النوع").click(); await page.getByRole("option", { name: "إشعار دائن" }).click();
+  await box.getByRole("button", { name: "بحث" }).click(); await page.waitForTimeout(300);
+  check("type «إشعار دائن» → d4 only", (await rowsShown()) === 1 && (await page.getByTestId("eta-pick-d4").count()) === 1);
+  await box.getByRole("button", { name: "مسح الفلتر" }).click(); await page.waitForTimeout(200);
+  await box.getByLabel("المبلغ من").fill("10000"); await box.getByLabel("المبلغ إلى").fill("100000");
+  await box.getByRole("button", { name: "بحث" }).click(); await page.waitForTimeout(300);
+  check("amount 10,000 → 100,000 → d1 + d2", (await rowsShown()) === 2 && (await page.getByTestId("eta-pick-d1").count()) === 1 && (await page.getByTestId("eta-pick-d2").count()) === 1);
+  await box.getByLabel("المورد").click(); await page.getByRole("option", { name: /صادكو/ }).click();
+  await box.getByRole("button", { name: "بحث" }).click(); await page.waitForTimeout(300);
+  check("supplier صادكو + amount → nothing, the empty line shows", (await rowsShown()) === 0 && (await page.getByText("مفيش فواتير بالشروط دي").count()) === 1);
+  await box.getByRole("button", { name: "مسح الفلتر" }).click(); await page.waitForTimeout(200);
+  await box.getByLabel("الحالة").click(); await page.getByRole("option", { name: "مش فاتورة شراء" }).click();
+  await box.getByRole("button", { name: "بحث" }).click(); await page.waitForTimeout(300);
+  check("status «مش فاتورة شراء» → Vodafone + the «بتعرض» line", (await rowsShown()) === 1 && (await page.getByTestId("eta-pick-d5").count()) === 1 && (await page.getByText("بتعرض:").count()) === 1);
+  const al = await page.evaluate(() => {
+    const row = document.querySelector('[data-testid="eta-pick-d1"]')?.closest("tr");
+    const tds = row ? Array.from(row.querySelectorAll("td")) : [];
+    return tds.map((td) => getComputedStyle(td).textAlign + "/" + getComputedStyle(td).verticalAlign);
+  });
+  await box.getByRole("button", { name: "مسح الفلتر" }).click(); await page.waitForTimeout(300);
+  const al2 = await page.evaluate(() => {
+    const row = document.querySelector('[data-testid="eta-pick-d1"]')?.closest("tr");
+    return row ? Array.from(row.querySelectorAll("td")).map((td) => getComputedStyle(td).textAlign + "/" + getComputedStyle(td).verticalAlign) : [];
+  });
+  check("alignment: name columns right, numbers / status / date / actions centred, all middle", al2.length === 10 && al2[1].startsWith("right") && al2[2].startsWith("right")
+    && al2.slice(3).every((x) => x.startsWith("center")) && al2.every((x) => x.endsWith("middle")), al2.join(" ") + (al.length ? "" : ""));
+  await shot(page, "eta-1b-filters");
   check("status: no problem shown when ok", !body.includes("السحب فشل") && !body.includes("تنبيه:"));
   check("«اسحب دلوقتي» button enabled", await page.getByRole("button", { name: /^اسحب دلوقتي$/ }).isEnabled());
   check("card: valid count = 5", /الفواتير الصحيحة[\s\S]{0,40}5/.test(body));

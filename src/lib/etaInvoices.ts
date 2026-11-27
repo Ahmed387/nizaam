@@ -64,6 +64,7 @@ export function etaTotals(docs: EtaDoc[]) {
     count: valid.length,
     total: sum(valid, d => etaSign(d.type_name) * Number(d.total || 0)),
     vat: sum(valid, d => etaSign(d.type_name) * Number(d.vat ?? (Number(d.total || 0) - Number(d.net_amount || 0)))),
+    net: sum(valid, d => etaSign(d.type_name) * Number(d.net_amount ?? (Number(d.total || 0) - Number(d.vat || 0)))),
     suppliers: new Set(valid.map(d => d.issuer_id)).size,
     recorded: { count: byState("recorded").length, total: sum(byState("recorded"), d => Number(d.total || 0)) },
     notRecorded: { count: notIn.length, total: sum(notIn, d => Number(d.total || 0)) },
@@ -91,3 +92,34 @@ export function etaLines(detail: any) {
     };
   });
 }
+
+// ── the filter box of the received-invoices table (owner 2026-11-27 «زي صفحة سند القبض والصرف والبيع والشراء») ──────────
+export type EtaFilters = {
+  /** invoice number, supplier name, tax id, our purchase number — every word, any order */
+  q: string; amountMin: string; amountMax: string;
+  /** ETA supplier (tax id) */ issuer: string;
+  /** I / C / D */ type: string;
+  /** Valid / Cancelled / Rejected … */ etaStatus: string;
+};
+export const EMPTY_ETA_FILTERS: EtaFilters = { q: "", amountMin: "", amountMax: "", issuer: "", type: "", etaStatus: "" };
+const norm = (s: string) => s.toLowerCase().replace(/[أإآ]/g, "ا").replace(/ة/g, "ه").replace(/ى/g, "ي").replace(/[٠-٩]/g, (c) => String("٠١٢٣٤٥٦٧٨٩".indexOf(c)));
+/** the rows the box leaves (the date is read on the server; the state chips / cards come on top through `etaInView`) */
+export function etaFilter(docs: EtaDoc[], f: EtaFilters): EtaDoc[] {
+  const words = norm(f.q.trim()).split(/\s+/).filter(Boolean).map((w) => (w.length > 3 ? w.replace(/^(ال|لل)/, "") : w));
+  const min = f.amountMin === "" ? null : Number(f.amountMin);
+  const max = f.amountMax === "" ? null : Number(f.amountMax);
+  return docs.filter((d) => {
+    if (f.issuer && d.issuer_id !== f.issuer) return false;
+    if (f.type && (d.type_name ?? "").toUpperCase() !== f.type) return false;
+    if (f.etaStatus && d.status !== f.etaStatus) return false;
+    const total = Math.abs(Number(d.total) || 0);
+    if (min != null && total < min - 0.005) return false;
+    if (max != null && total > max + 0.005) return false;
+    if (words.length) {
+      const hay = norm([d.internal_id, d.issuer_name, d.issuer_id, d.match?.number].filter(Boolean).join(" "));
+      if (!words.every((w) => hay.includes(w))) return false;
+    }
+    return true;
+  });
+}
+export const etaFilterCount = (f: EtaFilters) => Object.values(f).filter((v) => v !== "").length;

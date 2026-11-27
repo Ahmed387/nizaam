@@ -32,14 +32,17 @@ import {
 } from "lucide-react";
 import { rpcErrorText } from "@/lib/rpcError";
 import type { EtaSettings } from "@/lib/etaWizard";
-import { ETA_STATE, ETA_VIEW_LABEL, etaInView, etaState, etaTotals, etaTypeLabel, type EtaDoc, type EtaIssuer, type EtaView } from "@/lib/etaInvoices";
+import {
+  EMPTY_ETA_FILTERS, ETA_STATE, ETA_TYPE, ETA_VIEW_LABEL, etaFilter, etaFilterCount, etaInView, etaState, etaTotals, etaTypeLabel,
+  type EtaDoc, type EtaFilters, type EtaIssuer, type EtaView,
+} from "@/lib/etaInvoices";
+import { EMPTY_DOCUMENT_FILTERS, UnifiedDocumentFilters, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { cairoTodayDay } from "@/lib/cairoDate";
 import { LinkDialog, STATUS, day, fmt } from "@/components/eta/EtaDocParts";
 import { etaSyncView, manualWait, mmss, type EtaSyncSettings } from "@/lib/etaSyncStatus";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EtaPdfBar, EtaPdfButton, useEtaPdfDownload } from "@/components/eta/EtaPdfDownload";
 
-const firstOfMonth = () => cairoTodayDay().slice(0, 8) + "01";
 
 
 export default function EtaInvoices() {
@@ -52,7 +55,8 @@ export default function EtaInvoices() {
   const [to, setTo] = useState("");
   const [stateFilter, setStateFilter] = useState<EtaView>("all");
   const tableRef = useRef<HTMLDivElement>(null);
-  const [q, setQ] = useState("");
+  // the filter box (owner 2026-11-27 «بوكس السيرش زي السندات والبيع والشراء»): the date is read on the server, the rest here
+  const [ef, setEf] = useState<EtaFilters>(EMPTY_ETA_FILTERS);
   const [tab, setTab] = useState("docs");
   const [syncing, setSyncing] = useState(false);
   const [now, setNow] = useState(() => new Date());
@@ -95,11 +99,18 @@ export default function EtaInvoices() {
   }, [tenantId, from, to, syncing]);
 
   const shown = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return docs.filter(d =>
-      etaInView(d, stateFilter) &&
-      (!term || [d.internal_id, d.issuer_name, d.issuer_id, d.match?.number].some(x => (x ?? "").toLowerCase().includes(term))));
-  }, [docs, stateFilter, q]);
+    return etaFilter(docs, ef).filter((d) => etaInView(d, stateFilter));
+  }, [docs, stateFilter, ef]);
+  // the box speaks DocumentFilters: issuer → partyId, type → categoryId, ETA status → payment
+  const boxValue: DocumentFilters = { ...EMPTY_DOCUMENT_FILTERS, q: ef.q, from, to, amountMin: ef.amountMin, amountMax: ef.amountMax,
+    status: stateFilter === "all" ? "" : stateFilter, partyId: ef.issuer, categoryId: ef.type, payment: ef.etaStatus };
+  const applyBox = (f: DocumentFilters) => {
+    setEf({ q: f.q, amountMin: f.amountMin, amountMax: f.amountMax, issuer: f.partyId, type: f.categoryId, etaStatus: f.payment });
+    setFrom(f.from); setTo(f.to); setStateFilter((f.status || "all") as EtaView);
+  };
+  const resetBox = () => { setEf(EMPTY_ETA_FILTERS); setFrom(""); setTo(""); setStateFilter("all"); };
+  const boxUsed = etaFilterCount(ef) > 0 || !!from || !!to || stateFilter !== "all";
+  const etaStatuses = useMemo(() => Array.from(new Set(docs.map((d) => d.status).filter(Boolean) as string[])).sort(), [docs]);
   const t = useMemo(() => etaTotals(docs), [docs]);
   const st = useMemo(() => etaTotals(shown), [shown]);
   // picked invoices for the PDF download, in the table's order; a filter change keeps only what is still shown
@@ -252,13 +263,29 @@ export default function EtaInvoices() {
           </TabsList>
 
           <TabsContent value="docs" className="space-y-3 mt-3">
-            <div className="flex flex-wrap items-end gap-3">
-              <div><Label>من</Label><Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="w-40" /></div>
-              <div><Label>إلى</Label><Input type="date" value={to} onChange={e => setTo(e.target.value)} className="w-40" /></div>
-              <Button variant="ghost" size="sm" onClick={() => { setFrom(firstOfMonth()); setTo(cairoTodayDay()); }}>الشهر ده</Button>
-              <Button variant="ghost" size="sm" onClick={() => { setFrom(""); setTo(""); }}>كل الفترات</Button>
-              <div className="flex-1 min-w-[220px]"><Label>بحث</Label><Input value={q} onChange={e => setQ(e.target.value)} placeholder="رقم الفاتورة، المورد، الرقم الضريبي، رقم فاتورة الشراء" /></div>
-            </div>
+            <UnifiedDocumentFilters title="الفواتير الواردة" noun="فاتورة" shown={{ from: shown.length ? 1 : 0, to: shown.length, total: docs.length }}
+              value={boxValue} onChange={applyBox} onReset={resetBox} hasAnyFilter={boxUsed} showAmount
+              searchLabel="بحث (رقم الفاتورة، المورد، الرقم الضريبي، رقم فاتورة الشراء)" searchPlaceholder="أي كلمة بأي ترتيب…"
+              statusOptions={[
+                { value: "valid", label: ETA_VIEW_LABEL.valid }, { value: "not_recorded", label: ETA_VIEW_LABEL.not_recorded },
+                ...(["missing", "unlinked", "recorded", "credit", "ignored", "void"] as const).map((k) => ({ value: k, label: ETA_STATE[k].label })),
+              ]}
+              extraFields={(draft, set) => (
+                <>
+                  <UnifiedDocumentFilters.Field label="المورد">
+                    <UnifiedDocumentFilters.Select value={draft.partyId} onChange={(v) => set({ partyId: v })} ariaLabel="المورد"
+                      options={issuers.map((i) => ({ value: i.issuer_id, label: `${i.issuer_name} (${i.count})` }))} />
+                  </UnifiedDocumentFilters.Field>
+                  <UnifiedDocumentFilters.Field label="النوع">
+                    <UnifiedDocumentFilters.Select value={draft.categoryId} onChange={(v) => set({ categoryId: v })} ariaLabel="النوع"
+                      options={Object.entries(ETA_TYPE).map(([value, label]) => ({ value, label }))} />
+                  </UnifiedDocumentFilters.Field>
+                  <UnifiedDocumentFilters.Field label="حالتها على المنظومة">
+                    <UnifiedDocumentFilters.Select value={draft.payment} onChange={(v) => set({ payment: v })} ariaLabel="حالتها على المنظومة"
+                      options={etaStatuses.map((v) => ({ value: v, label: STATUS[v]?.label ?? v }))} />
+                  </UnifiedDocumentFilters.Field>
+                </>
+              )} />
             <div ref={tableRef} className="scroll-mt-4" />
             {stateFilter !== "all" && (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
@@ -290,15 +317,15 @@ export default function EtaInvoices() {
                       <Checkbox aria-label="حدد كل اللي معروض" data-testid="eta-pick-all" checked={allPicked}
                         onCheckedChange={(v) => setPicked(v ? new Set(shown.map((d) => d.id)) : new Set())} />
                     </TableHead>
-                    <TableHead className="whitespace-nowrap">الفاتورة</TableHead>
-                    <TableHead>المورد</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">التاريخ</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">الإجمالي</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">في السيستم</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">قبل الضريبة</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">الضريبة</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">على المنظومة</TableHead>
-                    <TableHead className="text-center whitespace-nowrap">إجراءات</TableHead>
+                    <TableHead className="text-right whitespace-nowrap w-[150px]">الفاتورة</TableHead>
+                    <TableHead className="text-right whitespace-nowrap min-w-[220px]">المورد</TableHead>
+                    <TableHead className="text-center whitespace-nowrap w-[120px]">الإجمالي</TableHead>
+                    <TableHead className="text-center whitespace-nowrap w-[120px]">قبل الضريبة</TableHead>
+                    <TableHead className="text-center whitespace-nowrap w-[110px]">الضريبة</TableHead>
+                    <TableHead className="text-center whitespace-nowrap min-w-[200px]">في السيستم</TableHead>
+                    <TableHead className="text-center whitespace-nowrap w-[110px]">على المنظومة</TableHead>
+                    <TableHead className="text-center whitespace-nowrap w-[100px]">التاريخ</TableHead>
+                    <TableHead className="text-center whitespace-nowrap w-[150px]">إجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -311,17 +338,18 @@ export default function EtaInvoices() {
                       <TableRow key={d.id} className={`cursor-pointer hover:bg-muted/40 ${d.seen_at ? "" : "bg-primary/5"}`}
                         title="اضغط لتفاصيل الفاتورة"
                         onClick={(e) => { if (!(e.target as HTMLElement).closest("button, a, input, [role=checkbox]")) openDoc(d); }}>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center align-middle">
                           <Checkbox aria-label="حدد الفاتورة" data-testid={`eta-pick-${d.id}`} checked={picked.has(d.id)} onCheckedChange={(v) => togglePick(d.id, !!v)} />
                         </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          <div>{etaTypeLabel(d.type_name)}{!d.seen_at && <Badge className="mr-2">جديد</Badge>}</div>
-                          <div className="font-mono text-xs text-muted-foreground">{d.internal_id || "—"}</div>
+                        <TableCell className="text-right align-middle whitespace-nowrap">
+                          <div className="font-mono text-sm font-semibold">{d.internal_id || "—"}</div>
+                          <div className="text-xs text-muted-foreground">{etaTypeLabel(d.type_name)}{!d.seen_at && <Badge className="mr-2 px-1.5 py-0 text-[10px]">جديد</Badge>}</div>
                         </TableCell>
-                        <TableCell className="min-w-[200px] max-w-[320px]"><div className="truncate" title={d.issuer_name ?? ""}>{d.issuer_name || "—"}</div><div className="text-xs text-muted-foreground font-mono">{d.issuer_id}</div></TableCell>
-                        <TableCell className="text-center tabular-nums whitespace-nowrap">{day(d.date_issued)}</TableCell>
-                        <TableCell className="text-center font-mono tabular-nums font-semibold whitespace-nowrap">{fmt(d.total)}</TableCell>
-                        <TableCell className="min-w-[190px] text-center">
+                        <TableCell className="text-right align-middle max-w-[320px]"><div className="truncate font-medium" title={d.issuer_name ?? ""}>{d.issuer_name || "—"}</div><div className="text-xs text-muted-foreground font-mono">{d.issuer_id}</div></TableCell>
+                        <TableCell className="text-center align-middle font-mono tabular-nums font-semibold whitespace-nowrap">{fmt(d.total)}</TableCell>
+                        <TableCell className="text-center align-middle font-mono tabular-nums whitespace-nowrap">{fmt(d.net_amount)}</TableCell>
+                        <TableCell className="text-center align-middle font-mono tabular-nums whitespace-nowrap">{fmt(d.vat)}</TableCell>
+                        <TableCell className="text-center align-middle">
                           <span className={`px-2 py-0.5 rounded text-xs whitespace-nowrap ${ETA_STATE[es].tone}`}>{ETA_STATE[es].label}</span>
                           {d.match && (
                             <div className="text-xs mt-1">
@@ -333,13 +361,12 @@ export default function EtaInvoices() {
                           )}
                           {d.match_note && d.match_note !== ETA_STATE[es].label && <div className="text-xs text-muted-foreground mt-1">{d.match_note}</div>}
                         </TableCell>
-                        <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(d.net_amount)}</TableCell>
-                        <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(d.vat)}</TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center align-middle">
                           <span className={`px-2 py-0.5 rounded text-xs whitespace-nowrap ${s.cls}`} title={d.status_reason ?? ""}>{s.label}</span>
                           {(d.cancel_requested || d.reject_requested) && d.status === "Valid" && <div className="text-xs text-warning mt-1">{d.cancel_requested ? "المورد طلب إلغاءها" : "مطلوب رفضها"}</div>}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-center align-middle tabular-nums whitespace-nowrap">{day(d.date_issued)}</TableCell>
+                        <TableCell className="text-center align-middle">
                           <div className="flex items-center justify-center gap-0.5">
                             <Button size="sm" variant="ghost" title="تفاصيل الفاتورة" onClick={() => openDoc(d)}><ListTree className="w-4 h-4" /></Button>
                             <EtaPdfButton busy={pdf.busy} onClick={() => pdf.download([d])} />
@@ -362,11 +389,11 @@ export default function EtaInvoices() {
                 {!loading && shown.length > 0 && (
                   <TableFooter>
                     <TableRow>
-                      <TableCell colSpan={4}>الإجمالي ({st.count} صحيحة، الإشعارات الدائنة بالسالب)</TableCell>
-                      <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(st.total)}</TableCell>
-                      <TableCell colSpan={2} />
+                      <TableCell colSpan={3} className="text-right">الإجمالي ({st.count} صحيحة، الإشعارات الدائنة بالسالب)</TableCell>
+                      <TableCell className="text-center font-mono tabular-nums font-semibold whitespace-nowrap">{fmt(st.total)}</TableCell>
+                      <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(st.net)}</TableCell>
                       <TableCell className="text-center font-mono tabular-nums whitespace-nowrap">{fmt(st.vat)}</TableCell>
-                      <TableCell colSpan={2} />
+                      <TableCell colSpan={4} />
                     </TableRow>
                   </TableFooter>
                 )}
