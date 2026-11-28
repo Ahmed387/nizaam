@@ -1,3 +1,5 @@
+import { ActionsMenu } from "@/components/table/ActionsMenu";
+import { PackSizeButton } from "@/components/PackUnits";
 import { ProductDocMovements } from "@/components/ProductDocMovements";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
@@ -11,7 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
 import { useRealtimeRefresh } from "@/hooks/useRealtimeRefresh";
 import { formatDateTime } from "@/lib/format";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, History, Pencil, Trash2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { normalizeForSearch } from "@/lib/search";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
 import { dayIn, hasAny, searchHas } from "@/lib/listFilter";
@@ -34,6 +37,7 @@ export default function StockMovements() {
   const [moves, setMoves] = useState<Movement[]>([]);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
+  const { canInBranch, isAdmin } = useAuth();
   const [pendingOutQty, setPendingOutQty] = useState(0);
   const [unexplained, setUnexplained] = useState(0);
 
@@ -325,9 +329,21 @@ export default function StockMovements() {
         title={`حركة المخزون: ${product?.name ?? ""}`}
         subtitle={product ? `الكود: ${product.sku} · الكمية الحالية: ${product.quantity}${pendingOutQty > 0 ? ` · محجوز لتحويلات معلقة: ${pendingOutQty}` : ""}` : ""}
         actions={
-          <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory`)}>
-            <ArrowRight className="w-4 h-4 ml-1" /> رجوع للمخزون
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {/* the item's actions in ONE «⋮ إجراءات» (owner 2026-11-28): edit / price, pack, price history, archive — the
+                same dialogs as the inventory row (opened there by ?act=…&pid=…); «دمج صنف تاني» joins when it exists */}
+            {product && (
+              <ActionsMenu testId="product-actions">
+                {canInBranch("inventory.update", branchId ?? null) && <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory?act=edit&pid=${product.id}`)}><Pencil className="w-4 h-4 ml-1" /> تعديل البيانات والسعر</Button>}
+                {canInBranch("inventory.update", branchId ?? null) && <PackSizeButton product={product as any} onDone={() => setTick((t: number) => t + 1)} />}
+                <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory?act=history&pid=${product.id}`)}><History className="w-4 h-4 ml-1" /> تاريخ الأسعار</Button>
+                {(canInBranch("inventory.delete", branchId ?? null) || isAdmin) && <Button variant="outline" data-own-confirm="" className="text-destructive" onClick={() => nav(`/branch/${branchId}/inventory?act=archive&pid=${product.id}`)}><Trash2 className="w-4 h-4 ml-1" /> أرشفة</Button>}
+              </ActionsMenu>
+            )}
+            <Button variant="outline" onClick={() => nav(`/branch/${branchId}/inventory`)}>
+              <ArrowRight className="w-4 h-4 ml-1" /> رجوع للمخزون
+            </Button>
+          </div>
         }
       />
 

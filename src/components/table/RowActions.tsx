@@ -73,6 +73,23 @@ export function activate(td: HTMLElement, el: HTMLElement) {
  * asks itself.
  */
 export type MenuOpen = { box: HTMLElement; btn: HTMLElement; top: number; right: number; items: Item[]; confirm?: Item };
+
+/**
+ * Where the menu goes, decided BEFORE it is drawn (owner 2026-11-28: «القائمة مش باينة كلها»): in RTL it opens towards the
+ * left of its ⋮; when there is no room on the left (the «إجراءات» column is the last one, next to the screen's edge) it
+ * opens towards the right instead, and above the ⋮ when there is no room below. The layout effect then fixes it to the
+ * pixel with the menu's real size.
+ */
+export const MENU_W = 264;
+export function placeMenu(r: { top: number; bottom: number; left: number; right: number }, itemCount: number, vw = window.innerWidth, vh = window.innerHeight) {
+  const h = Math.min(vh - 8, 12 + Math.max(1, itemCount) * 34);
+  let right = Math.round(vw - r.right);                       // the menu's right edge on the ⋮'s right edge
+  if (r.right - MENU_W < 4) right = Math.round(Math.max(4, vw - (r.left + MENU_W)));   // no room on the left → open to the right
+  right = Math.max(4, Math.min(right, vw - 4 - 176));                                    // its narrowest (176) still fits
+  let top = Math.round(r.bottom + 2);
+  if (top + h > vh - 4) top = Math.round(Math.max(4, r.top - h - 2));                 // no room below → above the ⋮
+  return { top, right };
+}
 export function useActionMenu(testId = "row-actions-menu") {
   const [open, setOpen] = useState<MenuOpen | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -85,7 +102,7 @@ export function useActionMenu(testId = "row-actions-menu") {
     const scroll = () => {
       const r = open.btn.isConnected ? open.btn.getBoundingClientRect() : null;
       if (!r || r.bottom < 0 || r.top > window.innerHeight) { setOpen(null); return; }
-      const top = Math.round(r.bottom + 2), right = Math.round(Math.max(4, window.innerWidth - r.right));
+      const { top, right } = placeMenu(r, open.items.length);
       setOpen((o) => (o && (o.top !== top || o.right !== right) ? { ...o, top, right } : o));
     };
     document.addEventListener("pointerdown", away, true); document.addEventListener("keydown", esc); window.addEventListener("scroll", scroll, true);
@@ -99,13 +116,16 @@ export function useActionMenu(testId = "row-actions-menu") {
     const r = el.getBoundingClientRect();
     let right = open.right, top = open.top;
     if (r.left < 4) right = Math.max(4, window.innerWidth - r.width - 4);
+    if (r.right > window.innerWidth - 4) right = 4;
     if (r.bottom > window.innerHeight - 4) top = Math.max(4, window.innerHeight - r.height - 4);
+    if (r.top < 4) top = 4;
+    right = Math.round(right); top = Math.round(top);
     if (right !== open.right || top !== open.top) setOpen({ ...open, right, top });
   }, [open]);
   const toggle = (box: HTMLElement, btn: HTMLElement) => {
     if (open?.box === box) { setOpen(null); return; }
-    const r = btn.getBoundingClientRect();
-    setOpen({ box, btn, top: Math.round(r.bottom + 2), right: Math.round(Math.max(4, window.innerWidth - r.right)), items: rowItems(box) });
+    const items = rowItems(box);
+    setOpen({ box, btn, ...placeMenu(btn.getBoundingClientRect(), items.length), items });
   };
   const choose = (it: Item) => {
     if (!open || it.disabled) return;
@@ -116,7 +136,7 @@ export function useActionMenu(testId = "row-actions-menu") {
   };
   const panel = open && createPortal(
     <div ref={menuRef} role="menu" dir="rtl" data-testid={testId} onClick={(e) => e.stopPropagation()}
-      className="fixed z-[120] min-w-44 max-w-64 rounded-lg border bg-popover p-1 text-[13px] shadow-lg"
+      className="fixed z-[120] min-w-44 max-w-[min(16.5rem,calc(100vw-8px))] max-h-[calc(100vh-8px)] overflow-y-auto overscroll-contain rounded-lg border bg-popover p-1 text-[13px] shadow-lg"
       style={{ top: open.top, right: open.right }}>
       {open.items.length === 0 && <div className="px-2 py-1.5 text-muted-foreground">مفيش إجراءات</div>}
       {open.items.map((it, i) => (

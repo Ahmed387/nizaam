@@ -346,6 +346,19 @@ async function countChecks(page, label, sc) {
         const last = items.last();
         const red = await last.evaluate((b) => b.className.includes("text-destructive"));
         check("⋮ فواتير البيع: الإلغاء آخر واحد وبالأحمر", /إلغاء/.test(texts[texts.length - 1] ?? "") && red, texts.join(" | "));
+        // the menu is wholly on the screen, also on a narrower screen (owner 2026-11-28 «القائمة مش باينة كلها»)
+        const inView = async () => { const vp = page.viewportSize(); const bb = await page.getByTestId("row-actions-menu").boundingBox(); return !!bb && bb.x >= 0 && bb.x + bb.width <= vp.width && bb.y >= 0 && bb.y + bb.height <= vp.height ? "" : JSON.stringify({ bb, vp }); };
+        const v1 = await inView();
+        await page.keyboard.press("Escape");
+        await page.setViewportSize({ width: 1024, height: 700 }); await page.waitForTimeout(400);
+        const raN = page.getByTestId("row-actions").last();
+        await raN.scrollIntoViewIfNeeded(); await raN.click(); await page.waitForTimeout(200);
+        const v2 = await inView();
+        await page.screenshot({ path: `${__dirname}/row-menu-invoices-1024.png` });
+        await page.keyboard.press("Escape");
+        await page.setViewportSize({ width: 1440, height: 1000 }); await page.waitForTimeout(300);
+        check("⋮ فواتير البيع: القايمة كلها جوه الشاشة (1440 و 1024، آخر صف)", !v1 && !v2, v1 || v2);
+        await ra.click(); await page.waitForTimeout(150);
         await last.click(); await page.waitForTimeout(150);
         check("⋮ فواتير البيع: الإلغاء بيسأل «تأكيد …؟» الأول", (await page.getByTestId("row-action-confirm").count()) === 1 && (await page.getByRole("dialog").count()) === 0);
         await page.getByTestId("row-action-confirm-yes").click(); await page.waitForTimeout(400);

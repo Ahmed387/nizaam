@@ -316,6 +316,24 @@ export default function Inventory() {
     setDeleteRefs(data);
   };
 
+  // the item page's «⋮ إجراءات» opens the same dialogs here: /inventory?act=edit|history|archive&pid=<product id>
+  const actParam = searchParams.get("act"), pidParam = searchParams.get("pid");
+  useEffect(() => {
+    if (!actParam || !pidParam) return;
+    let off = false;
+    (async () => {
+      const { data } = await supabase.from("products").select("*, categories(name)").eq("id", pidParam).maybeSingle();
+      if (off || !data) return;
+      if (actParam === "edit" && canEditProduct) openEditAll(data);
+      else if (actParam === "history") setHistoryFor(data);
+      else if (actParam === "archive" && canArchiveProduct) openDelete(data);
+      const sp = new URLSearchParams(searchParams); sp.delete("act"); sp.delete("pid");
+      setSearchParams(sp, { replace: true });
+    })();
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actParam, pidParam]);
+
   const doArchive = async () => {
     if (!deleteTarget) return;
     setDeleteBusy(true);

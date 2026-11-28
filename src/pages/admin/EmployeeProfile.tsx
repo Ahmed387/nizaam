@@ -1,3 +1,4 @@
+import { ActionsMenu } from "@/components/table/ActionsMenu";
 import { useEffect, useState } from "react";
 import { PermCard } from "@/contexts/PermCustomize";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -410,11 +411,16 @@ export default function EmployeeProfile() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          {/* every action on the employee in ONE «⋮ إجراءات» (owner 2026-11-28): the money ones first, «حذف» last */}
+          <ActionsMenu testId="employee-actions">
+            {canInBranch("advances.create", emp?.branch_id ?? null) && <Button variant="outline" size="sm" onClick={() => setAdvOpen(true)}><Plus className="w-4 h-4 ml-1" /> سلفة جديدة</Button>}
+            <Button variant="outline" size="sm" onClick={() => setAdjOpen("bonus")}>+ بونص</Button>
+            <Button variant="outline" size="sm" onClick={() => setAdjOpen("penalty")}>− جزاء</Button>
+            {canPaySalary && !preview?.paid && <Button variant="outline" size="sm" onClick={() => setSalOpen(true)}><Wallet className="w-4 h-4 ml-1" /> صرف المرتب</Button>}
             <Button variant="outline" size="sm" onClick={openEdit}><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>
             <Button variant="outline" size="sm" onClick={toggleActive}><Power className="w-4 h-4 ml-1" /> {emp.is_active ? "إيقاف" : "تنشيط"}</Button>
-            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive border-destructive/30" onClick={() => setDelOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف</Button>
-          </div>
+            <Button variant="outline" size="sm" data-own-confirm="" className="text-destructive hover:text-destructive border-destructive/30" onClick={() => setDelOpen(true)}><Trash2 className="w-4 h-4 ml-1" /> حذف</Button>
+          </ActionsMenu>
         </div>
 
         <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3 mt-5 text-sm">

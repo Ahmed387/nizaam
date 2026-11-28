@@ -1,3 +1,4 @@
+import { ActionsMenu } from "@/components/table/ActionsMenu";
 import { cairoTodayDay, addDaysDay, monthStartDay } from "@/lib/cairoDate";
 import { loadMyVesselRules, methodLevel, myVesselRulesCache } from "@/lib/vesselAccess";
 import { UnifiedDocumentFilters, EMPTY_DOCUMENT_FILTERS, type DocumentFilters } from "@/components/documents/UnifiedDocumentFilters";
@@ -568,7 +569,8 @@ export default function Treasury() {
     <BranchLayout>
       <PageHeader title="الخزينة" subtitle="عرض فقط — كل الحركات تتم عبر سندات القبض والصرف"
         actions={
-          <div className="flex gap-2">
+          /* the till's actions in ONE «⋮ إجراءات» (owner 2026-11-28); the rows of every tab have their own «⋮» */
+          <ActionsMenu testId="treasury-actions">
             {canSeeBalances && (
               <PermPart page="treasury" part="export_button"><Button variant="outline" onClick={exportLedger} disabled={exporting}>
                 <FileSpreadsheet className="w-4 h-4 ml-1" /> {exporting ? "جارٍ التصدير..." : "تصدير كشف الخزينة Excel"}
@@ -585,7 +587,7 @@ export default function Treasury() {
                 <ArrowLeftRight className="w-4 h-4 ml-1" /> تحويل لفرع
               </Button></PermPart>
             )}
-          </div>
+          </ActionsMenu>
         }
       />
 

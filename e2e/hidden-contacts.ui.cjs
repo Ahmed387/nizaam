@@ -103,6 +103,8 @@ async function open(browser, db) {
       const name = path.split("/").pop(); let body = {}; try { body = req.postDataJSON() || {}; } catch {}
       db.calls.push({ rpc: name, body });
       if (name === "hidden_contacts_list") return db.isOwner ? json(HIDDEN) : route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ code: "42501", message: "للمالك بس" }) });
+      if (name === "ledger_contact_overview") return json({ contact: { ...ROWS[1], is_archived: false, branch_name: "مكتب ومخزن شلبى" },
+        customer: { balance: 0, debit: 0, credit: 0 }, supplier: { balance: 0, debit: 0, credit: 0 } });
       if (name === "contacts_page") return json({ rows: ROWS, total: ROWS.length, counts: { all: 2, customer: 1, supplier: 0, both: 1 },
         totals: { customers_open: 1500, customers_open_count: 1, customer_advances: 0, customer_advances_count: 0, suppliers_open: 0, suppliers_open_count: 0, supplier_advances: 0, supplier_advances_count: 0, customer_overdue: 0, supplier_overdue: 0, debit_total: 1500, debit_count: 1, credit_total: 0, credit_count: 0 },
         sides: { customer: true, supplier: true } });
@@ -158,6 +160,34 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
     `list=${db.calls.filter((c) => c.rpc === "hidden_contacts_list").length}, per-row=${db.calls.filter((c) => c.rpc === "contact_is_hidden").length}`);
   await shot(page, "contacts-owner-menu");
 
+  // the contact file: every action of the account in ONE «⋮ إجراءات» (owner 2026-11-28)
+  await page.goto(`${BASE}/branch/${B1}/contacts/c2`); await settle(page);
+  const fileMenu = async (pg) => {
+    const btn = pg.getByTestId("contact-actions");
+    if (!(await btn.count())) return null;
+    await btn.click(); await pg.waitForTimeout(200);
+    const t = (await pg.locator('[data-testid="contact-actions-menu"] [role=menuitem]').allInnerTexts()).map((x) => x.trim());
+    return t;
+  };
+  const ownBtnsHidden = await page.evaluate(() => {
+    const box = document.querySelector("[data-am-items]");
+    return !!box && getComputedStyle(box).display === "none";
+  });
+  const fItems = await fileMenu(page);
+  check("owner: contact file has ONE «⋮ إجراءات», its buttons hidden", !!fItems && ownBtnsHidden, String(fItems && fItems.length));
+  check("owner: contact file menu lists tahseel / sadad / settlements / merge / hide / edit, «أرشفة» last",
+    !!fItems && ["تسوية رصيد بدون فلوس", "دمج حساب تاني", "إخفاء", "تعديل"].every((x) => fItems.some((y) => y.includes(x))) && fItems.some((y) => y.includes("تسوية برصيد")) && /أرشفة/.test(fItems[fItems.length - 1] ?? ""),
+    (fItems ?? []).join(" | "));
+  check("owner: «رجوع» stays a button outside the menu", (await page.getByRole("button", { name: /رجوع/ }).count()) >= 1);
+  await shot(page, "contact-file-menu");
+  await page.locator('[data-testid="contact-actions-menu"] [role=menuitem]').filter({ hasText: "تعديل" }).first().click(); await page.waitForTimeout(400);
+  check("owner: «تعديل» from the menu opens the edit dialog (outside the menu)", (await page.getByRole("dialog").count()) >= 1 && (await page.getByTestId("contact-actions-menu").count()) === 0);
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+  await fileMenu(page);
+  await page.locator('[data-testid="contact-actions-menu"] [role=menuitem]').filter({ hasText: "أرشفة" }).click(); await page.waitForTimeout(400);
+  check("owner: «أرشفة» asks once — its own dialog, no extra «تأكيد» in the menu", (await page.getByRole("alertdialog").count()) + (await page.getByRole("dialog").count()) >= 1 && (await page.getByTestId("row-action-confirm").count()) === 0);
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+
   await page.goto(`${BASE}/admin/hidden-contacts`); await settle(page);
   await shot(page, "hidden-1-owner");
   const body = await page.locator("body").innerText();
@@ -182,6 +212,14 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
     await p2.keyboard.press("Escape");
   }
   check("manager: no merge / hide / settlement items (owner only)", !mgrItems.some((y) => /دمج|إخفاء|إظهار|تسوية/.test(y)), mgrItems.join(" | "));
+  await p2.goto(`${BASE}/branch/${B1}/contacts/c2`); await settle(p2);
+  const mFile = [];
+  if (await p2.getByTestId("contact-actions").count()) {
+    await p2.getByTestId("contact-actions").click(); await p2.waitForTimeout(200);
+    mFile.push(...(await p2.locator('[data-testid="contact-actions-menu"] [role=menuitem]').allInnerTexts()));
+    await p2.keyboard.press("Escape");
+  }
+  check("manager: contact file menu has no merge / hide / settlement", mFile.length > 0 && !mFile.some((y) => /دمج|إخفاء|إظهار|تسوية/.test(y)), mFile.join(" | "));
   await p2.goto(`${BASE}/admin/hidden-contacts`); await settle(p2);
   await shot(p2, "hidden-2-manager");
   const b2 = await p2.locator("body").innerText();

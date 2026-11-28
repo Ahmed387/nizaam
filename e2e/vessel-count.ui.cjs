@@ -163,7 +163,10 @@ const COUNTS = [
   const dlg = () => page.getByRole("dialog");
   async function openCount() {
     await page.goto(`${BASE}/branch/${B1}/treasury`); await settle(page);
-    await t("vessel-count-open").click(); await dlg().waitFor(); await page.waitForTimeout(300);
+    // the till's actions live in ONE «⋮ إجراءات» (owner 2026-11-28): open it, then the count
+    await t("treasury-actions").click(); await page.waitForTimeout(150);
+    await page.locator('[data-testid="treasury-actions-menu"] [role=menuitem]').filter({ hasText: "تسوية الوعاء" }).first().click();
+    await dlg().waitFor(); await page.waitForTimeout(300);
   }
   async function pick(label) { await t("vc-method").click(); await page.getByRole("option").filter({ hasText: label }).first().click(); await page.waitForTimeout(200); }
   const send = async () => { const n = rpcs("submit_vessel_count").length; await t("vc-submit").click({ timeout: 3000 }); await page.waitForTimeout(700); return rpcs("submit_vessel_count").length > n; };
@@ -261,7 +264,14 @@ const COUNTS = [
   check("5. الموظف مالوش «وافق / ارفض» ولا «إلغاء»", !(await vis(t("vc-decide-VC00007"))) && !(await vis(t("vc-cancel-VC00006"))) && tab5.includes("الموظف يعدّ والمالك يوافق"));
   db.board = { mode: "owner", is_owner: false, can_count: false, vessels: VESSELS, counts: COUNTS };
   await page.goto(`${BASE}/branch/${B1}/treasury`); await settle(page);
-  check("5. من غير صلاحية / الوضع «المالك بس»: مفيش زرار", !(await vis(t("vessel-count-open"))));
+  const noCount = await (async () => {
+    if (!(await t("treasury-actions").count())) return true;
+    await t("treasury-actions").click(); await page.waitForTimeout(150);
+    const items = await page.locator('[data-testid="treasury-actions-menu"] [role=menuitem]').allInnerTexts();
+    await page.keyboard.press("Escape");
+    return !(await t("vessel-count-open").count()) && !items.some((x) => /تسوية الوعاء/.test(x));
+  })();
+  check("5. من غير صلاحية / الوضع «المالك بس»: مفيش زرار", noCount);
 
   // 6) settings: owner picks the mode
   await page.goto(`${BASE}/admin/settings?tab=payments`); await settle(page);
