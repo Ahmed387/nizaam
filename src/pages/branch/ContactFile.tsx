@@ -1,3 +1,4 @@
+import { ActionsMenu } from "@/components/table/ActionsMenu";
 import { netOf, netText, netTone } from "@/lib/netBalance";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ContactBalanceHeader } from "@/components/contact/ContactBalanceHeader";
@@ -181,6 +182,8 @@ export default function ContactFile() {
         subtitle={c ? `${c.type === "customer" ? "عميل" : c.type === "supplier" ? "مورد" : "عميل ومورد"}${c.contact_person ? " · " + c.contact_person : ""}` : ""}
         actions={
           <div className="flex flex-wrap gap-2">
+            {/* every action of the account in ONE «⋮ إجراءات» menu (owner 2026-11-28); «رجوع» stays a button */}
+            <ActionsMenu testId="contact-actions">
             {canCollect && branches.length > 0 && (
               <Button className="btn-gradient" onClick={() => startPay("in")}><HandCoins className="w-4 h-4 ml-1" /> تحصيل من العميل</Button>
             )}
@@ -207,7 +210,7 @@ export default function ContactFile() {
             )}
             {/* 0262: «العملاء والموردين ← يعدل / يلغي / يضيف» in the account's branch (the server checks the same) */}
             {c && canInBranch("customers.update", (c as any).branch_id ?? routeBranchId) && <Button variant="outline" onClick={() => setEditOpen(true)}><Pencil className="w-4 h-4 ml-1" /> تعديل</Button>}
-            {c && canInBranch("customers.delete", (c as any).branch_id ?? routeBranchId) && <Button variant="outline" className="text-destructive" onClick={() => setArchiveOpen(true)}><Archive className="w-4 h-4 ml-1" /> أرشفة</Button>}
+            {c && canInBranch("customers.delete", (c as any).branch_id ?? routeBranchId) && <Button variant="outline" className="text-destructive" data-own-confirm="" onClick={() => setArchiveOpen(true)}><Archive className="w-4 h-4 ml-1" /> أرشفة</Button>}
             {c && c.type !== "both" && canInBranch("customers.create", (c as any).branch_id ?? routeBranchId) && (
               <Button variant="outline" onClick={async () => {
                 const { error } = await saveContact(contactId!, { type: "both" });
@@ -216,6 +219,7 @@ export default function ContactFile() {
                 loadOverview();
               }}><Receipt className="w-4 h-4 ml-1" /> {c.type === "supplier" ? "أيضاً عميل" : "أيضاً مورد"}</Button>
             )}
+            </ActionsMenu>
             <Button variant="outline" onClick={() => nav(backTo)}><ArrowRight className="w-4 h-4 ml-1" /> رجوع</Button>
           </div>
         }

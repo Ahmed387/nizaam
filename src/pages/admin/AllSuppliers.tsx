@@ -1,3 +1,6 @@
+import { OwnerAccountActions } from "@/components/contact/OwnerAccountActions";
+import { useHiddenContactIds } from "@/components/contact/HideContactButton";
+import { useInternalAccounts } from "@/components/contact/InternalBranchBadge";
 import { netOf, netText, netTone, netLabel } from "@/lib/netBalance";
 import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { useEffect, useMemo, useState } from "react";
@@ -109,6 +112,10 @@ export default function AllSuppliers() {
   const [branchProducts, setBranchProducts] = useState<any[]>([]);
   const [shipBusy, setShipBusy] = useState(false);
 
+  // the owner's account actions on every row (merge / hide / both settlements, owner 2026-11-28): one read for the list
+  const [hiddenTick, setHiddenTick] = useState(0);
+  const hiddenIds = useHiddenContactIds(hiddenTick);
+  const internalAccounts = useInternalAccounts();
   const load = async () => {
     setLoading(true);
     // Balances from the unified ledger (contacts_page, all branches or one): customer and supplier
@@ -469,7 +476,7 @@ export default function AllSuppliers() {
             const v = netOf(r.customer_balance, r.supplier_balance);
             return <span dir="ltr" className={`font-bold tabular-nums ${netTone(v)}`}>{netText(v)}</span>;
           }},
-          { key: "actions", header: "الإجراءات", width: "18rem", className: "min-w-[18rem]", render: (r: any) => (
+          { key: "actions", header: "الإجراءات", width: "4rem", render: (r: any) => (
             <div className="flex min-w-max items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <Button size="sm" variant="outline" title="فتح صفحة الجهة في تبويب جديد" onClick={() => window.open(`/admin/contacts/${r.id}`, "_blank", "noopener,noreferrer")}><Eye className="w-3.5 h-3.5" /></Button>
               {(
@@ -501,7 +508,9 @@ export default function AllSuppliers() {
               <Button size="sm" variant="outline" title="فواتير الشراء" onClick={() => openShipments(r)}><Truck className="w-3.5 h-3.5" /></Button>
               <Button size="sm" variant="outline" title="إضافة فاتورة شراء جديدة" onClick={() => openNewShipment(r.id)}><PackagePlus className="w-3.5 h-3.5" /></Button>
               {canEditRow(r) && <Button size="sm" variant="outline" title="تعديل" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>}
-              {canArchiveRow(r) && <Button size="sm" variant="outline" title="أرشفة" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setDeleteConfirm(r)}><Trash2 className="w-3.5 h-3.5" /></Button>}
+              <OwnerAccountActions row={r} branchId={r.branch_id ?? null} hidden={hiddenIds ? hiddenIds.has(r.id) : null}
+                internal={!!internalAccounts?.byId.has(r.id)} onDone={() => { setHiddenTick((x) => x + 1); load(); }} />
+              {canArchiveRow(r) && <Button size="sm" variant="outline" title="أرشفة" data-own-confirm="" className="text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30" onClick={() => setDeleteConfirm(r)}><Trash2 className="w-3.5 h-3.5" /></Button>}
             </div>
           )},
         ]} />

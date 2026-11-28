@@ -215,6 +215,7 @@ function DataTableInner<T>(
                   key={c.key}
                   data-xf-col={c.key}
                   data-actions={isActionsColumn(c) ? "" : undefined}
+                  /* the actions column holds one «⋮» (or one button) per row: no fixed width, it takes what its cells need */
                   onDragOver={(e) => { if (dragCol.current && dragCol.current !== c.key) { e.preventDefault(); if (overCol !== c.key) setOverCol(c.key); } }}
                   onDragLeave={() => { if (overCol === c.key) setOverCol(null); }}
                   onDrop={(e) => { e.preventDefault(); dropCol(c.key); }}
@@ -222,7 +223,7 @@ function DataTableInner<T>(
                   data-xf-kind={typeof c.filter === "string" ? c.filter : undefined}
                   data-xf-nofilter={c.filter === false || isActionsColumn(c) ? "" : undefined}
                   data-xf-sum={c.total === undefined ? undefined : c.total ? "1" : "0"}
-                  style={{ ...(c.width ? { width: c.width } : isActionsColumn(c) ? { width: "3.5rem" } : {}), ...(overCol === c.key ? { boxShadow: "inset 3px 0 0 hsl(var(--primary)), inset -3px 0 0 hsl(var(--primary))" } : {}) }}
+                  style={{ ...(isActionsColumn(c) && rowMenu !== false ? {} : c.width ? { width: c.width } : isActionsColumn(c) ? { width: "3.5rem" } : {}), ...(overCol === c.key ? { boxShadow: "inset 3px 0 0 hsl(var(--primary)), inset -3px 0 0 hsl(var(--primary))" } : {}) }}
                   className={`group/th ${headPad} font-extrabold text-xs md:text-sm uppercase tracking-wider text-foreground ${textMode} ${alignClass(c.align)} ${c.className ?? ""}`}
                 >
                   {/* «مقبض النقل»: a small pill above the title moves the column (the title itself no longer drags); its ⠿ is drawn

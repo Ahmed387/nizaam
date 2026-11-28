@@ -12,19 +12,40 @@ import { toast } from "sonner";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { rpcErrorText } from "@/lib/rpcError";
 
-export function HideContactButton({ contactId, contactName, internalBranch, onChanged }: {
+/**
+ * The owner's hidden accounts, read ONCE for a whole list (`hidden_contacts_list`) so a list's rows don't ask the server
+ * one by one (owner PDF 2026-11-28). `null` until read / for anybody but the owner.
+ */
+export function useHiddenContactIds(reloadKey: unknown = 0): Set<string> | null {
+  const { isOwner } = useAuth();
+  const [ids, setIds] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (!isOwner) { setIds(null); return; }
+    let off = false;
+    supabase.rpc("hidden_contacts_list" as any).then(({ data, error }) => {
+      if (!off) setIds(error ? null : new Set(((data as any[]) ?? []).map((r) => String(r.contact_id))));
+    });
+    return () => { off = true; };
+  }, [isOwner, reloadKey]);
+  return ids;
+}
+
+export function HideContactButton({ contactId, contactName, internalBranch, onChanged, hidden: known }: {
   contactId: string; contactName: string; internalBranch?: boolean; onChanged?: () => void;
+  /** already known (a list read `useHiddenContactIds` once): no request of its own */
+  hidden?: boolean | null;
 }) {
   const { isOwner } = useAuth();
-  const [hidden, setHidden] = useState<boolean | null>(null);
+  const [hidden, setHidden] = useState<boolean | null>(known ?? null);
+  useEffect(() => { if (known !== undefined && known !== null) setHidden(known); }, [known]);
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!isOwner) return;
+    if (!isOwner || known !== undefined) return;
     supabase.rpc("contact_is_hidden" as any, { p_contact: contactId }).then(({ data, error }) => setHidden(error ? null : !!data));
-  }, [isOwner, contactId]);
+  }, [isOwner, contactId, known]);
 
   if (!isOwner || hidden === null || internalBranch) return null;
 

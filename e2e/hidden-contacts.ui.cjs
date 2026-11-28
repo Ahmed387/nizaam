@@ -42,6 +42,12 @@ const SETTINGS = { env: "prod", unseen: 1, enabled: true, is_owner: true, client
 
 const HIDDEN = [{ contact_id: "c1", account_no: 337, name: "أ/ منتصر صالح", contact_type: "customer", branch_name: "معرض عبدالمنعم الغربى",
   hidden_at: "2026-11-15T12:43:45Z", hidden_by_name: "احمد ناصر", reason: "تجربة", documents: 7, customer_balance: 1500, supplier_balance: 0 }];
+const ROW = { phone: null, contact_person: null, email: null, address: null, notes: null, branch_id: B1, created_at: "2026-01-01", opening_balance: 0, is_migrated: false,
+  customer_open: 0, customer_advance: 0, customer_overdue: 0, supplier_open: 0, supplier_advance: 0, supplier_overdue: 0, supplier_balance: 0, supplier_balance_all: 0 };
+const ROWS = [
+  { ...ROW, id: "c1", name: "أ/ منتصر صالح", type: "customer", customer_balance: 1500, customer_balance_all: 1500 },
+  { ...ROW, id: "c2", name: "محمد حسن", type: "both", customer_balance: 0, customer_balance_all: 0 },
+];
 const MGR = "598491e8-589f-4ad1-88a6-62d6e9114bde";
 function makeMgrDb() {
   const d = makeDb();
@@ -97,6 +103,9 @@ async function open(browser, db) {
       const name = path.split("/").pop(); let body = {}; try { body = req.postDataJSON() || {}; } catch {}
       db.calls.push({ rpc: name, body });
       if (name === "hidden_contacts_list") return db.isOwner ? json(HIDDEN) : route.fulfill({ status: 403, contentType: "application/json", body: JSON.stringify({ code: "42501", message: "للمالك بس" }) });
+      if (name === "contacts_page") return json({ rows: ROWS, total: ROWS.length, counts: { all: 2, customer: 1, supplier: 0, both: 1 },
+        totals: { customers_open: 1500, customers_open_count: 1, customer_advances: 0, customer_advances_count: 0, suppliers_open: 0, suppliers_open_count: 0, supplier_advances: 0, supplier_advances_count: 0, customer_overdue: 0, supplier_overdue: 0, debit_total: 1500, debit_count: 1, credit_total: 0, credit_count: 0 },
+        sides: { customer: true, supplier: true } });
       if (name === "set_contact_hidden") { HIDDEN.splice(0, HIDDEN.length); return json({ hidden: false, rows: 0, name: "أ/ منتصر صالح" }); }
       return json(null);
     }
@@ -126,6 +135,29 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
   // the owner
   const db = makeDb();
   const { page } = await open(browser, db);
+  // the owner's account actions in each row's «⋮» of the contacts list (owner 2026-11-28): merge, hide / show, both settlements
+  await page.goto(`${BASE}/branch/${B1}/contacts`); await settle(page);
+  const ownerItems = async (pg, rowName) => {
+    const row = pg.locator("table[data-cr] > tbody > tr").filter({ hasText: rowName }).first();
+    const ra = row.getByTestId("row-actions");
+    if (!(await ra.count())) return [];
+    await ra.click(); await pg.waitForTimeout(200);
+    const t = await pg.locator('[data-testid="row-actions-menu"] [role=menuitem]').allInnerTexts();
+    return t.map((x) => x.trim());
+  };
+  const it1 = await ownerItems(page, "أ/ منتصر صالح");
+  check("owner: a hidden account's ⋮ has «إظهار», «دمج حساب تاني» and both settlements", ["إظهار", "دمج حساب تاني", "تسوية رصيد بدون فلوس"].every((x) => it1.some((y) => y.includes(x))) && it1.some((y) => y.includes("تسوية برصيد")), it1.join(" | "));
+  check("owner: «أرشفة» last in the menu", /أرشفة/.test(it1[it1.length - 1] ?? ""), it1[it1.length - 1]);
+  await page.keyboard.press("Escape");
+  const it2 = await ownerItems(page, "محمد حسن");
+  check("owner: a visible account's ⋮ has «إخفاء»", it2.some((y) => y.includes("إخفاء")), it2.join(" | "));
+  await page.locator('[data-testid="row-actions-menu"] [role=menuitem]').filter({ hasText: "دمج حساب تاني" }).click(); await page.waitForTimeout(400);
+  check("owner: «دمج حساب تاني» from the menu opens the merge dialog", (await page.getByRole("dialog").count()) >= 1 && (await page.getByTestId("row-actions-menu").count()) === 0);
+  await page.keyboard.press("Escape"); await page.waitForTimeout(200);
+  check("owner: the list asks for the hidden accounts ONCE (not per row)", db.calls.filter((c) => c.rpc === "hidden_contacts_list").length === 1 && !db.calls.some((c) => c.rpc === "contact_is_hidden"),
+    `list=${db.calls.filter((c) => c.rpc === "hidden_contacts_list").length}, per-row=${db.calls.filter((c) => c.rpc === "contact_is_hidden").length}`);
+  await shot(page, "contacts-owner-menu");
+
   await page.goto(`${BASE}/admin/hidden-contacts`); await settle(page);
   await shot(page, "hidden-1-owner");
   const body = await page.locator("body").innerText();
@@ -141,12 +173,21 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: t
   // a manager (admin, not the owner)
   const db2 = makeMgrDb();
   const p2 = (await open(browser, db2)).page;
+  await p2.goto(`${BASE}/branch/${B1}/contacts`); await settle(p2);
+  const mgrRow = p2.locator("table[data-cr] > tbody > tr").filter({ hasText: "محمد حسن" }).first();
+  let mgrItems = [];
+  if (await mgrRow.getByTestId("row-actions").count()) {
+    await mgrRow.getByTestId("row-actions").click(); await p2.waitForTimeout(200);
+    mgrItems = await p2.locator('[data-testid="row-actions-menu"] [role=menuitem]').allInnerTexts();
+    await p2.keyboard.press("Escape");
+  }
+  check("manager: no merge / hide / settlement items (owner only)", !mgrItems.some((y) => /دمج|إخفاء|إظهار|تسوية/.test(y)), mgrItems.join(" | "));
   await p2.goto(`${BASE}/admin/hidden-contacts`); await settle(p2);
   await shot(p2, "hidden-2-manager");
   const b2 = await p2.locator("body").innerText();
   check("manager: no sidebar link", (await p2.getByRole("link", { name: "الحسابات المخفية" }).count()) === 0);
   check("manager: page says owner only, lists nothing", b2.includes("لمالك الشركة بس") && !b2.includes("أ/ منتصر صالح"));
-  check("manager: never asks for the list", !db2.calls.some((c) => c.rpc === "hidden_contacts_list"));
+  check("manager: never asks for the list", !db2.calls.some((c) => c.rpc === "hidden_contacts_list" || c.rpc === "contact_is_hidden"));
   check("no page errors (manager)", !db2.calls.some((c) => c.pageerror), db2.calls.filter((c) => c.pageerror).map((c) => c.pageerror).join(" | "));
 
   await browser.close();

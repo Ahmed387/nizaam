@@ -1,3 +1,6 @@
+import { OwnerAccountActions } from "@/components/contact/OwnerAccountActions";
+import { useHiddenContactIds } from "@/components/contact/HideContactButton";
+import { useInternalAccounts } from "@/components/contact/InternalBranchBadge";
 import { netOf, netText, netTone, netLabel, netKind } from "@/lib/netBalance";
 import { InternalBranchBadge } from "@/components/contact/InternalBranchBadge";
 import { useEffect, useState, useMemo, useRef } from "react";
@@ -119,6 +122,10 @@ export default function Contacts() {
   const canAddC = canInBranch("customers.create", branchId);
   const canEditC = canInBranch("customers.update", branchId);
   const canArchiveC = canInBranch("customers.delete", branchId);
+  // the owner's account actions on every row (merge / hide / both settlements, owner 2026-11-28): one read for the list
+  const [hiddenTick, setHiddenTick] = useState(0);
+  const hiddenIds = useHiddenContactIds(hiddenTick);
+  const internalAccounts = useInternalAccounts();
 
   const PAGE_SIZE = 50;
   const [page, setPage] = useState(0);
@@ -523,6 +530,7 @@ export default function Contacts() {
           {
             key: "name",
             header: "اسم الحساب",
+            width: "13rem",   // the name never squeezes to one word per line
             render: (r: any) => {
               const open = expandedId === r.id;
               return (
@@ -552,7 +560,7 @@ export default function Contacts() {
               const net = netOf(r.customer_balance, r.supplier_balance), all = netOf(r.customer_balance_all, r.supplier_balance_all);
               return (
                 <div className="tabular-nums" dir="ltr">
-                  <span className={`font-bold ${netTone(net)}`}>{netText(net)}</span>
+                  <span className={`font-bold whitespace-nowrap tabular-nums ${netTone(net)}`}>{netText(net)}</span>
                   {Math.abs(all - net) > 0.005 && <div className="text-[11px] text-muted-foreground" dir="rtl">كل الفروع: {netText(all)}</div>}
                 </div>
               );
@@ -564,7 +572,7 @@ export default function Contacts() {
             render: (r: any) => {
               const t = r.type as ContactType;
               const variant = t === "customer" ? "default" : t === "supplier" ? "secondary" : "outline";
-              return <Badge variant={variant as any}>{TYPE_LABELS[t]}</Badge>;
+              return <Badge variant={variant as any} className="whitespace-nowrap">{TYPE_LABELS[t]}</Badge>;
             },
           },
           { key: "phone", header: "التليفون", render: (r: any) => <span dir="ltr">{r.phone ?? "—"}</span> },
@@ -585,9 +593,8 @@ export default function Contacts() {
           },
           {
             key: "actions",
-            header: "الإجراءات",
-            width: "16rem",
-            className: "min-w-[16rem]",
+            header: "الإجراءات",   // one «⋮» per row on screen (the buttons live in its menu)
+            width: "4rem",
             render: (r: any) => {
               const t = r.type as ContactType;
               return (
@@ -638,8 +645,10 @@ export default function Contacts() {
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
                   )}
+                  <OwnerAccountActions row={r} branchId={branchId ?? null} hidden={hiddenIds ? hiddenIds.has(r.id) : null}
+                    internal={!!internalAccounts?.byId.has(r.id)} onDone={() => { setHiddenTick((x) => x + 1); load(); }} />
                   {canArchiveC && (
-                    <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title="أرشفة" onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
+                    <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10" title="أرشفة" data-own-confirm="" onClick={() => { setDeleteTarget(r); setReqReason(""); }}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   )}
