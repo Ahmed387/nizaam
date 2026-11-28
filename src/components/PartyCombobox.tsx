@@ -8,7 +8,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatEGP } from "@/lib/format";
-import { fetchSideBalance, sideBalanceLabel } from "@/lib/ledger";
+import { useAccountNet } from "@/components/contact/CurrentBalance";
+import { netText, netTone } from "@/lib/netBalance";
 import { searchMatch } from "@/lib/search";
 import { useParams } from "react-router-dom";
 import { ContactLookup } from "@/components/ContactLookup";
@@ -25,6 +26,8 @@ interface Props {
 }
 
 /** Searchable party picker with live balance badge. */
+const isContactType = (t: string) => t === "customer" || t === "supplier";
+
 export function PartyCombobox({ type, value, onChange, placeholder, branchId: branchIdProp }: Props) {
   const params = useParams<{ id: string }>();
   const branchId = branchIdProp ?? params.id ?? null;
@@ -50,19 +53,15 @@ export function PartyCombobox({ type, value, onChange, placeholder, branchId: br
   }, [loadItems]);
 
 
+  // a customer / supplier: the account's ONE net balance (owner PDF 2.2 — «أحمد 316,269.95 مدين»); an employee: his advances
+  const accountNet = useAccountNet(isContactType(type) ? value : null, branchId);
   useEffect(() => {
-    if (!value) { setBal(null); return; }
+    if (!value || isContactType(type)) { setBal(null); return; }
     (async () => {
       try {
-        if (type === "supplier" || type === "customer") {
-          // Unified ledger, the picked side only (customer or supplier — never netted).
-          const sb = await fetchSideBalance(value);
-          setBal(sideBalanceLabel(type, type === "customer" ? sb?.customer_balance : sb?.supplier_balance));
-        } else {
-          const { data } = await supabase.from("advances" as any).select("remaining").eq("employee_id", value);
-          const total = (data ?? []).reduce((s: number, r: any) => s + Number(r.remaining ?? 0), 0);
-          setBal({ label: "سلف مستحقة على الموظف", amount: total, tone: total > 0 ? "bad" : "neutral" });
-        }
+        const { data } = await supabase.from("advances" as any).select("remaining").eq("employee_id", value);
+        const total = (data ?? []).reduce((s: number, r: any) => s + Number(r.remaining ?? 0), 0);
+        setBal({ label: "سلف مستحقة على الموظف", amount: total, tone: total > 0 ? "bad" : "neutral" });
       } catch { setBal(null); }
     })();
   }, [value, type]);
@@ -99,6 +98,12 @@ export function PartyCombobox({ type, value, onChange, placeholder, branchId: br
           </Command>
         </PopoverContent>
       </Popover>
+      )}
+      {accountNet && value && (
+        <div className="flex items-center gap-2 text-xs" data-testid="party-net">
+          <span className="text-muted-foreground">الرصيد الحالي ({accountNet.scope}):</span>
+          <span className={cn("font-bold tabular-nums", netTone(accountNet.net))}>{netText(accountNet.net)}</span>
+        </div>
       )}
       {bal && value && (
         <div className="flex items-center gap-2 text-xs">

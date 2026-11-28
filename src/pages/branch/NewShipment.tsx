@@ -733,12 +733,7 @@ export default function NewShipment() {
                   </Button>
                 )}
               </div>
-              {!isEdit && supplierAdvance > 0.005 && (
-                <div className="mt-2 p-2.5 rounded-lg border border-primary/40 bg-primary/10 text-sm">
-                  المورد رصيده مدين (لنا عنده): <b className="text-primary">{formatEGP(supplierAdvance)}</b>
-                  <span className="ms-2 text-xs text-muted-foreground">— الفاتورة هتنزل من رصيده في الحساب الجاري لوحدها</span>
-                </div>
-              )}
+              {/* the supplier's ONE current balance shows under the picker («الرصيد الحالي … مدين / دائن», owner PDF 2.5) */}
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-bold text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
@@ -1178,7 +1173,7 @@ export default function NewShipment() {
           <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-l from-indigo-600/15 via-violet-500/10 to-emerald-500/5 p-5 mb-5 shadow-lg shadow-indigo-500/10">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
-                <div className="text-xs font-bold text-indigo-800/80 dark:text-indigo-200/80 mb-1">الإجمالي المستحق للمورد</div>
+                <div className="text-xs font-bold text-indigo-800/80 dark:text-indigo-200/80 mb-1">إجمالي الفاتورة</div>
                 <div className="text-3xl md:text-4xl font-black text-indigo-700 dark:text-indigo-300 tracking-tight">{formatEGP(grandTotal)}</div>
                 <div className="text-xs text-muted-foreground mt-1">{lines.length} صنف · {lines.reduce((s, l) => s + (Number(l.quantity) || 0), 0)} قطعة</div>
                 {vatAmount > 0 && (
@@ -1326,7 +1321,7 @@ export default function NewShipment() {
                 className="h-9 border-teal-500/20 focus-visible:ring-teal-500/30"
               />
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                بتتحسب على صافي البضاعة بعد الخصم، وبتتضاف على المستحق للمورد — ومش بتدخل في تكلفة الوحدة (بتتسجل في حساب «ضريبة القيمة المضافة على المشتريات»).
+                بتتحسب على صافي البضاعة بعد الخصم، وبتتضاف على إجمالي الفاتورة — ومش بتدخل في تكلفة الوحدة (بتتسجل في حساب «ضريبة القيمة المضافة على المشتريات»).
               </p>
             </div>
           </div>

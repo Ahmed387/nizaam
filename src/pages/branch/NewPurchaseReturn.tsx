@@ -1,3 +1,5 @@
+import { useAccountNet } from "@/components/contact/CurrentBalance";
+import { netText, netTone } from "@/lib/netBalance";
 import { VesselAccountSelect, useHasVesselAccounts } from "@/components/payments/VesselAccountSelect";
 import { vesselAccountError } from "@/lib/vesselAccounts";
 import { fetchContactBalance } from "@/lib/contactBalances";
@@ -75,6 +77,7 @@ export default function NewPurchaseReturn() {
 
   const [shipment, setShipment] = useState<any>(null);
   const [supplier, setSupplier] = useState<any>(null);
+  const supplierNet = useAccountNet(supplier?.id ?? null, branchId);
   const [lines, setLines] = useState<Line[]>([]);
 
   const [reasonPick, setReasonPick] = useState(COMMON_REASONS[0]);
@@ -529,8 +532,8 @@ export default function NewPurchaseReturn() {
             {shipment && (
               <div className="p-3 rounded-lg border border-primary/30 bg-primary/5 text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
                 {supplier?.phone && <span dir="ltr" className="font-mono">{supplier.phone}</span>}
-                {supplier && (
-                  <span>حساب المورد: <b className={Number(supplier.balance) > 0 ? "text-warning" : "text-success"}>{formatEGP(Math.abs(Number(supplier.balance ?? 0)))} {Number(supplier.balance) > 0.005 ? "علينا له" : Number(supplier.balance) < -0.005 ? "مقدم لينا عنده" : ""}</b></span>
+                {supplier && supplierNet && (
+                  <span data-testid="return-balance">الرصيد الحالي <span className="text-[11px] text-muted-foreground">({supplierNet.scope})</span>: <b className={netTone(supplierNet.net)}>{netText(supplierNet.net)}</b></span>
                 )}
                 <span>فاتورة: <b className="font-mono text-primary">{shipment.arrival_date}</b></span>
                 <span>الإجمالي: <b className="text-primary">{formatEGP(shipment.total_cost)}</b></span>

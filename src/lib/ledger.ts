@@ -77,7 +77,10 @@ export async function fetchSideBalance(id: string | null | undefined, branchId?:
   return m.get(id) ?? null;
 }
 
-/** Plain-language label of one side balance. */
+/**
+ * @deprecated «قديمة» (owner PDF 2026-11-28): one side only, with the retired «مستحق لنا / علينا» words. Screens show the
+ * account's ONE balance through `netText` / `CurrentBalance` (src/lib/netBalance.ts, src/components/contact/CurrentBalance.tsx).
+ */
 export function sideBalanceLabel(side: Side, balance: number | null | undefined): { label: string; amount: number; tone: "good" | "bad" | "neutral" } {
   const b = r2(n(balance));
   if (Math.abs(b) < 0.005) return { label: side === "customer" ? "حساب العميل مسدد" : "حساب المورد مسدد", amount: 0, tone: "neutral" };

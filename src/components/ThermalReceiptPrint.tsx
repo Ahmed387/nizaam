@@ -1,3 +1,4 @@
+import { netKind, netLabel } from "@/lib/netBalance";
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -38,6 +39,7 @@ export interface ThermalReceiptProps {
   vatRate?: number;
   total: number;
   paid?: number;
+  /** the account's net before / after (netOf: + دائن, − مدين), printed «… مدين / دائن» */
   previousBalance?: number | null;
   currentBalance?: number | null;
   remaining?: number;
@@ -104,6 +106,8 @@ const fmt2 = (n: number) => {
   const v = Number(n ?? 0);
   return v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
+/** an account's net (+ دائن / − مدين, `netOf`) as «316,269.95 مدين» — no minus sign (owner PDF 2.4) */
+const netFmt = (n: number) => (netKind(n) === "zero" ? "مسدد" : `${fmt2(Math.abs(n))} ${netLabel(n)}`);
 const pad = (n: number) => String(n).padStart(2, "0");
 const fmtDate = (d: string | Date) => {
   const x = typeof d === "string" ? new Date(d) : d;
@@ -170,8 +174,8 @@ export function ThermalReceiptPrint(props: ThermalReceiptProps) {
     ...(typeof props.paid === "number" ? [{ label: "المدفوع", value: fmt2(props.paid) }] : []),
     ...(remaining > 0 && props.paymentType !== "credit" ? [{ label: "الباقى", value: fmt2(remaining) }] : []),
     ...(remaining > 0 && props.paymentType === "credit" ? [{ label: "الآجل", value: fmt2(remaining) }] : []),
-    ...(typeof props.previousBalance === "number" ? [{ label: "الرصيد السابق", value: fmt2(props.previousBalance), balance: true }] : []),
-    ...(typeof props.currentBalance === "number" ? [{ label: "الرصيد الحالى", value: fmt2(props.currentBalance), balance: true }] : []),
+    ...(typeof props.previousBalance === "number" ? [{ label: "الرصيد السابق", value: netFmt(props.previousBalance), balance: true }] : []),
+    ...(typeof props.currentBalance === "number" ? [{ label: "الرصيد الحالى", value: netFmt(props.currentBalance), balance: true }] : []),
   ];
 
   return (

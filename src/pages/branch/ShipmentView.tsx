@@ -23,7 +23,9 @@ import { EditableInvoiceDate } from "@/components/EditableInvoiceDate";
 import { ClickableImagePreview } from "@/components/ClickableImagePreview";
 import { VariantLine } from "@/components/VariantChips";
 import { ShipmentPaymentsPanel } from "@/components/ShipmentPaymentsPanel";
-import { fetchContactStatement, fetchDocumentStatus, sideBalanceLabel } from "@/lib/ledger";
+import { fetchDocumentStatus } from "@/lib/ledger";
+import { CurrentBalance, useAccountNet } from "@/components/contact/CurrentBalance";
+import { netBefore } from "@/lib/netBalance";
 import { DocumentMoneyMovements } from "@/components/payments/DocumentMoneyMovements";
 
 const escapeHtml = (s: string) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -52,26 +54,14 @@ export default function ShipmentView() {
   const [loading, setLoading] = useState(true);
   const [cancelOpen, setCancelOpen] = useState(false);
 
-  // Supplier balance around this purchase invoice, from the supplier side of the unified ledger
-  // (company-wide statement; the customer side of the same contact is never mixed in).
-  const [liveBal, setLiveBal] = useState<{ prev: number; curr: number } | null>(null);
   const [docStatus, setDocStatus] = useState<{ paid: number; remaining: number; state: string } | null>(null);
   useEffect(() => {
     if (!ship?.id) { setDocStatus(null); return; }
     fetchDocumentStatus("shipment", [ship.id]).then((m) => setDocStatus(m.get(ship.id) ?? null)).catch(() => setDocStatus(null));
   }, [ship?.id, ship?.total_cost]);
-  useEffect(() => {
-    if (!ship?.contact_id) { setLiveBal(null); return; }
-    let cancelled = false;
-    // company-wide for admins; branch staff see this branch's supplier statement
-    fetchContactStatement(ship.contact_id, "supplier", isAdmin ? null : ship.branch_id).then((lines) => {
-      if (cancelled) return;
-      const row = lines.find((r) => r.doc_type === "shipment" && r.doc_id === ship.id);
-      if (!row) { setLiveBal(null); return; }
-      setLiveBal({ curr: row.balance, prev: Math.round((row.balance - row.debit + row.credit) * 100) / 100 });
-    }).catch(() => { if (!cancelled) setLiveBal(null); });
-    return () => { cancelled = true; };
-  }, [ship?.contact_id, ship?.id, ship?.total_cost, isAdmin]);
+  // owner PDF 2.3: the account's ONE current balance (both sides netted, this branch / every branch for an admin);
+  // «الرصيد السابق» = now − what this document and the money paid on it did to the account (a reprint shows today's balance)
+  const accountNet = useAccountNet(ship?.contact_id, ship?.branch_id, ship?.total_cost);
 
   const loadShipment = async () => {
     const { data: s } = await supabase.from("shipments").select("*, contacts:contact_id(name, phone, address)").eq("id", shipmentId!).maybeSingle();
@@ -98,6 +88,8 @@ export default function ShipmentView() {
 
   if (loading) return <BranchLayout><div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div></BranchLayout>;
   if (!ship) return <BranchLayout><div className="text-center p-12 text-muted-foreground">فاتورة شراء غير موجودة</div></BranchLayout>;
+  const shipEffect = ship.status === "active" ? Number(ship.total_cost ?? 0) - (docStatus && docStatus.state !== "before_ledger" ? docStatus.paid : 0) : 0;
+  const liveBal = accountNet ? { curr: accountNet.net, prev: netBefore(accountNet.net, "purchase", shipEffect) } : null;
   const isCancelled = ship.status === "cancelled";
 
   const customs = Number(ship.customs_cost ?? 0);
@@ -283,28 +275,13 @@ export default function ShipmentView() {
         </div>
       </div>
 
-      {/* Supplier balance snapshot — captured at shipment creation */}
-      {ship.contact_id && liveBal && (() => {
-        const prevLbl = sideBalanceLabel("supplier", liveBal.prev);
-        const currLbl = sideBalanceLabel("supplier", liveBal.curr);
-        return (
-          <div className="card-elevated p-4 mb-6">
-            <div className="font-bold text-sm mb-2">📒 حساب المورد {isAdmin ? "(كل الفروع)" : "(الفرع ده)"} — من الدفتر الموحد</div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="bg-surface-2 p-2 rounded border border-border">
-                <div className="text-xs text-muted-foreground">الرصيد السابق</div>
-                <div className="font-bold">{formatEGP(prevLbl.amount)}</div>
-                <div className={`text-xs ${prevLbl.tone === "good" ? "text-success" : prevLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{prevLbl.label}</div>
-              </div>
-              <div className="bg-surface-2 p-2 rounded border border-border">
-                <div className="text-xs text-muted-foreground">الرصيد بعد فاتورة الشراء</div>
-                <div className="font-bold">{formatEGP(currLbl.amount)}</div>
-                <div className={`text-xs ${currLbl.tone === "good" ? "text-success" : currLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{currLbl.label}</div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* the account's ONE balance before / after this purchase invoice (owner PDF 2.3) */}
+      {ship.contact_id && liveBal && (
+        <div className="card-elevated p-4 mb-6">
+          <div className="font-bold text-sm mb-2">📒 حساب المورد</div>
+          <CurrentBalance net={liveBal.curr} before={liveBal.prev} scope={accountNet?.scope} label="الرصيد الحالي" testId="doc-balance" />
+        </div>
+      )}
 
       <ShipmentPaymentsPanel shipmentId={ship.id} canEdit={canEdit} onChanged={loadShipment} />
 

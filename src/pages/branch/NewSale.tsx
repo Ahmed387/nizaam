@@ -1,3 +1,4 @@
+import { CurrentBalance, useAccountNet } from "@/components/contact/CurrentBalance";
 import { FeeField } from "@/components/payments/FeeField";
 import { payMethodLabel } from "@/lib/treasuryLinks";
 import { feeOf, type FeeMode } from "@/lib/paymentFee";
@@ -147,6 +148,7 @@ export default function NewSale() {
   const [creditToApply, setCreditToApply] = useState(0);
   /** «تخصم من تحت حسابه؟» — the cashier must answer when the customer has money on account (owner rule, 0082). */
   const [customerBalance, setCustomerBalance] = useState(0); // ledger customer side (+ owes us, − advance)
+  const accountNet = useAccountNet(customerId || null, branchId);
   const [customerType, setCustomerType] = useState<string>("customer");
   // VAT (editable rate from settings)
   const [vatEnabled, setVatEnabled] = useState(false);
@@ -1323,35 +1325,9 @@ export default function NewSale() {
                 </div>
               </div>
 
-            {customerId && (() => {
-              // customerBalance = customer side only: + the customer owes us, − we hold his advance
-              const owes = customerBalance > 0.005;
-              const advance = customerBalance < -0.005;
-              const friendlyLabel = owes ? "مستحق على العميل (حساب العميل)" : advance ? "مقدم من العميل عندنا" : "لا توجد مديونية سابقة على العميل";
-              const tone = advance
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                : owes
-                ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
-                : "border-border bg-muted/40 text-muted-foreground";
-              const icon = advance ? "💰" : owes ? "⚠️" : "ℹ️";
-              return (
-                <div className={`mt-2 p-2.5 rounded-lg border text-sm flex items-center justify-between flex-wrap gap-2 ${tone}`}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base leading-none">{icon}</span>
-                    <span>
-                      {friendlyLabel}
-                      {(owes || advance) && <>: <b className="font-bold">{formatEGP(Math.abs(customerBalance))}</b></>}
-                    </span>
-                    {customerType === "both" && <span className="ms-2 text-xs opacity-70">(عميل ومورد — حساب المورد منفصل ومش داخل هنا)</span>}
-                  </div>
-                </div>
-              );
-            })()}
-            {customerCredit > 0 && (
-              <div className="mt-2 p-2.5 rounded-lg border border-primary/40 bg-primary/10 text-sm">
-                العميل رصيده دائن (علينا له): <b className="text-primary">{formatEGP(customerCredit)}</b>
-                <span className="ms-2 text-xs text-muted-foreground">— الفاتورة هتنزل من رصيده في الحساب الجاري لوحدها</span>
-              </div>
+            {/* the customer's ONE current balance, display only (owner PDF 2.5: «الرصيد الحالي 316,269.95 ج.م مدين») */}
+            {customerId && accountNet && (
+              <CurrentBalance className="mt-2" net={accountNet.net} scope={accountNet.scope} testId="sale-balance" />
             )}
             </div>
           </div>

@@ -15,7 +15,8 @@ import { validateTransferPayment, PAYMENT_METHOD_LABELS } from "@/lib/paymentMet
 import { fetchVoucherCategories, isManualVoucherCategory, VoucherCategory, VoucherType, PARTY_TYPE_LABEL, VoucherPartyType, Voucher, categoryPartyRule, partyRuleProblem, categoryEmployeeKind, salaryDuplicateWarning } from "@/lib/vouchers";
 import { supabase } from "@/integrations/supabase/client";
 import { submitDocumentEdit, submitMessage } from "@/lib/documentEdit";
-import { fetchSideBalance, sideBalanceLabel, type Side } from "@/lib/ledger";
+import { CurrentBalance, useAccountNet } from "@/components/contact/CurrentBalance";
+import { netAfter } from "@/lib/netBalance";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP } from "@/lib/format";
 import { toast } from "sonner";
@@ -223,11 +224,8 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
           const { data } = await supabase.from("advances" as any).select("remaining").eq("employee_id", form.party_id);
           const total = ((data ?? []) as any[]).reduce((s, r) => s + Number(r.remaining || 0), 0);
           setPartyBalance({ label: "سلف مستحقة على الموظف", amount: total, tone: total > 0 ? "bad" : "neutral" });
-        } else if (form.party_type === "supplier" || form.party_type === "customer") {
-          // Unified ledger, this party's side only (customer and supplier sides are never netted).
-          const sb = await fetchSideBalance(form.party_id);
-          const side = form.party_type as Side;
-          setPartyBalance(sideBalanceLabel(side, side === "customer" ? sb?.customer_balance : sb?.supplier_balance));
+        } else {
+          setPartyBalance(null);   // a customer / supplier shows its ONE net balance below (useAccountNet)
         }
       } catch {
         setPartyBalance(null);
@@ -235,6 +233,10 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
     })();
   }, [form.party_id, form.party_type]);
 
+
+  // owner PDF 2.1: the account's current balance and «الرصيد بعد السند» (an edit already counts this voucher: no «بعد»)
+  const contactParty = form.party_type === "customer" || form.party_type === "supplier" ? form.party_id : null;
+  const accountNet = useAccountNet(open ? contactParty : null, branchId);
 
   const formatDiffValue = (v: any) => {
     if (v === null || v === undefined || v === "") return "—";
@@ -553,6 +555,10 @@ export function VoucherDialog({ open, onOpenChange, branchId, type, onSuccess, e
               </label>
             )}
 
+            {accountNet && contactParty && (
+              <CurrentBalance net={accountNet.net} scope={accountNet.scope}
+                after={!isEdit && Number(form.amount) > 0 ? netAfter(accountNet.net, type === "receipt" ? "receipt" : "payment", form.amount) : null} />
+            )}
             {partyBalance && (
               <div className={cn(
                 "rounded-md border p-3 flex items-center justify-between text-sm",

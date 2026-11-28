@@ -13,7 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatEGP, formatDateTime } from "@/lib/format";
-import { sideBalanceLabel, fetchDocumentStatus, fetchContactStatement, type DocumentStatus } from "@/lib/ledger";
+import { fetchDocumentStatus, type DocumentStatus } from "@/lib/ledger";
+import { CurrentBalance, useAccountNet } from "@/components/contact/CurrentBalance";
+import { netBefore } from "@/lib/netBalance";
 import { Printer, X, FileDown, Pencil, Wallet, CheckCircle2, Clock, CircleDashed } from "lucide-react";
 import { EditInvoiceDialog } from "@/components/EditInvoiceDialog";
 import { RestoreCancelledButton } from "@/components/docEdit/RestoreCancelledButton";
@@ -50,21 +52,9 @@ export default function InvoiceView() {
 
   const [error, setError] = useState<string | null>(null);
 
-  // Customer balance around this invoice, live from the customer side of the unified ledger (the stored
-  // previous/current snapshot of old invoices was netted with the supplier side, so it is not shown).
-  const [liveBal, setLiveBal] = useState<{ prev: number; curr: number } | null>(null);
-  useEffect(() => {
-    if (!inv?.contact_id || !inv?.id) { setLiveBal(null); return; }
-    let cancelled = false;
-    // company-wide for admins; branch staff see this branch's customer statement
-    fetchContactStatement(inv.contact_id, "customer", isAdmin ? null : inv.branch_id).then((lines) => {
-      if (cancelled) return;
-      const row = lines.find((r) => r.doc_type === "invoice" && r.doc_id === inv.id);
-      if (!row) { setLiveBal(null); return; }
-      setLiveBal({ curr: row.balance, prev: Math.round((row.balance - row.debit + row.credit) * 100) / 100 });
-    }).catch(() => { if (!cancelled) setLiveBal(null); });
-    return () => { cancelled = true; };
-  }, [inv?.contact_id, inv?.id, inv?.branch_id, inv?.total, isAdmin, reloadKey]);
+  // owner PDF 2.3: the account's ONE current balance (both sides netted, this branch / every branch for an admin);
+  // «الرصيد السابق» = now − what this document and the money paid on it did to the account (a reprint shows today's balance)
+  const accountNet = useAccountNet(inv?.contact_id, inv?.branch_id, `${reloadKey}:${inv?.total}`);
 
   useEffect(() => {
     (async () => {
@@ -174,6 +164,9 @@ export default function InvoiceView() {
 
   if (error) return <BranchLayout><div className="p-8 text-center text-destructive">⚠️ {error}</div></BranchLayout>;
   if (!inv) return <BranchLayout><div className="p-8 text-center">جاري التحميل...</div></BranchLayout>;
+  const invPaidOn = ledger && ledger.state !== "before_ledger" && ledger.state !== "cancelled" ? ledger.paid : payments.reduce((t, p) => t + Number(p.amount ?? 0), 0);
+  const invEffect = inv.status === "active" ? Number(inv.total ?? 0) - invPaidOn : 0;
+  const liveBal = accountNet ? { curr: accountNet.net, prev: netBefore(accountNet.net, "sale", invEffect) } : null;
 
   const canCancel = canInBranch("sales.delete", inv.branch_id) && inv.status === "active";
   // 0257: «تعديل فواتير البيع» — owner-granted; every edit waits for the owner's approval
@@ -378,30 +371,13 @@ export default function InvoiceView() {
           </div>
         </div>
 
-        {/* Customer balance before / after this invoice — customer side of the unified ledger */}
-        {inv.contact_id && liveBal && (() => {
-          const prev = liveBal.prev;
-          const curr = liveBal.curr;
-          const prevLbl = sideBalanceLabel("customer", prev);
-          const currLbl = sideBalanceLabel("customer", curr);
-          return (
-            <div className="mt-4 p-3 rounded-lg border border-border bg-surface-2/40">
-              <div className="font-bold text-sm mb-2">📒 حساب العميل (قبل وبعد الفاتورة)</div>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div className="bg-card p-2 rounded border border-border">
-                  <div className="text-xs text-muted-foreground">الرصيد السابق</div>
-                  <div className="font-bold">{formatEGP(prevLbl.amount)}</div>
-                  <div className={`text-xs ${prevLbl.tone === "good" ? "text-success" : prevLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{prevLbl.label}</div>
-                </div>
-                <div className="bg-card p-2 rounded border border-border">
-                  <div className="text-xs text-muted-foreground">الرصيد بعد الفاتورة</div>
-                  <div className="font-bold">{formatEGP(currLbl.amount)}</div>
-                  <div className={`text-xs ${currLbl.tone === "good" ? "text-success" : currLbl.tone === "bad" ? "text-destructive" : "text-muted-foreground"}`}>{currLbl.label}</div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+        {/* the account's ONE balance before / after this invoice (owner PDF 2.3) */}
+        {inv.contact_id && liveBal && (
+          <div className="mt-4 p-3 rounded-lg border border-border bg-surface-2/40">
+            <div className="font-bold text-sm mb-2">📒 حساب العميل</div>
+            <CurrentBalance net={liveBal.curr} before={liveBal.prev} scope={accountNet?.scope} testId="doc-balance" />
+          </div>
+        )}
 
 
         {/* Payments breakdown */}

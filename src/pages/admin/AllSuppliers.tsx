@@ -229,19 +229,14 @@ export default function AllSuppliers() {
 
   const [view, setView] = useState<any[] | null>(null); // what the column filters leave (Excel filters), for the exports
   const exportExcel = () => {
-    const sideText = (side: "c" | "s", v: number) => Math.abs(v) <= 0.005 ? "مسدد"
-      : side === "c" ? (v > 0 ? "مستحق لنا على العميل" : "مقدم من العميل عندنا")
-      : (v > 0 ? "مستحق للمورد علينا" : "مقدم لينا عند المورد");
     const data = (view ?? filtered).map((s: any) => ({
       "الاسم": s.name,
       "النوع": s.type === "customer" ? "عميل" : s.type === "supplier" ? "مورد" : "عميل ومورد",
       "المسؤول": s.contact_person ?? "—",
       "التليفون": s.phone ?? "—",
       "إجمالي المشتريات": s.totalShipments,
-      "حساب العميل": Number(s.customer_balance) || 0,
-      "حالة حساب العميل": sideText("c", Number(s.customer_balance) || 0),
-      "حساب المورد": Number(s.supplier_balance) || 0,
-      "حالة حساب المورد": sideText("s", Number(s.supplier_balance) || 0),
+      // ONE balance (owner PDF part 2): «… مدين / دائن / مسدد», no minus sign
+      "الرصيد الحالي": netText(netOf(s.customer_balance, s.supplier_balance)),
       "تاريخ الإضافة": formatDateTime(s.created_at),
     }));
     const ws = XLSX.utils.json_to_sheet(data);

@@ -1,3 +1,5 @@
+import { CurrentBalance, useAccountNet } from "@/components/contact/CurrentBalance";
+import { netAfter } from "@/lib/netBalance";
 import { FeeField } from "@/components/payments/FeeField";
 import { feeOf, type FeeMode } from "@/lib/paymentFee";
 import { useState, useEffect, useMemo } from "react";
@@ -95,6 +97,8 @@ export function MultiMethodPaymentDialog({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const accountNet = useAccountNet(open && mode.kind === "contact" ? mode.contactId : null, mode.kind === "contact" ? mode.branchId : null, liveOwed);
 
   // Live balance subscription for contact-supplier mode
   useEffect(() => {
@@ -235,23 +239,16 @@ export function MultiMethodPaymentDialog({
         </DialogHeader>
 
         <div className="space-y-3">
-          {/* Supplier credit banner (when paying a supplier and we have credit with them) */}
-          {isContactOut && supplierCredit > 0 && (
-            <div className="card-elevated p-3 bg-success/10 border-success/30 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-success font-semibold">💰 مقدم لينا عند المورد</span>
-                <span className="font-bold text-success">{formatEGP(supplierCredit)}</span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                بينزّل رصيد المورد في الفرع ده.
-              </div>
-            </div>
+          {/* the account's ONE current balance, display only, and after this payment (owner PDF 2.6 option أ) */}
+          {mode.kind === "contact" && accountNet && (
+            <CurrentBalance net={accountNet.net} scope={accountNet.scope} label="الرصيد الحالي (للعرض فقط)" afterLabel="الرصيد بعد السند"
+              after={sumAmounts > 0 ? netAfter(accountNet.net, direction === "in" ? "receipt" : "payment", sumAmounts) : null} />
           )}
 
           {/* Header summary */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
             <div className="card-elevated p-2.5 text-center">
-              <div className="text-xs text-muted-foreground">المطلوب</div>
+              <div className="text-xs text-muted-foreground">{isContactOut ? "المبلغ المطلوب (جانب المورد)" : "المطلوب"}</div>
               <div className="font-bold">{formatEGP(effectiveRequired)}</div>
             </div>
             <div className="card-elevated p-2.5 text-center">
@@ -271,14 +268,14 @@ export function MultiMethodPaymentDialog({
             <div className="card-elevated p-3 bg-warning/10 border-warning border-2 text-sm space-y-1">
               <div className="font-bold text-warning flex items-center gap-2">⚠️ تنبيه: دفعة زائدة</div>
               <div className="text-xs">
-                هتدفع <b>{formatEGP(overpayAmount)}</b> أكتر من المتبقي. هتتسجل كـ<b> رصيد ليك عند المورد</b> وهتتخصم تلقائياً من أي فاتورة شراء جاية.
+                هتدفع <b>{formatEGP(overpayAmount)}</b> أكتر من المطلوب على جانب المورد. الزيادة بتتسجل في حسابه وبتبان في «الرصيد بعد السند».
               </div>
             </div>
           )}
           {/* Fully paid notice */}
           {isContactOut && effectiveRequired <= 0.01 && supplierCredit === 0 && (
             <div className="card-elevated p-3 bg-success/10 border-success/30 text-sm text-center text-success font-semibold">
-              ✓ كل المستحقات على المورد ده مدفوعة
+              ✓ جانب المورد مسدد — مفيش مبلغ مطلوب
             </div>
           )}
 
