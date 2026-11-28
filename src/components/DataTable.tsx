@@ -62,8 +62,8 @@ interface DataTableProps<T> {
   onView?: (rows: T[] | null) => void;
   /** Below 768 px show each row as a card (src/components/table/MobileCards.tsx); desktop unchanged. */
   mobileCards?: boolean;
-  /** «⋮» per row: the «إجراءات» buttons of a row (two or more) become one menu — owner PDF 2026-11-28, pilot on the
-   *  document tables (Invoices) before every other table */
+  /** «⋮» per row: the «إجراءات» buttons of a row (two or more) become one menu on every table (owner 2026-11-28
+   *  «عممها على الكل»); `false` keeps the buttons in the row */
   rowMenu?: boolean;
 }
 
@@ -201,7 +201,7 @@ function DataTableInner<T>(
         <table
           ref={setTableEl}
           data-mcard={mobileCards ? "" : undefined}
-          data-row-menu={rowMenu ? "" : undefined}
+          data-no-row-menu={rowMenu === false ? "" : undefined}
           className={`w-full text-sm ${wide ? "lg:text-[13px]" : "md:text-base"} border-collapse ${wide ? "table-auto max-lg:[min-width:var(--dt-min-w)]" : "table-fixed"} ${tableClassName ?? ""}`}
           style={wide ? ({ ["--dt-min-w" as any]: minTableWidth } as CSSProperties) : undefined}
         >

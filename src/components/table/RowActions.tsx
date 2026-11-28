@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { holderOf } from "@/components/table/holder";
 
@@ -105,6 +105,17 @@ export function RowActionsLayer({ table, uid, cols }: { table: HTMLTableElement;
     document.addEventListener("pointerdown", away, true); document.addEventListener("keydown", esc); window.addEventListener("scroll", scroll, true);
     return () => { document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", esc); window.removeEventListener("scroll", scroll, true); };
   }, [open]);
+  // keep the whole menu on the screen: in RTL it opens towards the left of its ⋮, and the «إجراءات» column is the last
+  // one (the left edge), so a menu wider than the space there slides right until it fits (owner «اهم حاجة تنسيق»)
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!el || !open) return;
+    const r = el.getBoundingClientRect();
+    let right = open.right, top = open.top;
+    if (r.left < 4) right = Math.max(4, window.innerWidth - r.width - 4);
+    if (r.bottom > window.innerHeight - 4) top = Math.max(4, window.innerHeight - r.height - 4);
+    if (right !== open.right || top !== open.top) setOpen({ ...open, right, top });
+  }, [open]);
   const css = useMemo(() => cols.map((k) => `@media (min-width: 768px) {
   [data-cr="${uid}"] > tbody > tr > td:nth-child(${k})[data-ra]:not([data-ra-show]) > *:not([data-ra-holder]) { display: none !important; }
   [data-cr="${uid}"] > tbody > tr > td:nth-child(${k})[data-ra] { text-align: center; }
@@ -138,7 +149,7 @@ export function RowActionsLayer({ table, uid, cols }: { table: HTMLTableElement;
       {open && createPortal(
         <div ref={menuRef} role="menu" dir="rtl" data-testid="row-actions-menu" onClick={(e) => e.stopPropagation()}
           className="fixed z-[120] min-w-44 max-w-64 rounded-lg border bg-popover p-1 text-[13px] shadow-lg"
-          style={{ top: Math.min(open.top, window.innerHeight - 40 * (open.items.length + 1)), right: open.right }}>
+          style={{ top: open.top, right: open.right }}>
           {open.items.length === 0 && <div className="px-2 py-1.5 text-muted-foreground">مفيش إجراءات</div>}
           {open.items.map((it, i) => (
             <div key={i}>

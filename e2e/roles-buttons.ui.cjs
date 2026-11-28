@@ -161,6 +161,11 @@ function filt(rows, url) {
 async function open(browser, db, me) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: "ar-EG", acceptDownloads: true });
   const page = await ctx.newPage();
+  // these checks look for a row's own buttons: keep them in the row, except where `keepRowMenu` is set (the «⋮» check)
+  await ctx.addInitScript(() => {
+    const on = () => { if (sessionStorage.getItem("keepRowMenu") !== "1") document.documentElement?.setAttribute("data-no-row-menu", ""); };
+    on(); document.addEventListener("readystatechange", on);
+  });
   page.on("pageerror", (e) => db.calls.push({ pageerror: String(e).slice(0, 300) }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   await ctx.route(`${SB}/**`, async (route) => {
@@ -230,7 +235,12 @@ async function open(browser, db, me) {
 
 const results = [];
 const check = (name, ok, extra = "") => results.push(`${ok ? "✅" : "❌"} ${name}${extra ? " — " + extra : ""}`);
-const vis = (loc) => loc.first().isVisible().catch(() => false);
+// a row button the «⋮» menu holds (hidden in its cell, owner 2026-11-28) counts as shown: it is in the menu
+const vis = async (loc) => {
+  if (await loc.first().isVisible().catch(() => false)) return true;
+  if (!(await loc.count().catch(() => 0))) return false;
+  return loc.first().evaluate((el) => !!el.closest("td[data-ra]"), null, { timeout: 2000 }).catch(() => false);
+};
 const settle = async (page) => { await page.waitForLoadState("networkidle").catch(() => {}); await page.waitForTimeout(1200); };
 
 const ME = "a9000000-0000-4000-8000-000000000001";
@@ -309,6 +319,7 @@ async function countChecks(page, label, sc) {
     await look("تعديل الصنف", p.editProduct, page.getByTitle("تعديل بيانات المنتج"));
     await look("أرشفة الصنف", p.archiveProduct, page.getByTitle("حذف / أرشفة المنتج"));
     // sales list: cancel
+    await page.evaluate(() => sessionStorage.setItem("keepRowMenu", "1"));
     await page.goto(`${BASE}/branch/${B1}/invoices?tab=sale`); await settle(page);
     // the document tables group a row's buttons in ONE «⋮» menu (owner PDF 2026-11-28): look inside it
     {
@@ -341,6 +352,7 @@ async function countChecks(page, label, sc) {
         check("⋮ فواتير البيع: «تأكيد» بيفتح نافذة الإلغاء الأصلية (برا القايمة)", (await page.getByRole("dialog").count()) >= 1 && (await page.getByTestId("row-actions-menu").count()) === 0);
         await page.keyboard.press("Escape"); await page.waitForTimeout(150);
       }
+      await page.evaluate(() => sessionStorage.removeItem("keepRowMenu"));
     }
     await page.goto(`${BASE}/branch/${B1}/pre-orders`); await settle(page);
     await look("«حجز جديد»", p.newPreorder, page.getByRole("button", { name: "حجز جديد", exact: true }));

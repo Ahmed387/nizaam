@@ -102,6 +102,8 @@ function filt(rows, url) {
 
 async function open(browser, db, me) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, locale: "ar-EG" });
+  // these checks click a row's own buttons: keep them in the row (the «⋮» menu itself is tested in column-resize / roles-buttons)
+  await ctx.addInitScript(() => { const on = () => document.documentElement?.setAttribute("data-no-row-menu", ""); on(); document.addEventListener("readystatechange", on); });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => db.calls.push({ pageerror: String(e).slice(0, 300) + " @after " + JSON.stringify(db.calls.slice(-3).map((c) => c.rpc || c.table)) + " " + String(e.stack || "").split("\n").slice(1, 6).join(" | ") }));
   await ctx.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());

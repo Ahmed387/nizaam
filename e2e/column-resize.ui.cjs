@@ -281,10 +281,38 @@ const th = (page, label) => page.locator("table[data-cr] thead th").filter({ has
   await page.getByTestId("cols-all").click();
   await page.keyboard.press("Escape"); await page.waitForTimeout(150);
 
-  // 13. the «⋮» row menu is a pilot on the document tables (Invoices): this table keeps its own row buttons
-  const raHere = await page.getByTestId("row-actions").count();
-  const ownBtns = await page.locator("table[data-cr] > tbody > tr").first().locator("td").last().getByRole("button").count();
-  check("13. جدول مش في التجربة: أزرار الصف زي ما هي (مفيش ⋮)", raHere === 0 && ownBtns >= 1, `⋮=${raHere}, أزرار=${ownBtns}`);
+  // 12d. after the reloads / hides above, the columns nobody sized still show their whole number (no «…» on amounts)
+  const cutNums = await page.evaluate(() => {
+    const t = document.querySelector("table[data-cr]");
+    const ths = Array.from(t.querySelectorAll(":scope > thead > tr:last-child > th"));
+    const out = [];
+    ["الإجمالي", "قبل الضريبة", "الضريبة"].forEach((name) => {
+      const i = ths.findIndex((th) => { const c = th.cloneNode(true); c.querySelectorAll("[data-xf-ui]").forEach((n) => n.remove()); return c.textContent.trim() === name; });
+      if (i < 0) return;
+      t.querySelectorAll(`:scope > tbody > tr > td:nth-child(${i + 1})`).forEach((td) => { if (td.scrollWidth > td.clientWidth + 1) out.push(name + ":" + td.innerText.trim()); });
+    });
+    return out;
+  });
+  check("12d. الأعمدة اللي محدش غيّرها أرقامها كاملة (مفيش «…»)", cutNums.length === 0, cutNums.slice(0, 4).join(" | "));
+
+  // 13. row buttons in ONE ⋮ menu (every table, owner 2026-11-28 «عممها على الكل»)
+  const ra = page.getByTestId("row-actions").first();
+  const raCount = await page.getByTestId("row-actions").count();
+  const rawHidden = await page.evaluate(() => {
+    const td = document.querySelector("table[data-cr] > tbody > tr > td [data-ra-button]")?.closest("td");
+    return td ? Array.from(td.children).filter((c) => !c.hasAttribute("data-ra-holder")).every((c) => getComputedStyle(c).display === "none") : false;
+  });
+  check("13. كل صف فيه زرار ⋮ واحد بدل الزراير", raCount >= 1 && rawHidden, `${raCount} صف`);
+  await ra.click(); await page.waitForTimeout(150);
+  const raItems = await page.locator('[data-testid="row-actions-menu"] [role=menuitem]').allInnerTexts();
+  check("13a. القايمة بتفتح وفيها إجراءات الصف", raItems.length >= 2, raItems.join(" | "));
+  const menuBox = await page.getByTestId("row-actions-menu").boundingBox();
+  check("13c. قايمة ⋮ كلها جوه الشاشة (مش طالعة برا)", !!menuBox && menuBox.x >= 0 && menuBox.x + menuBox.width <= 1440 && menuBox.y + menuBox.height <= 1000, JSON.stringify(menuBox));
+  await shot(page, "row-menu");
+  await page.locator('[data-testid="row-actions-menu"] [role=menuitem]').filter({ hasText: "تفاصيل الفاتورة" }).click();
+  await page.waitForTimeout(600);
+  check("13b. اختيار من القايمة بيشغّل زرار الصف نفسه (فتح التفاصيل)", /\/admin\/eta-invoices\/.+/.test(new URL(page.url()).pathname), new URL(page.url()).pathname);
+  await page.goBack(); await settle(page);
 
   // 14. option ج: a smaller screen shrinks the saved widths in proportion (no sideways scroll surprise)
   const wideW = await widths(page);

@@ -27,7 +27,7 @@ export { holderOf };
  * (`KIND_MIN`); widths saved on a wider frame shrink in proportion on a narrower one (option ج, saved with `__box`); the
  * row-height handle is gone (rows have one fixed height); «الأعمدة» has search, «أساسي / تفاصيل» groups with switches and
  * «مختصر / الكل»; every title has a ⋯ menu (تثبيت العمود / ملاءمة المحتوى / إخفاء العمود / إعادة ضبط المقاس; pins in
- * `colp:v1:…`); the «إجراءات» column becomes one ⋮ menu per row (`RowActionsLayer`, on tables marked `data-row-menu` — DataTable `rowMenu`).
+ * `colp:v1:…`); the «إجراءات» column becomes one ⋮ menu per row (`RowActionsLayer`, every table; opt out with `data-no-row-menu` — DataTable `rowMenu={false}`).
  */
 type Head = { el: HTMLTableCellElement; idx: number; label: string };
 
@@ -153,22 +153,35 @@ export function ColumnResizeLayer({ table, storageId }: { table: HTMLTableElemen
   const kindOf = (label: string): ColKind => kinds[label]?.kind ?? "text";
   const minOf = (label: string) => KIND_MIN[kindOf(label)];
   const active = heads.some((h) => widths[h.label] != null);
-  // natural widths of the columns that were not resized, measured once when resizing starts (and when the header changes)
+  // natural widths of the columns that were not resized: ALWAYS measured with our widths switched off for a moment (auto
+  // layout, as the page made them) — measuring under our own sheet froze whatever it showed, e.g. a reload before the rows
+  // arrived cut every number with «…» (owner PDF review 2026-11-28). Re-measured whenever the rows / header change.
   const natural = useRef<Record<string, number>>({});
-  useEffect(() => { natural.current = {}; }, [sig]);
-  const measure = useCallback(() => {
-    // frozen as they are (a narrow check-box column stays narrow); the kind's minimum only limits a column being dragged
-    heads.forEach((h) => { if (natural.current[h.label] == null) natural.current[h.label] = Math.max(16, Math.ceil(h.el.getBoundingClientRect().width)); });
-  }, [heads]);
-
-  // a column put back to its natural width: measure it with our widths switched off for a moment (the table is fixed by
-  // then, so its own width says nothing); the other columns keep the widths they had
   const styleRef = useRef<HTMLStyleElement | null>(null);
+  const measureAll = useCallback(() => {
+    const sheet = styleRef.current?.sheet;
+    if (sheet) sheet.disabled = true;
+    heads.forEach((h) => {
+      const w = Math.ceil(h.el.getBoundingClientRect().width);
+      if (w >= 1) natural.current[h.label] = Math.max(16, w);   // a hidden column keeps what it had
+    });
+    if (sheet) sheet.disabled = false;
+  }, [heads]);
+  const measure = useCallback(() => {
+    if (heads.some((h) => natural.current[h.label] == null)) measureAll();
+  }, [heads, measureAll]);
+  useEffect(() => { natural.current = {}; }, [sig]);
+  useEffect(() => {
+    if (!active || !heads.length) return;
+    measureAll();
+    setTick((t) => t + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kinds, sig, hidden.join("|")]);
   const naturalAgain = (label: string) => {
     const sheet = styleRef.current?.sheet;
     if (sheet) sheet.disabled = true;
     const h = heads.find((x) => x.label === label);
-    if (h) natural.current[label] = Math.max(16, Math.ceil(h.el.getBoundingClientRect().width));
+    if (h) { const w = Math.ceil(h.el.getBoundingClientRect().width); if (w >= 1) natural.current[label] = Math.max(16, w); }
     if (sheet) sheet.disabled = false;
   };
 
@@ -428,8 +441,8 @@ ${cell} > div:not([class*="flex"]), ${cell} > p, ${cell} > a, ${cell} > [data-pe
               className="block w-full rounded px-2 py-1.5 text-right hover:bg-muted">{it.t}</button>
           ))}
         </div>, document.body)}
-      {/* pilot (PDF part 3 step 5): the document tables first (`data-row-menu`), every other table after the owner's look */}
-      {table.closest("[data-row-menu]") && heads.some((h) => kindOf(h.label) === "actions") && (
+      {/* every table (owner 2026-11-28 «عممها على الكل»); a table opts out with `data-no-row-menu` */}
+      {!table.closest("[data-no-row-menu]") && heads.some((h) => kindOf(h.label) === "actions") && (
         <RowActionsLayer table={table} uid={uid} cols={heads.filter((h) => kindOf(h.label) === "actions").map((h) => h.idx)} />
       )}
     </>
