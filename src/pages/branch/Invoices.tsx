@@ -1422,7 +1422,7 @@ export default function Invoices() {
                             docType={tab === "sale" ? "invoice" : "shipment"} ids={convert.ids} target={convert.target}
                             onDone={() => { setSelected(new Map()); load(); setMetricsTick((t) => t + 1); }} />
       )}
-      <DataTable mobileCards
+      <DataTable mobileCards rowMenu
         permPage="invoices"
         permTable={tab}
         loading={tableLoading}

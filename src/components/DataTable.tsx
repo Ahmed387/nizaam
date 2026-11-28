@@ -62,6 +62,9 @@ interface DataTableProps<T> {
   onView?: (rows: T[] | null) => void;
   /** Below 768 px show each row as a card (src/components/table/MobileCards.tsx); desktop unchanged. */
   mobileCards?: boolean;
+  /** «⋮» per row: the «إجراءات» buttons of a row (two or more) become one menu — owner PDF 2026-11-28, pilot on the
+   *  document tables (Invoices) before every other table */
+  rowMenu?: boolean;
 }
 
 function DataTableInner<T>(
@@ -85,6 +88,7 @@ function DataTableInner<T>(
     excel,
     onView,
     mobileCards,
+    rowMenu,
   }: DataTableProps<T>,
   ref: Ref<HTMLDivElement>
 ) {
@@ -197,31 +201,39 @@ function DataTableInner<T>(
         <table
           ref={setTableEl}
           data-mcard={mobileCards ? "" : undefined}
+          data-row-menu={rowMenu ? "" : undefined}
           className={`w-full text-sm ${wide ? "lg:text-[13px]" : "md:text-base"} border-collapse ${wide ? "table-auto max-lg:[min-width:var(--dt-min-w)]" : "table-fixed"} ${tableClassName ?? ""}`}
           style={wide ? ({ ["--dt-min-w" as any]: minTableWidth } as CSSProperties) : undefined}
         >
           <thead>
             <tr className={`bg-surface-2 border-b-2 border-border ${wide ? "sticky top-0 z-20 shadow-sm" : ""}`}>
               {indexColumn && (
-                <th style={{ width: indexWidth }} className="px-2 py-3.5 text-center text-xs font-extrabold text-foreground border-l border-border/60">#</th>
+                <th style={{ width: indexWidth }} className="px-2 py-3.5 text-center text-xs font-extrabold text-foreground">#</th>
               )}
               {columns.map((c, idx) => (
                 <th
                   key={c.key}
                   data-xf-col={c.key}
-                  draggable
-                  onDragStart={(e) => { if ((e.target as HTMLElement).closest?.("[role=separator],button,input")) { e.preventDefault(); return; } dragCol.current = c.key; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", c.key); } catch { /* ignore */ } }}
+                  data-actions={isActionsColumn(c) ? "" : undefined}
                   onDragOver={(e) => { if (dragCol.current && dragCol.current !== c.key) { e.preventDefault(); if (overCol !== c.key) setOverCol(c.key); } }}
                   onDragLeave={() => { if (overCol === c.key) setOverCol(null); }}
                   onDrop={(e) => { e.preventDefault(); dropCol(c.key); }}
                   onDragEnd={() => { dragCol.current = null; setOverCol(null); }}
-                  title="اسحب العنوان على عمود تاني عشان تنقله مكانه"
                   data-xf-kind={typeof c.filter === "string" ? c.filter : undefined}
                   data-xf-nofilter={c.filter === false || isActionsColumn(c) ? "" : undefined}
                   data-xf-sum={c.total === undefined ? undefined : c.total ? "1" : "0"}
-                  style={{ ...(c.width ? { width: c.width } : isActionsColumn(c) ? { width: "10rem" } : {}), ...(overCol === c.key ? { boxShadow: "inset 3px 0 0 hsl(var(--primary)), inset -3px 0 0 hsl(var(--primary))" } : {}) }}
-                  className={`${headPad} font-extrabold text-xs md:text-sm uppercase tracking-wider text-foreground ${textMode} ${idx > 0 ? "border-r border-border/60" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
+                  style={{ ...(c.width ? { width: c.width } : isActionsColumn(c) ? { width: "3.5rem" } : {}), ...(overCol === c.key ? { boxShadow: "inset 3px 0 0 hsl(var(--primary)), inset -3px 0 0 hsl(var(--primary))" } : {}) }}
+                  className={`group/th ${headPad} font-extrabold text-xs md:text-sm uppercase tracking-wider text-foreground ${textMode} ${alignClass(c.align)} ${c.className ?? ""}`}
                 >
+                  {/* «مقبض النقل»: a small pill above the title moves the column (the title itself no longer drags); its ⠿ is drawn
+                      by CSS so the column's name (read from the title's text by the filter and the widths) stays clean */}
+                  {!isActionsColumn(c) && (
+                    <span draggable data-col-pill="" data-xf-ignore="" data-no-print="" aria-label={`انقل العمود`} title="اسحب عشان تنقل العمود"
+                      onDragStart={(e) => { e.stopPropagation(); dragCol.current = c.key; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", c.key); } catch { /* ignore */ } }}
+                      onDragEnd={() => { dragCol.current = null; setOverCol(null); }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="print:hidden absolute left-1/2 top-0 -translate-x-1/2 z-[12] cursor-grab select-none rounded-b px-1.5 text-[9px] leading-[10px] tracking-[-1px] text-muted-foreground opacity-0 transition-opacity hover:bg-muted group-hover/th:opacity-80 before:content-['⠿']" />
+                  )}
                   {c.header}
                 </th>
               ))}
@@ -240,14 +252,14 @@ function DataTableInner<T>(
                     className={`border-b border-border/60 transition-colors hover:bg-primary/5 group ${onRowClick ? "cursor-pointer" : ""} ${i % 2 === 1 ? "bg-surface-2/30" : "bg-card"}`}
                   >
                     {indexColumn && (
-                      <td className="px-2 py-3 text-center align-middle font-semibold text-muted-foreground border-l border-border/40">
+                      <td className="px-2 py-3 text-center align-middle font-semibold text-muted-foreground">
                         {indexOffset + safePage * (pageSize ?? rows.length) + i + 1}
                       </td>
                     )}
                     {columns.map((c, idx) => (
                       <td
                         key={c.key}
-                        className={`${cellPad} align-middle ${textMode} ${idx > 0 ? "border-r border-border/40" : ""} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-wrap [&>div]:justify-center [&>div]:gap-1 [&_button]:h-8 [&_button]:min-w-8 [&_button]:px-2 [&_button]:whitespace-nowrap [&_button]:shrink-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
+                        className={`${cellPad} align-middle ${textMode} ${c.numeric ? "tabular-nums font-semibold whitespace-nowrap" : ""} ${isActionsColumn(c) ? "[&>div]:flex-wrap [&>div]:justify-center [&>div]:gap-1 [&_button]:h-8 [&_button]:min-w-8 [&_button]:px-2 [&_button]:whitespace-nowrap [&_button]:shrink-0" : ""} ${alignClass(c.align)} ${c.className ?? ""}`}
                       >
                         {c.render ? c.render(row) : ((row as any)[c.key] ?? "—")}
                       </td>

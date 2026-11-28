@@ -126,7 +126,7 @@ async function open(browser, db, me) {
 const results = [];
 const check = (name, ok, extra = "") => results.push(`${ok ? "✅" : "❌"} ${name}${extra ? " — " + extra : ""}`);
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   const db = makeDb();
   const { ctx, page } = await open(browser, db, OWNER);
   await page.goto(`${BASE}/admin/catalog?tab=images`); await page.waitForLoadState("networkidle").catch(() => {});

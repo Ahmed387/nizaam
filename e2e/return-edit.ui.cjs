@@ -119,7 +119,7 @@ const settle = async (page) => { await page.waitForLoadState("networkidle").catc
 const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: true });
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   const db = makeDb();
   const { ctx, page } = await open(browser, db, OWNER);
 

@@ -128,10 +128,13 @@ const widths = (page) => page.evaluate(() => {
   const t = document.querySelector("table[data-cr]");
   const out = {};
   t.querySelectorAll(":scope > thead > tr:last-child > th").forEach((th, i) => {
-    const label = (th.querySelector("[data-perm-label]")?.textContent ?? th.textContent ?? "").replace(/\s+/g, " ").trim() || `#${i}`;
+    const c = (th.querySelector("[data-perm-label]") ?? th).cloneNode(true);
+    c.querySelectorAll("[data-xf-ui]").forEach((n) => n.remove());
+    const label = (c.textContent ?? "").replace(/\s+/g, " ").trim() || `#${i}`;
     out[label] = Math.round(th.getBoundingClientRect().width);
   });
   out.__table = Math.round(t.getBoundingClientRect().width);
+  out.__frame = Math.round(t.parentElement.clientWidth);
   return out;
 });
 const th = (page, label) => page.locator("table[data-cr] thead th").filter({ hasText: label }).first();
@@ -174,10 +177,13 @@ const th = (page, label) => page.locator("table[data-cr] thead th").filter({ has
   await page.mouse.move(box.x + box.width / 2 + 160, box.y + box.height / 2, { steps: 6 });
   await page.mouse.up(); await page.waitForTimeout(200);
   const after = await widths(page);
-  const others = Object.keys(before).filter((k) => k !== "المورد" && k !== "__table");
+  const others = Object.keys(before).filter((k) => k !== "المورد" && !k.startsWith("__"));
   const moved = others.filter((k) => Math.abs(after[k] - before[k]) > 2);
-  check("3a. باقي الأعمدة مقاسها زي ما هو (بتتزق بس)", moved.length === 0, moved.map((k) => `${k}: ${before[k]}→${after[k]}`).join(", "));
-  check("3b. الجدول قصر بنفس الفرق (± بكسل لكل عمود من التقريب)", Math.abs((before.__table - after.__table) - (before["المورد"] - after["المورد"])) <= others.length + 1, `${before.__table} → ${after.__table}`);
+  // PDF decision 1: ONE flexible column (the text column with the longest content) takes the space the narrowed one left
+  const grew = moved.filter((k) => after[k] > before[k]);
+  check("3a. باقي الأعمدة مقاسها زي ما هو — ماعدا عمود مرن واحد بياخد الفراغ", moved.length <= 1 && (after.__table > after.__frame - 2 ? true : moved.length === 0),
+    moved.map((k) => `${k}: ${before[k]}→${after[k]}`).join(", "));
+  check("3b. مفيش فراغ فاضي: الجدول مالي الإطار", after.__table >= after.__frame - 2 && (grew.length === 1 || before.__table > before.__frame + 2), `${after.__table} / ${after.__frame} — المرن: ${grew.join("") || "—"}`);
   const cutOthers = await page.evaluate(() => {
     const t = document.querySelector("table[data-cr]");
     const heads = Array.from(t.querySelectorAll(":scope > thead > tr:last-child > th")).map((x) => x.textContent.trim());
@@ -222,7 +228,7 @@ const th = (page, label) => page.locator("table[data-cr] thead th").filter({ has
   await page.mouse.move(b3.x + b3.width / 2, b3.y + b3.height / 2); await page.mouse.down();
   await page.mouse.move(b3.x + 600, b3.y + b3.height / 2, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(200);
   const after3 = await widths(page);
-  check("6. أقل عرض 36 بكسل (العنوان يتقص)", after3["التاريخ"] >= 34 && after3["التاريخ"] <= 40, String(after3["التاريخ"]));
+  check("6. أقل عرض حسب نوع العمود (التاريخ 72)", after3["التاريخ"] >= 70 && after3["التاريخ"] <= 76, String(after3["التاريخ"]));
 
   // 7. kept after reload; double-click puts the column back
   await page.reload(); await settle(page);
@@ -231,8 +237,63 @@ const th = (page, label) => page.locator("table[data-cr] thead th").filter({ has
   await th(page, "التاريخ").locator('[data-cr-grip="end"]').scrollIntoViewIfNeeded();
   await th(page, "التاريخ").locator('[data-cr-grip="end"]').dblclick(); await page.waitForTimeout(250);
   const reset = await widths(page);
-  check("7a. دبل كليك على الخط يرجّع العمود لمقاسه", reset["التاريخ"] > 60, String(reset["التاريخ"]));
+  check("7a. دبل كليك على الخط يرجّع العمود لمقاسه", reset["التاريخ"] > 76, String(reset["التاريخ"]));
   check("7b. الخط مطفي بعد ما سبت السحب", lineAfter >= 0 && (await th(page, "المورد").locator('[data-cr-grip="end"] > span').evaluate((s) => Number(getComputedStyle(s).opacity))) === 0);
+
+  // 10. the row-height handle is gone; no vertical column lines in DataTable
+  const noRow = await page.evaluate(() => ({
+    rowGrip: document.querySelectorAll('table[data-cr] [role=separator][aria-orientation="horizontal"]').length,
+    borders: Array.from(document.querySelectorAll("table[data-cr] > tbody > tr:first-child > td")).filter((td) => parseFloat(getComputedStyle(td).borderRightWidth) > 0 || parseFloat(getComputedStyle(td).borderLeftWidth) > 0).length,
+  }));
+  check("10. مقبض ارتفاع الصف اتشال، ومفيش خطوط رأسية بين الأعمدة", noRow.rowGrip === 0 && noRow.borders === 0, JSON.stringify(noRow));
+
+  // 11. the ⋯ of a title: pin the column (it sticks on scroll), then hide it and show it again from «الأعمدة»
+  await th(page, "الفاتورة").hover(); await page.waitForTimeout(100);
+  await th(page, "الفاتورة").locator("[data-cr-more]").click();
+  const items = await page.locator('[data-testid="col-menu"] [role=menuitem]').allInnerTexts();
+  check("11. قايمة ⋯ فيها: تثبيت / ملاءمة المحتوى / إخفاء / إعادة ضبط المقاس", ["تثبيت العمود", "ملاءمة المحتوى", "إخفاء العمود", "إعادة ضبط المقاس"].every((x) => items.includes(x)), items.join(" | "));
+  await page.getByTestId("col-menu-pin").click(); await page.waitForTimeout(200);
+  const pin = await th(page, "الفاتورة").evaluate((x) => ({ pos: getComputedStyle(x).position, tag: !!x.querySelector("[data-cr-pin-tag]") }));
+  check("11a. «تثبيت العمود»: العمود sticky وعليه «مثبّت»", pin.pos === "sticky" && pin.tag, JSON.stringify(pin));
+  await th(page, "الفاتورة").hover(); await th(page, "الفاتورة").locator("[data-cr-more]").click();
+  await page.getByTestId("col-menu-pin").click(); await page.waitForTimeout(150);
+  const vatHead = page.locator("table[data-cr] thead th").filter({ hasText: /^الضريبة/ }).first();
+  await vatHead.hover(); await vatHead.locator("[data-cr-more]").click();
+  await page.getByTestId("col-menu-hide").click(); await page.waitForTimeout(200);
+  const vatGone = await widths(page);
+  check("11b. «إخفاء العمود» من ⋯", vatGone["الضريبة"] === 0 || vatGone["الضريبة"] === undefined, String(vatGone["الضريبة"]));
+
+  // 12. «الأعمدة»: search, groups, «مختصر» / «الكل»
+  await page.getByTestId("cols-button").first().click(); await page.waitForTimeout(150);
+  const menuText = await page.getByTestId("cols-menu").innerText();
+  check("12. قايمة الأعمدة فيها بحث ومجموعات «أساسي / تفاصيل» و«مختصر / الكل»", /أساسي/.test(menuText) && /مختصر/.test(menuText) && /الكل/.test(menuText) && (await page.getByTestId("cols-search").count()) === 1, menuText.slice(0, 80));
+  await page.getByTestId("cols-search").fill("ضريب");
+  const found = await page.locator('[data-testid="cols-menu"] [role=switch]').count();
+  check("12a. البحث في الأعمدة («ضريب» → عمودين الضريبة)", found === 2, String(found));
+  await page.getByTestId("cols-search").fill("");
+  await page.getByTestId("cols-all").click(); await page.waitForTimeout(150);
+  const allBack = await widths(page);
+  check("12b. «الكل» يرجّع الأعمدة المخفية", allBack["الضريبة"] > 0, String(allBack["الضريبة"]));
+  await page.getByTestId("cols-short").click(); await page.waitForTimeout(150);
+  const short = await widths(page);
+  const shownShort = Object.keys(short).filter((k) => !k.startsWith("__") && short[k] > 0);
+  check("12c. «مختصر» يسيب الأعمدة الأساسية بس", shownShort.length < Object.keys(allBack).filter((k) => !k.startsWith("__")).length && shownShort.some((k) => k.includes("المورد")), shownShort.join(" | "));
+  await page.getByTestId("cols-all").click();
+  await page.keyboard.press("Escape"); await page.waitForTimeout(150);
+
+  // 13. the «⋮» row menu is a pilot on the document tables (Invoices): this table keeps its own row buttons
+  const raHere = await page.getByTestId("row-actions").count();
+  const ownBtns = await page.locator("table[data-cr] > tbody > tr").first().locator("td").last().getByRole("button").count();
+  check("13. جدول مش في التجربة: أزرار الصف زي ما هي (مفيش ⋮)", raHere === 0 && ownBtns >= 1, `⋮=${raHere}, أزرار=${ownBtns}`);
+
+  // 14. option ج: a smaller screen shrinks the saved widths in proportion (no sideways scroll surprise)
+  const wideW = await widths(page);
+  await page.setViewportSize({ width: 1000, height: 900 }); await page.waitForTimeout(500);
+  const narrowW = await widths(page);
+  const ratio = narrowW["المورد"] / wideW["المورد"], frameRatio = narrowW.__frame / wideW.__frame;
+  check("14. شاشة أصغر: المقاسات بتصغر بنسبة لوحدها (نفس نسبة الإطار)", ratio < 1 && Math.abs(ratio - frameRatio) < 0.03, `المورد ${wideW["المورد"]}→${narrowW["المورد"]}, الجدول ${narrowW.__table} / ${narrowW.__frame}`);
+  await shot(page, "resize-3-narrow-screen");
+  await page.setViewportSize({ width: 1400, height: 900 }); await page.waitForTimeout(300);
 
   // 8. the other tables of the page get it too (suppliers tab)
   await page.getByRole("tab", { name: /الموردين/ }).click(); await settle(page);

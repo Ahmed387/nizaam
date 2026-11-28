@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { autoPartId, useCurrentPermPage, usePermCustomize } from "@/contexts/PermCustomize";
+import { headLabel } from "@/components/table/holder";
 import { partKey } from "@/lib/permissionCatalog";
 
 /**
@@ -80,7 +81,7 @@ function PermTableInner({ page, permTable, tableRef, children, ...props }: Props
         const th = cell as HTMLTableCellElement;
         idx += 1;
         const span = th.colSpan || 1;
-        const label = (th.querySelector("[data-perm-label]")?.textContent ?? th.textContent ?? "").replace(/\s+/g, " ").trim();
+        const label = headLabel(th);
         if (span === 1 && !FIXED.test(label)) {
           next.push({ el: th, idx, label, key: partKey(page, autoPartId(permTable ? `col_${permTable.toLowerCase().replace(/[^a-z0-9_]/g, "_")}` : "col", label)) });
         }

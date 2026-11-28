@@ -168,7 +168,7 @@ const num = (s) => Number(String(s).replace(/[^\d.-]/g, ""));
 const fmt = (n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   const db = makeDb();
   const live = db.invoices.filter((r) => r.status !== "cancelled");
   const usama = live.filter((r) => r.contacts?.name === "اسامة الراعى الصالح");

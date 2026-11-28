@@ -98,7 +98,7 @@ const settle = async (page) => { await page.waitForLoadState("networkidle").catc
 const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: false });
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   // 1) owner — the new employees screen, per branch
   let db = makeDb();
   let { ctx, page } = await open(browser, db, OWNER);

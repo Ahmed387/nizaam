@@ -145,7 +145,7 @@ const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: f
 const fmt = (n) => n.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   const db = makeDb();
   DB = db;
   const { ctx, page } = await open(browser, db, OWNER);

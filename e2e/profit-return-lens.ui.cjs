@@ -103,7 +103,7 @@ const check = (name, ok, extra = "") => results.push(`${ok ? "✅" : "❌"} ${na
 const settle = async (page) => { await page.waitForLoadState("networkidle").catch(() => {}); await page.waitForTimeout(1200); };
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   const db = makeDb();
   const { ctx, page } = await open(browser, db, OWNER);
   await page.goto(`${BASE}/branch/${B1}/dashboard`); await settle(page);

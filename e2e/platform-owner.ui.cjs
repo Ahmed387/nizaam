@@ -133,7 +133,7 @@ async function shot(page, name) { await page.screenshot({ path: `${OUT}/${name}.
 async function settle(page) { await page.waitForLoadState("networkidle").catch(() => {}); await page.waitForTimeout(700); }
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   // ---------- 1. platform owner ----------
   let s = world("super");
   let { ctx, page } = await open(browser, s, "super");

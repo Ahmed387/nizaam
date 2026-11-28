@@ -310,7 +310,38 @@ async function countChecks(page, label, sc) {
     await look("أرشفة الصنف", p.archiveProduct, page.getByTitle("حذف / أرشفة المنتج"));
     // sales list: cancel
     await page.goto(`${BASE}/branch/${B1}/invoices?tab=sale`); await settle(page);
-    await look("إلغاء فاتورة البيع", p.cancelSale, page.getByTitle("إلغاء الفاتورة (مع رد المدفوع)"));
+    // the document tables group a row's buttons in ONE «⋮» menu (owner PDF 2026-11-28): look inside it
+    {
+      const ra = page.getByTestId("row-actions").first();
+      let v;
+      if (await ra.count()) {
+        await ra.click(); await page.waitForTimeout(150);
+        v = (await page.locator('[data-testid="row-actions-menu"] [role=menuitem]').filter({ hasText: "إلغاء الفاتورة" }).count()) > 0;
+        await page.keyboard.press("Escape");
+      } else v = await vis(page.getByTitle("إلغاء الفاتورة (مع رد المدفوع)"));
+      check(`${p.label}: إلغاء فاتورة البيع ${p.cancelSale ? "ظاهر" : "مخفي"}`, v === p.cancelSale, `ظاهر=${v}`);
+      // the menu itself, once (a role that can cancel): the row's own buttons hidden, the dangerous one last in red,
+      // «تأكيد …؟» first, then the real button runs (its dialog opens outside the menu)
+      if (p.cancelSale && !globalThis.__raChecked && (await ra.count())) {
+        globalThis.__raChecked = true;
+        const own = await page.evaluate(() => {
+          const td = document.querySelector("[data-ra-button]")?.closest("td");
+          return td ? Array.from(td.children).filter((c) => !c.hasAttribute("data-ra-holder")).every((c) => getComputedStyle(c).display === "none") : false;
+        });
+        check("⋮ فواتير البيع: أزرار الصف مستخبية وفيه ⋮ واحد", own);
+        await ra.click(); await page.waitForTimeout(150);
+        const items = page.locator('[data-testid="row-actions-menu"] [role=menuitem]');
+        const texts = await items.allInnerTexts();
+        const last = items.last();
+        const red = await last.evaluate((b) => b.className.includes("text-destructive"));
+        check("⋮ فواتير البيع: الإلغاء آخر واحد وبالأحمر", /إلغاء/.test(texts[texts.length - 1] ?? "") && red, texts.join(" | "));
+        await last.click(); await page.waitForTimeout(150);
+        check("⋮ فواتير البيع: الإلغاء بيسأل «تأكيد …؟» الأول", (await page.getByTestId("row-action-confirm").count()) === 1 && (await page.getByRole("dialog").count()) === 0);
+        await page.getByTestId("row-action-confirm-yes").click(); await page.waitForTimeout(400);
+        check("⋮ فواتير البيع: «تأكيد» بيفتح نافذة الإلغاء الأصلية (برا القايمة)", (await page.getByRole("dialog").count()) >= 1 && (await page.getByTestId("row-actions-menu").count()) === 0);
+        await page.keyboard.press("Escape"); await page.waitForTimeout(150);
+      }
+    }
     await page.goto(`${BASE}/branch/${B1}/pre-orders`); await settle(page);
     await look("«حجز جديد»", p.newPreorder, page.getByRole("button", { name: "حجز جديد", exact: true }));
     await page.goto(`${BASE}/branch/${B1}/transfers`); await settle(page);

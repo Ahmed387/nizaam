@@ -101,7 +101,7 @@ const settle = async (page) => { await page.waitForLoadState("networkidle").catc
 const shot = (page, n) => page.screenshot({ path: `${OUT}/${n}.png`, fullPage: false });
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.CHROME ? { executablePath: process.env.CHROME } : {});
   const db = makeDb();
   db.permission_templates = [{ id: "tpl-1", tenant_id: T, name: "مندوب مبيعات", base_role: "cashier", perms: { "treasury.view": false } }];
   const { ctx, page } = await open(browser, db, OWNER);
